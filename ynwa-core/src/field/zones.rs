@@ -6,7 +6,7 @@ use uom::si::length::meter;
 /// - X: field width (left-right)
 /// - Y: height (up)
 /// - Z: field length (team A to team B)
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct Point3D {
     pub x: Length,
     pub y: Length,
