@@ -6,6 +6,7 @@ edition.workspace = true
 [dependencies]
 ynwa-core = { path = "../ynwa-core" }
 uom = { version = "0.36", features = ["f32"] }
+macroquad = "0.4"
 
 [[bin]]
 name = "ynwa-player"
