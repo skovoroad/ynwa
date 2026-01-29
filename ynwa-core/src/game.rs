@@ -64,12 +64,16 @@ impl Game {
         let player_states = config.players.iter()
             .map(|_| PlayerState::default())
             .collect();
+        let referee_states = config.referees.iter()
+            .map(|_| RefereeState::default())
+            .collect();
 
         Self {
             state: GameState {
                 elapsed_time: 0.0,
                 player_states,
                 ball_state: BallState::default(),
+                referee_states,
             },
             config,
         }
@@ -102,6 +106,7 @@ mod tests {
                 PlayerDef { team: Team::B },
             ],
             ball: BallDef::default(),
+            referees: vec![RefereeDef::default()],
         }
     }
 
