@@ -1,0 +1,11 @@
+[package]
+name = "ynwa-player"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+ynwa-core = { path = "../ynwa-core" }
+
+[[bin]]
+name = "ynwa-player"
+path = "src/main.rs"

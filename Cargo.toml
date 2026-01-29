@@ -1,6 +1,11 @@
-[package]
-name = "ynwa"
+[workspace]
+resolver = "2"
+members = [
+    "ynwa-core",
+    "ynwa-player",
+]
+
+[workspace.package]
 version = "0.1.0"
 edition = "2021"
-
-[dependencies]
+authors = ["YNWA Team"]

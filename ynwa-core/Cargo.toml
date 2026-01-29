@@ -1,0 +1,8 @@
+[package]
+name = "ynwa-core"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+
+[lib]
