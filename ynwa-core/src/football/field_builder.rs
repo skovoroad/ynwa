@@ -24,10 +24,12 @@ pub fn create_football_field() -> Field {
 
 /// Creates a football field with custom dimensions and FIFA-proportional zones
 pub fn create_football_field_with_dimensions(length: f32, width: f32) -> Field {
+    type ZoneSpec = (&'static str, Option<Team>, Box<dyn Fn() -> ZoneGeometry>);
+    
     let half_length = length / 2.0;
     let half_width = width / 2.0;
 
-    let zones: Vec<(&str, Option<Team>, Box<dyn Fn() -> ZoneGeometry>)> = vec![
+    let zones: Vec<ZoneSpec> = vec![
         (
             "field",
             None,
