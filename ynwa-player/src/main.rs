@@ -31,38 +31,41 @@ fn render_field(field: &ynwa_core::field::Field) {
     let screen_w = screen_width();
     let screen_h = screen_height();
 
-    let field_length = field.length().get::<meter>();
-    let field_width = field.width().get::<meter>();
+    let field_length = field.length().get::<meter>(); // 100m (Team A → Team B)
+    let field_width = field.width().get::<meter>();   // 60m
 
     // Calculate scale with margins
     let margin = 50.0;
-    let scale_x = (screen_w - 2.0 * margin) / field_length;
-    let scale_y = (screen_h - 2.0 * margin) / field_width;
+    // Vertical orientation: width→screenX, length→screenY
+    let scale_x = (screen_w - 2.0 * margin) / field_width;
+    let scale_y = (screen_h - 2.0 * margin) / field_length;
     let scale = scale_x.min(scale_y);
 
     // Convert field coords to screen coords
-    let to_screen_x = |x: f32| margin + x * scale;
-    let to_screen_y = |z: f32| margin + z * scale;
+    // Field Z (width, cross-field) → Screen X
+    // Field X (length, Team A→B) → Screen Y
+    let to_screen_x = |field_z: f32| margin + field_z * scale;
+    let to_screen_y = |field_x: f32| margin + field_x * scale;
 
     let white = Color::new(1.0, 1.0, 1.0, 1.0);
 
-    // Draw field boundary
+    // Draw field boundary (vertical)
     draw_rectangle_lines(
         to_screen_x(0.0),
         to_screen_y(0.0),
-        field_length * scale,
         field_width * scale,
+        field_length * scale,
         2.0,
         white,
     );
 
-    // Draw center line
+    // Draw center line (horizontal)
     let half_length = field_length / 2.0;
     draw_line(
-        to_screen_x(half_length),
-        to_screen_y(0.0),
-        to_screen_x(half_length),
-        to_screen_y(field_width),
+        to_screen_x(0.0),
+        to_screen_y(half_length),
+        to_screen_x(field_width),
+        to_screen_y(half_length),
         1.0,
         white,
     );
@@ -76,11 +79,12 @@ fn render_field(field: &ynwa_core::field::Field) {
                 let max_x = rect.max.x.get::<meter>();
                 let max_z = rect.max.z.get::<meter>();
 
+                // Z→screenX, X→screenY
                 draw_rectangle_lines(
-                    to_screen_x(min_x),
-                    to_screen_y(min_z),
-                    (max_x - min_x) * scale,
+                    to_screen_x(min_z),
+                    to_screen_y(min_x),
                     (max_z - min_z) * scale,
+                    (max_x - min_x) * scale,
                     1.0,
                     white,
                 );
@@ -90,13 +94,13 @@ fn render_field(field: &ynwa_core::field::Field) {
                 let cz = circle.center.z.get::<meter>();
                 let radius = circle.radius.get::<meter>();
 
-                draw_circle_lines(to_screen_x(cx), to_screen_y(cz), radius * scale, 1.0, white);
+                draw_circle_lines(to_screen_x(cz), to_screen_y(cx), radius * scale, 1.0, white);
             }
             ZoneGeometry::Point(point) => {
                 let px = point.position.x.get::<meter>();
                 let pz = point.position.z.get::<meter>();
 
-                draw_circle(to_screen_x(px), to_screen_y(pz), 3.0, white);
+                draw_circle(to_screen_x(pz), to_screen_y(px), 3.0, white);
             }
             ZoneGeometry::Arc(_) => {
                 // Skip arcs for minimal version
