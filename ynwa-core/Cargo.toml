@@ -4,5 +4,6 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
+uom = { version = "0.36", features = ["f32"] }
 
 [lib]
