@@ -5,7 +5,11 @@ pub mod team;
 pub mod football;
 pub mod game;
 
-pub use game::{Game, GameConfig, GameState, GameEvent};
+pub use game::{
+    Game, GameConfig, GameState, GameEvent,
+    PlayerDef, BallDef, RefereeDef,
+    PlayerState, BallState, RefereeState,
+};
 
 pub fn version() -> &'static str {
     env!("CARGO_PKG_VERSION")
