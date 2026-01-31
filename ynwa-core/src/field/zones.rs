@@ -1,5 +1,5 @@
-use uom::si::f32::{Angle, Length};
 use uom::si::angle::radian;
+use uom::si::f32::{Angle, Length};
 use uom::si::length::meter;
 
 /// 3D point using Y-up coordinate system:
@@ -113,7 +113,13 @@ impl Arc {
     }
 
     /// Create an arc on the ground (y = 0)
-    pub fn from_radians(x: f32, z: f32, radius: f32, start_angle_rad: f32, end_angle_rad: f32) -> Self {
+    pub fn from_radians(
+        x: f32,
+        z: f32,
+        radius: f32,
+        start_angle_rad: f32,
+        end_angle_rad: f32,
+    ) -> Self {
         Self::new(
             Point3D::on_ground(x, z),
             Length::new::<meter>(radius),
@@ -247,7 +253,7 @@ mod tests {
         let p1 = PointZone::from_meters(0.0, 0.0);
         let p2 = PointZone::from_meters(-100.0, 50.0);
         let p3 = PointZone::from_meters(f32::MAX, f32::MIN);
-        
+
         assert_eq!(p1.position.x.get::<meter>(), 0.0);
         assert_eq!(p2.position.x.get::<meter>(), -100.0);
         assert!(p3.position.x.get::<meter>().is_finite());

@@ -1,19 +1,18 @@
 //! YNWA Football Manager - Core Library
 
 pub mod field;
-pub mod team;
 pub mod football;
 pub mod game;
 pub mod region;
+pub mod team;
 
 pub use game::{
-    Game, GameConfig, GameState, GameEvent,
-    PlayerDef, BallDef, RefereeDef,
-    PlayerState, BallState, RefereeState,
+    BallDef, BallState, Game, GameConfig, GameEvent, GameState, PlayerDef, PlayerState, RefereeDef,
+    RefereeState,
 };
 
 pub use football::create_football_game_config;
-pub use region::{Region, GridCell, RegionError, GridDimensions};
+pub use region::{GridCell, GridDimensions, Region, RegionError};
 
 pub fn version() -> &'static str {
     env!("CARGO_PKG_VERSION")

@@ -180,7 +180,7 @@ mod tests {
     #[test]
     fn test_zone_lookup_by_name_and_team() {
         let mut field = Field::from_meters(100.0, 60.0, 26, 44);
-        
+
         let zone_team_a = Zone::new(
             "goal",
             Some(Team::A),
@@ -191,14 +191,14 @@ mod tests {
             Some(Team::B),
             ZoneGeometry::Rectangle(Rectangle::from_meters(97.5, 26.84, 100.0, 33.16)),
         );
-        
+
         field.add_zone(zone_team_a);
         field.add_zone(zone_team_b);
 
         // Both teams have "goal" zones, but they're different
         assert!(field.get_zone("goal", Some(Team::A)).is_some());
         assert!(field.get_zone("goal", Some(Team::B)).is_some());
-        
+
         // Non-existent combinations should return None
         assert!(field.get_zone("goal", None).is_none());
         assert!(field.get_zone("nonexistent", Some(Team::A)).is_none());
@@ -207,13 +207,13 @@ mod tests {
     #[test]
     fn test_zone_without_team() {
         let mut field = Field::from_meters(100.0, 60.0, 26, 44);
-        
+
         let center_circle = Zone::new(
             "center_circle",
             None,
             ZoneGeometry::Rectangle(Rectangle::from_meters(40.0, 25.0, 60.0, 35.0)),
         );
-        
+
         field.add_zone(center_circle);
 
         assert!(field.get_zone("center_circle", None).is_some());

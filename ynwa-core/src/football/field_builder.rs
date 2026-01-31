@@ -6,11 +6,11 @@ use std::f32::consts::PI;
 // FIFA regulation dimensions (meters)
 // Adjusted to ensure square grid cells: 60m / 26 columns = ~2.3077m per cell
 const DEFAULT_WIDTH: f32 = 60.0;
-const DEFAULT_LENGTH: f32 = 101.538460; // 44 rows × 2.3077m
+const DEFAULT_LENGTH: f32 = 101.538_46; // 44 rows × 2.3077m
 const GOAL_AREA_LENGTH: f32 = 5.5;
 const GOAL_AREA_WIDTH: f32 = 18.32;
-const PENALTY_AREA_LENGTH: f32 = 16.153846; // 7 cells × 2.3077m
-const PENALTY_AREA_WIDTH: f32 = 41.538460;  // 18 cells × 2.3077m
+const PENALTY_AREA_LENGTH: f32 = 16.153_846; // 7 cells × 2.3077m
+const PENALTY_AREA_WIDTH: f32 = 41.538_46; // 18 cells × 2.3077m
 const PENALTY_SPOT_DISTANCE: f32 = 11.0;
 const CENTER_CIRCLE_RADIUS: f32 = 9.15;
 const CORNER_ARC_RADIUS: f32 = 1.0;
@@ -20,26 +20,31 @@ const GOAL_WIDTH: f32 = 7.32;
 
 // Grid dimensions for football field
 const FOOTBALL_GRID_COLUMNS: u32 = 26; // A-Z
-const FOOTBALL_GRID_ROWS: u32 = 44;    // Calculated for square cells
+const FOOTBALL_GRID_ROWS: u32 = 44; // Calculated for square cells
 
 /// Creates a standard football field with all regulation zones
 pub fn create_football_field() -> Field {
-    create_football_field_with_dimensions(DEFAULT_WIDTH, DEFAULT_LENGTH, FOOTBALL_GRID_COLUMNS, FOOTBALL_GRID_ROWS)
-        .expect("Default football field dimensions should be valid")
+    create_football_field_with_dimensions(
+        DEFAULT_WIDTH,
+        DEFAULT_LENGTH,
+        FOOTBALL_GRID_COLUMNS,
+        FOOTBALL_GRID_ROWS,
+    )
+    .expect("Default football field dimensions should be valid")
 }
 
 /// Creates a football field with custom dimensions and FIFA-proportional zones.
 /// Returns error if dimensions don't result in square grid cells.
 pub fn create_football_field_with_dimensions(
     width: f32,
-    length: f32, 
+    length: f32,
     grid_columns: u32,
     grid_rows: u32,
 ) -> Result<Field, String> {
     // Validate that cells are square (width/columns == length/rows)
     let cell_width = width / grid_columns as f32;
     let cell_height = length / grid_rows as f32;
-    
+
     // Check if cells are square (tolerance for floating point)
     if (cell_width - cell_height).abs() > 0.01 {
         return Err(format!(
@@ -47,9 +52,9 @@ pub fn create_football_field_with_dimensions(
             cell_width, cell_height
         ));
     }
-    
+
     type ZoneSpec = (&'static str, Option<Team>, Box<dyn Fn() -> ZoneGeometry>);
-    
+
     let half_length = length / 2.0;
     let half_width = width / 2.0;
 
@@ -57,17 +62,23 @@ pub fn create_football_field_with_dimensions(
         (
             "field",
             None,
-            Box::new(move || ZoneGeometry::Rectangle(Rectangle::from_meters(0.0, 0.0, length, width))),
+            Box::new(move || {
+                ZoneGeometry::Rectangle(Rectangle::from_meters(0.0, 0.0, length, width))
+            }),
         ),
         (
             "half",
             Some(Team::A),
-            Box::new(move || ZoneGeometry::Rectangle(Rectangle::from_meters(0.0, 0.0, half_length, width))),
+            Box::new(move || {
+                ZoneGeometry::Rectangle(Rectangle::from_meters(0.0, 0.0, half_length, width))
+            }),
         ),
         (
             "half",
             Some(Team::B),
-            Box::new(move || ZoneGeometry::Rectangle(Rectangle::from_meters(half_length, 0.0, length, width))),
+            Box::new(move || {
+                ZoneGeometry::Rectangle(Rectangle::from_meters(half_length, 0.0, length, width))
+            }),
         ),
         (
             "goal_area",
@@ -98,7 +109,12 @@ pub fn create_football_field_with_dimensions(
             Box::new(move || {
                 let z_min = (width - PENALTY_AREA_WIDTH) / 2.0;
                 let z_max = z_min + PENALTY_AREA_WIDTH;
-                ZoneGeometry::Rectangle(Rectangle::from_meters(0.0, z_min, PENALTY_AREA_LENGTH, z_max))
+                ZoneGeometry::Rectangle(Rectangle::from_meters(
+                    0.0,
+                    z_min,
+                    PENALTY_AREA_LENGTH,
+                    z_max,
+                ))
             }),
         ),
         (
@@ -118,7 +134,13 @@ pub fn create_football_field_with_dimensions(
         (
             "center_circle",
             None,
-            Box::new(move || ZoneGeometry::Circle(Circle::from_meters(half_length, half_width, CENTER_CIRCLE_RADIUS))),
+            Box::new(move || {
+                ZoneGeometry::Circle(Circle::from_meters(
+                    half_length,
+                    half_width,
+                    CENTER_CIRCLE_RADIUS,
+                ))
+            }),
         ),
         (
             "penalty_arc",
@@ -149,7 +171,15 @@ pub fn create_football_field_with_dimensions(
         (
             "corner_arc_bottom",
             Some(Team::A),
-            Box::new(move || ZoneGeometry::Arc(Arc::from_radians(0.0, 0.0, CORNER_ARC_RADIUS, 0.0, PI / 2.0))),
+            Box::new(move || {
+                ZoneGeometry::Arc(Arc::from_radians(
+                    0.0,
+                    0.0,
+                    CORNER_ARC_RADIUS,
+                    0.0,
+                    PI / 2.0,
+                ))
+            }),
         ),
         (
             "corner_arc_top",
@@ -181,7 +211,13 @@ pub fn create_football_field_with_dimensions(
             "corner_arc_top",
             Some(Team::B),
             Box::new(move || {
-                ZoneGeometry::Arc(Arc::from_radians(length, width, CORNER_ARC_RADIUS, PI, 3.0 * PI / 2.0))
+                ZoneGeometry::Arc(Arc::from_radians(
+                    length,
+                    width,
+                    CORNER_ARC_RADIUS,
+                    PI,
+                    3.0 * PI / 2.0,
+                ))
             }),
         ),
         (
@@ -192,7 +228,9 @@ pub fn create_football_field_with_dimensions(
         (
             "penalty_spot",
             Some(Team::A),
-            Box::new(move || ZoneGeometry::Point(PointZone::from_meters(PENALTY_SPOT_DISTANCE, half_width))),
+            Box::new(move || {
+                ZoneGeometry::Point(PointZone::from_meters(PENALTY_SPOT_DISTANCE, half_width))
+            }),
         ),
         (
             "penalty_spot",
@@ -219,7 +257,12 @@ pub fn create_football_field_with_dimensions(
             Box::new(move || {
                 let z_min = (width - GOAL_WIDTH) / 2.0;
                 let z_max = z_min + GOAL_WIDTH;
-                ZoneGeometry::Rectangle(Rectangle::from_meters(length, z_min, length + GOAL_DEPTH, z_max))
+                ZoneGeometry::Rectangle(Rectangle::from_meters(
+                    length,
+                    z_min,
+                    length + GOAL_DEPTH,
+                    z_max,
+                ))
             }),
         ),
     ];
@@ -235,7 +278,6 @@ pub fn create_football_field_with_dimensions(
 mod tests {
     use super::*;
     use uom::si::length::meter;
-
 
     #[test]
     fn test_create_football_field() {

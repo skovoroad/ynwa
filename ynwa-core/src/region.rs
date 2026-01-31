@@ -1,7 +1,7 @@
-use crate::team::Team;
 use crate::field::zones::Point3D;
-use uom::si::length::meter;
+use crate::team::Team;
 use std::fmt;
+use uom::si::length::meter;
 
 /// Grid dimensions for field regions
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -44,7 +44,11 @@ impl fmt::Display for RegionError {
             RegionError::InvalidRow(row) => write!(f, "Row must be positive, got {}", row),
             RegionError::InvalidColumn(col) => write!(f, "Column must be positive, got {}", col),
             RegionError::InvalidColumnLabel(label) => {
-                write!(f, "Column label must contain only letters A-Z, got '{}'", label)
+                write!(
+                    f,
+                    "Column label must contain only letters A-Z, got '{}'",
+                    label
+                )
             }
             RegionError::EmptyColumnLabel => write!(f, "Column label must not be empty"),
             RegionError::ColumnOutOfBounds { col, max } => {
@@ -59,7 +63,6 @@ impl fmt::Display for RegionError {
 }
 
 impl std::error::Error for RegionError {}
-
 
 /// A grid cell on the field, addressed by column (1-based) and row (1-based)
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -85,7 +88,7 @@ impl GridCell {
 
     /// Creates a grid cell from string notation (A, B, ..., Z, AA, AB, ...).
     /// Case-insensitive.
-    /// 
+    ///
     /// # Examples
     /// ```
     /// # use ynwa_core::GridCell;
@@ -100,18 +103,18 @@ impl GridCell {
         if row == 0 {
             return Err(RegionError::InvalidRow(row));
         }
-        
+
         let mut col: u32 = 0;
         for ch in label.chars() {
             let ch_upper = ch.to_ascii_uppercase();
             if !ch_upper.is_ascii_uppercase() {
                 return Err(RegionError::InvalidColumnLabel(label.to_string()));
             }
-            
+
             // Column encoding: A=1, B=2, ..., Z=26, AA=27
             col = col * 26 + (ch_upper as u32 - 'A' as u32 + 1);
         }
-        
+
         Self::new(col, row)
     }
 
@@ -120,12 +123,12 @@ impl GridCell {
         // Flip both column and row
         let new_col = grid_dims.columns - self.col + 1;
         let new_row = grid_dims.rows - self.row + 1;
-        
+
         Self::new(new_col, new_row)
     }
 
     /// Converts a 1-based column number to Excel-style label (A, B, ..., Z, AA, AB, ...).
-    /// 
+    ///
     /// # Examples
     /// ```
     /// # use ynwa_core::GridCell;
@@ -136,20 +139,20 @@ impl GridCell {
     pub fn column_to_label(col: u32) -> String {
         let mut result = String::new();
         let mut n = col;
-        
+
         while n > 0 {
             let remainder = (n - 1) % 26;
             result.push((b'A' + remainder as u8) as char);
             n = (n - 1) / 26;
         }
-        
+
         result.chars().rev().collect()
     }
 }
 
 /// Rectangular region on the field, defined by two grid cells.
 /// Regions are team-specific because players view the field from different sides.
-/// 
+///
 /// Example: Region from B3 to G4 (B=2, G=7; so cols 2-7, rows 3-4)
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Region {
@@ -163,18 +166,23 @@ pub struct Region {
 
 impl Region {
     /// Creates a region with validation that cells are within grid bounds.
-    pub fn new(team: Team, top_left: GridCell, bottom_right: GridCell, grid_dims: GridDimensions) -> Result<Self, RegionError> {
+    pub fn new(
+        team: Team,
+        top_left: GridCell,
+        bottom_right: GridCell,
+        grid_dims: GridDimensions,
+    ) -> Result<Self, RegionError> {
         if top_left.col > bottom_right.col {
             return Err(RegionError::InvalidRegion(
-                "Top-left column must be <= bottom-right column".to_string()
+                "Top-left column must be <= bottom-right column".to_string(),
             ));
         }
         if top_left.row > bottom_right.row {
             return Err(RegionError::InvalidRegion(
-                "Top-left row must be <= bottom-right row".to_string()
+                "Top-left row must be <= bottom-right row".to_string(),
             ));
         }
-        
+
         // Validate cells are within grid bounds (1-based)
         if top_left.col == 0 || top_left.col > grid_dims.columns {
             return Err(RegionError::ColumnOutOfBounds {
@@ -200,7 +208,7 @@ impl Region {
                 max: grid_dims.rows,
             });
         }
-        
+
         Ok(Self {
             team,
             top_left,
@@ -209,36 +217,41 @@ impl Region {
     }
 
     /// Checks if a point falls within this region (ignores Y/height).
-    pub fn contains_point(&self, grid_dims: GridDimensions, field_width_meters: f32, point: &Point3D) -> bool {
+    pub fn contains_point(
+        &self,
+        grid_dims: GridDimensions,
+        field_width_meters: f32,
+        point: &Point3D,
+    ) -> bool {
         let cell_width = field_width_meters / grid_dims.columns as f32;
-        
+
         // Calculate region boundaries in meters (columns are 1-based)
         let min_z = (self.top_left.col - 1) as f32 * cell_width;
         let max_z = self.bottom_right.col as f32 * cell_width;
         let min_x = (self.top_left.row - 1) as f32 * cell_width;
         let max_x = self.bottom_right.row as f32 * cell_width;
-        
+
         // Check if point is within boundaries
         let point_x = point.x.get::<meter>();
         let point_z = point.z.get::<meter>();
-        
+
         point_x >= min_x && point_x < max_x && point_z >= min_z && point_z < max_z
     }
 
     /// Returns the center point of the region (Y=0, ground level).
     pub fn center(&self, grid_dims: GridDimensions, field_width_meters: f32) -> Point3D {
         let cell_width = field_width_meters / grid_dims.columns as f32;
-        
+
         // Calculate region boundaries in meters (columns are 1-based)
         let min_z = (self.top_left.col - 1) as f32 * cell_width;
         let max_z = self.bottom_right.col as f32 * cell_width;
         let min_x = (self.top_left.row - 1) as f32 * cell_width;
         let max_x = self.bottom_right.row as f32 * cell_width;
-        
+
         // Center is the midpoint of boundaries
         let center_x = (min_x + max_x) / 2.0;
         let center_z = (min_z + max_z) / 2.0;
-        
+
         Point3D::from_meters(center_x, 0.0, center_z)
     }
 
@@ -247,7 +260,7 @@ impl Region {
     pub fn flip_orientation(&self, grid_dims: GridDimensions) -> Result<Self, RegionError> {
         let new_top_left = self.top_left.flip_orientation(grid_dims)?;
         let new_bottom_right = self.bottom_right.flip_orientation(grid_dims)?;
-        
+
         // Swap corners to maintain top_left <= bottom_right after flip
         Region::new(
             self.team.opposite(),
@@ -343,10 +356,10 @@ mod tests {
     #[test]
     fn test_grid_cell_flip_orientation() {
         let field = Field::from_meters(60.0, 100.0, 26, 44);
-        
+
         let cell = GridCell::new(1, 1).unwrap(); // A1 (col=1)
         let flipped = cell.flip_orientation(field.grid_dimensions()).unwrap();
-        
+
         // Should become Z44 (col=26)
         assert_eq!(flipped.col, 26); // Z = 26
         assert_eq!(flipped.row, 44);
@@ -355,26 +368,27 @@ mod tests {
     #[test]
     fn test_region_flip_orientation() {
         let field = Field::from_meters(60.0, 100.0, 26, 44);
-        
+
         // Region for Team A: B3 to D5 (cols 2-4, rows 3-5)
         let region_a = Region::new(
             Team::A,
             GridCell::from_literal("B", 3).unwrap(),
             GridCell::from_literal("D", 5).unwrap(),
             field.grid_dimensions(),
-        ).unwrap();
-        
+        )
+        .unwrap();
+
         let flipped = region_a.flip_orientation(field.grid_dimensions()).unwrap();
-        
+
         // Should flip to Team B
         assert_eq!(flipped.team, Team::B);
-        
+
         // Corners should be flipped:
         // B (col=2) -> Y (col=25), D (col=4) -> W (col=23)
         // Row 3 -> 42, Row 5 -> 40
-        assert_eq!(flipped.top_left.col, 23);  // W
+        assert_eq!(flipped.top_left.col, 23); // W
         assert_eq!(flipped.top_left.row, 40);
-        assert_eq!(flipped.bottom_right.col, 25);  // Y
+        assert_eq!(flipped.bottom_right.col, 25); // Y
         assert_eq!(flipped.bottom_right.row, 42);
     }
 
@@ -386,7 +400,8 @@ mod tests {
             GridCell::from_literal("B", 3).unwrap(),
             GridCell::from_literal("G", 4).unwrap(),
             field.grid_dimensions(),
-        ).unwrap();
+        )
+        .unwrap();
         assert_eq!(region.team, Team::A);
         assert_eq!(region.top_left.col, 2); // B = 2
         assert_eq!(region.bottom_right.col, 7); // G = 7
@@ -424,7 +439,8 @@ mod tests {
             GridCell::from_literal("C", 5).unwrap(),
             GridCell::from_literal("C", 5).unwrap(),
             field.grid_dimensions(),
-        ).unwrap();
+        )
+        .unwrap();
         assert_eq!(region.top_left, region.bottom_right);
     }
 
@@ -455,27 +471,36 @@ mod tests {
     #[test]
     fn test_region_contains_point() {
         let field = Field::from_meters(60.0, 100.0, 26, 44);
-        
+
         // Region B3:D5 (B=2, D=4, so cols 2-4; rows 3-5)
         let region = Region::new(
             Team::A,
             GridCell::from_literal("B", 3).unwrap(),
             GridCell::from_literal("D", 5).unwrap(),
             field.grid_dimensions(),
-        ).unwrap();
-        
+        )
+        .unwrap();
+
         // Point in the middle of cell C4 should be inside
         let cell_width = 60.0 / 26.0;
         let point_inside = Point3D::from_meters(
-            (3.5) * cell_width,  // Row 4 center
+            (3.5) * cell_width, // Row 4 center
             0.0,
-            (2.5) * cell_width,  // Column C (col=3) center
+            (2.5) * cell_width, // Column C (col=3) center
         );
-        assert!(region.contains_point(field.grid_dimensions(), field.width().get::<meter>(), &point_inside));
-        
+        assert!(region.contains_point(
+            field.grid_dimensions(),
+            field.width().get::<meter>(),
+            &point_inside
+        ));
+
         // Point outside the region
         let point_outside = Point3D::from_meters(1.0, 0.0, 1.0);
-        assert!(!region.contains_point(field.grid_dimensions(), field.width().get::<meter>(), &point_outside));
+        assert!(!region.contains_point(
+            field.grid_dimensions(),
+            field.width().get::<meter>(),
+            &point_outside
+        ));
     }
 
     #[test]
@@ -486,47 +511,64 @@ mod tests {
             GridCell::from_literal("B", 3).unwrap(),
             GridCell::from_literal("D", 5).unwrap(),
             field.grid_dimensions(),
-        ).unwrap();
-        
+        )
+        .unwrap();
+
         let cell_width = 60.0 / 26.0;
-        
+
         // Point exactly at min_x, min_z (should be inside, inclusive)
         let point_min = Point3D::from_meters(
-            (3.0 - 1.0) * cell_width,  // Row 3 min
+            (3.0 - 1.0) * cell_width, // Row 3 min
             0.0,
-            (2.0 - 1.0) * cell_width,  // Col B min
+            (2.0 - 1.0) * cell_width, // Col B min
         );
-        assert!(region.contains_point(field.grid_dimensions(), field.width().get::<meter>(), &point_min));
-        
+        assert!(region.contains_point(
+            field.grid_dimensions(),
+            field.width().get::<meter>(),
+            &point_min
+        ));
+
         // Point exactly at max_x boundary (should be outside, exclusive)
         let point_max_x = Point3D::from_meters(
-            5.0 * cell_width,  // Row 5 max (exclusive)
+            5.0 * cell_width, // Row 5 max (exclusive)
             0.0,
             2.5 * cell_width,
         );
-        assert!(!region.contains_point(field.grid_dimensions(), field.width().get::<meter>(), &point_max_x));
-        
+        assert!(!region.contains_point(
+            field.grid_dimensions(),
+            field.width().get::<meter>(),
+            &point_max_x
+        ));
+
         // Point exactly at max_z boundary (should be outside, exclusive)
         let point_max_z = Point3D::from_meters(
             3.5 * cell_width,
             0.0,
-            4.0 * cell_width,  // Col D max (exclusive)
+            4.0 * cell_width, // Col D max (exclusive)
         );
-        assert!(!region.contains_point(field.grid_dimensions(), field.width().get::<meter>(), &point_max_z));
-        
+        assert!(!region.contains_point(
+            field.grid_dimensions(),
+            field.width().get::<meter>(),
+            &point_max_z
+        ));
+
         // Point just inside boundaries
         let point_inside_edge = Point3D::from_meters(
             (3.0 - 1.0) * cell_width + 0.001,
             0.0,
             (2.0 - 1.0) * cell_width + 0.001,
         );
-        assert!(region.contains_point(field.grid_dimensions(), field.width().get::<meter>(), &point_inside_edge));
+        assert!(region.contains_point(
+            field.grid_dimensions(),
+            field.width().get::<meter>(),
+            &point_inside_edge
+        ));
     }
 
     #[test]
     fn test_region_center() {
         let field = Field::from_meters(60.0, 100.0, 26, 44);
-        
+
         // Region B3:D5 (B=2, D=4, so cols 2-4; rows 3-5)
         // Center: col 3 (C), row 4
         let region = Region::new(
@@ -534,14 +576,15 @@ mod tests {
             GridCell::from_literal("B", 3).unwrap(),
             GridCell::from_literal("D", 5).unwrap(),
             field.grid_dimensions(),
-        ).unwrap();
-        
+        )
+        .unwrap();
+
         let center = region.center(field.grid_dimensions(), field.width().get::<meter>());
-        
+
         let cell_width = 60.0 / 26.0;
         let expected_z = (2.0 + 0.5) * cell_width; // Col 2 center
         let expected_x = (4.0 - 0.5) * cell_width; // Row 4 center
-        
+
         assert!((center.x.get::<meter>() - expected_x).abs() < 0.01);
         assert!((center.z.get::<meter>() - expected_z).abs() < 0.01);
         assert_eq!(center.y.get::<meter>(), 0.0);
@@ -550,20 +593,21 @@ mod tests {
     #[test]
     fn test_region_center_single_cell() {
         let field = Field::from_meters(60.0, 100.0, 26, 44);
-        
+
         let region = Region::new(
             Team::A,
             GridCell::from_literal("A", 1).unwrap(),
             GridCell::from_literal("A", 1).unwrap(),
             field.grid_dimensions(),
-        ).unwrap();
-        
+        )
+        .unwrap();
+
         let center = region.center(field.grid_dimensions(), field.width().get::<meter>());
-        
+
         let cell_width = 60.0 / 26.0;
         let expected_z = 0.5 * cell_width; // Col 0 center
         let expected_x = 0.5 * cell_width; // Row 1 center
-        
+
         assert!((center.x.get::<meter>() - expected_x).abs() < 0.01);
         assert!((center.z.get::<meter>() - expected_z).abs() < 0.01);
     }
