@@ -74,6 +74,34 @@ fn render_field(field: &ynwa_core::field::Field, field_area_width: f32, screen_h
         white,
     );
 
+    // Draw grid cells in checkerboard pattern
+    let grid_dims = field.grid_dimensions();
+    let cell_size = field.cell_size();
+    
+    let green_light = Color::new(0.14, 0.56, 0.14, 1.0);
+    let green_dark = Color::new(0.12, 0.54, 0.12, 1.0);
+    
+    for row in 0..grid_dims.rows {
+        for col in 0..grid_dims.columns {
+            // Checkerboard pattern: alternate based on sum of indices
+            let is_light = (row + col) % 2 == 0;
+            let color = if is_light { green_light } else { green_dark };
+            
+            // Cell position in field coordinates (0-based for drawing)
+            let cell_x = row as f32 * cell_size;
+            let cell_z = col as f32 * cell_size;
+            
+            // Draw filled rectangle
+            draw_rectangle(
+                to_screen_x(cell_z),
+                to_screen_y(cell_x),
+                cell_size * scale,
+                cell_size * scale,
+                color,
+            );
+        }
+    }
+
     // Draw center line (horizontal)
     let half_length = field_length / 2.0;
     draw_line(

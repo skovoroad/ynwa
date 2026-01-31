@@ -123,6 +123,28 @@ impl GridCell {
         
         Self::new(new_col, new_row)
     }
+
+    /// Converts a 1-based column number to Excel-style label (A, B, ..., Z, AA, AB, ...).
+    /// 
+    /// # Examples
+    /// ```
+    /// # use ynwa_core::GridCell;
+    /// assert_eq!(GridCell::column_to_label(1), "A");
+    /// assert_eq!(GridCell::column_to_label(26), "Z");
+    /// assert_eq!(GridCell::column_to_label(27), "AA");
+    /// ```
+    pub fn column_to_label(col: u32) -> String {
+        let mut result = String::new();
+        let mut n = col;
+        
+        while n > 0 {
+            let remainder = (n - 1) % 26;
+            result.push((b'A' + remainder as u8) as char);
+            n = (n - 1) / 26;
+        }
+        
+        result.chars().rev().collect()
+    }
 }
 
 /// Rectangular region on the field, defined by two grid cells.
@@ -303,6 +325,19 @@ mod tests {
     fn test_grid_cell_from_literal_invalid() {
         let result = GridCell::from_literal("A1", 1);
         assert!(matches!(result, Err(RegionError::InvalidColumnLabel(_))));
+    }
+
+    #[test]
+    fn test_column_to_label() {
+        assert_eq!(GridCell::column_to_label(1), "A");
+        assert_eq!(GridCell::column_to_label(2), "B");
+        assert_eq!(GridCell::column_to_label(26), "Z");
+        assert_eq!(GridCell::column_to_label(27), "AA");
+        assert_eq!(GridCell::column_to_label(28), "AB");
+        assert_eq!(GridCell::column_to_label(52), "AZ");
+        assert_eq!(GridCell::column_to_label(53), "BA");
+        assert_eq!(GridCell::column_to_label(702), "ZZ");
+        assert_eq!(GridCell::column_to_label(703), "AAA");
     }
 
     #[test]

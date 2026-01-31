@@ -83,6 +83,12 @@ impl Field {
         self.grid_dims
     }
 
+    /// Returns the width of a single grid cell in meters.
+    /// Assumes square cells (width of field divided by number of columns).
+    pub fn cell_size(&self) -> f32 {
+        self.width.get::<meter>() / self.grid_dims.columns as f32
+    }
+
     pub fn add_zone(&mut self, zone: Zone) {
         self.zones.insert((zone.name.clone(), zone.team), zone);
     }
@@ -137,6 +143,15 @@ mod tests {
         let field = Field::from_meters(100.0, 60.0, 26, 26);
         assert_eq!(field.width().get::<meter>(), 100.0);
         assert_eq!(field.length().get::<meter>(), 60.0);
+        assert_eq!(field.grid_columns(), 26);
+        assert_eq!(field.grid_rows(), 26);
+    }
+
+    #[test]
+    fn test_field_cell_size() {
+        let field = Field::from_meters(60.0, 100.0, 26, 44);
+        let cell_size = field.cell_size();
+        assert!((cell_size - (60.0 / 26.0)).abs() < 0.001);
     }
 
     #[test]

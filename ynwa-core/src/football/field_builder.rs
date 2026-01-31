@@ -4,12 +4,13 @@ use crate::team::Team;
 use std::f32::consts::PI;
 
 // FIFA regulation dimensions (meters)
-const DEFAULT_LENGTH: f32 = 100.0;
+// Adjusted to ensure square grid cells: 60m / 26 columns = ~2.3077m per cell
 const DEFAULT_WIDTH: f32 = 60.0;
+const DEFAULT_LENGTH: f32 = 101.538460; // 44 rows × 2.3077m
 const GOAL_AREA_LENGTH: f32 = 5.5;
 const GOAL_AREA_WIDTH: f32 = 18.32;
-const PENALTY_AREA_LENGTH: f32 = 16.5;
-const PENALTY_AREA_WIDTH: f32 = 40.32;
+const PENALTY_AREA_LENGTH: f32 = 16.153846; // 7 cells × 2.3077m
+const PENALTY_AREA_WIDTH: f32 = 41.538460;  // 18 cells × 2.3077m
 const PENALTY_SPOT_DISTANCE: f32 = 11.0;
 const CENTER_CIRCLE_RADIUS: f32 = 9.15;
 const CORNER_ARC_RADIUS: f32 = 1.0;
@@ -19,17 +20,34 @@ const GOAL_WIDTH: f32 = 7.32;
 
 // Grid dimensions for football field
 const FOOTBALL_GRID_COLUMNS: u32 = 26; // A-Z
+const FOOTBALL_GRID_ROWS: u32 = 44;    // Calculated for square cells
 
-/// Creates a standard football field (100m x 60m) with all regulation zones
+/// Creates a standard football field with all regulation zones
 pub fn create_football_field() -> Field {
-    create_football_field_with_dimensions(DEFAULT_LENGTH, DEFAULT_WIDTH)
+    create_football_field_with_dimensions(DEFAULT_WIDTH, DEFAULT_LENGTH, FOOTBALL_GRID_COLUMNS, FOOTBALL_GRID_ROWS)
+        .expect("Default football field dimensions should be valid")
 }
 
-/// Creates a football field with custom dimensions and FIFA-proportional zones
-pub fn create_football_field_with_dimensions(length: f32, width: f32) -> Field {
-    // Calculate grid dimensions: columns fixed at 26, rows proportional to maintain square cells
-    let cell_size = width / FOOTBALL_GRID_COLUMNS as f32;
-    let grid_rows = (length / cell_size).ceil() as u32;
+/// Creates a football field with custom dimensions and FIFA-proportional zones.
+/// Returns error if dimensions don't result in square grid cells.
+pub fn create_football_field_with_dimensions(
+    width: f32,
+    length: f32, 
+    grid_columns: u32,
+    grid_rows: u32,
+) -> Result<Field, String> {
+    // Validate that cells are square (width/columns == length/rows)
+    let cell_width = width / grid_columns as f32;
+    let cell_height = length / grid_rows as f32;
+    
+    // Check if cells are square (tolerance for floating point)
+    if (cell_width - cell_height).abs() > 0.01 {
+        return Err(format!(
+            "Grid cells must be square: cell size from width={:.4}m, from length={:.4}m",
+            cell_width, cell_height
+        ));
+    }
+    
     type ZoneSpec = (&'static str, Option<Team>, Box<dyn Fn() -> ZoneGeometry>);
     
     let half_length = length / 2.0;
@@ -206,11 +224,11 @@ pub fn create_football_field_with_dimensions(length: f32, width: f32) -> Field {
         ),
     ];
 
-    let mut builder = FieldBuilder::from_meters(width, length, FOOTBALL_GRID_COLUMNS, grid_rows);
+    let mut builder = FieldBuilder::from_meters(width, length, grid_columns, grid_rows);
     for (name, team, zone_fn) in zones {
         builder = builder.with_zone(Zone::new(name, team, zone_fn()));
     }
-    builder.build()
+    Ok(builder.build())
 }
 
 #[cfg(test)]
@@ -218,12 +236,13 @@ mod tests {
     use super::*;
     use uom::si::length::meter;
 
+
     #[test]
     fn test_create_football_field() {
         let field = create_football_field();
 
-        assert_eq!(field.length().get::<meter>(), DEFAULT_LENGTH);
         assert_eq!(field.width().get::<meter>(), DEFAULT_WIDTH);
+        assert!((field.length().get::<meter>() - DEFAULT_LENGTH).abs() < 0.01);
 
         // Check that required zones exist with correct teams
         assert!(field.get_zone("field", None).is_some());
@@ -240,18 +259,32 @@ mod tests {
     }
 
     #[test]
-    fn test_custom_dimensions() {
-        let field = create_football_field_with_dimensions(120.0, 80.0);
-        assert_eq!(field.length().get::<meter>(), 120.0);
-        assert_eq!(field.width().get::<meter>(), 80.0);
+    fn test_custom_dimensions_valid() {
+        // 52m width with 26 columns = 2m cells, 88m length with 44 rows = 2m cells (square!)
+        let result = create_football_field_with_dimensions(52.0, 88.0, 26, 44);
+        assert!(result.is_ok());
+        let field = result.unwrap();
+        assert_eq!(field.width().get::<meter>(), 52.0);
+        assert_eq!(field.length().get::<meter>(), 88.0);
+    }
+
+    #[test]
+    fn test_custom_dimensions_invalid() {
+        // 60m width with 26 columns = 2.3077m cells, but 100m length with 44 rows = 2.2727m cells (not square!)
+        let result = create_football_field_with_dimensions(60.0, 100.0, 26, 44);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("square"));
     }
 
     #[test]
     fn test_mini_football_field() {
-        // Mini football / futsal field
-        let field = create_football_field_with_dimensions(40.0, 20.0);
-        assert_eq!(field.length().get::<meter>(), 40.0);
+        // Mini football / futsal field with square cells
+        // 20m width / 10 columns = 2m cells, 40m length / 20 rows = 2m cells
+        let result = create_football_field_with_dimensions(20.0, 40.0, 10, 20);
+        assert!(result.is_ok());
+        let field = result.unwrap();
         assert_eq!(field.width().get::<meter>(), 20.0);
+        assert_eq!(field.length().get::<meter>(), 40.0);
         assert_eq!(field.zones().len(), 19);
     }
 }
