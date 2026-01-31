@@ -219,6 +219,21 @@ impl Region {
         
         Point3D::from_meters(center_x, 0.0, center_z)
     }
+
+    /// Flips the region orientation for the opposite team.
+    /// Returns a new region with both corners flipped.
+    pub fn flip_orientation(&self, grid_dims: GridDimensions) -> Result<Self, RegionError> {
+        let new_top_left = self.top_left.flip_orientation(grid_dims)?;
+        let new_bottom_right = self.bottom_right.flip_orientation(grid_dims)?;
+        
+        // Swap corners to maintain top_left <= bottom_right after flip
+        Region::new(
+            self.team.opposite(),
+            new_bottom_right,
+            new_top_left,
+            grid_dims,
+        )
+    }
 }
 
 #[cfg(test)]
@@ -300,6 +315,32 @@ mod tests {
         // Should become Z44 (col=26)
         assert_eq!(flipped.col, 26); // Z = 26
         assert_eq!(flipped.row, 44);
+    }
+
+    #[test]
+    fn test_region_flip_orientation() {
+        let field = Field::from_meters(60.0, 100.0, 26, 44);
+        
+        // Region for Team A: B3 to D5 (cols 2-4, rows 3-5)
+        let region_a = Region::new(
+            Team::A,
+            GridCell::from_literal("B", 3).unwrap(),
+            GridCell::from_literal("D", 5).unwrap(),
+            field.grid_dimensions(),
+        ).unwrap();
+        
+        let flipped = region_a.flip_orientation(field.grid_dimensions()).unwrap();
+        
+        // Should flip to Team B
+        assert_eq!(flipped.team, Team::B);
+        
+        // Corners should be flipped:
+        // B (col=2) -> Y (col=25), D (col=4) -> W (col=23)
+        // Row 3 -> 42, Row 5 -> 40
+        assert_eq!(flipped.top_left.col, 23);  // W
+        assert_eq!(flipped.top_left.row, 40);
+        assert_eq!(flipped.bottom_right.col, 25);  // Y
+        assert_eq!(flipped.bottom_right.row, 42);
     }
 
     #[test]
@@ -400,6 +441,51 @@ mod tests {
         // Point outside the region
         let point_outside = Point3D::from_meters(1.0, 0.0, 1.0);
         assert!(!region.contains_point(field.grid_dimensions(), field.width().get::<meter>(), &point_outside));
+    }
+
+    #[test]
+    fn test_region_contains_point_boundaries() {
+        let field = Field::from_meters(60.0, 100.0, 26, 44);
+        let region = Region::new(
+            Team::A,
+            GridCell::from_literal("B", 3).unwrap(),
+            GridCell::from_literal("D", 5).unwrap(),
+            field.grid_dimensions(),
+        ).unwrap();
+        
+        let cell_width = 60.0 / 26.0;
+        
+        // Point exactly at min_x, min_z (should be inside, inclusive)
+        let point_min = Point3D::from_meters(
+            (3.0 - 1.0) * cell_width,  // Row 3 min
+            0.0,
+            (2.0 - 1.0) * cell_width,  // Col B min
+        );
+        assert!(region.contains_point(field.grid_dimensions(), field.width().get::<meter>(), &point_min));
+        
+        // Point exactly at max_x boundary (should be outside, exclusive)
+        let point_max_x = Point3D::from_meters(
+            5.0 * cell_width,  // Row 5 max (exclusive)
+            0.0,
+            2.5 * cell_width,
+        );
+        assert!(!region.contains_point(field.grid_dimensions(), field.width().get::<meter>(), &point_max_x));
+        
+        // Point exactly at max_z boundary (should be outside, exclusive)
+        let point_max_z = Point3D::from_meters(
+            3.5 * cell_width,
+            0.0,
+            4.0 * cell_width,  // Col D max (exclusive)
+        );
+        assert!(!region.contains_point(field.grid_dimensions(), field.width().get::<meter>(), &point_max_z));
+        
+        // Point just inside boundaries
+        let point_inside_edge = Point3D::from_meters(
+            (3.0 - 1.0) * cell_width + 0.001,
+            0.0,
+            (2.0 - 1.0) * cell_width + 0.001,
+        );
+        assert!(region.contains_point(field.grid_dimensions(), field.width().get::<meter>(), &point_inside_edge));
     }
 
     #[test]

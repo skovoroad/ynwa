@@ -41,20 +41,16 @@ impl Zone {
 pub struct Field {
     width: Length,
     length: Length,
-    grid_columns: u32,
-    grid_rows: u32,
+    grid_dims: crate::region::GridDimensions,
     zones: HashMap<(String, Option<Team>), Zone>,
 }
 
 impl Field {
-    pub fn new(width: Length, length: Length, grid_columns: u32, grid_rows: u32) -> Self {
-        assert!(grid_columns > 0, "Grid columns must be positive");
-        assert!(grid_rows > 0, "Grid rows must be positive");
+    pub fn new(width: Length, length: Length, grid_dims: crate::region::GridDimensions) -> Self {
         Self {
             width,
             length,
-            grid_columns,
-            grid_rows,
+            grid_dims,
             zones: HashMap::new(),
         }
     }
@@ -63,8 +59,7 @@ impl Field {
         Self::new(
             Length::new::<meter>(width),
             Length::new::<meter>(length),
-            grid_columns,
-            grid_rows,
+            crate::region::GridDimensions::new(grid_columns, grid_rows),
         )
     }
 
@@ -77,15 +72,15 @@ impl Field {
     }
 
     pub fn grid_columns(&self) -> u32 {
-        self.grid_columns
+        self.grid_dims.columns
     }
 
     pub fn grid_rows(&self) -> u32 {
-        self.grid_rows
+        self.grid_dims.rows
     }
 
     pub fn grid_dimensions(&self) -> crate::region::GridDimensions {
-        crate::region::GridDimensions::new(self.grid_columns, self.grid_rows)
+        self.grid_dims
     }
 
     pub fn add_zone(&mut self, zone: Zone) {
@@ -108,7 +103,11 @@ pub struct FieldBuilder {
 impl FieldBuilder {
     pub fn new(width: Length, length: Length, grid_columns: u32, grid_rows: u32) -> Self {
         Self {
-            field: Field::new(width, length, grid_columns, grid_rows),
+            field: Field::new(
+                width,
+                length,
+                crate::region::GridDimensions::new(grid_columns, grid_rows),
+            ),
         }
     }
 
