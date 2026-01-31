@@ -110,6 +110,44 @@ fn render_field(game_config: &ynwa_core::game::GameConfig, field_area_width: f32
         }
     }
 
+    // Draw grid labels
+    let label_color = Color::new(0.9, 0.9, 0.9, 0.8);
+    let font_size = 12.0;
+    
+    // Column labels (A, B, C, ... at top)
+    for col in 0..grid_dims.columns {
+        let col_label = ynwa_core::GridCell::column_to_label(col + 1); // 1-based
+        let cell_z = col as f32 * cell_size;
+        let x_pos = to_screen_x(cell_z + cell_size / 2.0);
+        let y_pos = to_screen_y(0.0) - 5.0; // Above field
+        
+        let text_dims = measure_text(&col_label, None, font_size as u16, 1.0);
+        draw_text(
+            &col_label,
+            x_pos - text_dims.width / 2.0,
+            y_pos,
+            font_size,
+            label_color,
+        );
+    }
+    
+    // Row labels (1, 2, 3, ... at left)
+    for row in 0..grid_dims.rows {
+        let row_label = (row + 1).to_string(); // 1-based
+        let cell_x = row as f32 * cell_size;
+        let x_pos = to_screen_x(0.0) - 5.0; // Left of field
+        let y_pos = to_screen_y(cell_x + cell_size / 2.0);
+        
+        let text_dims = measure_text(&row_label, None, font_size as u16, 1.0);
+        draw_text(
+            &row_label,
+            x_pos - text_dims.width,
+            y_pos + text_dims.height / 2.0 - 2.0,
+            font_size,
+            label_color,
+        );
+    }
+
     // Draw center line (horizontal)
     let half_length = field_length / 2.0;
     draw_line(
