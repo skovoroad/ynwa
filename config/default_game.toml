@@ -1,0 +1,133 @@
+# Team A Players
+[[players]]
+team = "A"
+number = 1
+name = "Goalkeeper A"
+start_position = "A22:B24"  # Near goal A
+
+[[players]]
+team = "A"
+number = 2
+name = "Defender A1"
+start_position = "D15:E17"
+
+[[players]]
+team = "A"
+number = 3
+name = "Defender A2"
+start_position = "D22:E24"
+
+[[players]]
+team = "A"
+number = 4
+name = "Defender A3"
+start_position = "D29:E31"
+
+[[players]]
+team = "A"
+number = 5
+name = "Midfielder A1"
+start_position = "H15:I17"
+
+[[players]]
+team = "A"
+number = 6
+name = "Midfielder A2"
+start_position = "H22:I24"
+
+[[players]]
+team = "A"
+number = 7
+name = "Midfielder A3"
+start_position = "H29:I31"
+
+[[players]]
+team = "A"
+number = 8
+name = "Forward A1"
+start_position = "L15:M17"
+
+[[players]]
+team = "A"
+number = 9
+name = "Forward A2"
+start_position = "L22:M24"
+
+[[players]]
+team = "A"
+number = 10
+name = "Forward A3"
+start_position = "L29:M31"
+
+[[players]]
+team = "A"
+number = 11
+name = "Striker A"
+start_position = "O22:P24"
+
+# Team B Players
+[[players]]
+team = "B"
+number = 1
+name = "Goalkeeper B"
+start_position = "Y22:Z24"  # Near goal B
+
+[[players]]
+team = "B"
+number = 2
+name = "Defender B1"
+start_position = "V15:W17"
+
+[[players]]
+team = "B"
+number = 3
+name = "Defender B2"
+start_position = "V22:W24"
+
+[[players]]
+team = "B"
+number = 4
+name = "Defender B3"
+start_position = "V29:W31"
+
+[[players]]
+team = "B"
+number = 5
+name = "Midfielder B1"
+start_position = "S15:T17"
+
+[[players]]
+team = "B"
+number = 6
+name = "Midfielder B2"
+start_position = "S22:T24"
+
+[[players]]
+team = "B"
+number = 7
+name = "Midfielder B3"
+start_position = "S29:T31"
+
+[[players]]
+team = "B"
+number = 8
+name = "Forward B1"
+start_position = "P15:Q17"
+
+[[players]]
+team = "B"
+number = 9
+name = "Forward B2"
+start_position = "P22:Q24"
+
+[[players]]
+team = "B"
+number = 10
+name = "Forward B3"
+start_position = "P29:Q31"
+
+[[players]]
+team = "B"
+number = 11
+name = "Striker B"
+start_position = "L22:M24"

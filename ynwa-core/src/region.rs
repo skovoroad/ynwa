@@ -118,6 +118,68 @@ impl GridCell {
         Self::new(col, row)
     }
 
+    /// Parse cell notation like "A1", "B2", "AA10" into GridCell.
+    /// Letters must come before digits.
+    ///
+    /// # Examples
+    /// ```
+    /// # use ynwa_core::GridCell;
+    /// let cell = GridCell::from_notation("A1").unwrap();
+    /// assert_eq!(cell.col, 1);
+    /// assert_eq!(cell.row, 1);
+    ///
+    /// let cell2 = GridCell::from_notation("AA10").unwrap();
+    /// assert_eq!(cell2.col, 27);
+    /// assert_eq!(cell2.row, 10);
+    /// ```
+    pub fn from_notation(notation: &str) -> Result<Self, RegionError> {
+        let mut col_str = String::new();
+        let mut row_str = String::new();
+        let mut seen_digit = false;
+
+        for ch in notation.chars() {
+            if ch.is_ascii_alphabetic() {
+                if seen_digit {
+                    return Err(RegionError::InvalidRegion(format!(
+                        "Letters must come before digits in cell notation '{}'",
+                        notation
+                    )));
+                }
+                col_str.push(ch);
+            } else if ch.is_ascii_digit() {
+                seen_digit = true;
+                row_str.push(ch);
+            } else {
+                return Err(RegionError::InvalidRegion(format!(
+                    "Invalid character '{}' in cell notation '{}'",
+                    ch, notation
+                )));
+            }
+        }
+
+        if col_str.is_empty() {
+            return Err(RegionError::InvalidRegion(format!(
+                "Missing column in cell notation '{}'",
+                notation
+            )));
+        }
+        if row_str.is_empty() {
+            return Err(RegionError::InvalidRegion(format!(
+                "Missing row in cell notation '{}'",
+                notation
+            )));
+        }
+
+        let row = row_str.parse::<u32>().map_err(|_| {
+            RegionError::InvalidRegion(format!(
+                "Invalid row number '{}' in cell '{}'",
+                row_str, notation
+            ))
+        })?;
+
+        Self::from_literal(&col_str, row)
+    }
+
     /// Flips the cell orientation for the opposite team.
     pub fn flip_orientation(&self, grid_dims: GridDimensions) -> Result<Self, RegionError> {
         // Flip both column and row
@@ -269,6 +331,65 @@ impl Region {
             grid_dims,
         )
     }
+
+    /// Convert region to grid notation string (e.g., "A1:B2")
+    /// This format is used for human-readable configuration files.
+    ///
+    /// # Examples
+    /// ```
+    /// # use ynwa_core::{Region, GridCell, GridDimensions, team::Team};
+    /// let grid_dims = GridDimensions::new(26, 44);
+    /// let region = Region::new(
+    ///     Team::A,
+    ///     GridCell::new(1, 1).unwrap(),
+    ///     GridCell::new(2, 2).unwrap(),
+    ///     grid_dims
+    /// ).unwrap();
+    /// assert_eq!(region.to_grid_notation(), "A1:B2");
+    /// ```
+    pub fn to_grid_notation(&self) -> String {
+        format!(
+            "{}{}:{}{}",
+            GridCell::column_to_label(self.top_left.col),
+            self.top_left.row,
+            GridCell::column_to_label(self.bottom_right.col),
+            self.bottom_right.row
+        )
+    }
+
+    /// Parse region from grid notation string (e.g., "A1:B2")
+    ///
+    /// # Examples
+    /// ```
+    /// # use ynwa_core::{Region, GridDimensions, team::Team};
+    /// let grid_dims = GridDimensions::new(26, 44);
+    /// let region = Region::from_grid_notation("C3:D4", Team::A, grid_dims).unwrap();
+    /// assert_eq!(region.top_left.col, 3);
+    /// assert_eq!(region.top_left.row, 3);
+    /// ```
+    pub fn from_grid_notation(
+        notation: &str,
+        team: Team,
+        grid_dims: GridDimensions,
+    ) -> Result<Self, RegionError> {
+        // Split by colon
+        let parts: Vec<&str> = notation.split(':').collect();
+        if parts.len() != 2 {
+            return Err(RegionError::InvalidRegion(format!(
+                "Invalid grid notation '{}'. Expected format: 'A1:B2'",
+                notation
+            )));
+        }
+
+        // Parse cells using GridCell::from_notation
+        let top_left = GridCell::from_notation(parts[0])
+            .map_err(|e| RegionError::InvalidRegion(format!("Invalid top-left cell '{}': {}", parts[0], e)))?;
+
+        let bottom_right = GridCell::from_notation(parts[1])
+            .map_err(|e| RegionError::InvalidRegion(format!("Invalid bottom-right cell '{}': {}", parts[1], e)))?;
+
+        Region::new(team, top_left, bottom_right, grid_dims)
+    }
 }
 
 #[cfg(test)]
@@ -338,6 +459,49 @@ mod tests {
     fn test_grid_cell_from_literal_invalid() {
         let result = GridCell::from_literal("A1", 1);
         assert!(matches!(result, Err(RegionError::InvalidColumnLabel(_))));
+    }
+
+    #[test]
+    fn test_grid_cell_from_notation() {
+        let cell = GridCell::from_notation("A1").unwrap();
+        assert_eq!(cell.col, 1);
+        assert_eq!(cell.row, 1);
+
+        let cell2 = GridCell::from_notation("B2").unwrap();
+        assert_eq!(cell2.col, 2);
+        assert_eq!(cell2.row, 2);
+
+        let cell3 = GridCell::from_notation("Z10").unwrap();
+        assert_eq!(cell3.col, 26);
+        assert_eq!(cell3.row, 10);
+
+        let cell4 = GridCell::from_notation("AA27").unwrap();
+        assert_eq!(cell4.col, 27);
+        assert_eq!(cell4.row, 27);
+    }
+
+    #[test]
+    fn test_grid_cell_from_notation_case_insensitive() {
+        let lower = GridCell::from_notation("ab10").unwrap();
+        let upper = GridCell::from_notation("AB10").unwrap();
+        assert_eq!(lower.col, upper.col);
+        assert_eq!(lower.row, upper.row);
+    }
+
+    #[test]
+    fn test_grid_cell_from_notation_invalid() {
+        // Letters after digits
+        assert!(GridCell::from_notation("1A").is_err());
+        assert!(GridCell::from_notation("A1B").is_err());
+        
+        // Missing parts
+        assert!(GridCell::from_notation("A").is_err());
+        assert!(GridCell::from_notation("1").is_err());
+        assert!(GridCell::from_notation("").is_err());
+        
+        // Invalid characters
+        assert!(GridCell::from_notation("A-1").is_err());
+        assert!(GridCell::from_notation("A 1").is_err());
     }
 
     #[test]
@@ -610,5 +774,84 @@ mod tests {
 
         assert!((center.x.get::<meter>() - expected_x).abs() < 0.01);
         assert!((center.z.get::<meter>() - expected_z).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_region_to_grid_notation() {
+        let field = Field::from_meters(60.0, 100.0, 26, 44);
+        let region = Region::new(
+            Team::A,
+            GridCell::new(1, 1).unwrap(),
+            GridCell::new(2, 2).unwrap(),
+            field.grid_dimensions(),
+        )
+        .unwrap();
+
+        assert_eq!(region.to_grid_notation(), "A1:B2");
+
+        // Test with multi-letter columns
+        let region2 = Region::new(
+            Team::B,
+            GridCell::new(25, 22).unwrap(),
+            GridCell::new(26, 24).unwrap(),
+            field.grid_dimensions(),
+        )
+        .unwrap();
+
+        assert_eq!(region2.to_grid_notation(), "Y22:Z24");
+    }
+
+    #[test]
+    fn test_region_from_grid_notation() {
+        let grid_dims = GridDimensions::new(26, 44);
+
+        let region = Region::from_grid_notation("A1:B2", Team::A, grid_dims).unwrap();
+        assert_eq!(region.team, Team::A);
+        assert_eq!(region.top_left.col, 1);
+        assert_eq!(region.top_left.row, 1);
+        assert_eq!(region.bottom_right.col, 2);
+        assert_eq!(region.bottom_right.row, 2);
+
+        // Test with multi-letter columns
+        let region2 = Region::from_grid_notation("Y22:Z24", Team::B, grid_dims).unwrap();
+        assert_eq!(region2.top_left.col, 25);
+        assert_eq!(region2.top_left.row, 22);
+        assert_eq!(region2.bottom_right.col, 26);
+        assert_eq!(region2.bottom_right.row, 24);
+    }
+
+    #[test]
+    fn test_region_grid_notation_roundtrip() {
+        let grid_dims = GridDimensions::new(26, 44);
+
+        let original = Region::new(
+            Team::A,
+            GridCell::new(3, 5).unwrap(),
+            GridCell::new(7, 10).unwrap(),
+            grid_dims,
+        )
+        .unwrap();
+
+        let notation = original.to_grid_notation();
+        let parsed = Region::from_grid_notation(&notation, Team::A, grid_dims).unwrap();
+
+        assert_eq!(original.top_left, parsed.top_left);
+        assert_eq!(original.bottom_right, parsed.bottom_right);
+        assert_eq!(original.team, parsed.team);
+    }
+
+    #[test]
+    fn test_region_from_grid_notation_invalid() {
+        let grid_dims = GridDimensions::new(26, 44);
+
+        // Invalid format
+        assert!(Region::from_grid_notation("A1B2", Team::A, grid_dims).is_err());
+        assert!(Region::from_grid_notation("A1:", Team::A, grid_dims).is_err());
+        assert!(Region::from_grid_notation(":B2", Team::A, grid_dims).is_err());
+
+        // Invalid cells
+        assert!(Region::from_grid_notation("A:B2", Team::A, grid_dims).is_err());
+        assert!(Region::from_grid_notation("1A:B2", Team::A, grid_dims).is_err());
+        assert!(Region::from_grid_notation("A1:B", Team::A, grid_dims).is_err());
     }
 }

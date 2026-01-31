@@ -2,6 +2,7 @@ pub mod field_builder;
 
 pub use field_builder::{create_football_field, create_football_field_with_dimensions};
 
+use crate::config::SerializableGameConfig;
 use crate::game::{BallDef, GameConfig, PlayerDef, RefereeDef};
 use crate::region::{GridCell, Region};
 use crate::team::Team;
@@ -56,4 +57,18 @@ pub fn create_football_game_config() -> GameConfig {
         ball: BallDef::default(),
         referees: vec![RefereeDef::default()],
     }
+}
+
+/// Creates a game configuration from a TOML file
+pub fn create_football_game_config_from_file(path: &std::path::Path) -> Result<GameConfig, String> {
+    let config = SerializableGameConfig::from_file(path)?;
+    let field = create_football_field();
+    config.to_game_config(field)
+}
+
+/// Creates a game configuration from a TOML string
+pub fn create_football_game_config_from_toml(toml_str: &str) -> Result<GameConfig, String> {
+    let config = SerializableGameConfig::from_toml(toml_str)?;
+    let field = create_football_field();
+    config.to_game_config(field)
 }
