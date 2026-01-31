@@ -1,133 +1,133 @@
-# Team A Players
+# Team A Players (rows 1-22, defending goal at row 1)
 [[players]]
 team = "A"
 number = 1
 name = "Goalkeeper A"
-start_position = "A22:B24"  # Near goal A
+start_position = "M3:M3"  # Center of goal area
 
 [[players]]
 team = "A"
 number = 2
 name = "Defender A1"
-start_position = "D15:E17"
+start_position = "G8:G8"  # Left back
 
 [[players]]
 team = "A"
 number = 3
 name = "Defender A2"
-start_position = "D22:E24"
+start_position = "K8:K8"  # Center back left
 
 [[players]]
 team = "A"
 number = 4
 name = "Defender A3"
-start_position = "D29:E31"
+start_position = "O8:O8"  # Center back right
 
 [[players]]
 team = "A"
 number = 5
-name = "Midfielder A1"
-start_position = "H15:I17"
+name = "Defender A4"
+start_position = "S8:S8"  # Right back
 
 [[players]]
 team = "A"
 number = 6
-name = "Midfielder A2"
-start_position = "H22:I24"
+name = "Midfielder A1"
+start_position = "H14:H14"  # Left midfielder
 
 [[players]]
 team = "A"
 number = 7
-name = "Midfielder A3"
-start_position = "H29:I31"
+name = "Midfielder A2"
+start_position = "M14:M14"  # Center midfielder
 
 [[players]]
 team = "A"
 number = 8
-name = "Forward A1"
-start_position = "L15:M17"
+name = "Midfielder A3"
+start_position = "R14:R14"  # Right midfielder
 
 [[players]]
 team = "A"
 number = 9
-name = "Forward A2"
-start_position = "L22:M24"
+name = "Forward A1"
+start_position = "G20:G20"  # Left winger
 
 [[players]]
 team = "A"
 number = 10
-name = "Forward A3"
-start_position = "L29:M31"
+name = "Forward A2"
+start_position = "M20:M20"  # Striker
 
 [[players]]
 team = "A"
 number = 11
-name = "Striker A"
-start_position = "O22:P24"
+name = "Forward A3"
+start_position = "S20:S20"  # Right winger
 
-# Team B Players
+# Team B Players (rows 23-44, defending goal at row 44)
 [[players]]
 team = "B"
 number = 1
 name = "Goalkeeper B"
-start_position = "Y22:Z24"  # Near goal B
+start_position = "M42:M42"  # Center of goal area
 
 [[players]]
 team = "B"
 number = 2
 name = "Defender B1"
-start_position = "V15:W17"
+start_position = "G37:G37"  # Left back
 
 [[players]]
 team = "B"
 number = 3
 name = "Defender B2"
-start_position = "V22:W24"
+start_position = "K37:K37"  # Center back left
 
 [[players]]
 team = "B"
 number = 4
 name = "Defender B3"
-start_position = "V29:W31"
+start_position = "O37:O37"  # Center back right
 
 [[players]]
 team = "B"
 number = 5
-name = "Midfielder B1"
-start_position = "S15:T17"
+name = "Defender B4"
+start_position = "S37:S37"  # Right back
 
 [[players]]
 team = "B"
 number = 6
-name = "Midfielder B2"
-start_position = "S22:T24"
+name = "Midfielder B1"
+start_position = "H31:H31"  # Left midfielder
 
 [[players]]
 team = "B"
 number = 7
-name = "Midfielder B3"
-start_position = "S29:T31"
+name = "Midfielder B2"
+start_position = "M31:M31"  # Center midfielder
 
 [[players]]
 team = "B"
 number = 8
-name = "Forward B1"
-start_position = "P15:Q17"
+name = "Midfielder B3"
+start_position = "R31:R31"  # Right midfielder
 
 [[players]]
 team = "B"
 number = 9
-name = "Forward B2"
-start_position = "P22:Q24"
+name = "Forward B1"
+start_position = "G25:G25"  # Left winger
 
 [[players]]
 team = "B"
 number = 10
-name = "Forward B3"
-start_position = "P29:Q31"
+name = "Forward B2"
+start_position = "M25:M25"  # Striker
 
 [[players]]
 team = "B"
 number = 11
-name = "Striker B"
-start_position = "L22:M24"
+name = "Forward B3"
+start_position = "S25:S25"  # Right winger

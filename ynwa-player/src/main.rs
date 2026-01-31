@@ -1,7 +1,8 @@
 use macroquad::prelude::*;
-use ynwa_core::create_football_game_config;
+use ynwa_core::create_football_game_config_from_file;
 use ynwa_core::field::zones::ZoneGeometry;
 use uom::si::length::meter;
+use std::path::Path;
 
 fn window_conf() -> Conf {
     Conf {
@@ -14,7 +15,13 @@ fn window_conf() -> Conf {
 
 #[macroquad::main(window_conf)]
 async fn main() {
-    let game_config = create_football_game_config();
+    // Load game configuration from default TOML file
+    let config_path = Path::new("config/default_game.toml");
+    let game_config = create_football_game_config_from_file(config_path)
+        .expect("Failed to load game configuration");
+    
+    println!("Loaded game with {} players", game_config.players.len());
+    
     let field = &game_config.field;
     
     // Calculate field proportions from actual dimensions
@@ -35,14 +42,15 @@ async fn main() {
         // Green field area (left side, based on natural proportions)
         draw_rectangle(0.0, 0.0, field_area_width, screen_h, Color::new(0.13, 0.55, 0.13, 1.0));
 
-        // Render field
-        render_field(field, field_area_width, screen_h);
+        // Render field and players
+        render_field(&game_config, field_area_width, screen_h);
 
         next_frame().await
     }
 }
 
-fn render_field(field: &ynwa_core::field::Field, field_area_width: f32, screen_h: f32) {
+fn render_field(game_config: &ynwa_core::game::GameConfig, field_area_width: f32, screen_h: f32) {
+    let field = &game_config.field;
     let field_length = field.length().get::<meter>();
     let field_width = field.width().get::<meter>();
 
@@ -148,6 +156,44 @@ fn render_field(field: &ynwa_core::field::Field, field_area_width: f32, screen_h
             ZoneGeometry::Arc(_) => {
                 // Skip arcs for minimal version
             }
+        }
+    }
+
+    // Draw players
+    let player_radius = 8.0;
+    let team_a_color = RED;
+    let team_b_color = BLUE;
+    let text_color = WHITE;
+    
+    for player_def in &game_config.players {
+        // Get player's start position region
+        if let Some(start_region) = player_def.regions.get("start position") {
+            // Get center of the region
+            let center = start_region.center(field.grid_dimensions(), field.width().get::<meter>());
+            let px = center.x.get::<meter>();
+            let pz = center.z.get::<meter>();
+            
+            // Choose color based on team
+            let color = match player_def.team {
+                ynwa_core::team::Team::A => team_a_color,
+                ynwa_core::team::Team::B => team_b_color,
+            };
+            
+            // Draw player circle
+            draw_circle(to_screen_x(pz), to_screen_y(px), player_radius, color);
+            
+            // Draw player number
+            let number_text = player_def.number.to_string();
+            let font_size = 14.0;
+            let text_dims = measure_text(&number_text, None, font_size as u16, 1.0);
+            
+            draw_text(
+                &number_text,
+                to_screen_x(pz) - text_dims.width / 2.0,
+                to_screen_y(px) + text_dims.height / 2.0 - 2.0,
+                font_size,
+                text_color,
+            );
         }
     }
 }
