@@ -35,24 +35,37 @@ impl Zone {
 /// Zones are stored in a HashMap with (name, team) as the key for O(1) lookup.
 /// The name and team are also stored in the Zone struct itself to make zones
 /// self-contained and easy to pass to rendering/physics systems.
+///
+/// Grid dimensions define how the field is divided for region addressing.
 #[derive(Debug, Clone)]
 pub struct Field {
     width: Length,
     length: Length,
+    grid_columns: u32,
+    grid_rows: u32,
     zones: HashMap<(String, Option<Team>), Zone>,
 }
 
 impl Field {
-    pub fn new(width: Length, length: Length) -> Self {
+    pub fn new(width: Length, length: Length, grid_columns: u32, grid_rows: u32) -> Self {
+        assert!(grid_columns > 0, "Grid columns must be positive");
+        assert!(grid_rows > 0, "Grid rows must be positive");
         Self {
             width,
             length,
+            grid_columns,
+            grid_rows,
             zones: HashMap::new(),
         }
     }
 
-    pub fn from_meters(width: f32, length: f32) -> Self {
-        Self::new(Length::new::<meter>(width), Length::new::<meter>(length))
+    pub fn from_meters(width: f32, length: f32, grid_columns: u32, grid_rows: u32) -> Self {
+        Self::new(
+            Length::new::<meter>(width),
+            Length::new::<meter>(length),
+            grid_columns,
+            grid_rows,
+        )
     }
 
     pub fn width(&self) -> Length {
@@ -61,6 +74,14 @@ impl Field {
 
     pub fn length(&self) -> Length {
         self.length
+    }
+
+    pub fn grid_columns(&self) -> u32 {
+        self.grid_columns
+    }
+
+    pub fn grid_rows(&self) -> u32 {
+        self.grid_rows
     }
 
     pub fn add_zone(&mut self, zone: Zone) {
@@ -81,15 +102,15 @@ pub struct FieldBuilder {
 }
 
 impl FieldBuilder {
-    pub fn new(width: Length, length: Length) -> Self {
+    pub fn new(width: Length, length: Length, grid_columns: u32, grid_rows: u32) -> Self {
         Self {
-            field: Field::new(width, length),
+            field: Field::new(width, length, grid_columns, grid_rows),
         }
     }
 
-    pub fn from_meters(width: f32, length: f32) -> Self {
+    pub fn from_meters(width: f32, length: f32, grid_columns: u32, grid_rows: u32) -> Self {
         Self {
-            field: Field::from_meters(width, length),
+            field: Field::from_meters(width, length, grid_columns, grid_rows),
         }
     }
 
@@ -110,7 +131,7 @@ mod tests {
 
     #[test]
     fn test_field_dimensions() {
-        let field = Field::from_meters(100.0, 60.0);
+        let field = Field::from_meters(100.0, 60.0, 26, 26);
         assert_eq!(field.width().get::<meter>(), 100.0);
         assert_eq!(field.length().get::<meter>(), 60.0);
     }
@@ -128,7 +149,7 @@ mod tests {
             ZoneGeometry::Rectangle(Rectangle::from_meters(83.5, 0.0, 100.0, 40.0)),
         );
 
-        let field = FieldBuilder::from_meters(100.0, 60.0)
+        let field = FieldBuilder::from_meters(100.0, 60.0, 26, 44)
             .with_zone(zone_a)
             .with_zone(zone_b)
             .build();
@@ -140,7 +161,7 @@ mod tests {
 
     #[test]
     fn test_zone_lookup_by_name_and_team() {
-        let mut field = Field::from_meters(100.0, 60.0);
+        let mut field = Field::from_meters(100.0, 60.0, 26, 44);
         
         let zone_team_a = Zone::new(
             "goal",
@@ -167,7 +188,7 @@ mod tests {
 
     #[test]
     fn test_zone_without_team() {
-        let mut field = Field::from_meters(100.0, 60.0);
+        let mut field = Field::from_meters(100.0, 60.0, 26, 44);
         
         let center_circle = Zone::new(
             "center_circle",

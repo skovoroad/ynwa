@@ -4,6 +4,7 @@ pub mod field;
 pub mod team;
 pub mod football;
 pub mod game;
+pub mod region;
 
 pub use game::{
     Game, GameConfig, GameState, GameEvent,
@@ -12,6 +13,7 @@ pub use game::{
 };
 
 pub use football::create_football_game_config;
+pub use region::{Region, GridCell};
 
 pub fn version() -> &'static str {
     env!("CARGO_PKG_VERSION")

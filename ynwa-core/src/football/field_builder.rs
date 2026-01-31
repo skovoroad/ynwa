@@ -17,6 +17,9 @@ const PENALTY_ARC_RADIUS: f32 = 9.15;
 const GOAL_DEPTH: f32 = 2.5;
 const GOAL_WIDTH: f32 = 7.32;
 
+// Grid dimensions for football field
+const FOOTBALL_GRID_COLUMNS: u32 = 26; // A-Z
+
 /// Creates a standard football field (100m x 60m) with all regulation zones
 pub fn create_football_field() -> Field {
     create_football_field_with_dimensions(DEFAULT_LENGTH, DEFAULT_WIDTH)
@@ -24,6 +27,9 @@ pub fn create_football_field() -> Field {
 
 /// Creates a football field with custom dimensions and FIFA-proportional zones
 pub fn create_football_field_with_dimensions(length: f32, width: f32) -> Field {
+    // Calculate grid dimensions: columns fixed at 26, rows proportional to maintain square cells
+    let cell_size = width / FOOTBALL_GRID_COLUMNS as f32;
+    let grid_rows = (length / cell_size).ceil() as u32;
     type ZoneSpec = (&'static str, Option<Team>, Box<dyn Fn() -> ZoneGeometry>);
     
     let half_length = length / 2.0;
@@ -200,7 +206,7 @@ pub fn create_football_field_with_dimensions(length: f32, width: f32) -> Field {
         ),
     ];
 
-    let mut builder = FieldBuilder::from_meters(width, length);
+    let mut builder = FieldBuilder::from_meters(width, length, FOOTBALL_GRID_COLUMNS, grid_rows);
     for (name, team, zone_fn) in zones {
         builder = builder.with_zone(Zone::new(name, team, zone_fn()));
     }

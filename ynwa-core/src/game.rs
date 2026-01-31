@@ -99,7 +99,7 @@ mod tests {
 
     fn create_test_config() -> GameConfig {
         GameConfig {
-            field: Field::from_meters(100.0, 60.0),
+            field: Field::from_meters(100.0, 60.0, 26, 44),
             players: vec![
                 PlayerDef { team: Team::A },
                 PlayerDef { team: Team::A },
