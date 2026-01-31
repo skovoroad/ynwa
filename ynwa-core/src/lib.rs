@@ -11,6 +11,8 @@ pub use game::{
     PlayerState, BallState, RefereeState,
 };
 
+pub use football::create_football_game_config;
+
 pub fn version() -> &'static str {
     env!("CARGO_PKG_VERSION")
 }

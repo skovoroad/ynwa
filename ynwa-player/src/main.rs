@@ -1,10 +1,7 @@
 use macroquad::prelude::*;
-use ynwa_core::football::create_football_field;
+use ynwa_core::create_football_game_config;
 use ynwa_core::field::zones::ZoneGeometry;
 use uom::si::length::meter;
-
-// Field proportions (width:length = 60:100 = 0.6)
-const FIELD_WIDTH_RATIO: f32 = 60.0 / 100.0;
 
 fn window_conf() -> Conf {
     Conf {
@@ -17,7 +14,11 @@ fn window_conf() -> Conf {
 
 #[macroquad::main(window_conf)]
 async fn main() {
-    let field = create_football_field();
+    let game_config = create_football_game_config();
+    let field = &game_config.field;
+    
+    // Calculate field proportions from actual dimensions
+    let field_width_ratio = field.width().get::<meter>() / field.length().get::<meter>();
 
     loop {
         let screen_h = screen_height();
@@ -25,7 +26,7 @@ async fn main() {
         // Field area: maintain natural proportions based on screen height
         let margin = 20.0;
         let field_render_height = screen_h - 2.0 * margin;
-        let field_render_width = field_render_height * FIELD_WIDTH_RATIO;
+        let field_render_width = field_render_height * field_width_ratio;
         let field_area_width = field_render_width + 2.0 * margin;
 
         // Gray background for control panel (rest of screen)
@@ -35,7 +36,7 @@ async fn main() {
         draw_rectangle(0.0, 0.0, field_area_width, screen_h, Color::new(0.13, 0.55, 0.13, 1.0));
 
         // Render field
-        render_field(&field, field_area_width, screen_h);
+        render_field(field, field_area_width, screen_h);
 
         next_frame().await
     }
