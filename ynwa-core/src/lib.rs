@@ -13,7 +13,7 @@ pub use game::{
 };
 
 pub use football::create_football_game_config;
-pub use region::{Region, GridCell, RegionError};
+pub use region::{Region, GridCell, RegionError, GridDimensions};
 
 pub fn version() -> &'static str {
     env!("CARGO_PKG_VERSION")

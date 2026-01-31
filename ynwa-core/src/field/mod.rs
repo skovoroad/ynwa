@@ -84,6 +84,10 @@ impl Field {
         self.grid_rows
     }
 
+    pub fn grid_dimensions(&self) -> crate::region::GridDimensions {
+        crate::region::GridDimensions::new(self.grid_columns, self.grid_rows)
+    }
+
     pub fn add_zone(&mut self, zone: Zone) {
         self.zones.insert((zone.name.clone(), zone.team), zone);
     }
