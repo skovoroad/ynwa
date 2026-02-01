@@ -15,7 +15,9 @@ pub struct PlayerConfig {
 }
 
 impl PlayerConfig {
-    /// Convert to PlayerDef using field's grid dimensions
+    /// Convert to PlayerDef using field's grid dimensions.
+    /// Player positions in config are specified in team's own orientation.
+    /// This method converts them to absolute field coordinates (Team A orientation).
     pub fn to_player_def(&self, grid_dims: crate::region::GridDimensions) -> Result<PlayerDef, String> {
         let team = match self.team.as_str() {
             "A" => Team::A,
@@ -23,13 +25,23 @@ impl PlayerConfig {
             _ => return Err(format!("Invalid team '{}'. Must be 'A' or 'B'", self.team)),
         };
         
+        // Parse region in team's own orientation
         let start_region = Region::from_grid_notation(&self.start_position, team, grid_dims)
             .map_err(|e| format!("Invalid start position '{}': {}", self.start_position, e))?;
         
-        Ok(PlayerDef::new(team, self.number, self.name.clone(), start_region))
+        // Convert to absolute field coordinates (Team A orientation)
+        let start_region_absolute = if team == Team::B {
+            start_region.flip_orientation(grid_dims)
+                .map_err(|e| format!("Failed to flip region orientation: {}", e))?
+        } else {
+            start_region
+        };
+        
+        Ok(PlayerDef::new(team, self.number, self.name.clone(), start_region_absolute))
     }
     
-    /// Create from PlayerDef
+    /// Create from PlayerDef.
+    /// Converts absolute field coordinates back to team's own orientation.
     pub fn from_player_def(player_def: &PlayerDef) -> Result<Self, String> {
         let team = match player_def.team {
             Team::A => "A".to_string(),
@@ -39,11 +51,19 @@ impl PlayerConfig {
         let start_region = player_def.regions.get("start position")
             .ok_or("Player must have 'start position' region")?;
         
+        // Convert from absolute coordinates to team's own orientation
+        let start_region_own = if player_def.team == Team::B {
+            start_region.flip_orientation(crate::region::GridDimensions::new(26, 44))
+                .map_err(|e| format!("Failed to flip region orientation: {}", e))?
+        } else {
+            start_region.clone()
+        };
+        
         Ok(Self {
             team,
             number: player_def.number,
             name: player_def.name.clone(),
-            start_position: start_region.to_grid_notation(),
+            start_position: start_region_own.to_grid_notation(),
         })
     }
 }
@@ -273,5 +293,68 @@ mod tests {
         let result = config.to_game_config(field);
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("Invalid team"));
+    }
+
+    #[test]
+    fn test_team_b_orientation_flip() {
+        let field = Field::from_meters(60.0, 100.0, 26, 44);
+        let grid_dims = field.grid_dimensions();
+        
+        // Team B player at M42 in their own orientation
+        let config_b = PlayerConfig {
+            team: "B".to_string(),
+            number: 1,
+            name: "Goalkeeper B".to_string(),
+            start_position: "M42".to_string(), // Own orientation: near their goal
+        };
+        
+        let player_def_b = config_b.to_player_def(grid_dims).unwrap();
+        
+        // After flip, should be at column 14, row 3 in absolute coordinates
+        // M42 (col=13, row=42) flips to (col=26-13+1=14, row=44-42+1=3)
+        let start_region = player_def_b.regions.get("start position").unwrap();
+        assert_eq!(start_region.top_left.col, 14); // Flipped column: N
+        assert_eq!(start_region.top_left.row, 3);  // 44 - 42 + 1 = 3
+        
+        // Team A player at M42 stays at M42 (no flip)
+        let config_a = PlayerConfig {
+            team: "A".to_string(),
+            number: 1,
+            name: "Goalkeeper A".to_string(),
+            start_position: "M42".to_string(),
+        };
+        
+        let player_def_a = config_a.to_player_def(grid_dims).unwrap();
+        let start_region_a = player_def_a.regions.get("start position").unwrap();
+        assert_eq!(start_region_a.top_left.col, 13); // M = 13 (no flip)
+        assert_eq!(start_region_a.top_left.row, 42); // No flip
+    }
+
+    #[test]
+    fn test_orientation_roundtrip() {
+        let field = Field::from_meters(60.0, 100.0, 26, 44);
+        let grid_dims = field.grid_dimensions();
+        
+        // Original config for Team B in their own orientation
+        let original_config = PlayerConfig {
+            team: "B".to_string(),
+            number: 10,
+            name: "Test Player B".to_string(),
+            start_position: "M25".to_string(), // Own orientation
+        };
+        
+        // Convert to PlayerDef (flips to absolute coordinates)
+        let player_def = original_config.to_player_def(grid_dims).unwrap();
+        
+        // Convert back to config (flips back to own orientation)
+        let config_back = PlayerConfig::from_player_def(&player_def).unwrap();
+        
+        // Should match original (note: single cell "M25" becomes "M25:M25" after round-trip)
+        assert_eq!(config_back.team, "B");
+        // Both "M25" and "M25:M25" are valid representations of the same single cell
+        let team_b = Team::B;
+        let parsed_back = Region::from_grid_notation(&config_back.start_position, team_b, grid_dims).unwrap();
+        let parsed_original = Region::from_grid_notation(&original_config.start_position, team_b, grid_dims).unwrap();
+        assert_eq!(parsed_back, parsed_original);
     }
 }
