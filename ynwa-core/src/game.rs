@@ -14,11 +14,13 @@ pub struct PlayerDef {
     pub team: Team,
     pub number: u32,
     pub name: String,
+    pub reaction_rate: u32,  // 10-100: player's reaction speed
+    pub speed_rate: u32,     // 10-100: player's movement speed
     pub regions: HashMap<String, Region>,
 }
 
 impl PlayerDef {
-    pub fn new(team: Team, number: u32, name: String, start_position: Region) -> Self {
+    pub fn new(team: Team, number: u32, name: String, reaction_rate: u32, speed_rate: u32, start_position: Region) -> Self {
         let mut regions = HashMap::new();
         regions.insert("start position".to_string(), start_position);
 
@@ -26,6 +28,8 @@ impl PlayerDef {
             team,
             number,
             name,
+            reaction_rate,
+            speed_rate,
             regions,
         }
     }
@@ -167,9 +171,9 @@ mod tests {
         GameConfig {
             field,
             players: vec![
-                PlayerDef::new(Team::A, 1, "Player A1".to_string(), start_region_a1),
-                PlayerDef::new(Team::A, 2, "Player A2".to_string(), start_region_a2),
-                PlayerDef::new(Team::B, 1, "Player B1".to_string(), start_region_b),
+                PlayerDef::new(Team::A, 1, "Player A1".to_string(), 50, 50, start_region_a1),
+                PlayerDef::new(Team::A, 2, "Player A2".to_string(), 50, 50, start_region_a2),
+                PlayerDef::new(Team::B, 1, "Player B1".to_string(), 50, 50, start_region_b),
             ],
             ball: BallDef::default(),
             referees: vec![RefereeDef::default()],

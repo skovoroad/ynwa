@@ -29,6 +29,8 @@ pub fn create_football_game_config() -> GameConfig {
             Team::A,
             i + 1,
             format!("Player A{}", i + 1),
+            50, // reaction_rate
+            50, // speed_rate
             start_region,
         ));
     }
@@ -47,6 +49,8 @@ pub fn create_football_game_config() -> GameConfig {
             Team::B,
             i + 1,
             format!("Player B{}", i + 1),
+            50, // reaction_rate
+            50, // speed_rate
             start_region,
         ));
     }

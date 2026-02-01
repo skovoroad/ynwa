@@ -3,66 +3,88 @@
 team = "A"
 number = 1
 name = "Goalkeeper A"
+reaction_rate = 85
+speed_rate = 45
 start_position = "M42"  # Center of goal area
 
 [[players]]
 team = "A"
 number = 2
 name = "Defender A1"
+reaction_rate = 62
+speed_rate = 58
 start_position = "G37"  # Left back
 
 [[players]]
 team = "A"
 number = 3
 name = "Defender A2"
+reaction_rate = 68
+speed_rate = 55
 start_position = "K37"  # Center back left
 
 [[players]]
 team = "A"
 number = 4
 name = "Defender A3"
+reaction_rate = 65
+speed_rate = 57
 start_position = "O37"  # Center back right
 
 [[players]]
 team = "A"
 number = 5
 name = "Defender A4"
+reaction_rate = 60
+speed_rate = 61
 start_position = "S37"  # Right back
 
 [[players]]
 team = "A"
 number = 6
 name = "Midfielder A1"
+reaction_rate = 72
+speed_rate = 68
 start_position = "H31"  # Left midfielder
 
 [[players]]
 team = "A"
 number = 7
 name = "Midfielder A2"
+reaction_rate = 75
+speed_rate = 65
 start_position = "M31"  # Center midfielder
 
 [[players]]
 team = "A"
 number = 8
 name = "Midfielder A3"
+reaction_rate = 70
+speed_rate = 70
 start_position = "R31"  # Right midfielder
 
 [[players]]
 team = "A"
 number = 9
 name = "Forward A1"
+reaction_rate = 78
+speed_rate = 82
 start_position = "G25"  # Left winger
 
 [[players]]
 team = "A"
 number = 10
 name = "Forward A2"
+reaction_rate = 80
+speed_rate = 75
 start_position = "M25"  # Striker
 
 [[players]]
 team = "A"
 number = 11
 name = "Forward A3"
+reaction_rate = 76
+speed_rate = 85
 start_position = "S25"  # Right winger
 
 # Team B Players (own orientation: defending goal at row 44)
@@ -70,64 +92,86 @@ start_position = "S25"  # Right winger
 team = "B"
 number = 1
 name = "Goalkeeper B"
+reaction_rate = 88
+speed_rate = 42
 start_position = "M42"  # Center of goal area (own orientation)
 
 [[players]]
 team = "B"
 number = 2
 name = "Defender B1"
+reaction_rate = 64
+speed_rate = 60
 start_position = "G37"  # Left back
 
 [[players]]
 team = "B"
 number = 3
 name = "Defender B2"
+reaction_rate = 70
+speed_rate = 53
 start_position = "K37"  # Center back left
 
 [[players]]
 team = "B"
 number = 4
 name = "Defender B3"
+reaction_rate = 67
+speed_rate = 56
 start_position = "O37"  # Center back right
 
 [[players]]
 team = "B"
 number = 5
 name = "Defender B4"
+reaction_rate = 63
+speed_rate = 62
 start_position = "S37"  # Right back
 
 [[players]]
 team = "B"
 number = 6
 name = "Midfielder B1"
+reaction_rate = 74
+speed_rate = 70
 start_position = "H31"  # Left midfielder
 
 [[players]]
 team = "B"
 number = 7
 name = "Midfielder B2"
+reaction_rate = 77
+speed_rate = 67
 start_position = "M31"  # Center midfielder
 
 [[players]]
 team = "B"
 number = 8
 name = "Midfielder B3"
+reaction_rate = 71
+speed_rate = 72
 start_position = "R31"  # Right midfielder
 
 [[players]]
 team = "B"
 number = 9
 name = "Forward B1"
+reaction_rate = 79
+speed_rate = 80
 start_position = "G25"  # Left winger
 
 [[players]]
 team = "B"
 number = 10
 name = "Forward B2"
+reaction_rate = 82
+speed_rate = 78
 start_position = "M25"  # Striker
 
 [[players]]
 team = "B"
 number = 11
 name = "Forward B3"
+reaction_rate = 75
+speed_rate = 88
 start_position = "S25"  # Right winger
