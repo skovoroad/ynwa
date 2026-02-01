@@ -16,9 +16,8 @@ fn window_conf() -> Conf {
 
 #[macroquad::main(window_conf)]
 async fn main() {
-    // Load game world from default TOML file
     let config_path = Path::new("config/default_game.toml");
-    let world =
+    let mut world =
         create_football_world_from_file(config_path).expect("Failed to load game configuration");
 
     println!(
@@ -27,37 +26,69 @@ async fn main() {
     );
 
     let field = &world.game().config().field;
-
-    // Calculate field proportions from actual dimensions
     let field_width_ratio = field.width().get::<meter>() / field.length().get::<meter>();
 
-    let mut is_fullscreen = false; // Start in fullscreen mode
+    let mut is_fullscreen = false;
     set_fullscreen(is_fullscreen);
 
+    // Simulation parameters
+    let mut simulation_rate: f32 = 10.0; // steps per second
+    let mut simulation_paused = false;
+    let mut accumulator = 0.0;
+
     loop {
-        // Handle keyboard input
         if is_key_pressed(KeyCode::Escape) {
-            break; // Exit application on Escape
+            break;
         }
 
         if is_key_pressed(KeyCode::F11) {
-            // Toggle fullscreen mode
             is_fullscreen = !is_fullscreen;
             set_fullscreen(is_fullscreen);
         }
 
+        // Toggle pause with Space
+        if is_key_pressed(KeyCode::Space) {
+            simulation_paused = !simulation_paused;
+        }
+
+        // Adjust simulation rate with +/-
+        if is_key_pressed(KeyCode::Equal) || is_key_pressed(KeyCode::KpAdd) {
+            simulation_rate = (simulation_rate * 2.0).min(100.0);
+        }
+        if is_key_pressed(KeyCode::Minus) || is_key_pressed(KeyCode::KpSubtract) {
+            simulation_rate = (simulation_rate / 2.0).max(1.0);
+        }
+
+        // Accumulate frame time for fixed timestep simulation
+        if !simulation_paused {
+            accumulator += get_frame_time();
+        }
+
+        // Step simulation at fixed rate
+        let simulation_delta = 1.0 / simulation_rate;
+        while accumulator >= simulation_delta {
+            world.step(simulation_delta);
+            accumulator -= simulation_delta;
+        }
+
+        // Screen layout
+        let screen_w = screen_width();
         let screen_h = screen_height();
-
-        // Field area: maintain natural proportions based on screen height
+        
+        // Calculate field area (left side with padding)
         let margin = 20.0;
-        let field_render_height = screen_h - 2.0 * margin;
-        let field_render_width = field_render_height * field_width_ratio;
-        let field_area_width = field_render_width + 2.0 * margin;
+        let available_height = screen_h - 2.0 * margin;
+        let available_width = available_height * field_width_ratio;
+        let field_area_width = available_width + 2.0 * margin;
+        
+        // Control panel (right side)
+        let control_panel_x = field_area_width;
+        let control_panel_width = screen_w - field_area_width;
 
-        // Gray background for control panel (rest of screen)
+        // Clear background
         clear_background(Color::new(0.3, 0.3, 0.3, 1.0));
 
-        // Green field area (left side, based on natural proportions)
+        // Green field area (left side)
         draw_rectangle(
             0.0,
             0.0,
@@ -66,8 +97,54 @@ async fn main() {
             Color::new(0.13, 0.55, 0.13, 1.0),
         );
 
-        // Render field and players
+        // Render field
         render_field(world.game().config(), field_area_width, screen_h);
+
+        // Separator line between field and control panel
+        draw_line(
+            field_area_width,
+            0.0,
+            field_area_width,
+            screen_h,
+            2.0,
+            Color::new(0.2, 0.2, 0.2, 1.0),
+        );
+
+        // Control panel info (top of right panel)
+        if control_panel_width > 50.0 {
+            let elapsed_time = world.game().state().elapsed_time;
+            let status = if simulation_paused { "PAUSED" } else { "Running" };
+            
+            let panel_x = control_panel_x + 20.0;
+            let mut y_offset = 40.0;
+            let line_height = 30.0;
+            
+            draw_text(
+                &format!("Time: {:.1}s", elapsed_time),
+                panel_x,
+                y_offset,
+                24.0,
+                WHITE,
+            );
+            y_offset += line_height;
+            
+            draw_text(
+                &format!("Status: {}", status),
+                panel_x,
+                y_offset,
+                24.0,
+                if simulation_paused { YELLOW } else { GREEN },
+            );
+            y_offset += line_height * 1.5;
+            
+            draw_text(
+                "Space - pause/resume",
+                panel_x,
+                y_offset,
+                20.0,
+                LIGHTGRAY,
+            );
+        }
 
         next_frame().await
     }
