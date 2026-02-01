@@ -14,8 +14,7 @@ pub use game::{
 };
 
 pub use football::{
-    create_football_game_config, 
-    create_football_game_config_from_file,
+    create_football_game_config, create_football_game_config_from_file,
     create_football_game_config_from_toml,
 };
 pub use region::{GridCell, GridDimensions, Region, RegionError};

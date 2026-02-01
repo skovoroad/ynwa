@@ -1,14 +1,15 @@
 use macroquad::prelude::*;
+use std::path::Path;
+use uom::si::length::meter;
 use ynwa_core::create_football_game_config_from_file;
 use ynwa_core::field::zones::ZoneGeometry;
-use uom::si::length::meter;
-use std::path::Path;
 
 fn window_conf() -> Conf {
     Conf {
         window_title: "YNWA - Football Manager".to_owned(),
-        window_width: 1000,
-        window_height: 700,
+        fullscreen: true, // Start in fullscreen mode by default
+        window_resizable: true,
+        high_dpi: true,
         ..Default::default()
     }
 }
@@ -19,17 +20,31 @@ async fn main() {
     let config_path = Path::new("config/default_game.toml");
     let game_config = create_football_game_config_from_file(config_path)
         .expect("Failed to load game configuration");
-    
+
     println!("Loaded game with {} players", game_config.players.len());
-    
+
     let field = &game_config.field;
-    
+
     // Calculate field proportions from actual dimensions
     let field_width_ratio = field.width().get::<meter>() / field.length().get::<meter>();
 
+    let mut is_fullscreen = false; // Start in fullscreen mode
+    set_fullscreen(is_fullscreen);
+
     loop {
+        // Handle keyboard input
+        if is_key_pressed(KeyCode::Escape) {
+            break; // Exit application on Escape
+        }
+
+        if is_key_pressed(KeyCode::F11) {
+            // Toggle fullscreen mode
+            is_fullscreen = !is_fullscreen;
+            set_fullscreen(is_fullscreen);
+        }
+
         let screen_h = screen_height();
-        
+
         // Field area: maintain natural proportions based on screen height
         let margin = 20.0;
         let field_render_height = screen_h - 2.0 * margin;
@@ -40,7 +55,13 @@ async fn main() {
         clear_background(Color::new(0.3, 0.3, 0.3, 1.0));
 
         // Green field area (left side, based on natural proportions)
-        draw_rectangle(0.0, 0.0, field_area_width, screen_h, Color::new(0.13, 0.55, 0.13, 1.0));
+        draw_rectangle(
+            0.0,
+            0.0,
+            field_area_width,
+            screen_h,
+            Color::new(0.13, 0.55, 0.13, 1.0),
+        );
 
         // Render field and players
         render_field(&game_config, field_area_width, screen_h);
@@ -85,20 +106,20 @@ fn render_field(game_config: &ynwa_core::game::GameConfig, field_area_width: f32
     // Draw grid cells in checkerboard pattern
     let grid_dims = field.grid_dimensions();
     let cell_size = field.cell_size();
-    
+
     let green_light = Color::new(0.14, 0.56, 0.14, 1.0);
     let green_dark = Color::new(0.12, 0.54, 0.12, 1.0);
-    
+
     for row in 0..grid_dims.rows {
         for col in 0..grid_dims.columns {
             // Checkerboard pattern: alternate based on sum of indices
             let is_light = (row + col) % 2 == 0;
             let color = if is_light { green_light } else { green_dark };
-            
+
             // Cell position in field coordinates (0-based for drawing)
             let cell_x = row as f32 * cell_size;
             let cell_z = col as f32 * cell_size;
-            
+
             // Draw filled rectangle
             draw_rectangle(
                 to_screen_x(cell_z),
@@ -113,14 +134,14 @@ fn render_field(game_config: &ynwa_core::game::GameConfig, field_area_width: f32
     // Draw grid labels
     let label_color = Color::new(0.9, 0.9, 0.9, 0.8);
     let font_size = 12.0;
-    
+
     // Column labels (A, B, C, ... at top)
     for col in 0..grid_dims.columns {
         let col_label = ynwa_core::GridCell::column_to_label(col + 1); // 1-based
         let cell_z = col as f32 * cell_size;
         let x_pos = to_screen_x(cell_z + cell_size / 2.0);
         let y_pos = to_screen_y(0.0) - 5.0; // Above field
-        
+
         let text_dims = measure_text(&col_label, None, font_size as u16, 1.0);
         draw_text(
             &col_label,
@@ -130,14 +151,14 @@ fn render_field(game_config: &ynwa_core::game::GameConfig, field_area_width: f32
             label_color,
         );
     }
-    
+
     // Row labels (1, 2, 3, ... at left)
     for row in 0..grid_dims.rows {
         let row_label = (row + 1).to_string(); // 1-based
         let cell_x = row as f32 * cell_size;
         let x_pos = to_screen_x(0.0) - 5.0; // Left of field
         let y_pos = to_screen_y(cell_x + cell_size / 2.0);
-        
+
         let text_dims = measure_text(&row_label, None, font_size as u16, 1.0);
         draw_text(
             &row_label,
@@ -202,7 +223,7 @@ fn render_field(game_config: &ynwa_core::game::GameConfig, field_area_width: f32
     let team_a_color = RED;
     let team_b_color = BLUE;
     let text_color = WHITE;
-    
+
     for player_def in &game_config.players {
         // Get player's start position region
         if let Some(start_region) = player_def.regions.get("start position") {
@@ -210,21 +231,21 @@ fn render_field(game_config: &ynwa_core::game::GameConfig, field_area_width: f32
             let center = start_region.center(field.grid_dimensions(), field.width().get::<meter>());
             let px = center.x.get::<meter>();
             let pz = center.z.get::<meter>();
-            
+
             // Choose color based on team
             let color = match player_def.team {
                 ynwa_core::team::Team::A => team_a_color,
                 ynwa_core::team::Team::B => team_b_color,
             };
-            
+
             // Draw player circle
             draw_circle(to_screen_x(pz), to_screen_y(px), player_radius, color);
-            
+
             // Draw player number
             let number_text = player_def.number.to_string();
             let font_size = 14.0;
             let text_dims = measure_text(&number_text, None, font_size as u16, 1.0);
-            
+
             draw_text(
                 &number_text,
                 to_screen_x(pz) - text_dims.width / 2.0,

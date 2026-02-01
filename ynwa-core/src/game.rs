@@ -201,8 +201,8 @@ mod tests {
         let game = Game::new(config);
 
         // Calculate expected positions from regions
-        let cell_width = game.config().field.width().get::<meter>()
-            / game.config().field.grid_columns() as f32;
+        let cell_width =
+            game.config().field.width().get::<meter>() / game.config().field.grid_columns() as f32;
 
         // Player A1: region (1,1) to (2,2) -> center at (1.5, 1.5) in grid coords
         // Grid coords to meters: (col-1)*cell_width for min, col*cell_width for max

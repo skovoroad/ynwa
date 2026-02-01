@@ -363,12 +363,12 @@ impl Region {
     /// ```
     /// # use ynwa_core::{Region, GridDimensions, team::Team};
     /// let grid_dims = GridDimensions::new(26, 44);
-    /// 
+    ///
     /// // Two-cell notation
     /// let region = Region::from_grid_notation("C3:D4", Team::A, grid_dims).unwrap();
     /// assert_eq!(region.top_left.col, 3);
     /// assert_eq!(region.top_left.row, 3);
-    /// 
+    ///
     /// // Single-cell notation
     /// let region = Region::from_grid_notation("M42", Team::B, grid_dims).unwrap();
     /// assert_eq!(region.top_left.col, 13);
@@ -383,22 +383,31 @@ impl Region {
     ) -> Result<Self, RegionError> {
         // Split by colon
         let parts: Vec<&str> = notation.split(':').collect();
-        
+
         let (top_left, bottom_right) = match parts.len() {
             1 => {
                 // Single cell notation: "A1"
-                let cell = GridCell::from_notation(parts[0])
-                    .map_err(|e| RegionError::InvalidRegion(format!("Invalid cell '{}': {}", parts[0], e)))?;
+                let cell = GridCell::from_notation(parts[0]).map_err(|e| {
+                    RegionError::InvalidRegion(format!("Invalid cell '{}': {}", parts[0], e))
+                })?;
                 (cell, cell)
             }
             2 => {
                 // Two-cell notation: "A1:B2"
-                let top_left = GridCell::from_notation(parts[0])
-                    .map_err(|e| RegionError::InvalidRegion(format!("Invalid top-left cell '{}': {}", parts[0], e)))?;
+                let top_left = GridCell::from_notation(parts[0]).map_err(|e| {
+                    RegionError::InvalidRegion(format!(
+                        "Invalid top-left cell '{}': {}",
+                        parts[0], e
+                    ))
+                })?;
 
-                let bottom_right = GridCell::from_notation(parts[1])
-                    .map_err(|e| RegionError::InvalidRegion(format!("Invalid bottom-right cell '{}': {}", parts[1], e)))?;
-                
+                let bottom_right = GridCell::from_notation(parts[1]).map_err(|e| {
+                    RegionError::InvalidRegion(format!(
+                        "Invalid bottom-right cell '{}': {}",
+                        parts[1], e
+                    ))
+                })?;
+
                 (top_left, bottom_right)
             }
             _ => {
@@ -514,12 +523,12 @@ mod tests {
         // Letters after digits
         assert!(GridCell::from_notation("1A").is_err());
         assert!(GridCell::from_notation("A1B").is_err());
-        
+
         // Missing parts
         assert!(GridCell::from_notation("A").is_err());
         assert!(GridCell::from_notation("1").is_err());
         assert!(GridCell::from_notation("").is_err());
-        
+
         // Invalid characters
         assert!(GridCell::from_notation("A-1").is_err());
         assert!(GridCell::from_notation("A 1").is_err());
@@ -840,7 +849,7 @@ mod tests {
         assert_eq!(region2.top_left.row, 22);
         assert_eq!(region2.bottom_right.col, 26);
         assert_eq!(region2.bottom_right.row, 24);
-        
+
         // Single-cell notation
         let region3 = Region::from_grid_notation("M42", Team::A, grid_dims).unwrap();
         assert_eq!(region3.top_left.col, 13);
