@@ -14,13 +14,20 @@ pub struct PlayerDef {
     pub team: Team,
     pub number: u32,
     pub name: String,
-    pub reaction_rate: u32,  // 10-100: player's reaction speed
-    pub speed_rate: u32,     // 10-100: player's movement speed
+    pub reaction_rate: u32, // 10-100: player's reaction speed
+    pub speed_rate: u32,    // 10-100: player's movement speed
     pub regions: HashMap<String, Region>,
 }
 
 impl PlayerDef {
-    pub fn new(team: Team, number: u32, name: String, reaction_rate: u32, speed_rate: u32, start_position: Region) -> Self {
+    pub fn new(
+        team: Team,
+        number: u32,
+        name: String,
+        reaction_rate: u32,
+        speed_rate: u32,
+        start_position: Region,
+    ) -> Self {
         let mut regions = HashMap::new();
         regions.insert("start position".to_string(), start_position);
 
@@ -80,7 +87,7 @@ pub enum GameEvent {}
 
 pub struct Game {
     config: GameConfig,
-    state: GameState,
+    pub(crate) state: GameState,
 }
 
 impl Game {

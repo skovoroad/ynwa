@@ -1,7 +1,7 @@
 use macroquad::prelude::*;
 use std::path::Path;
 use uom::si::length::meter;
-use ynwa_core::create_football_game_config_from_file;
+use ynwa_core::create_football_world_from_file;
 use ynwa_core::field::zones::ZoneGeometry;
 
 fn window_conf() -> Conf {
@@ -16,14 +16,17 @@ fn window_conf() -> Conf {
 
 #[macroquad::main(window_conf)]
 async fn main() {
-    // Load game configuration from default TOML file
+    // Load game world from default TOML file
     let config_path = Path::new("config/default_game.toml");
-    let game_config = create_football_game_config_from_file(config_path)
-        .expect("Failed to load game configuration");
+    let world =
+        create_football_world_from_file(config_path).expect("Failed to load game configuration");
 
-    println!("Loaded game with {} players", game_config.players.len());
+    println!(
+        "Loaded game with {} players",
+        world.game().config().players.len()
+    );
 
-    let field = &game_config.field;
+    let field = &world.game().config().field;
 
     // Calculate field proportions from actual dimensions
     let field_width_ratio = field.width().get::<meter>() / field.length().get::<meter>();
@@ -64,7 +67,7 @@ async fn main() {
         );
 
         // Render field and players
-        render_field(&game_config, field_area_width, screen_h);
+        render_field(world.game().config(), field_area_width, screen_h);
 
         next_frame().await
     }

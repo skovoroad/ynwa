@@ -49,6 +49,19 @@
 - Сущности: Player, Ball, Referee — отдельные типы (не trait), т.к. обрабатываются разными системами
 - Индексы: `config.players[i]` ↔ `state.player_states[i]` — O(1) доступ
 
+**World & Systems (`world.rs`, `system.rs`):**
+- World координирует игровой цикл, содержит Game и список систем
+- System trait: `update(&mut self, game: &mut Game, timestamp: f32)` - общий интерфейс для всех игровых систем
+- Системы выполняются последовательно в порядке добавления
+- World::step() управляет обновлением timestamp и вызовом всех систем
+- Design decision: системы получают &mut Game вместо &mut World, чтобы избежать проблем с borrow checker при итерации по системам
+
+**Football Module (`football/mod.rs`):**
+- Основной API для создания футбольного мира: `create_football_world()`, `create_football_world_from_file()`, `create_football_world_from_toml()`
+- Функции создания GameConfig сделаны приватными - клиенты работают напрямую с World
+- Design decision: поле создаётся внутри модуля football, внешний код не имеет прямого доступа к созданию поля
+- Клиенты используют готовые функции создания мира, а не конструируют Game вручную
+
 ## TODO
 
 - [ ] Отрисовать игровые сущности: игроки, мяч, судьи

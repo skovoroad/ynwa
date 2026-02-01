@@ -5,7 +5,9 @@ pub mod field;
 pub mod football;
 pub mod game;
 pub mod region;
+pub mod system;
 pub mod team;
+pub mod world;
 
 pub use config::{PlayerConfig, SerializableGameConfig};
 pub use game::{
@@ -14,10 +16,11 @@ pub use game::{
 };
 
 pub use football::{
-    create_football_game_config, create_football_game_config_from_file,
-    create_football_game_config_from_toml,
+    create_football_world, create_football_world_from_file, create_football_world_from_toml,
 };
 pub use region::{GridCell, GridDimensions, Region, RegionError};
+pub use system::System;
+pub use world::World;
 
 pub fn version() -> &'static str {
     env!("CARGO_PKG_VERSION")

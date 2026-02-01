@@ -9,8 +9,8 @@ pub struct PlayerConfig {
     pub team: String, // "A" or "B"
     pub number: u32,
     pub name: String,
-    pub reaction_rate: u32, // 10-100: player's reaction speed
-    pub speed_rate: u32,    // 10-100: player's movement speed
+    pub reaction_rate: u32,     // 10-100: player's reaction speed
+    pub speed_rate: u32,        // 10-100: player's movement speed
     pub start_position: String, // Grid notation like "A1:B2"
 }
 
@@ -182,17 +182,17 @@ mod tests {
                     team: "A".to_string(),
                     number: 1,
                     name: "Goalkeeper".to_string(),
-            reaction_rate: 50,
-            speed_rate: 50,
-            start_position: "A22:B24".to_string(),
+                    reaction_rate: 50,
+                    speed_rate: 50,
+                    start_position: "A22:B24".to_string(),
                 },
                 PlayerConfig {
                     team: "B".to_string(),
                     number: 10,
                     name: "Striker".to_string(),
-            reaction_rate: 50,
-            speed_rate: 50,
-            start_position: "Y22:Z24".to_string(),
+                    reaction_rate: 50,
+                    speed_rate: 50,
+                    start_position: "Y22:Z24".to_string(),
                 },
             ],
         };
@@ -273,17 +273,17 @@ mod tests {
                     team: "A".to_string(),
                     number: 1,
                     name: "Goalkeeper".to_string(),
-            reaction_rate: 50,
-            speed_rate: 50,
-            start_position: "A22:B24".to_string(),
+                    reaction_rate: 50,
+                    speed_rate: 50,
+                    start_position: "A22:B24".to_string(),
                 },
                 PlayerConfig {
                     team: "B".to_string(),
                     number: 9,
                     name: "Forward".to_string(),
-            reaction_rate: 50,
-            speed_rate: 50,
-            start_position: "Y22:Z24".to_string(),
+                    reaction_rate: 50,
+                    speed_rate: 50,
+                    start_position: "Y22:Z24".to_string(),
                 },
             ],
         };
@@ -314,9 +314,9 @@ mod tests {
                 team: "X".to_string(), // Invalid team
                 number: 1,
                 name: "Bad Player".to_string(),
-            reaction_rate: 50,
-            speed_rate: 50,
-            start_position: "A1:B2".to_string(),
+                reaction_rate: 50,
+                speed_rate: 50,
+                start_position: "A1:B2".to_string(),
             }],
         };
 
@@ -399,31 +399,29 @@ mod tests {
     #[test]
     fn test_load_from_default_config_file() {
         use std::path::Path;
-        
+
         // Test runs from workspace root, so config/ path should work
         // But let's be more robust and try multiple possible paths
-        let possible_paths = [
-            "config/default_game.toml",
-            "../config/default_game.toml",
-        ];
-        
-        let config_path = possible_paths.iter()
-            .map(|p| Path::new(p))
+        let possible_paths = ["config/default_game.toml", "../config/default_game.toml"];
+
+        let config_path = possible_paths
+            .iter()
+            .map(Path::new)
             .find(|p| p.exists())
             .expect("Could not find config/default_game.toml");
-        
+
         let config = SerializableGameConfig::from_file(config_path)
             .expect("Failed to load default config file");
-        
+
         // Verify we have 22 players (11 per team)
         assert_eq!(config.players.len(), 22, "Should have 22 players");
-        
+
         // Count players per team
         let team_a_count = config.players.iter().filter(|p| p.team == "A").count();
         let team_b_count = config.players.iter().filter(|p| p.team == "B").count();
         assert_eq!(team_a_count, 11, "Team A should have 11 players");
         assert_eq!(team_b_count, 11, "Team B should have 11 players");
-        
+
         // Verify all players have valid reaction_rate and speed_rate
         for player in &config.players {
             assert!(
@@ -439,14 +437,15 @@ mod tests {
                 player.speed_rate
             );
         }
-        
+
         // Verify the config can be converted to GameConfig
         let field = crate::field::Field::from_meters(60.0, 100.0, 26, 44);
-        let game_config = config.to_game_config(field)
+        let game_config = config
+            .to_game_config(field)
             .expect("Should convert to GameConfig");
-        
+
         assert_eq!(game_config.players.len(), 22);
-        
+
         // Verify reaction_rate and speed_rate are preserved in PlayerDef
         for player_def in &game_config.players {
             assert!(
