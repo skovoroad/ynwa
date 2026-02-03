@@ -6,6 +6,7 @@ pub mod football;
 pub mod game;
 pub mod physics_util;
 pub mod region;
+pub mod scripting;
 pub mod system;
 pub mod systems;
 pub mod team;
@@ -23,6 +24,7 @@ pub use football::{
 };
 pub use physics_util::{distance, distance_length};
 pub use region::{GridCell, GridDimensions, Region, RegionError};
+pub use scripting::{LuaExecutor, ScriptError, ScriptResult};
 pub use system::System;
 pub use systems::{
     ActionSystem, DecisionMaker, DecisionSystem, PhysicsSystem, PlaceholderDecisionMaker,

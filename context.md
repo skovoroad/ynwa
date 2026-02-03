@@ -88,9 +88,35 @@ System execution order (important for correct operation):
 - DecisionSystem::with_decision_maker() for dependency injection
 - PlaceholderDecisionMaker - basic implementation (generates random run decisions to grid cells)
 
+**Scripting System (`scripting/`):**
+- Game-agnostic Lua-based scripting for decision making
+- **LuaExecutor** - executes Lua scripts with context data
+  - Uses mlua with vendored Lua 5.4
+  - Serialization via serde (Rust structs → Lua tables)
+  - Returns ScriptResult with JSON value for game-specific parsing
+  - `execute(script, function_name, context)` - loads script and calls specified function
+  - State behavior: script code reloads on each execute(), preamble persists
+  - Preamble: optional Lua code string injected once at creation
+- **ScriptError** - structured error handling (SyntaxError, RuntimeError, SerializationError, DeserializationError, FunctionNotFound)
+- User scripts contract:
+  - Must implement function with specified name (e.g., `make_decision()`)
+  - Access context via global `context` variable
+  - Return Lua table (structure depends on game)
+- Design decisions:
+  - Lua chosen over Python for better embedding support (control, isolation, performance)
+  - serde used instead of JSON for direct Rust ↔ Lua table conversion (faster, type-safe)
+  - ScriptResult uses JSON internally to maintain game-agnostic design
+  - Function name passed as parameter for flexibility (can call different functions from same script)
+  - Preamble as plain string (no builder) - game integration decides how to construct it
+- Test coverage: 26 unit tests covering all error cases, state behavior, and data types
+
 ## TODO
 
 - [ ] Render game entities: players, ball, referees
+- [ ] Integrate Lua scripting with DecisionMaker trait
+- [ ] Add timeout control for script execution
+- [ ] Add memory limits for scripts
+- [ ] Implement script sandboxing
 
 ## Development Principles
 
