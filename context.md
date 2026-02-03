@@ -86,7 +86,7 @@ System execution order (important for correct operation):
 - Public interface for creating AI players
 - `make_decision(&mut self, game: &Game, player_index: usize) -> Decision`
 - DecisionSystem::with_decision_maker() for dependency injection
-- PlaceholderDecisionMaker - basic implementation (always returns Stop)
+- PlaceholderDecisionMaker - basic implementation (generates random run decisions to grid cells)
 
 ## TODO
 

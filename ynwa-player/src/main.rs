@@ -40,7 +40,7 @@ async fn main() {
     let mut is_fullscreen = false;
     set_fullscreen(is_fullscreen);
 
-    let mut simulation = SimulationControl::new(10.0);
+    let mut simulation = SimulationControl::new(60.0);
 
     loop {
         if handle_input(&mut simulation, &mut is_fullscreen) {
