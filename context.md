@@ -1,205 +1,205 @@
 # YNWA - Football Manager
 
-## Описание проекта
+## Project Description
 
-Футбольный менеджер, в котором игрок задаёт характеристики и задания игрокам своей команды, запускает игру и наблюдает за её течением, корректируя задания в реальном времени. Основной фокус - наблюдение за течением игры.
+A football manager where the player sets characteristics and instructions for their team's players, launches the game, and observes its flow, adjusting instructions in real-time. The main focus is observing the game flow.
 
-## Архитектура
+## Architecture
 
-### Модульность
+### Modularity
 
-Проект разделён на независимые модули с использованием Rust workspace:
+The project is divided into independent modules using Rust workspace:
 
-- **Ядро (`core`)** - библиотека, обсчитывающая игру
-  - Знает только логику обсчёта игры
-  - Получает все параметры (характеристики, команды, задания) извне через API
-  - Не зависит от конкретных клиентских реализаций
+- **Core (`core`)** - a library that simulates the game
+  - Knows only game simulation logic
+  - Receives all parameters (characteristics, commands, instructions) from outside via API
+  - Does not depend on specific client implementations
   
-- **Клиенты** - приложения, использующие ядро:
-  - Локальный клиент - обсчитывает игру локально и взаимодействует с игроком
-  - Игровой сервер (будущее) - обсчитывает множество игр, передаёт данные по сети
-  - Тестовые приложения
+- **Clients** - applications using the core:
+  - Local client - simulates the game locally and interacts with the player
+  - Game server (future) - simulates multiple games, transmits data over network
+  - Test applications
 
-### Универсальность (опциональное требование)
+### Universality (optional requirement)
 
-Цель - возможность применения ядра для других командных игр (американский футбол, баскетбол, хоккей).
+Goal - ability to use the core for other team sports (American football, basketball, hockey).
 
-Общие черты целевых игр:
+Common traits of target games:
 
-- Командная игра на площадке
-- Игровой снаряд необходимо поместить в цель
+- Team game on a playing field
+- Game object must be placed into a goal
 
 
-### Отложенные аспекты
+### Deferred Aspects
 
-Следующие аспекты учитываются в дизайне, но реализация откладывается:
-- Логика хранения данных
-- Сетевая игра
-- Серверная архитектура для множества игр
+The following aspects are considered in the design but implementation is postponed:
+- Data storage logic
+- Network play
+- Server architecture for multiple games
 
-### Реализованные компоненты
+### Implemented Components
 
 **Game API (`game.rs`):**
-- Poll-based модель: клиент владеет игровым циклом
-- API дизайн: `step()` возвращает события, `state()` даёт доступ к состоянию
-- Детерминизм через фиксированный timestep (контролируется клиентом)
+- Poll-based model: client owns the game loop
+- API design: `step()` returns events, `state()` provides access to state
+- Determinism through fixed timestep (controlled by client)
 
 **Entity Model:**
-- Разделение Config (immutable) / State (mutable per-frame)
-- Сущности: Player, Ball, Referee — отдельные типы (не trait), т.к. обрабатываются разными системами
-- Индексы: `config.players[i]` ↔ `state.player_states[i]` — O(1) доступ
+- Separation of Config (immutable) / State (mutable per-frame)
+- Entities: Player, Ball, Referee — separate types (not traits), as they are processed by different systems
+- Indices: `config.players[i]` ↔ `state.player_states[i]` — O(1) access
 
 **World & Systems (`world.rs`, `system.rs`):**
-- World координирует игровой цикл, содержит Game и список систем
-- System trait: `update(&mut self, game: &mut Game, timestamp: f32)` - общий интерфейс для всех игровых систем
-- Системы выполняются последовательно в порядке добавления
-- **World::step(delta_time)** - публичный API для запуска одного игрового тика:
-  - Вычисляет новый timestamp = elapsed_time + delta_time
-  - Вызывает update() для всех систем с новым timestamp
-  - Обновляет game.state.elapsed_time
-  - Возвращает список событий GameEvent
-- Design decision: системы получают &mut Game вместо &mut World, чтобы избежать проблем с borrow checker при итерации по системам
-- Design decision: системы получают absolute timestamp вместо delta_time, чтобы могли хранить последнее время обновления и вычислять интервалы самостоятельно
+- World coordinates the game loop, contains Game and a list of systems
+- System trait: `update(&mut self, game: &mut Game, timestamp: f32)` - common interface for all game systems
+- Systems execute sequentially in the order they are added
+- **World::step(delta_time)** - public API for running one game tick:
+  - Calculates new timestamp = elapsed_time + delta_time
+  - Calls update() for all systems with new timestamp
+  - Updates game.state.elapsed_time
+  - Returns list of GameEvent events
+- Design decision: systems receive &mut Game instead of &mut World to avoid borrow checker issues during iteration over systems
+- Design decision: systems receive absolute timestamp instead of delta_time so they can store last update time and calculate intervals themselves
 
 **Football Module (`football/mod.rs`):**
-- Основной API для создания футбольного мира: `create_football_world()`, `create_football_world_from_file()`, `create_football_world_from_toml()`
-- Функции создания GameConfig сделаны приватными - клиенты работают напрямую с World
-- Design decision: поле создаётся внутри модуля football, внешний код не имеет прямого доступа к созданию поля
-- Клиенты используют готовые функции создания мира, а не конструируют Game вручную
+- Main API for creating football world: `create_football_world()`, `create_football_world_from_file()`, `create_football_world_from_toml()`
+- GameConfig creation functions are made private - clients work directly with World
+- Design decision: field is created inside the football module, external code has no direct access to field creation
+- Clients use ready-made world creation functions rather than manually constructing Game
 
 **Game Systems:**
-Порядок выполнения систем (важен для корректной работы):
-1. **PlayerReactionSystem** - определяет, когда игрок готов принять новое решение на основе reaction_rate
-2. **DecisionSystem** - создаёт решения (Decision) для игроков, использующих DecisionMaker trait
-3. **ActionSystem** - превращает решения в velocity (применяет speed_rate)
-4. **PhysicsSystem** - применяет velocity к position используя кинематику: position += velocity × delta_time
+System execution order (important for correct operation):
+1. **PlayerReactionSystem** - determines when player is ready to accept new decision based on reaction_rate
+2. **DecisionSystem** - creates decisions (Decision) for players using DecisionMaker trait
+3. **ActionSystem** - transforms decisions into velocity (applies speed_rate)
+4. **PhysicsSystem** - applies velocity to position using kinematics: position += velocity × delta_time
 
-**Решения игроков (Decision):**
-- `Decision::Run(DecisionTarget)` - бежать к цели
-  - `DecisionTarget::Point(Point3D)` - конкретная точка
-  - `DecisionTarget::GridCell(GridCell)` - центр ячейки сетки
-  - `DecisionTarget::Region(Region)` - центр региона
-- `Decision::Stop` - остановиться
-- Каждое решение обрабатывается ровно один раз (флаг decision_processed)
+**Player Decisions (Decision):**
+- `Decision::Run(DecisionTarget)` - run to target
+  - `DecisionTarget::Point(Point3D)` - specific point
+  - `DecisionTarget::GridCell(GridCell)` - center of grid cell
+  - `DecisionTarget::Region(Region)` - center of region
+- `Decision::Stop` - stop
+- Each decision is processed exactly once (decision_processed flag)
 
 **DecisionMaker trait:**
-- Публичный интерфейс для создания AI игроков
+- Public interface for creating AI players
 - `make_decision(&mut self, game: &Game, player_index: usize) -> Decision`
-- DecisionSystem::with_decision_maker() для dependency injection
-- PlaceholderDecisionMaker - базовая реализация (всегда возвращает Stop)
+- DecisionSystem::with_decision_maker() for dependency injection
+- PlaceholderDecisionMaker - basic implementation (always returns Stop)
 
 ## TODO
 
-- [ ] Отрисовать игровые сущности: игроки, мяч, судьи
+- [ ] Render game entities: players, ball, referees
 
-## Принципы разработки
+## Development Principles
 
-### Код
+### Code
 
-1. **Type safety:** Использовать `uom` для физических величин вместо голых `f32`
-2. **Validation:** Runtime проверки в конструкторах через `assert!`
-3. **Data-driven:** Описание как данные где возможно, а не алгоритмы
-4. **Idiomatic Rust:** `Option<T>` вместо sentinel значений, Result для ошибок
-5. **Performance:** O(1) операции критичны для игрового движка
-6. **YAGNI (You Aren't Gonna Need It):** Реализовывать ТОЛЬКО то, что явно запрошено. Пользователь на каждом шаге задаёт инкремент функциональности в явном виде. Не добавлять "на будущее"
-7. **Code quality:** Регулярно запускать `cargo clippy`, `cargo fmt`, и другие анализаторы. Исправлять все предупреждения
+1. **Type safety:** Use `uom` for physical quantities instead of raw `f32`
+2. **Validation:** Runtime checks in constructors via `assert!`
+3. **Data-driven:** Description as data where possible, not algorithms
+4. **Idiomatic Rust:** `Option<T>` instead of sentinel values, Result for errors
+5. **Performance:** O(1) operations are critical for game engine
+6. **YAGNI (You Aren't Gonna Need It):** Implement ONLY what is explicitly requested. User specifies functionality increment at each step explicitly. Don't add "for the future"
+7. **Code quality:** Regularly run `cargo clippy`, `cargo fmt`, and other analyzers. Fix all warnings
 
-### Тестирование
+### Testing
 
-1. **Не тестировать тривиальное:** Если тест только проверяет присваивание значений - удалить
-2. **Тестировать логику:** Валидация, edge cases, граничные условия, интеграция
-3. **Meaningful tests:** Проверять реальное поведение системы, а не очевидные факты
-4. **Юнит-тесты обязательны:** При добавлении новой функциональности всегда создавать юнит-тесты, проверяющие корректность работы
-5. **Без examples и integration tests по умолчанию:** Не добавлять примеры приложений (examples/) и интеграционные тесты без явного запроса пользователя. Фокус на юнит-тестах внутри модулей
+1. **Don't test trivial:** If test only checks value assignment - delete it
+2. **Test logic:** Validation, edge cases, boundary conditions, integration
+3. **Meaningful tests:** Check real system behavior, not obvious facts
+4. **Unit tests mandatory:** When adding new functionality, always create unit tests verifying correct operation
+5. **No examples and integration tests by default:** Don't add example applications (examples/) and integration tests without explicit user request. Focus on unit tests inside modules
 
-### Документация
+### Documentation
 
-1. **Только неочевидное:** Не дублировать информацию из имён функций/переменных/констант
-2. **Design decisions:** Объяснять "почему" приняты решения, а не "что" делает код
-3. **Public API:** Docstrings для публичных функций с описанием назначения
-4. **Context.md:** Обновлять при добавлении новых компонентов - фиксировать только design decisions и архитектурные решения, которые нельзя извлечь из кода
+1. **Only non-obvious:** Don't duplicate information from function/variable/constant names
+2. **Design decisions:** Explain "why" decisions were made, not "what" the code does
+3. **Public API:** Docstrings for public functions with purpose description
+4. **Context.md:** Update when adding new components - record only design decisions and architectural solutions that cannot be extracted from code
 
-### Комментарии в коде
+### Code Comments
 
-1. **Минимализм:** Код должен говорить сам за себя через ясные имена и структуру
-2. **Не комментировать очевидное:** Избегать комментариев к методам, переменным и параметрам, значение которых понятно из названия
-3. **Не комментировать будущее:** Не добавлять комментарии о возможных будущих расширениях или TODO без явного запроса
-4. **Design decisions только:** Комментировать только архитектурные решения и неочевидные причины выбора подхода
-5. **Краткость:** Комментарии должны быть максимально лаконичными
+1. **Minimalism:** Code should speak for itself through clear names and structure
+2. **Don't comment obvious:** Avoid comments for methods, variables, and parameters whose meaning is clear from the name
+3. **Don't comment future:** Don't add comments about possible future extensions or TODOs without explicit request
+4. **Design decisions only:** Comment only architectural decisions and non-obvious reasons for choosing an approach
+5. **Brevity:** Comments should be as concise as possible
 
-## Технические требования
+## Technical Requirements
 
-### Язык и подход
+### Language and Approach
 
-- **Язык:** Rust
-- **Архитектура данных:** Гибридный подход
-  - ECS-подобные структуры (Structure of Arrays) для критических данных: позиции, скорости, команды
-  - Обычные структуры для остальных данных
-  - Собственная реализация без внешних ECS-библиотек
+- **Language:** Rust
+- **Data Architecture:** Hybrid approach
+  - ECS-like structures (Structure of Arrays) for critical data: positions, velocities, commands
+  - Regular structures for other data
+  - Custom implementation without external ECS libraries
 
-### Технологический стек
+### Technology Stack
 
-#### Ядро
-- **Физический движок:** `rapier3d` - 3D физика для перемещений, расчёта расстояний, столкновений, полёта мяча
-- **Скриптинг (будущее):**
-  - Lua - через `mlua`
-  - Python - через `PyO3`
-  - Скрипты получают и возвращают структуры данных от ядра
+#### Core
+- **Physics engine:** `rapier3d` - 3D physics for movements, distance calculations, collisions, ball flight
+- **Scripting (future):**
+  - Lua - via `mlua`
+  - Python - via `PyO3`
+  - Scripts receive and return data structures from core
 
-#### Локальный клиент
-- **UI:** `egui` - immediate mode GUI для элементов управления (кнопки, текстовые поля, селекторы)
-- **Рендеринг поля:** `macroquad` - 2D пиксельная ретро-графика
-- **Графический стиль:** Пиксельная графика с видом сверху (2D рендеринг 3D позиций)
+#### Local Client
+- **UI:** `egui` - immediate mode GUI for controls (buttons, text fields, selectors)
+- **Field rendering:** `macroquad` - 2D pixel retro graphics
+- **Graphics style:** Pixel graphics with top-down view (2D rendering of 3D positions)
 
-**Особенность графики:**
-- Поле отображается в 2D (вид сверху)
-- Физика работает в 3D (высота мяча, прыжки)
-- Проекция 3D координат на 2D плоскость для отрисовки
+**Graphics feature:**
+- Field displayed in 2D (top-down view)
+- Physics works in 3D (ball height, jumps)
+- Projection of 3D coordinates onto 2D plane for rendering
 
-#### Поддержка платформ
-- Нативные платформы (Linux, Windows, macOS)
-- WebAssembly - одинаковый код компилируется для браузера
+#### Platform Support
+- Native platforms (Linux, Windows, macOS)
+- WebAssembly - same code compiles for browser
 
-### Тестируемость
+### Testability
 
-- Высокое покрытие тестами
-- Модульная архитектура облегчает тестирование отдельных компонентов
-- Детерминированная физика (режим Rapier) для воспроизводимых тестов
+- High test coverage
+- Modular architecture facilitates testing of individual components
+- Deterministic physics (Rapier mode) for reproducible tests
 
-## Система регионов (region.rs)
+## Region System (region.rs)
 
-**Назначение:** Адресация областей поля через сеточную систему координат.
+**Purpose:** Addressing field areas through a grid coordinate system.
 
-**Ключевые типы:**
-- `GridDimensions { columns: u32, rows: u32 }` - размеры сетки
-- `GridCell { col: u32, row: u32 }` - одна ячейка (1-based индексация)
-- `Region { team: Team, top_left: GridCell, bottom_right: GridCell }` - прямоугольная область
+**Key types:**
+- `GridDimensions { columns: u32, rows: u32 }` - grid dimensions
+- `GridCell { col: u32, row: u32 }` - one cell (1-based indexing)
+- `Region { team: Team, top_left: GridCell, bottom_right: GridCell }` - rectangular area
 
-**Индексация:** 1-based для колонок и строк
-- Колонки: A=1, B=2, ..., Z=26, AA=27, AB=28, ...
-- Строки: 1, 2, 3, ...
+**Indexing:** 1-based for columns and rows
+- Columns: A=1, B=2, ..., Z=26, AA=27, AB=28, ...
+- Rows: 1, 2, 3, ...
 
-**Grid notation:** Человекочитаемый формат для регионов
-- Формат: "A1:B2" (TopLeft:BottomRight)
+**Grid notation:** Human-readable format for regions
+- Format: "A1:B2" (TopLeft:BottomRight)
 
-## Конфигурация игры (config.rs)
+## Game Configuration (config.rs)
 
-**Назначение:** TOML-based система конфигурации для начальных параметров игры.
+**Purpose:** TOML-based configuration system for initial game parameters.
 
-## Физика и скорость
+## Physics and Speed
 
-**Типы координат и скорости:**
-- `Point3D { x: Length, y: Length, z: Length }` - позиция в метрах
-- `Velocity3D { x: Velocity, y: Velocity, z: Velocity }` - скорость в м/с
-- Использование `uom` для типобезопасности физических величин
+**Coordinate and velocity types:**
+- `Point3D { x: Length, y: Length, z: Length }` - position in meters
+- `Velocity3D { x: Velocity, y: Velocity, z: Velocity }` - velocity in m/s
+- Using `uom` for type safety of physical quantities
 
-**Утилиты физики (physics_util.rs):**
-- `distance(a: &Point3D, b: &Point3D) -> f32` - вычисляет евклидово расстояние между точками в метрах
-- `distance_length(a: &Point3D, b: &Point3D) -> Length` - то же, но возвращает Length для типобезопасности
+**Physics utilities (physics_util.rs):**
+- `distance(a: &Point3D, b: &Point3D) -> f32` - calculates Euclidean distance between points in meters
+- `distance_length(a: &Point3D, b: &Point3D) -> Length` - same but returns Length for type safety
 
-**Скорость игроков:**
-- `speed_rate`: 10-100 (конфигурация игрока)
-- `MAX_SPEED_METERS_PER_SECOND = 10.0` (~36 км/ч при speed_rate=100)
-- Формула: `actual_speed = (speed_rate / 100.0) * MAX_SPEED_METERS_PER_SECOND`
-- Линейная зависимость от `speed_rate`
+**Player speed:**
+- `speed_rate`: 10-100 (player configuration)
+- `MAX_SPEED_METERS_PER_SECOND = 10.0` (~36 km/h at speed_rate=100)
+- Formula: `actual_speed = (speed_rate / 100.0) * MAX_SPEED_METERS_PER_SECOND`
+- Linear dependency on `speed_rate`
 
