@@ -1,6 +1,7 @@
 use uom::si::angle::radian;
-use uom::si::f32::{Angle, Length};
+use uom::si::f32::{Angle, Length, Velocity};
 use uom::si::length::meter;
+use uom::si::velocity::meter_per_second;
 
 /// 3D point using Y-up coordinate system:
 /// - X: field width (left-right)
@@ -11,6 +12,17 @@ pub struct Point3D {
     pub x: Length,
     pub y: Length,
     pub z: Length,
+}
+
+/// 3D velocity vector using Y-up coordinate system:
+/// - X: velocity along field width (left-right)
+/// - Y: velocity along height (up-down)
+/// - Z: velocity along field length (team A to team B)
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub struct Velocity3D {
+    pub x: Velocity,
+    pub y: Velocity,
+    pub z: Velocity,
 }
 
 impl Point3D {
@@ -29,6 +41,20 @@ impl Point3D {
     /// Create a point on the field surface (y = 0)
     pub fn on_ground(x: f32, z: f32) -> Self {
         Self::from_meters(x, 0.0, z)
+    }
+}
+
+impl Velocity3D {
+    pub fn new(x: Velocity, y: Velocity, z: Velocity) -> Self {
+        Self { x, y, z }
+    }
+
+    pub fn from_meters_per_second(x: f32, y: f32, z: f32) -> Self {
+        Self {
+            x: Velocity::new::<meter_per_second>(x),
+            y: Velocity::new::<meter_per_second>(y),
+            z: Velocity::new::<meter_per_second>(z),
+        }
     }
 }
 

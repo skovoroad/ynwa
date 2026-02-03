@@ -1,4 +1,4 @@
-use crate::field::zones::Point3D;
+use crate::field::zones::{Point3D, Velocity3D};
 use crate::field::Field;
 use crate::region::{GridCell, Region};
 use crate::team::Team;
@@ -64,7 +64,7 @@ pub struct RefereeDef {}
 #[derive(Debug, Clone)]
 pub struct PlayerState {
     pub position: Point3D,
-    pub velocity: Point3D,
+    pub velocity: Velocity3D,
     pub last_decision_time: f32,
     pub needs_decision: bool,
     pub current_decision: Option<Decision>,
@@ -75,7 +75,7 @@ impl Default for PlayerState {
     fn default() -> Self {
         Self {
             position: Point3D::default(),
-            velocity: Point3D::default(),
+            velocity: Velocity3D::default(),
             last_decision_time: 0.0,
             needs_decision: true,
             current_decision: None,
@@ -87,13 +87,13 @@ impl Default for PlayerState {
 #[derive(Debug, Clone, Default)]
 pub struct BallState {
     pub position: Point3D,
-    pub velocity: Point3D,
+    pub velocity: Velocity3D,
 }
 
 #[derive(Debug, Clone, Default)]
 pub struct RefereeState {
     pub position: Point3D,
-    pub velocity: Point3D,
+    pub velocity: Velocity3D,
 }
 
 #[derive(Debug, Clone)]
@@ -136,7 +136,7 @@ impl Game {
                 );
                 PlayerState {
                     position,
-                    velocity: Point3D::default(),
+                    velocity: Velocity3D::default(),
                     last_decision_time: 0.0,
                     needs_decision: true,
                     current_decision: None,

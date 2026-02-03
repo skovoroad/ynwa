@@ -3,7 +3,7 @@ pub mod field_builder;
 use crate::config::SerializableGameConfig;
 use crate::game::{BallDef, Game, GameConfig, PlayerDef, RefereeDef};
 use crate::region::{GridCell, Region};
-use crate::systems::{DecisionSystem, PlayerReactionSystem};
+use crate::systems::{ActionSystem, DecisionSystem, PlayerReactionSystem};
 use crate::team::Team;
 use crate::world::World;
 
@@ -76,6 +76,7 @@ fn create_football_game_config_from_toml(toml_str: &str) -> Result<GameConfig, S
 fn add_football_systems(world: &mut World) {
     world.add_system(Box::new(PlayerReactionSystem));
     world.add_system(Box::new(DecisionSystem::new()));
+    world.add_system(Box::new(ActionSystem::new()));
 }
 
 pub fn create_football_world() -> World {

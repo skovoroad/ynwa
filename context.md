@@ -160,3 +160,16 @@
 
 **Назначение:** TOML-based система конфигурации для начальных параметров игры.
 
+## Физика и скорость
+
+**Типы координат и скорости:**
+- `Point3D { x: Length, y: Length, z: Length }` - позиция в метрах
+- `Velocity3D { x: Velocity, y: Velocity, z: Velocity }` - скорость в м/с
+- Использование `uom` для типобезопасности физических величин
+
+**Скорость игроков:**
+- `speed_rate`: 10-100 (конфигурация игрока)
+- `MAX_SPEED_METERS_PER_SECOND = 10.0` (~36 км/ч при speed_rate=100)
+- Формула: `actual_speed = (speed_rate / 100.0) * MAX_SPEED_METERS_PER_SECOND`
+- Линейная зависимость от `speed_rate`
+

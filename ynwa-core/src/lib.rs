@@ -11,6 +11,7 @@ pub mod team;
 pub mod world;
 
 pub use config::{PlayerConfig, SerializableGameConfig};
+pub use field::zones::{Point3D, Velocity3D};
 pub use game::{
     BallDef, BallState, Decision, DecisionTarget, Game, GameConfig, GameEvent, GameState,
     PlayerDef, PlayerState, RefereeDef, RefereeState,
@@ -21,7 +22,7 @@ pub use football::{
 };
 pub use region::{GridCell, GridDimensions, Region, RegionError};
 pub use system::System;
-pub use systems::{DecisionSystem, PlayerReactionSystem};
+pub use systems::{ActionSystem, DecisionSystem, PlayerReactionSystem};
 pub use world::World;
 
 pub fn version() -> &'static str {
