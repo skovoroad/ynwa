@@ -3,6 +3,7 @@ pub mod field_builder;
 use crate::config::SerializableGameConfig;
 use crate::game::{BallDef, Game, GameConfig, PlayerDef, RefereeDef};
 use crate::region::{GridCell, Region};
+use crate::systems::{DecisionSystem, PlayerReactionSystem};
 use crate::team::Team;
 use crate::world::World;
 
@@ -72,22 +73,33 @@ fn create_football_game_config_from_toml(toml_str: &str) -> Result<GameConfig, S
     config.to_game_config(field)
 }
 
+fn add_football_systems(world: &mut World) {
+    world.add_system(Box::new(PlayerReactionSystem));
+    world.add_system(Box::new(DecisionSystem));
+}
+
 pub fn create_football_world() -> World {
     let game_config = create_football_game_config();
     let game = Game::new(game_config);
-    World::new(game)
+    let mut world = World::new(game);
+    add_football_systems(&mut world);
+    world
 }
 
 pub fn create_football_world_from_file(path: &std::path::Path) -> Result<World, String> {
     let game_config = create_football_game_config_from_file(path)?;
     let game = Game::new(game_config);
-    Ok(World::new(game))
+    let mut world = World::new(game);
+    add_football_systems(&mut world);
+    Ok(world)
 }
 
 pub fn create_football_world_from_toml(toml_str: &str) -> Result<World, String> {
     let game_config = create_football_game_config_from_toml(toml_str)?;
     let game = Game::new(game_config);
-    Ok(World::new(game))
+    let mut world = World::new(game);
+    add_football_systems(&mut world);
+    Ok(world)
 }
 
 #[cfg(test)]

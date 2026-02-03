@@ -52,6 +52,8 @@ pub struct RefereeDef {}
 pub struct PlayerState {
     pub position: Point3D,
     pub velocity: Point3D,
+    pub last_decision_time: f32,
+    pub needs_decision: bool,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -107,6 +109,8 @@ impl Game {
                 PlayerState {
                     position,
                     velocity: Point3D::default(),
+                    last_decision_time: 0.0,
+                    needs_decision: true,
                 }
             })
             .collect();

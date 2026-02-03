@@ -6,6 +6,7 @@ pub mod football;
 pub mod game;
 pub mod region;
 pub mod system;
+pub mod systems;
 pub mod team;
 pub mod world;
 
@@ -20,6 +21,7 @@ pub use football::{
 };
 pub use region::{GridCell, GridDimensions, Region, RegionError};
 pub use system::System;
+pub use systems::{DecisionSystem, PlayerReactionSystem};
 pub use world::World;
 
 pub fn version() -> &'static str {
