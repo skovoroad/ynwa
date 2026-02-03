@@ -75,6 +75,7 @@ mod tests {
             "Test Player".to_string(),
             100,
             50,
+            "function make_decision() return {} end".to_string(),
             start_region,
         )];
 

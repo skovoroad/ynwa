@@ -104,6 +104,7 @@ mod tests {
                 "Test Player".to_string(),
                 50,
                 50,
+                "function make_decision() return {} end".to_string(),
                 start_region,
             )],
             ball: BallDef::default(),

@@ -12,6 +12,7 @@ pub struct PlayerConfig {
     pub reaction_rate: u32,     // 10-100: player's reaction speed
     pub speed_rate: u32,        // 10-100: player's movement speed
     pub start_position: String, // Grid notation like "A1:B2"
+    pub script: String,         // Lua script for decision making (mandatory)
 }
 
 impl PlayerConfig {
@@ -47,6 +48,7 @@ impl PlayerConfig {
             self.name.clone(),
             self.reaction_rate,
             self.speed_rate,
+            self.script.clone(),
             start_region_absolute,
         ))
     }
@@ -80,6 +82,7 @@ impl PlayerConfig {
             reaction_rate: player_def.reaction_rate,
             speed_rate: player_def.speed_rate,
             start_position: start_region_own.to_grid_notation(),
+            script: player_def.script.clone(),
         })
     }
 }
@@ -161,17 +164,20 @@ mod tests {
             reaction_rate: 50,
             speed_rate: 50,
             start_position: "C3:D4".to_string(),
+            script: "function make_decision() return {} end".to_string(),
         };
 
         let player_def = config.to_player_def(grid_dims).unwrap();
         assert_eq!(player_def.team, Team::A);
         assert_eq!(player_def.number, 10);
         assert_eq!(player_def.name, "Test Player");
+        assert_eq!(player_def.script, "function make_decision() return {} end");
 
         let config_back = PlayerConfig::from_player_def(&player_def).unwrap();
         assert_eq!(config_back.team, "A");
         assert_eq!(config_back.number, 10);
         assert_eq!(config_back.start_position, "C3:D4");
+        assert_eq!(config_back.script, "function make_decision() return {} end");
     }
 
     #[test]
@@ -185,6 +191,7 @@ mod tests {
                     reaction_rate: 50,
                     speed_rate: 50,
                     start_position: "A22:B24".to_string(),
+                    script: "function make_decision() return {} end".to_string(),
                 },
                 PlayerConfig {
                     team: "B".to_string(),
@@ -193,6 +200,7 @@ mod tests {
                     reaction_rate: 50,
                     speed_rate: 50,
                     start_position: "Y22:Z24".to_string(),
+                    script: "function make_decision() return {} end".to_string(),
                 },
             ],
         };
@@ -219,6 +227,7 @@ mod tests {
             reaction_rate: 50,
             speed_rate: 50,
             start_position: "C3:D4".to_string(),
+            script: "function make_decision() return {} end".to_string(),
         };
 
         let result = config.to_player_def(grid_dims);
@@ -238,6 +247,7 @@ mod tests {
             reaction_rate: 50,
             speed_rate: 50,
             start_position: "INVALID".to_string(), // Invalid notation
+            script: "function make_decision() return {} end".to_string(),
         };
 
         let result = config.to_player_def(grid_dims);
@@ -257,6 +267,7 @@ mod tests {
             reaction_rate: 50,
             speed_rate: 50,
             start_position: "A1:AA50".to_string(), // Out of bounds
+            script: "function make_decision() return {} end".to_string(),
         };
 
         let result = config.to_player_def(grid_dims);
@@ -276,6 +287,7 @@ mod tests {
                     reaction_rate: 50,
                     speed_rate: 50,
                     start_position: "A22:B24".to_string(),
+                    script: "function make_decision() return {} end".to_string(),
                 },
                 PlayerConfig {
                     team: "B".to_string(),
@@ -284,6 +296,7 @@ mod tests {
                     reaction_rate: 50,
                     speed_rate: 50,
                     start_position: "Y22:Z24".to_string(),
+                    script: "function make_decision() return {} end".to_string(),
                 },
             ],
         };
@@ -317,6 +330,7 @@ mod tests {
                 reaction_rate: 50,
                 speed_rate: 50,
                 start_position: "A1:B2".to_string(),
+                script: "function make_decision() return {} end".to_string(),
             }],
         };
 
@@ -338,6 +352,7 @@ mod tests {
             reaction_rate: 50,
             speed_rate: 50,
             start_position: "M42".to_string(), // Own orientation: near their goal
+            script: "function make_decision() return {} end".to_string(),
         };
 
         let player_def_b = config_b.to_player_def(grid_dims).unwrap();
@@ -356,6 +371,7 @@ mod tests {
             reaction_rate: 50,
             speed_rate: 50,
             start_position: "M42".to_string(),
+            script: "function make_decision() return {} end".to_string(),
         };
 
         let player_def_a = config_a.to_player_def(grid_dims).unwrap();
@@ -377,6 +393,7 @@ mod tests {
             reaction_rate: 50,
             speed_rate: 50,
             start_position: "M25".to_string(), // Own orientation
+            script: "function make_decision() return {} end".to_string(),
         };
 
         // Convert to PlayerDef (flips to absolute coordinates)
@@ -416,6 +433,11 @@ mod tests {
         // Verify we have 22 players (11 per team)
         assert_eq!(config.players.len(), 22, "Should have 22 players");
 
+        // Verify all players have scripts
+        for player in &config.players {
+            assert!(!player.script.is_empty(), "Player {} should have a script", player.name);
+        }
+
         // Count players per team
         let team_a_count = config.players.iter().filter(|p| p.team == "A").count();
         let team_b_count = config.players.iter().filter(|p| p.team == "B").count();
@@ -446,7 +468,7 @@ mod tests {
 
         assert_eq!(game_config.players.len(), 22);
 
-        // Verify reaction_rate and speed_rate are preserved in PlayerDef
+        // Verify reaction_rate, speed_rate, and scripts are preserved in PlayerDef
         for player_def in &game_config.players {
             assert!(
                 player_def.reaction_rate >= 10 && player_def.reaction_rate <= 100,
@@ -460,6 +482,74 @@ mod tests {
                 player_def.name,
                 player_def.speed_rate
             );
+            assert!(
+                !player_def.script.is_empty(),
+                "PlayerDef {} should have a script",
+                player_def.name
+            );
         }
+    }
+
+    #[test]
+    fn test_player_script_field_mandatory() {
+        // Test that script field is mandatory and properly serialized/deserialized
+        let config_with_custom_script = PlayerConfig {
+            team: "A".to_string(),
+            number: 1,
+            name: "Test Player".to_string(),
+            reaction_rate: 50,
+            speed_rate: 50,
+            start_position: "M42".to_string(),
+            script: "function make_decision()\n    return { action = \"custom\" }\nend".to_string(),
+        };
+
+        let config_with_placeholder = PlayerConfig {
+            team: "A".to_string(),
+            number: 2,
+            name: "Test Player 2".to_string(),
+            reaction_rate: 50,
+            speed_rate: 50,
+            start_position: "M42".to_string(),
+            script: "function make_decision() return {} end".to_string(),
+        };
+
+        let serializable = SerializableGameConfig {
+            players: vec![config_with_custom_script.clone(), config_with_placeholder.clone()],
+        };
+
+        // Serialize to TOML
+        let toml_str = serializable.to_toml().unwrap();
+        
+        // Should contain scripts for both players
+        assert!(toml_str.contains("function make_decision"));
+        
+        // Deserialize back
+        let parsed = SerializableGameConfig::from_toml(&toml_str).unwrap();
+        assert_eq!(parsed.players.len(), 2);
+        
+        // Both players must have scripts (mandatory field)
+        assert!(!parsed.players[0].script.is_empty(), "Player 1 must have a script");
+        assert!(!parsed.players[1].script.is_empty(), "Player 2 must have a script");
+        
+        // Check custom script content
+        assert!(parsed.players[0].script.contains("custom"), "Player 1 should have custom script");
+        assert!(parsed.players[1].script.contains("function make_decision"), "Player 2 should have a valid script");
+    }
+
+    #[test]
+    fn test_player_config_missing_script() {
+        // Test that config without script field fails to deserialize
+        let toml_without_script = r#"
+            [[players]]
+            team = "A"
+            number = 1
+            name = "Test Player"
+            reaction_rate = 50
+            speed_rate = 50
+            start_position = "M42"
+        "#;
+
+        let result = SerializableGameConfig::from_toml(toml_without_script);
+        assert!(result.is_err(), "Config without script field should fail to load");
     }
 }

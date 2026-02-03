@@ -74,6 +74,7 @@ mod tests {
             "Fast Player".to_string(),
             100, // reaction_rate = 100 (1 second interval)
             100, // speed_rate = 100 (full speed)
+            "function make_decision() return {} end".to_string(),
             start_region_0,
         );
 
@@ -92,6 +93,7 @@ mod tests {
             "Slow Player".to_string(),
             50, // reaction_rate = 50 (2 second interval)
             50, // speed_rate = 50 (half speed)
+            "function make_decision() return {} end".to_string(),
             start_region_1,
         );
 
