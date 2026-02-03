@@ -23,7 +23,8 @@ pub use football::{
 pub use region::{GridCell, GridDimensions, Region, RegionError};
 pub use system::System;
 pub use systems::{
-    ActionSystem, DecisionMaker, DecisionSystem, PlaceholderDecisionMaker, PlayerReactionSystem,
+    ActionSystem, DecisionMaker, DecisionSystem, PhysicsSystem, PlaceholderDecisionMaker,
+    PlayerReactionSystem,
 };
 pub use world::World;
 
