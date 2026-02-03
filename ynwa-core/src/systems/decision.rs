@@ -6,12 +6,12 @@ use rand::Rng;
 // Design: DecisionSystem delegates decision-making to DecisionMaker implementations.
 // This separates coordination (when to decide) from strategy (what to decide).
 
-pub(crate) trait DecisionMaker {
+pub trait DecisionMaker {
     fn make_decision(&mut self, game: &Game, player_index: usize) -> Decision;
 }
 
 /// Temporary stub - generates random run decisions until real AI is implemented
-pub(crate) struct PlaceholderDecisionMaker;
+pub struct PlaceholderDecisionMaker;
 
 impl PlaceholderDecisionMaker {
     pub fn new() -> Self {
@@ -44,9 +44,11 @@ pub struct DecisionSystem {
 
 impl DecisionSystem {
     pub fn new() -> Self {
-        Self {
-            decision_maker: Box::new(PlaceholderDecisionMaker),
-        }
+        Self::with_decision_maker(Box::new(PlaceholderDecisionMaker))
+    }
+
+    pub fn with_decision_maker(decision_maker: Box<dyn DecisionMaker>) -> Self {
+        Self { decision_maker }
     }
 }
 

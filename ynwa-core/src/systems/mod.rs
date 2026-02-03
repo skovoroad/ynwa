@@ -3,5 +3,5 @@ pub mod decision;
 pub mod player_reaction;
 
 pub use action::ActionSystem;
-pub use decision::DecisionSystem;
+pub use decision::{DecisionMaker, DecisionSystem, PlaceholderDecisionMaker};
 pub use player_reaction::PlayerReactionSystem;

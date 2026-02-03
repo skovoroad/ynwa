@@ -22,7 +22,9 @@ pub use football::{
 };
 pub use region::{GridCell, GridDimensions, Region, RegionError};
 pub use system::System;
-pub use systems::{ActionSystem, DecisionSystem, PlayerReactionSystem};
+pub use systems::{
+    ActionSystem, DecisionMaker, DecisionSystem, PlaceholderDecisionMaker, PlayerReactionSystem,
+};
 pub use world::World;
 
 pub fn version() -> &'static str {
