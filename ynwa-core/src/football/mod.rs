@@ -75,7 +75,7 @@ fn create_football_game_config_from_toml(toml_str: &str) -> Result<GameConfig, S
 
 fn add_football_systems(world: &mut World) {
     world.add_system(Box::new(PlayerReactionSystem));
-    world.add_system(Box::new(DecisionSystem));
+    world.add_system(Box::new(DecisionSystem::new()));
 }
 
 pub fn create_football_world() -> World {

@@ -3,35 +3,49 @@ use crate::region::GridCell;
 use crate::system::System;
 use rand::Rng;
 
-/// Decision making system - processes player decisions
-/// 
-/// This is a placeholder system. In the future, multiple different decision systems
-/// will be available, but only one will be used during gameplay.
-pub struct DecisionSystem;
+// Design: DecisionSystem delegates decision-making to DecisionMaker implementations.
+// This separates coordination (when to decide) from strategy (what to decide).
 
-impl DecisionSystem {
+pub(crate) trait DecisionMaker {
+    fn make_decision(&mut self, game: &Game, player_index: usize) -> Decision;
+}
+
+/// Temporary stub - generates random run decisions until real AI is implemented
+pub(crate) struct PlaceholderDecisionMaker;
+
+impl PlaceholderDecisionMaker {
     pub fn new() -> Self {
         Self
     }
 }
 
-impl System for DecisionSystem {
-    fn update(&mut self, game: &mut Game, timestamp: f32) {
+impl DecisionMaker for PlaceholderDecisionMaker {
+    fn make_decision(&mut self, game: &Game, _player_index: usize) -> Decision {
         let grid_dims = game.config().field.grid_dimensions();
         let mut rng = rand::rng();
         
-        for player_state in game.state.player_states.iter_mut() {
-            if player_state.needs_decision {
-                let col = rng.random_range(1..=grid_dims.columns);
-                let row = rng.random_range(1..=grid_dims.rows);
-                let cell = GridCell::new(col, row).expect("Generated cell should be valid");
-                let decision = Decision::Run(DecisionTarget::GridCell(cell));
-                
-                player_state.current_decision = Some(decision);
-                player_state.decision_processed = false;
-                player_state.needs_decision = false;
-                player_state.last_decision_time = timestamp;
-            }
+        let col = rng.random_range(1..=grid_dims.columns);
+        let row = rng.random_range(1..=grid_dims.rows);
+        let cell = GridCell::new(col, row).expect("Generated cell should be valid");
+        
+        Decision::Run(DecisionTarget::GridCell(cell))
+    }
+}
+
+impl Default for PlaceholderDecisionMaker {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+pub struct DecisionSystem {
+    decision_maker: Box<dyn DecisionMaker>,
+}
+
+impl DecisionSystem {
+    pub fn new() -> Self {
+        Self {
+            decision_maker: Box::new(PlaceholderDecisionMaker),
         }
     }
 }
@@ -39,6 +53,24 @@ impl System for DecisionSystem {
 impl Default for DecisionSystem {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl System for DecisionSystem {
+    fn update(&mut self, game: &mut Game, timestamp: f32) {
+        let player_count = game.state.player_states.len();
+        
+        for player_index in 0..player_count {
+            if game.state.player_states[player_index].needs_decision {
+                let decision = self.decision_maker.make_decision(game, player_index);
+                
+                let player_state = &mut game.state.player_states[player_index];
+                player_state.current_decision = Some(decision);
+                player_state.decision_processed = false;
+                player_state.needs_decision = false;
+                player_state.last_decision_time = timestamp;
+            }
+        }
     }
 }
 
@@ -118,7 +150,6 @@ mod tests {
 
         match &game.state.player_states[0].current_decision {
             Some(Decision::Run(DecisionTarget::GridCell(cell))) => {
-                // Check that the cell is within field bounds
                 let grid_dims = game.config().field.grid_dimensions();
                 assert!(cell.col >= 1 && cell.col <= grid_dims.columns);
                 assert!(cell.row >= 1 && cell.row <= grid_dims.rows);
@@ -132,24 +163,38 @@ mod tests {
         let mut game = create_test_game();
         let mut system = DecisionSystem::new();
 
-        // First decision
         game.state.player_states[0].needs_decision = true;
         system.update(&mut game, 1.0);
         
         let first_decision = game.state.player_states[0].current_decision.clone();
         assert!(first_decision.is_some());
 
-        // Mark as processed and no new decision needed
         game.state.player_states[0].decision_processed = true;
         game.state.player_states[0].needs_decision = false;
 
         system.update(&mut game, 2.0);
 
-        // Decision should be preserved
         assert!(matches!(
             game.state.player_states[0].current_decision,
             Some(_)
         ));
         assert!(game.state.player_states[0].decision_processed);
+    }
+
+    #[test]
+    fn test_placeholder_decision_maker() {
+        let game = create_test_game();
+        let mut maker = PlaceholderDecisionMaker::new();
+
+        let decision = maker.make_decision(&game, 0);
+
+        match decision {
+            Decision::Run(DecisionTarget::GridCell(cell)) => {
+                let grid_dims = game.config().field.grid_dimensions();
+                assert!(cell.col >= 1 && cell.col <= grid_dims.columns);
+                assert!(cell.row >= 1 && cell.row <= grid_dims.rows);
+            }
+            _ => panic!("Expected Run decision with GridCell target"),
+        }
     }
 }
