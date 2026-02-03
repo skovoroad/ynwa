@@ -12,8 +12,8 @@ pub mod world;
 
 pub use config::{PlayerConfig, SerializableGameConfig};
 pub use game::{
-    BallDef, BallState, Game, GameConfig, GameEvent, GameState, PlayerDef, PlayerState, RefereeDef,
-    RefereeState,
+    BallDef, BallState, Decision, DecisionTarget, Game, GameConfig, GameEvent, GameState,
+    PlayerDef, PlayerState, RefereeDef, RefereeState,
 };
 
 pub use football::{

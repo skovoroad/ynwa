@@ -1,6 +1,6 @@
 use crate::field::zones::Point3D;
 use crate::field::Field;
-use crate::region::Region;
+use crate::region::{GridCell, Region};
 use crate::team::Team;
 use std::collections::HashMap;
 use uom::si::length::meter;
@@ -8,6 +8,19 @@ use uom::si::length::meter;
 // Design: PlayerState, BallState, RefereeState are separate despite similar fields (position, velocity).
 // Reason: Different systems handle them differently (physics, AI, rules). Shared trait would add
 // complexity without benefit since we iterate by type, not across all entities.
+
+#[derive(Debug, Clone)]
+pub enum DecisionTarget {
+    Region(Region),
+    GridCell(GridCell),
+    Point(Point3D),
+}
+
+#[derive(Debug, Clone)]
+pub enum Decision {
+    Run(DecisionTarget),
+    Stop,
+}
 
 #[derive(Debug, Clone)]
 pub struct PlayerDef {
@@ -48,12 +61,27 @@ pub struct BallDef {}
 #[derive(Debug, Clone, Default)]
 pub struct RefereeDef {}
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct PlayerState {
     pub position: Point3D,
     pub velocity: Point3D,
     pub last_decision_time: f32,
     pub needs_decision: bool,
+    pub current_decision: Option<Decision>,
+    pub decision_processed: bool,
+}
+
+impl Default for PlayerState {
+    fn default() -> Self {
+        Self {
+            position: Point3D::default(),
+            velocity: Point3D::default(),
+            last_decision_time: 0.0,
+            needs_decision: true,
+            current_decision: None,
+            decision_processed: false,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Default)]
@@ -111,6 +139,8 @@ impl Game {
                     velocity: Point3D::default(),
                     last_decision_time: 0.0,
                     needs_decision: true,
+                    current_decision: None,
+                    decision_processed: false,
                 }
             })
             .collect();
