@@ -42,7 +42,10 @@ pub struct ScriptResult {
 /// Executes Lua scripts with context data.
 ///
 /// This is a generic executor that works with any serializable context
-/// and expects scripts to implement a `make_decision()` function.
+/// and expects scripts to implement a function with specified name.
+///
+/// Security features:
+/// - Sandbox: dangerous libraries (io, os, package, debug, loadfile, dofile) are disabled
 pub struct LuaExecutor {
     lua: Lua,
     preamble: String,
@@ -50,8 +53,14 @@ pub struct LuaExecutor {
 
 impl LuaExecutor {
     /// Create a new Lua executor with optional preamble code.
+    ///
+    /// Security settings (hardcoded):
+    /// - Sandbox enabled: io, os, package, debug, loadfile, dofile disabled
     pub fn new(preamble: Option<String>) -> Result<Self, ScriptError> {
         let lua = Lua::new();
+
+        // Apply sandbox (remove dangerous libraries)
+        Self::apply_sandbox(&lua)?;
 
         let preamble = preamble.unwrap_or_default();
 
@@ -63,6 +72,38 @@ impl LuaExecutor {
         }
 
         Ok(Self { lua, preamble })
+    }
+
+    /// Apply sandbox by removing dangerous globals
+    fn apply_sandbox(lua: &Lua) -> Result<(), ScriptError> {
+        lua.load(
+            r#"
+            -- File system and OS access
+            io = nil
+            os = nil
+            
+            -- Module loading
+            package = nil
+            require = nil
+            
+            -- Code loading/execution
+            loadfile = nil
+            dofile = nil
+            load = nil
+            
+            -- Introspection and debugging
+            debug = nil
+            
+            -- Resource control (potential DoS)
+            collectgarbage = nil
+            
+            -- Global environment access (prevents accessing original globals)
+            _G = nil
+        "#,
+        )
+        .exec()
+        .map_err(|e| ScriptError::RuntimeError(format!("Sandbox setup failed: {}", e)))?;
+        Ok(())
     }
 
     /// Execute a Lua script with the given context.
@@ -777,5 +818,187 @@ mod tests {
         let result = executor.execute(script, "divide_by_zero", &context).unwrap();
         // JSON represents infinity as null
         assert!(result.data["result"].is_null() || result.data["result"].is_number());
+    }
+
+    // ===== Sandbox Tests =====
+
+    #[test]
+    fn test_sandbox_blocks_dangerous_globals() {
+        let executor = LuaExecutor::new(None).unwrap();
+        let context = TestContext {
+            player_number: 1,
+            elapsed_time: 0.0,
+        };
+
+        // Test cases: (global_name, description)
+        let test_cases = [
+            ("io", "file system access"),
+            ("os", "operating system functions"),
+            ("package", "module loading system"),
+            ("debug", "debugging and introspection"),
+            ("loadfile", "loading code from files"),
+            ("dofile", "executing code from files"),
+            ("load", "loading code from strings"),
+            ("require", "loading modules"),
+            ("collectgarbage", "garbage collector control"),
+            ("_G", "global environment access"),
+        ];
+
+        for (global_name, description) in test_cases {
+            let script = format!(
+                r#"
+                function check_{}()
+                    if {} then
+                        return {{ exists = true }}
+                    else
+                        return {{ exists = false }}
+                    end
+                end
+            "#,
+                global_name, global_name
+            );
+
+            let result = executor
+                .execute(&script, &format!("check_{}", global_name), &context)
+                .unwrap_or_else(|e| {
+                    panic!(
+                        "Failed to execute test for '{}' ({}): {:?}",
+                        global_name, description, e
+                    )
+                });
+
+            assert_eq!(
+                result.data["exists"],
+                false,
+                "Sandbox should block '{}' ({}), but it's accessible",
+                global_name,
+                description
+            );
+        }
+    }
+
+    #[test]
+    fn test_sandbox_allows_safe_globals() {
+        let executor = LuaExecutor::new(None).unwrap();
+        let context = TestContext {
+            player_number: 1,
+            elapsed_time: 0.0,
+        };
+
+        // Test cases: (global_name, test_expression, expected_type, description)
+        let test_cases = [
+            ("math", "math.sqrt(16)", "number", "math library"),
+            ("string", "string.upper('hello')", "string", "string library"),
+            ("table", "table.concat({1,2,3}, ',')", "string", "table library"),
+            ("type", "type(42)", "string", "type function"),
+            ("tostring", "tostring(123)", "string", "tostring function"),
+            ("tonumber", "tonumber('456')", "number", "tonumber function"),
+            ("pairs", "pairs({a=1})", "function", "pairs function"),
+            ("ipairs", "ipairs({1,2,3})", "function", "ipairs function"),
+            ("next", "next({a=1}, nil)", "string", "next function"),
+            ("pcall", "pcall(function() return 1 end)", "boolean", "pcall function"),
+            ("xpcall", "xpcall(function() return 1 end, function() end)", "boolean", "xpcall function"),
+            ("assert", "assert(true, 'ok')", "boolean", "assert function"),
+            ("error", "error", "function", "error function (exists)"),
+            ("select", "select(2, 'a', 'b', 'c')", "string", "select function"),
+            ("getmetatable", "getmetatable", "function", "getmetatable function"),
+            ("setmetatable", "setmetatable({}, {})", "table", "setmetatable function"),
+            ("rawget", "rawget({a=1}, 'a')", "number", "rawget function"),
+            ("rawset", "rawset({}, 'k', 'v')", "table", "rawset function"),
+            ("rawequal", "rawequal(1, 1)", "boolean", "rawequal function"),
+            ("rawlen", "rawlen({1,2,3})", "number", "rawlen function"),
+        ];
+
+        for (global_name, test_expr, expected_type, description) in test_cases {
+            let script = format!(
+                r#"
+                function check_{}()
+                    if {} == nil then
+                        return {{ accessible = false, reason = "global is nil" }}
+                    end
+                    local success, result = pcall(function()
+                        return {}
+                    end)
+                    if success then
+                        return {{ 
+                            accessible = true, 
+                            result_type = type(result)
+                        }}
+                    else
+                        return {{ 
+                            accessible = false, 
+                            reason = "execution failed: " .. tostring(result)
+                        }}
+                    end
+                end
+            "#,
+                global_name.replace(".", "_"),
+                global_name,
+                test_expr
+            );
+
+            let result = executor
+                .execute(&script, &format!("check_{}", global_name.replace(".", "_")), &context)
+                .unwrap_or_else(|e| {
+                    panic!(
+                        "Failed to execute test for '{}' ({}): {:?}",
+                        global_name, description, e
+                    )
+                });
+
+            assert_eq!(
+                result.data["accessible"],
+                true,
+                "Sandbox should allow '{}' ({}), but it's blocked or failed: {:?}",
+                global_name,
+                description,
+                result.data.get("reason")
+            );
+
+            if expected_type != "function" {
+                assert_eq!(
+                    result.data["result_type"].as_str().unwrap(),
+                    expected_type,
+                    "Expression '{}' for '{}' ({}) should return type '{}', but got '{}'",
+                    test_expr,
+                    global_name,
+                    description,
+                    expected_type,
+                    result.data["result_type"]
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_sandbox_prevents_global_environment_bypass() {
+        let executor = LuaExecutor::new(None).unwrap();
+
+        // Try to access blocked functions through _G
+        let script = r#"
+            function try_bypass()
+                -- _G should be nil, so this should fail
+                if _G then
+                    return { 
+                        bypassed = true,
+                        has_io = _G.io ~= nil,
+                        has_os = _G.os ~= nil
+                    }
+                else
+                    return { bypassed = false }
+                end
+            end
+        "#;
+
+        let context = TestContext {
+            player_number: 1,
+            elapsed_time: 0.0,
+        };
+
+        let result = executor.execute(script, "try_bypass", &context).unwrap();
+        assert_eq!(
+            result.data["bypassed"], false,
+            "Should not be able to bypass sandbox via _G"
+        );
     }
 }

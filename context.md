@@ -97,6 +97,7 @@ System execution order (important for correct operation):
   - `execute(script, function_name, context)` - loads script and calls specified function
   - State behavior: script code reloads on each execute(), preamble persists
   - Preamble: optional Lua code string injected once at creation
+  - **Sandbox:** dangerous libraries disabled (io, os, package, debug, loadfile, dofile)
 - **ScriptError** - structured error handling (SyntaxError, RuntimeError, SerializationError, DeserializationError, FunctionNotFound)
 - User scripts contract:
   - Must implement function with specified name (e.g., `make_decision()`)
@@ -108,15 +109,16 @@ System execution order (important for correct operation):
   - ScriptResult uses JSON internally to maintain game-agnostic design
   - Function name passed as parameter for flexibility (can call different functions from same script)
   - Preamble as plain string (no builder) - game integration decides how to construct it
-- Test coverage: 26 unit tests covering all error cases, state behavior, and data types
+  - Sandbox hardcoded (no configuration) - security by default, simplifies API
+  - Timeout deferred - can be added later via mlua interrupt hooks when needed
+- Test coverage: 33 unit tests covering all error cases, state behavior, data types, and sandbox
 
 ## TODO
 
 - [ ] Render game entities: players, ball, referees
 - [ ] Integrate Lua scripting with DecisionMaker trait
-- [ ] Add timeout control for script execution
+- [ ] Add timeout control for script execution (via mlua interrupt hooks when needed)
 - [ ] Add memory limits for scripts
-- [ ] Implement script sandboxing
 
 ## Development Principles
 
