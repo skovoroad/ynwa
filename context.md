@@ -97,8 +97,19 @@ System execution order (important for correct operation):
   - `execute(script, function_name, context)` - loads script and calls specified function
   - State behavior: script code reloads on each execute(), preamble persists
   - Preamble: optional Lua code string injected once at creation
-  - **Sandbox:** dangerous libraries disabled (io, os, package, debug, loadfile, dofile)
-- **ScriptError** - structured error handling (SyntaxError, RuntimeError, SerializationError, DeserializationError, FunctionNotFound)
+  - **Sandbox:** dangerous libraries/globals disabled (io, os, package, require, load, loadfile, dofile, debug, collectgarbage, _G)
+  - **Timeout:** optional execution time limit via hook mechanism
+    - Enabled via `new(preamble, Some(Duration))` parameter
+    - Hook checks every 10,000 Lua instructions (balanced overhead ~2x)
+    - Returns ScriptError::Timeout if limit exceeded
+    - Performance impact: ~2x slowdown when enabled (acceptable for 30 FPS target)
+    - Can be disabled for production with trusted scripts (pass None)
+    - User controls timeout value directly - no built-in calibration
+    - External calibration possible: measure script execution time in game loop and adjust timeout dynamically
+- **ScriptError** - structured error handling with type-based detection
+  - Error types: SyntaxError, RuntimeError, SerializationError, DeserializationError, FunctionNotFound, Timeout
+  - Type-safe error mapping: uses mlua::Error variants (ExternalError, SyntaxError) instead of string matching
+  - Timeout detection: TimeoutError marker type with ExternalError wrapping + fallback for mlua-wrapped errors
 - User scripts contract:
   - Must implement function with specified name (e.g., `make_decision()`)
   - Access context via global `context` variable
@@ -110,15 +121,17 @@ System execution order (important for correct operation):
   - Function name passed as parameter for flexibility (can call different functions from same script)
   - Preamble as plain string (no builder) - game integration decides how to construct it
   - Sandbox hardcoded (no configuration) - security by default, simplifies API
-  - Timeout deferred - can be added later via mlua interrupt hooks when needed
-- Test coverage: 33 unit tests covering all error cases, state behavior, data types, and sandbox
+  - Timeout optional - enabled when needed for untrusted scripts, disabled for performance
+  - Hook interval 10K instructions - balanced between timeout accuracy and performance
+  - No built-in calibration - user controls timeout directly, can implement external calibration in game loop
+  - Type-based error detection - safer than string matching, immune to mlua error message changes
+- Test coverage: 134 unit tests (37 scripting tests) covering all error cases, state behavior, data types, sandbox, and timeout
 
 ## TODO
 
 - [ ] Render game entities: players, ball, referees
 - [ ] Integrate Lua scripting with DecisionMaker trait
-- [ ] Add timeout control for script execution (via mlua interrupt hooks when needed)
-- [ ] Add memory limits for scripts
+- [ ] Add memory limits for scripts (optional future enhancement)
 
 ## Development Principles
 

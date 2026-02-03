@@ -1,6 +1,20 @@
 use mlua::{Lua, LuaSerdeExt, Value};
 use serde::{Deserialize, Serialize};
 use std::fmt;
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
+
+/// Marker error for script timeout (used internally with mlua)
+#[derive(Debug, Clone)]
+struct TimeoutError;
+
+impl fmt::Display for TimeoutError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Script execution timeout")
+    }
+}
+
+impl std::error::Error for TimeoutError {}
 
 /// Errors that can occur during script execution
 #[derive(Debug, Clone)]
@@ -15,6 +29,8 @@ pub enum ScriptError {
     DeserializationError(String),
     /// Script function not found
     FunctionNotFound(String),
+    /// Script execution timeout
+    Timeout(String),
 }
 
 impl fmt::Display for ScriptError {
@@ -25,6 +41,7 @@ impl fmt::Display for ScriptError {
             ScriptError::SerializationError(msg) => write!(f, "Serialization error: {}", msg),
             ScriptError::DeserializationError(msg) => write!(f, "Deserialization error: {}", msg),
             ScriptError::FunctionNotFound(msg) => write!(f, "Function not found: {}", msg),
+            ScriptError::Timeout(msg) => write!(f, "Timeout: {}", msg),
         }
     }
 }
@@ -41,37 +58,37 @@ pub struct ScriptResult {
 
 /// Executes Lua scripts with context data.
 ///
-/// This is a generic executor that works with any serializable context
-/// and expects scripts to implement a function with specified name.
-///
-/// Security features:
-/// - Sandbox: dangerous libraries (io, os, package, debug, loadfile, dofile) are disabled
+/// Security: sandbox blocks dangerous libraries (io, os, package, debug, etc), optional timeout.
 pub struct LuaExecutor {
     lua: Lua,
     preamble: String,
+    timeout: Option<Duration>,
+    hook_check_interval: u32,
 }
 
 impl LuaExecutor {
-    /// Create a new Lua executor with optional preamble code.
+    /// Create a new Lua executor with optional preamble and timeout.
     ///
-    /// Security settings (hardcoded):
-    /// - Sandbox enabled: io, os, package, debug, loadfile, dofile disabled
-    pub fn new(preamble: Option<String>) -> Result<Self, ScriptError> {
+    /// Timeout adds ~2x overhead. Use for untrusted scripts or debugging.
+    pub fn new(preamble: Option<String>, timeout: Option<Duration>) -> Result<Self, ScriptError> {
         let lua = Lua::new();
 
-        // Apply sandbox (remove dangerous libraries)
         Self::apply_sandbox(&lua)?;
 
         let preamble = preamble.unwrap_or_default();
 
-        // Execute preamble if provided
         if !preamble.is_empty() {
             lua.load(&preamble)
                 .exec()
                 .map_err(|e| ScriptError::SyntaxError(format!("Preamble error: {}", e)))?;
         }
 
-        Ok(Self { lua, preamble })
+        Ok(Self {
+            lua,
+            preamble,
+            timeout,
+            hook_check_interval: 10000,
+        })
     }
 
     /// Apply sandbox by removing dangerous globals
@@ -81,23 +98,13 @@ impl LuaExecutor {
             -- File system and OS access
             io = nil
             os = nil
-            
-            -- Module loading
             package = nil
             require = nil
-            
-            -- Code loading/execution
             loadfile = nil
             dofile = nil
             load = nil
-            
-            -- Introspection and debugging
             debug = nil
-            
-            -- Resource control (potential DoS)
             collectgarbage = nil
-            
-            -- Global environment access (prevents accessing original globals)
             _G = nil
         "#,
         )
@@ -115,42 +122,32 @@ impl LuaExecutor {
     /// * `script` - The user's Lua code
     /// * `function_name` - Name of the function to call
     /// * `context` - Any serializable context data
-    ///
-    /// # Returns
-    /// A `ScriptResult` containing the returned data as JSON value.
+    /// Execute a Lua script with context. Returns `ScriptError::Timeout` if exceeds timeout.
     pub fn execute<T: Serialize>(
         &self,
         script: &str,
         function_name: &str,
         context: &T,
     ) -> Result<ScriptResult, ScriptError> {
-        // 1. Serialize context to Lua value
+        if let Some(timeout) = self.timeout {
+            self.setup_timeout_hook(timeout)?;
+        }
+
         let lua_context = self
             .lua
             .to_value(context)
             .map_err(|e| ScriptError::SerializationError(e.to_string()))?;
 
-        // 2. Set context as global variable
         self.lua
             .globals()
             .set("context", lua_context)
             .map_err(|e| ScriptError::RuntimeError(e.to_string()))?;
 
-        // 3. Load and execute user script
         self.lua
             .load(script)
             .exec()
-            .map_err(|e| {
-                let err_msg = e.to_string();
-                // Distinguish between syntax and runtime errors
-                if err_msg.contains("syntax error") || err_msg.contains("unexpected symbol") {
-                    ScriptError::SyntaxError(err_msg)
-                } else {
-                    ScriptError::RuntimeError(err_msg)
-                }
-            })?;
+            .map_err(|e| self.map_lua_error(e))?;
 
-        // 4. Call the specified function
         let function: mlua::Function = self
             .lua
             .globals()
@@ -164,15 +161,67 @@ impl LuaExecutor {
 
         let result: Value = function
             .call(())
-            .map_err(|e| ScriptError::RuntimeError(e.to_string()))?;
+            .map_err(|e| self.map_lua_error(e))?;
 
-        // 5. Convert result to JSON value for flexibility
+        if self.timeout.is_some() {
+            self.lua.remove_hook();
+        }
+
         let json_value: serde_json::Value = self
             .lua
             .from_value(result)
             .map_err(|e| ScriptError::DeserializationError(e.to_string()))?;
 
         Ok(ScriptResult { data: json_value })
+    }
+
+    /// Map mlua::Error to ScriptError using type-based detection
+    fn map_lua_error(&self, e: mlua::Error) -> ScriptError {
+        match e {
+            // Timeout: type-based detection via ExternalError
+            mlua::Error::ExternalError(ref ext) if ext.downcast_ref::<TimeoutError>().is_some() => {
+                let timeout_ms = self.timeout.map(|t| t.as_millis()).unwrap_or(0);
+                ScriptError::Timeout(format!("Script exceeded {}ms timeout", timeout_ms))
+            }
+            // Syntax errors: type-based detection via SyntaxError variant
+            mlua::Error::SyntaxError { message, .. } => {
+                ScriptError::SyntaxError(message)
+            }
+            // Other errors: check if mlua wrapped our timeout in RuntimeError
+            ref other => {
+                let err_msg = other.to_string();
+                if err_msg.contains("Script execution timeout") {
+                    let timeout_ms = self.timeout.map(|t| t.as_millis()).unwrap_or(0);
+                    ScriptError::Timeout(format!("Script exceeded {}ms timeout", timeout_ms))
+                } else {
+                    ScriptError::RuntimeError(err_msg)
+                }
+            }
+        }
+    }
+
+    fn setup_timeout_hook(&self, timeout: Duration) -> Result<(), ScriptError> {
+        use mlua::HookTriggers;
+        
+        let start_time = Arc::new(Mutex::new(Instant::now()));
+        let start_time_clone = Arc::clone(&start_time);
+
+        self.lua.set_hook(
+            HookTriggers {
+                every_nth_instruction: Some(self.hook_check_interval),
+                ..Default::default()
+            },
+            move |_lua, _debug| {
+                let elapsed = start_time_clone.lock().unwrap().elapsed();
+                if elapsed > timeout {
+                    Err(mlua::Error::ExternalError(Arc::new(TimeoutError)))
+                } else {
+                    Ok(mlua::VmState::Continue)
+                }
+            },
+        );
+
+        Ok(())
     }
 
     /// Get the preamble code used by this executor
@@ -193,7 +242,7 @@ mod tests {
 
     #[test]
     fn test_basic_script_execution() {
-        let executor = LuaExecutor::new(None).unwrap();
+        let executor = LuaExecutor::new(None, None).unwrap();
 
         let script = r#"
             function make_decision()
@@ -218,7 +267,7 @@ mod tests {
 
     #[test]
     fn test_script_with_context() {
-        let executor = LuaExecutor::new(None).unwrap();
+        let executor = LuaExecutor::new(None, None).unwrap();
 
         let script = r#"
             function make_decision()
@@ -250,7 +299,7 @@ mod tests {
             end
         "#;
 
-        let executor = LuaExecutor::new(Some(preamble.to_string())).unwrap();
+        let executor = LuaExecutor::new(Some(preamble.to_string()), None).unwrap();
 
         let script = r#"
             function make_decision()
@@ -271,7 +320,7 @@ mod tests {
 
     #[test]
     fn test_missing_function_error() {
-        let executor = LuaExecutor::new(None).unwrap();
+        let executor = LuaExecutor::new(None, None).unwrap();
 
         let script = r#"
             -- No make_decision function
@@ -289,7 +338,7 @@ mod tests {
 
     #[test]
     fn test_syntax_error() {
-        let executor = LuaExecutor::new(None).unwrap();
+        let executor = LuaExecutor::new(None, None).unwrap();
 
         let script = r#"
             function make_decision()
@@ -308,7 +357,7 @@ mod tests {
 
     #[test]
     fn test_runtime_error() {
-        let executor = LuaExecutor::new(None).unwrap();
+        let executor = LuaExecutor::new(None, None).unwrap();
 
         let script = r#"
             function make_decision()
@@ -327,7 +376,7 @@ mod tests {
 
     #[test]
     fn test_complex_nested_data() {
-        let executor = LuaExecutor::new(None).unwrap();
+        let executor = LuaExecutor::new(None, None).unwrap();
 
         let script = r#"
             function make_decision()
@@ -356,7 +405,7 @@ mod tests {
 
     #[test]
     fn test_custom_function_name() {
-        let executor = LuaExecutor::new(None).unwrap();
+        let executor = LuaExecutor::new(None, None).unwrap();
 
         let script = r#"
             function calculate_score()
@@ -391,7 +440,7 @@ mod tests {
 
     #[test]
     fn test_script_state_resets_on_each_execute() {
-        let executor = LuaExecutor::new(None).unwrap();
+        let executor = LuaExecutor::new(None, None).unwrap();
 
         let script1 = r#"
             counter = 0
@@ -427,7 +476,7 @@ mod tests {
             shared_counter = 0
         "#;
 
-        let executor = LuaExecutor::new(Some(preamble.to_string())).unwrap();
+        let executor = LuaExecutor::new(Some(preamble.to_string()), None).unwrap();
 
         let script = r#"
             function increment_shared()
@@ -456,7 +505,7 @@ mod tests {
 
     #[test]
     fn test_context_replaced_between_calls() {
-        let executor = LuaExecutor::new(None).unwrap();
+        let executor = LuaExecutor::new(None, None).unwrap();
 
         let script = r#"
             function get_player()
@@ -485,7 +534,7 @@ mod tests {
 
     #[test]
     fn test_script_reloading_overwrites_functions() {
-        let executor = LuaExecutor::new(None).unwrap();
+        let executor = LuaExecutor::new(None, None).unwrap();
 
         let script1 = r#"
             function test_func()
@@ -523,7 +572,7 @@ mod tests {
             global_constant = 100
         "#;
 
-        let executor = LuaExecutor::new(Some(preamble.to_string())).unwrap();
+        let executor = LuaExecutor::new(Some(preamble.to_string()), None).unwrap();
 
         let script = r#"
             function use_preamble()
@@ -552,7 +601,7 @@ mod tests {
             end
         "#;
 
-        let executor = LuaExecutor::new(Some(preamble.to_string())).unwrap();
+        let executor = LuaExecutor::new(Some(preamble.to_string()), None).unwrap();
 
         let script = r#"
             function shared_func()
@@ -576,8 +625,8 @@ mod tests {
 
     #[test]
     fn test_empty_preamble() {
-        let executor1 = LuaExecutor::new(Some("".to_string())).unwrap();
-        let executor2 = LuaExecutor::new(None).unwrap();
+        let executor1 = LuaExecutor::new(Some("".to_string()), None).unwrap();
+        let executor2 = LuaExecutor::new(None, None).unwrap();
 
         let script = r#"
             function test()
@@ -604,7 +653,7 @@ mod tests {
                 -- Missing closing parenthesis and end
         "#;
 
-        let result = LuaExecutor::new(Some(bad_preamble.to_string()));
+        let result = LuaExecutor::new(Some(bad_preamble.to_string()), None);
         assert!(matches!(result, Err(ScriptError::SyntaxError(_))));
         
         if let Err(ScriptError::SyntaxError(msg)) = result {
@@ -614,7 +663,7 @@ mod tests {
 
     #[test]
     fn test_function_returns_non_table_number() {
-        let executor = LuaExecutor::new(None).unwrap();
+        let executor = LuaExecutor::new(None, None).unwrap();
 
         let script = r#"
             function return_number()
@@ -633,7 +682,7 @@ mod tests {
 
     #[test]
     fn test_function_returns_string() {
-        let executor = LuaExecutor::new(None).unwrap();
+        let executor = LuaExecutor::new(None, None).unwrap();
 
         let script = r#"
             function return_string()
@@ -652,7 +701,7 @@ mod tests {
 
     #[test]
     fn test_function_returns_boolean() {
-        let executor = LuaExecutor::new(None).unwrap();
+        let executor = LuaExecutor::new(None, None).unwrap();
 
         let script = r#"
             function return_true()
@@ -678,7 +727,7 @@ mod tests {
 
     #[test]
     fn test_function_returns_nil() {
-        let executor = LuaExecutor::new(None).unwrap();
+        let executor = LuaExecutor::new(None, None).unwrap();
 
         let script = r#"
             function return_nil()
@@ -697,7 +746,7 @@ mod tests {
 
     #[test]
     fn test_function_returns_empty_table() {
-        let executor = LuaExecutor::new(None).unwrap();
+        let executor = LuaExecutor::new(None, None).unwrap();
 
         let script = r#"
             function return_empty()
@@ -717,7 +766,7 @@ mod tests {
 
     #[test]
     fn test_empty_script() {
-        let executor = LuaExecutor::new(None).unwrap();
+        let executor = LuaExecutor::new(None, None).unwrap();
 
         let script = "";
 
@@ -733,7 +782,7 @@ mod tests {
 
     #[test]
     fn test_script_with_only_comments() {
-        let executor = LuaExecutor::new(None).unwrap();
+        let executor = LuaExecutor::new(None, None).unwrap();
 
         let script = r#"
             -- This is a comment
@@ -751,7 +800,7 @@ mod tests {
 
     #[test]
     fn test_each_execution_receives_correct_context() {
-        let executor = LuaExecutor::new(None).unwrap();
+        let executor = LuaExecutor::new(None, None).unwrap();
 
         let script = r#"
             function get_info()
@@ -778,7 +827,7 @@ mod tests {
 
     #[test]
     fn test_accessing_undefined_context_field_returns_null() {
-        let executor = LuaExecutor::new(None).unwrap();
+        let executor = LuaExecutor::new(None, None).unwrap();
 
         let script = r#"
             function access_missing()
@@ -800,7 +849,7 @@ mod tests {
 
     #[test]
     fn test_division_by_zero_returns_infinity_not_error() {
-        let executor = LuaExecutor::new(None).unwrap();
+        let executor = LuaExecutor::new(None, None).unwrap();
 
         let script = r#"
             function divide_by_zero()
@@ -824,7 +873,7 @@ mod tests {
 
     #[test]
     fn test_sandbox_blocks_dangerous_globals() {
-        let executor = LuaExecutor::new(None).unwrap();
+        let executor = LuaExecutor::new(None, None).unwrap();
         let context = TestContext {
             player_number: 1,
             elapsed_time: 0.0,
@@ -879,7 +928,7 @@ mod tests {
 
     #[test]
     fn test_sandbox_allows_safe_globals() {
-        let executor = LuaExecutor::new(None).unwrap();
+        let executor = LuaExecutor::new(None, None).unwrap();
         let context = TestContext {
             player_number: 1,
             elapsed_time: 0.0,
@@ -972,7 +1021,7 @@ mod tests {
 
     #[test]
     fn test_sandbox_prevents_global_environment_bypass() {
-        let executor = LuaExecutor::new(None).unwrap();
+        let executor = LuaExecutor::new(None, None).unwrap();
 
         // Try to access blocked functions through _G
         let script = r#"
@@ -999,6 +1048,121 @@ mod tests {
         assert_eq!(
             result.data["bypassed"], false,
             "Should not be able to bypass sandbox via _G"
+        );
+    }
+
+    // ===== Timeout Tests =====
+
+    #[test]
+    fn test_timeout_infinite_loop() {
+        let executor = LuaExecutor::new(None, Some(Duration::from_millis(100))).unwrap();
+
+        // Script with infinite loop
+        let script = r#"
+            function infinite_loop()
+                while true do
+                    -- This will run forever
+                end
+                return { completed = true }
+            end
+        "#;
+
+        let context = TestContext {
+            player_number: 1,
+            elapsed_time: 0.0,
+        };
+
+        let result = executor.execute(script, "infinite_loop", &context);
+        assert!(
+            matches!(result, Err(ScriptError::Timeout(_))),
+            "Expected timeout error, got: {:?}",
+            result
+        );
+    }
+
+    #[test]
+    fn test_timeout_long_computation() {
+        let executor = LuaExecutor::new(None, Some(Duration::from_millis(50))).unwrap();
+
+        // Script that takes too long
+        let script = r#"
+            function long_computation()
+                local sum = 0
+                for i = 1, 10000000 do
+                    sum = sum + i
+                end
+                return { result = sum }
+            end
+        "#;
+
+        let context = TestContext {
+            player_number: 1,
+            elapsed_time: 0.0,
+        };
+
+        let result = executor.execute(script, "long_computation", &context);
+        assert!(
+            matches!(result, Err(ScriptError::Timeout(_))),
+            "Expected timeout error for long computation, got: {:?}",
+            result
+        );
+    }
+
+    #[test]
+    fn test_no_timeout_fast_script() {
+        let executor = LuaExecutor::new(None, Some(Duration::from_millis(100))).unwrap();
+
+        // Fast script that should complete
+        let script = r#"
+            function fast_script()
+                local sum = 0
+                for i = 1, 100 do
+                    sum = sum + i
+                end
+                return { result = sum }
+            end
+        "#;
+
+        let context = TestContext {
+            player_number: 1,
+            elapsed_time: 0.0,
+        };
+
+        let result = executor.execute(script, "fast_script", &context);
+        assert!(
+            result.is_ok(),
+            "Fast script should not timeout, got error: {:?}",
+            result
+        );
+        assert_eq!(result.unwrap().data["result"], 5050);
+    }
+
+    #[test]
+    fn test_timeout_disabled() {
+        let executor = LuaExecutor::new(None, None).unwrap();
+
+        // Script with many iterations (would timeout if enabled)
+        let script = r#"
+            function many_iterations()
+                local sum = 0
+                for i = 1, 1000000 do
+                    sum = sum + i
+                end
+                return { result = sum }
+            end
+        "#;
+
+        let context = TestContext {
+            player_number: 1,
+            elapsed_time: 0.0,
+        };
+
+        // Should complete successfully without timeout
+        let result = executor.execute(script, "many_iterations", &context);
+        assert!(
+            result.is_ok(),
+            "Script should complete without timeout when timeout is disabled, got: {:?}",
+            result
         );
     }
 }
