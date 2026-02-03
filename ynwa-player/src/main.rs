@@ -89,7 +89,8 @@ fn render_scene(world: &ynwa_core::World, simulation: &SimulationControl, field_
     if control_panel_width > 50.0 {
         draw_control_panel(
             control_panel_x,
-            world.game().state().elapsed_time,
+            world.game().config(),
+            world.game().state(),
             simulation.paused,
         );
     }
