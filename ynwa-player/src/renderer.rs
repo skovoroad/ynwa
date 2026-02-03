@@ -2,7 +2,7 @@ use macroquad::prelude::*;
 use uom::si::length::meter;
 use ynwa_core::field::zones::ZoneGeometry;
 
-pub fn render_field(game_config: &ynwa_core::game::GameConfig, field_area_width: f32, screen_h: f32) {
+pub fn render_field(game_config: &ynwa_core::game::GameConfig, game_state: &ynwa_core::game::GameState, field_area_width: f32, screen_h: f32) {
     let field = &game_config.field;
     let field_length = field.length().get::<meter>();
     let field_width = field.width().get::<meter>();
@@ -27,7 +27,7 @@ pub fn render_field(game_config: &ynwa_core::game::GameConfig, field_area_width:
     draw_grid_labels(&to_screen_x, &to_screen_y, field);
     draw_center_line(&to_screen_x, &to_screen_y, field_width, field_length, white);
     draw_zones(&to_screen_x, &to_screen_y, field, scale, white);
-    draw_players(&to_screen_x, &to_screen_y, game_config, field);
+    draw_players(&to_screen_x, &to_screen_y, game_config, game_state);
 }
 
 fn draw_field_boundary(
@@ -186,37 +186,35 @@ fn draw_players(
     to_screen_x: &dyn Fn(f32) -> f32,
     to_screen_y: &dyn Fn(f32) -> f32,
     game_config: &ynwa_core::game::GameConfig,
-    field: &ynwa_core::field::Field,
+    game_state: &ynwa_core::game::GameState,
 ) {
     let player_radius = 8.0;
     let team_a_color = RED;
     let team_b_color = BLUE;
     let text_color = WHITE;
 
-    for player_def in &game_config.players {
-        if let Some(start_region) = player_def.regions.get("start position") {
-            let center = start_region.center(field.grid_dimensions(), field.width().get::<meter>());
-            let px = center.x.get::<meter>();
-            let pz = center.z.get::<meter>();
+    for (i, player_def) in game_config.players.iter().enumerate() {
+        let player_state = &game_state.player_states[i];
+        let px = player_state.position.x.get::<meter>();
+        let pz = player_state.position.z.get::<meter>();
 
-            let color = match player_def.team {
-                ynwa_core::team::Team::A => team_a_color,
-                ynwa_core::team::Team::B => team_b_color,
-            };
+        let color = match player_def.team {
+            ynwa_core::team::Team::A => team_a_color,
+            ynwa_core::team::Team::B => team_b_color,
+        };
 
-            draw_circle(to_screen_x(pz), to_screen_y(px), player_radius, color);
+        draw_circle(to_screen_x(pz), to_screen_y(px), player_radius, color);
 
-            let number_text = player_def.number.to_string();
-            let font_size = 14.0;
-            let text_dims = measure_text(&number_text, None, font_size as u16, 1.0);
+        let number_text = player_def.number.to_string();
+        let font_size = 14.0;
+        let text_dims = measure_text(&number_text, None, font_size as u16, 1.0);
 
-            draw_text(
-                &number_text,
-                to_screen_x(pz) - text_dims.width / 2.0,
-                to_screen_y(px) + text_dims.height / 2.0 - 2.0,
-                font_size,
-                text_color,
-            );
-        }
+        draw_text(
+            &number_text,
+            to_screen_x(pz) - text_dims.width / 2.0,
+            to_screen_y(px) + text_dims.height / 2.0 - 2.0,
+            font_size,
+            text_color,
+        );
     }
 }

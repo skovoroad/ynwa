@@ -82,7 +82,7 @@ fn render_scene(world: &ynwa_core::World, simulation: &SimulationControl, field_
         Color::new(0.13, 0.55, 0.13, 1.0),
     );
 
-    render_field(world.game().config(), field_area_width, screen_h);
+    render_field(world.game().config(), world.game().state(), field_area_width, screen_h);
 
     draw_separator(field_area_width, screen_h);
 
