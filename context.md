@@ -53,14 +53,40 @@
 - World координирует игровой цикл, содержит Game и список систем
 - System trait: `update(&mut self, game: &mut Game, timestamp: f32)` - общий интерфейс для всех игровых систем
 - Системы выполняются последовательно в порядке добавления
-- World::step() управляет обновлением timestamp и вызовом всех систем
+- **World::step(delta_time)** - публичный API для запуска одного игрового тика:
+  - Вычисляет новый timestamp = elapsed_time + delta_time
+  - Вызывает update() для всех систем с новым timestamp
+  - Обновляет game.state.elapsed_time
+  - Возвращает список событий GameEvent
 - Design decision: системы получают &mut Game вместо &mut World, чтобы избежать проблем с borrow checker при итерации по системам
+- Design decision: системы получают absolute timestamp вместо delta_time, чтобы могли хранить последнее время обновления и вычислять интервалы самостоятельно
 
 **Football Module (`football/mod.rs`):**
 - Основной API для создания футбольного мира: `create_football_world()`, `create_football_world_from_file()`, `create_football_world_from_toml()`
 - Функции создания GameConfig сделаны приватными - клиенты работают напрямую с World
 - Design decision: поле создаётся внутри модуля football, внешний код не имеет прямого доступа к созданию поля
 - Клиенты используют готовые функции создания мира, а не конструируют Game вручную
+
+**Game Systems:**
+Порядок выполнения систем (важен для корректной работы):
+1. **PlayerReactionSystem** - определяет, когда игрок готов принять новое решение на основе reaction_rate
+2. **DecisionSystem** - создаёт решения (Decision) для игроков, использующих DecisionMaker trait
+3. **ActionSystem** - превращает решения в velocity (применяет speed_rate)
+4. **PhysicsSystem** - применяет velocity к position используя кинематику: position += velocity × delta_time
+
+**Решения игроков (Decision):**
+- `Decision::Run(DecisionTarget)` - бежать к цели
+  - `DecisionTarget::Point(Point3D)` - конкретная точка
+  - `DecisionTarget::GridCell(GridCell)` - центр ячейки сетки
+  - `DecisionTarget::Region(Region)` - центр региона
+- `Decision::Stop` - остановиться
+- Каждое решение обрабатывается ровно один раз (флаг decision_processed)
+
+**DecisionMaker trait:**
+- Публичный интерфейс для создания AI игроков
+- `make_decision(&mut self, game: &Game, player_index: usize) -> Decision`
+- DecisionSystem::with_decision_maker() для dependency injection
+- PlaceholderDecisionMaker - базовая реализация (всегда возвращает Stop)
 
 ## TODO
 
@@ -166,6 +192,10 @@
 - `Point3D { x: Length, y: Length, z: Length }` - позиция в метрах
 - `Velocity3D { x: Velocity, y: Velocity, z: Velocity }` - скорость в м/с
 - Использование `uom` для типобезопасности физических величин
+
+**Утилиты физики (physics_util.rs):**
+- `distance(a: &Point3D, b: &Point3D) -> f32` - вычисляет евклидово расстояние между точками в метрах
+- `distance_length(a: &Point3D, b: &Point3D) -> Length` - то же, но возвращает Length для типобезопасности
 
 **Скорость игроков:**
 - `speed_rate`: 10-100 (конфигурация игрока)

@@ -15,12 +15,12 @@ const MAX_SPEED_METERS_PER_SECOND: f32 = 10.0;
 
 fn calculate_target_point(target: &DecisionTarget, game: &Game) -> Point3D {
     match target {
-        DecisionTarget::Point(point) => point.clone(),
+        DecisionTarget::Point(point) => *point,
         DecisionTarget::GridCell(cell) => {
             let region = Region::new(
                 crate::team::Team::A,
-                cell.clone(),
-                cell.clone(),
+                *cell,
+                *cell,
                 game.config().field.grid_dimensions(),
             )
             .expect("Cell should form valid region");
@@ -91,7 +91,7 @@ impl System for ActionSystem {
                         Decision::Run(target) => {
                             let player_def = &game.config().players[player_index];
                             let player_position =
-                                game.state.player_states[player_index].position.clone();
+                                game.state.player_states[player_index].position;
 
                             let target_point = calculate_target_point(&target, game);
 

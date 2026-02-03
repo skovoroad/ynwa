@@ -41,9 +41,9 @@ impl System for PhysicsSystem {
             let dy = vy * delta_time;
             let dz = vz * delta_time;
 
-            player_state.position.x = player_state.position.x + uom::si::f32::Length::new::<meter>(dx);
-            player_state.position.y = player_state.position.y + uom::si::f32::Length::new::<meter>(dy);
-            player_state.position.z = player_state.position.z + uom::si::f32::Length::new::<meter>(dz);
+            player_state.position.x += uom::si::f32::Length::new::<meter>(dx);
+            player_state.position.y += uom::si::f32::Length::new::<meter>(dy);
+            player_state.position.z += uom::si::f32::Length::new::<meter>(dz);
         }
     }
 }

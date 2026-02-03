@@ -4,6 +4,7 @@ pub mod config;
 pub mod field;
 pub mod football;
 pub mod game;
+pub mod physics_util;
 pub mod region;
 pub mod system;
 pub mod systems;
@@ -20,6 +21,7 @@ pub use game::{
 pub use football::{
     create_football_world, create_football_world_from_file, create_football_world_from_toml,
 };
+pub use physics_util::{distance, distance_length};
 pub use region::{GridCell, GridDimensions, Region, RegionError};
 pub use system::System;
 pub use systems::{

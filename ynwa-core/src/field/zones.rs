@@ -56,6 +56,10 @@ impl Velocity3D {
             z: Velocity::new::<meter_per_second>(z),
         }
     }
+
+    pub fn zero() -> Self {
+        Self::from_meters_per_second(0.0, 0.0, 0.0)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]

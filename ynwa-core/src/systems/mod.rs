@@ -1,5 +1,6 @@
 pub mod action;
 pub mod decision;
+mod integration_tests;
 pub mod physics;
 pub mod player_reaction;
 
