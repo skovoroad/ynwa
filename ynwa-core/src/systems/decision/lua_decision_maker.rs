@@ -3,7 +3,7 @@ use crate::scripting::LuaExecutor;
 use std::collections::HashMap;
 use std::time::Duration;
 
-use super::{ContextBuilder, DecisionError, DecisionMaker, DecisionParser};
+use super::{ContextBuilder, DecisionError, DecisionMaker, LuaDecision};
 
 /// DecisionMaker that executes Lua scripts for each player
 pub struct LuaDecisionMaker {
@@ -57,8 +57,11 @@ impl DecisionMaker for LuaDecisionMaker {
             .execute(player_script, "make_decision", &context)
             .map_err(|e| Self::convert_script_error(e))?;
 
-        // Parse result into Decision
-        DecisionParser::parse(result.data)
+        // Parse result into Decision using Lua format
+        let lua_decision: LuaDecision = serde_json::from_value(result.data)
+            .map_err(|e| DecisionError::ScriptError(format!("Invalid decision format: {}", e)))?;
+        
+        lua_decision.into_decision()
     }
 }
 
@@ -292,7 +295,8 @@ mod tests {
         assert!(decision.is_err());
         match decision.unwrap_err() {
             DecisionError::ScriptError(msg) => {
-                assert!(msg.contains("must be a table"));
+                // serde error message for invalid type
+                assert!(msg.contains("Invalid decision format"));
             }
             _ => panic!("Expected ScriptError"),
         }

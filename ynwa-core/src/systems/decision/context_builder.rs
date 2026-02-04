@@ -6,6 +6,11 @@ use uom::si::length::meter;
 use super::DecisionError;
 
 /// Builds minimal game context for Lua scripts
+///
+/// TODO: Consider alternative approach using intermediate serde structures
+/// (similar to LuaDecision in lua_format.rs) for better type safety and
+/// self-documentation. Current json!() macro approach is simpler and sufficient
+/// for performance, but explicit structures would make the Lua contract more clear.
 pub struct ContextBuilder;
 
 impl ContextBuilder {
