@@ -1,20 +1,19 @@
 use crate::game::{Decision, Game, GameConfig};
 use crate::scripting::LuaExecutor;
-use std::collections::HashMap;
 use std::time::Duration;
 
 use super::{ContextBuilder, DecisionError, DecisionMaker, LuaDecision};
 
 /// DecisionMaker that executes Lua scripts for each player
 pub struct LuaDecisionMaker {
-    /// One executor per player (isolated VMs)
-    executors: HashMap<usize, LuaExecutor>,
+    /// One executor per player (isolated VMs), indexed by player_index
+    executors: Vec<LuaExecutor>,
 }
 
 impl LuaDecisionMaker {
     /// Create new LuaDecisionMaker with executors for all players
     pub fn new(game_config: &GameConfig) -> Result<Self, DecisionError> {
-        let mut executors = HashMap::new();
+        let mut executors = Vec::with_capacity(game_config.players.len());
 
         for (player_index, _player_def) in game_config.players.iter().enumerate() {
             // Create executor with 100ms timeout
@@ -32,7 +31,7 @@ impl LuaDecisionMaker {
             // Note: Scripts are executed on-demand, not pre-loaded
             // This allows reload_script() to be called later if needed
 
-            executors.insert(player_index, executor);
+            executors.push(executor);
         }
 
         Ok(Self { executors })
@@ -42,7 +41,7 @@ impl LuaDecisionMaker {
 impl DecisionMaker for LuaDecisionMaker {
     fn make_decision(&mut self, game: &Game, player_index: usize) -> Result<Decision, DecisionError> {
         // Get executor for this player
-        let executor = self.executors.get(&player_index).ok_or_else(|| {
+        let executor = self.executors.get(player_index).ok_or_else(|| {
             DecisionError::RuntimeError(format!("No executor for player {}", player_index))
         })?;
 
