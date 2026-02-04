@@ -102,8 +102,18 @@ impl PlayerDef {
     }
 }
 
-#[derive(Debug, Clone, Default)]
-pub struct BallDef {}
+#[derive(Debug, Clone)]
+pub struct BallDef {
+    pub initial_position: Point3D,
+}
+
+impl Default for BallDef {
+    fn default() -> Self {
+        Self {
+            initial_position: Point3D::default(),
+        }
+    }
+}
 
 #[derive(Debug, Clone, Default)]
 pub struct RefereeDef {}
@@ -137,6 +147,8 @@ impl Default for PlayerState {
 pub struct BallState {
     pub position: Point3D,
     pub velocity: Velocity3D,
+    /// Index of player possessing the ball, or None if ball is free
+    pub possessed_by: Option<usize>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -204,7 +216,11 @@ impl Game {
             state: GameState {
                 elapsed_time: 0.0,
                 player_states,
-                ball_state: BallState::default(),
+                ball_state: BallState {
+                    position: config.ball.initial_position.clone(),
+                    velocity: Velocity3D::default(),
+                    possessed_by: None,
+                },
                 referee_states,
             },
             config,

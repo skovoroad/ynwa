@@ -1,6 +1,7 @@
 pub mod field_builder;
 
 use crate::config::SerializableGameConfig;
+use crate::field::zones::ZoneGeometry;
 use crate::game::{BallDef, Game, GameConfig, PlayerDef, RefereeDef};
 use crate::region::{GridCell, Region};
 use crate::systems::{ActionSystem, DecisionSystem, PhysicsSystem, PlayerReactionSystem};
@@ -13,6 +14,16 @@ use field_builder::create_football_field;
 fn create_football_game_config() -> GameConfig {
     let field = create_football_field();
     let grid_dims = field.grid_dimensions();
+
+    // Get ball initial position from center_spot zone
+    let center_spot_zone = field
+        .get_zone("center_spot", None)
+        .expect("Football field must have center_spot zone");
+    
+    let ball_initial_position = match &center_spot_zone.geometry {
+        ZoneGeometry::Point(point) => point.position.clone(),
+        _ => panic!("center_spot must be a Point zone"),
+    };
 
     let mut players = Vec::new();
     for i in 0..11 {
@@ -59,7 +70,9 @@ fn create_football_game_config() -> GameConfig {
     GameConfig {
         field,
         players,
-        ball: BallDef::default(),
+        ball: BallDef {
+            initial_position: ball_initial_position,
+        },
         referees: vec![RefereeDef::default()],
     }
 }
@@ -123,6 +136,7 @@ pub fn create_football_world_from_toml(toml_str: &str) -> Result<World, String> 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use uom::si::length::meter;
 
     #[test]
     fn test_create_football_world() {
@@ -130,6 +144,28 @@ mod tests {
 
         assert_eq!(world.game().config().players.len(), 22);
         assert_eq!(world.game().state().elapsed_time, 0.0);
+    }
+
+    #[test]
+    fn test_ball_initial_position_at_center_spot() {
+        let world = create_football_world();
+        let game = world.game();
+        
+        // Get center_spot position from field
+        let center_spot = game.config().field
+            .get_zone("center_spot", None)
+            .expect("Football field must have center_spot");
+        
+        let expected_position = match &center_spot.geometry {
+            crate::field::zones::ZoneGeometry::Point(point) => &point.position,
+            _ => panic!("center_spot must be a Point zone"),
+        };
+        
+        // Ball should start at center_spot
+        let ball_position = &game.state().ball_state.position;
+        assert_eq!(ball_position.x.get::<meter>(), expected_position.x.get::<meter>());
+        assert_eq!(ball_position.y.get::<meter>(), expected_position.y.get::<meter>());
+        assert_eq!(ball_position.z.get::<meter>(), expected_position.z.get::<meter>());
     }
 
     #[test]
