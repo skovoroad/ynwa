@@ -72,6 +72,7 @@ pub struct PlayerState {
     pub needs_decision: bool,
     pub current_decision: Option<Decision>,
     pub decision_processed: bool,
+    pub last_error: Option<String>,
 }
 
 impl Default for PlayerState {
@@ -83,6 +84,7 @@ impl Default for PlayerState {
             needs_decision: true,
             current_decision: None,
             decision_processed: false,
+            last_error: None,
         }
     }
 }
@@ -144,6 +146,7 @@ impl Game {
                     needs_decision: true,
                     current_decision: None,
                     decision_processed: false,
+                    last_error: None,
                 }
             })
             .collect();

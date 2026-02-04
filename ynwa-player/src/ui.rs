@@ -88,7 +88,14 @@ fn draw_player_decisions_table(
                 }
             },
             Some(Decision::Stop) => "Stop".to_string(),
-            None => "—".to_string(),
+            None => {
+                // Check if there's an error to display
+                if let Some(error) = &player_state.last_error {
+                    format!("ERROR: {}", error)
+                } else {
+                    "—".to_string()
+                }
+            }
         };
         draw_text(&decision_text, x + 30.0, y, 14.0, text_color);
 

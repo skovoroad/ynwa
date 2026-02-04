@@ -116,9 +116,11 @@ impl System for DecisionSystem {
                         player_state.decision_processed = false;
                         player_state.needs_decision = false;
                         player_state.last_decision_time = timestamp;
+                        player_state.last_error = None; // Clear any previous error
                     }
                     Err(error) => {
-                        // Error: call error handler
+                        // Error: call error handler and save error message for UI
+                        let error_message = error.to_string();
                         let error_decision = (self.on_error)(&error, player_index);
                         
                         // Always treat error as "completed attempt" to prevent storm
@@ -127,6 +129,7 @@ impl System for DecisionSystem {
                         player_state.decision_processed = false;
                         player_state.needs_decision = false;
                         player_state.last_decision_time = timestamp;
+                        player_state.last_error = Some(error_message);
                     }
                 }
             }
@@ -475,5 +478,45 @@ mod tests {
         assert!(game.state.player_states[0].current_decision.is_none());
         assert!(!game.state.player_states[0].needs_decision); // Cleared
         assert_eq!(game.state.player_states[0].last_decision_time, 5.0); // Updated
+    }
+
+    #[test]
+    fn test_error_message_saved_to_player_state() {
+        let mut game = create_test_game();
+        let mut system = DecisionSystem::new()
+            .with_decision_maker(Box::new(ErrorDecisionMaker));
+
+        game.state.player_states[0].needs_decision = true;
+
+        system.update(&mut game, 1.0);
+
+        // Error message should be saved
+        assert!(game.state.player_states[0].last_error.is_some());
+        let error_msg = game.state.player_states[0].last_error.as_ref().unwrap();
+        assert!(error_msg.contains("Test error"));
+    }
+
+    #[test]
+    fn test_error_cleared_on_successful_decision() {
+        let mut game = create_test_game();
+        
+        // First: cause an error
+        let mut system = DecisionSystem::new()
+            .with_decision_maker(Box::new(ErrorDecisionMaker));
+        
+        game.state.player_states[0].needs_decision = true;
+        system.update(&mut game, 1.0);
+        
+        assert!(game.state.player_states[0].last_error.is_some());
+        
+        // Now: switch to working decision maker
+        let mut system = DecisionSystem::new();
+        game.state.player_states[0].needs_decision = true;
+        
+        system.update(&mut game, 2.0);
+        
+        // Error should be cleared
+        assert!(game.state.player_states[0].last_error.is_none());
+        assert!(game.state.player_states[0].current_decision.is_some());
     }
 }
