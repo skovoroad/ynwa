@@ -341,4 +341,148 @@ mod tests {
         assert!(total_distance_0 > 2.0); // Player 0 traveled at least 2 meters
         assert!(total_distance_1 > 4.0); // Player 1 traveled at least 4 meters
     }
+
+    #[test]
+    fn test_lua_decision_maker_integration() {
+        use crate::systems::decision::LuaDecisionMaker;
+        
+        let field = Field::from_meters(100.0, 60.0, 26, 44);
+        let grid_dims = field.grid_dimensions();
+
+        let start_region = Region::new(
+            Team::A,
+            GridCell::new(13, 22).unwrap(), // Center of field
+            GridCell::new(13, 22).unwrap(),
+            grid_dims,
+        )
+        .unwrap();
+
+        // Player with Lua script that runs to A1
+        let config = GameConfig {
+            field,
+            players: vec![PlayerDef::new(
+                Team::A,
+                1,
+                "Lua Player".to_string(),
+                100, // Fast reaction
+                100, // Fast movement
+                r#"
+                function make_decision()
+                    -- Check context is available
+                    local my_team = context.me.team
+                    local my_number = context.me.number
+                    
+                    -- Always run to A1
+                    return {
+                        action = "run",
+                        target_type = "cell",
+                        target = "A1"
+                    }
+                end
+                "#
+                .to_string(),
+                start_region,
+            )],
+            ball: BallDef::default(),
+            referees: vec![],
+        };
+
+        let game = Game::new(config);
+        
+        // Create LuaDecisionMaker
+        let lua_maker = LuaDecisionMaker::new(game.config())
+            .expect("Failed to create LuaDecisionMaker");
+
+        // Build world with Lua decision maker
+        let mut world = World::new(game);
+        world.add_system(Box::new(PlayerReactionSystem));
+        world.add_system(Box::new(
+            DecisionSystem::new().with_decision_maker(Box::new(lua_maker)),
+        ));
+        world.add_system(Box::new(ActionSystem));
+        world.add_system(Box::new(PhysicsSystem::new()));
+
+        let initial_pos = world.game().state.player_states[0].position.clone();
+
+        // Run simulation for 2 seconds
+        for _ in 0..120 {
+            world.step(1.0 / 60.0);
+        }
+
+        let final_pos = world.game().state.player_states[0].position.clone();
+
+        // Player should have moved towards A1 (col=1, row=1)
+        // A1 is in the corner, so both x and z should decrease
+        assert!(final_pos.x.get::<meter>() < initial_pos.x.get::<meter>());
+        assert!(final_pos.z.get::<meter>() < initial_pos.z.get::<meter>());
+
+        // Player should have traveled some distance
+        let traveled = distance(&initial_pos, &final_pos);
+        println!("Lua player traveled: {:.2} m towards A1", traveled);
+        assert!(traveled > 5.0); // Should move at least 5 meters in 2 seconds
+    }
+
+    #[test]
+    fn test_lua_decision_maker_error_handling() {
+        use crate::systems::decision::LuaDecisionMaker;
+        
+        let field = Field::from_meters(100.0, 60.0, 26, 44);
+        let grid_dims = field.grid_dimensions();
+
+        let start_region = Region::new(
+            Team::A,
+            GridCell::new(13, 22).unwrap(),
+            GridCell::new(13, 22).unwrap(),
+            grid_dims,
+        )
+        .unwrap();
+
+        // Player with buggy Lua script
+        let config = GameConfig {
+            field,
+            players: vec![PlayerDef::new(
+                Team::A,
+                1,
+                "Buggy Player".to_string(),
+                100,
+                100,
+                r#"
+                function make_decision()
+                    error("Intentional error for testing")
+                end
+                "#
+                .to_string(),
+                start_region,
+            )],
+            ball: BallDef::default(),
+            referees: vec![],
+        };
+
+        let game = Game::new(config);
+        
+        let lua_maker = LuaDecisionMaker::new(game.config())
+            .expect("Failed to create LuaDecisionMaker");
+
+        let mut world = World::new(game);
+        world.add_system(Box::new(PlayerReactionSystem));
+        world.add_system(Box::new(
+            DecisionSystem::new().with_decision_maker(Box::new(lua_maker)),
+        ));
+
+        // Run simulation - should not crash despite error
+        for _ in 0..60 {
+            world.step(1.0 / 60.0);
+        }
+
+        // Player should have error message saved
+        let player_state = &world.game().state.player_states[0];
+        assert!(player_state.last_error.is_some());
+        
+        let error_msg = player_state.last_error.as_ref().unwrap();
+        assert!(error_msg.contains("Intentional error"));
+
+        // Player should not have a decision (error returned None)
+        assert!(player_state.current_decision.is_none());
+    }
 }
+

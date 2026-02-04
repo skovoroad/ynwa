@@ -4,6 +4,7 @@ use crate::config::SerializableGameConfig;
 use crate::game::{BallDef, Game, GameConfig, PlayerDef, RefereeDef};
 use crate::region::{GridCell, Region};
 use crate::systems::{ActionSystem, DecisionSystem, PhysicsSystem, PlayerReactionSystem};
+use crate::systems::decision::LuaDecisionMaker;
 use crate::team::Team;
 use crate::world::World;
 
@@ -77,7 +78,20 @@ fn create_football_game_config_from_toml(toml_str: &str) -> Result<GameConfig, S
 
 fn add_football_systems(world: &mut World) {
     world.add_system(Box::new(PlayerReactionSystem));
-    world.add_system(Box::new(DecisionSystem::new()));
+    
+    // Try to create Lua-based decision maker, fall back to placeholder if it fails
+    let decision_system = match LuaDecisionMaker::new(world.game().config()) {
+        Ok(lua_maker) => {
+            println!("Successfully initialized LuaDecisionMaker for {} players", world.game().config().players.len());
+            DecisionSystem::new().with_decision_maker(Box::new(lua_maker))
+        }
+        Err(e) => {
+            eprintln!("Warning: Failed to create LuaDecisionMaker: {}. Using placeholder.", e);
+            DecisionSystem::new()
+        }
+    };
+    
+    world.add_system(Box::new(decision_system));
     world.add_system(Box::new(ActionSystem::new()));
     world.add_system(Box::new(PhysicsSystem::new()));
 }

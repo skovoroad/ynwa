@@ -278,6 +278,16 @@ impl Region {
         })
     }
 
+    /// Creates a region without validation. Use with caution.
+    /// This is useful when parsing from user scripts where validation will happen later.
+    pub fn new_unchecked(team: Team, top_left: GridCell, bottom_right: GridCell) -> Self {
+        Self {
+            team,
+            top_left,
+            bottom_right,
+        }
+    }
+
     /// Checks if a point falls within this region (ignores Y/height).
     pub fn contains_point(
         &self,
