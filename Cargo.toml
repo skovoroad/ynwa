@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "ynwa-core",
     "ynwa-player",
+    "ynwa-script-tests",
 ]
 
 [workspace.package]

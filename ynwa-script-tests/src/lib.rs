@@ -1,0 +1,51 @@
+// Test helpers for script testing
+// This module is used by integration tests
+
+use ynwa_core::field::Field;
+use ynwa_core::game::{BallDef, Game, GameConfig, PlayerDef, RefereeDef};
+use ynwa_core::region::{GridCell, Region};
+use ynwa_core::team::Team;
+
+/// Load Lua script from file in ynwa-scripts/test-scripts/
+pub fn load_script(relative_path: &str) -> String {
+    let base_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .join("ynwa-scripts");
+    
+    let script_path = base_path.join(relative_path);
+    
+    std::fs::read_to_string(&script_path)
+        .unwrap_or_else(|e| panic!("Failed to load script {}: {}", script_path.display(), e))
+}
+
+/// Create a simple test game with one player using the given script
+pub fn create_test_game_with_script(script: &str) -> Game {
+    let field = Field::from_meters(100.0, 60.0, 26, 44);
+    let grid_dims = field.grid_dimensions();
+
+    let start_region = Region::new(
+        Team::A,
+        GridCell::new(10, 10).unwrap(),
+        GridCell::new(11, 11).unwrap(),
+        grid_dims,
+    )
+    .unwrap();
+
+    let config = GameConfig {
+        field,
+        players: vec![PlayerDef::new(
+            Team::A,
+            1,
+            "Test Player".to_string(),
+            50,
+            50,
+            script.to_string(),
+            start_region,
+        )],
+        ball: BallDef::default(),
+        referees: vec![RefereeDef::default()],
+    };
+
+    Game::new(config)
+}

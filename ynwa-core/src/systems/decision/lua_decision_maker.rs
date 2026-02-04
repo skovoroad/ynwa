@@ -136,50 +136,6 @@ mod tests {
     }
 
     #[test]
-    fn test_lua_decision_maker_executes_stop_decision() {
-        let game = create_test_game_with_script(
-            r#"
-            function make_decision()
-                return {action = "stop"}
-            end
-            "#,
-        );
-
-        let mut maker = LuaDecisionMaker::new(game.config()).unwrap();
-        let decision = maker.make_decision(&game, 0);
-
-        assert!(decision.is_ok());
-        assert!(matches!(decision.unwrap(), Decision::Stop));
-    }
-
-    #[test]
-    fn test_lua_decision_maker_executes_run_to_cell() {
-        let game = create_test_game_with_script(
-            r#"
-            function make_decision()
-                return {
-                    action = "run",
-                    target_type = "cell",
-                    target = "A5"
-                }
-            end
-            "#,
-        );
-
-        let mut maker = LuaDecisionMaker::new(game.config()).unwrap();
-        let decision = maker.make_decision(&game, 0);
-
-        assert!(decision.is_ok());
-        match decision.unwrap() {
-            Decision::Run(DecisionTarget::GridCell(cell)) => {
-                assert_eq!(cell.col, 1);
-                assert_eq!(cell.row, 5);
-            }
-            _ => panic!("Expected Run to GridCell"),
-        }
-    }
-
-    #[test]
     fn test_lua_decision_maker_receives_context() {
         let game = create_test_game_with_script(
             r#"

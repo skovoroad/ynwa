@@ -807,6 +807,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "ynwa-script-tests"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+ "uom",
+ "ynwa-core",
+]
+
+[[package]]
 name = "zerocopy"
 version = "0.8.37"
 source = "registry+https://github.com/rust-lang/crates.io-index"

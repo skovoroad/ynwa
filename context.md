@@ -10,15 +10,23 @@ A football manager where the player sets characteristics and instructions for th
 
 The project is divided into independent modules using Rust workspace:
 
-- **Core (`core`)** - a library that simulates the game
+- **Core (`ynwa-core`)** - a library that simulates the game
   - Knows only game simulation logic
   - Receives all parameters (characteristics, commands, instructions) from outside via API
   - Does not depend on specific client implementations
   
+- **Scripts (`ynwa-scripts`)** - Lua scripts library (data only, no Rust code)
+  - `test-scripts/` - simple Lua scripts for testing decision system
+  - Scripts loaded from filesystem during tests
+  - No preamble or stdlib yet - plain scripts that return decisions
+  
 - **Clients** - applications using the core:
-  - Local client - simulates the game locally and interacts with the player
+  - `ynwa-player` - local client, simulates the game locally and interacts with the player
   - Game server (future) - simulates multiple games, transmits data over network
-  - Test applications
+  
+- **Test suites:**
+  - `ynwa-script-tests` - integration tests for Lua scripts
+  - Verifies that scripts produce correct decisions through the full system pipeline
 
 ### Universality (optional requirement)
 
@@ -146,7 +154,7 @@ System execution order (important for correct operation):
   - Hook interval 10K instructions - balanced between timeout accuracy and performance
   - No built-in calibration - user controls timeout directly, can implement external calibration in game loop
   - Type-based error detection - safer than string matching, immune to mlua error message changes
-- Test coverage: 175 unit tests (37 scripting, 31 decision system) covering all error cases, state behavior, data types, sandbox, and timeout
+- Test coverage: 173 unit tests in ynwa-core (37 scripting, 29 decision system) + 2 integration tests in ynwa-script-tests
 
 ## TODO
 
