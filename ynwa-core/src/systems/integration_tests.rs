@@ -8,6 +8,7 @@ mod tests {
     use crate::systems::{
         ActionSystem, DecisionMaker, DecisionSystem, PhysicsSystem, PlayerReactionSystem,
     };
+    use crate::systems::decision::DecisionError;
     use crate::team::Team;
     use crate::world::World;
     use std::collections::HashMap;
@@ -39,18 +40,20 @@ mod tests {
     }
 
     impl DecisionMaker for ScriptedDecisionMaker {
-        fn make_decision(&mut self, _game: &Game, player_index: usize) -> Decision {
+        fn make_decision(&mut self, _game: &Game, player_index: usize) 
+            -> Result<Decision, DecisionError> 
+        {
             if let Some(decisions) = self.decisions.get(&player_index) {
                 if let Some(counter) = self.decision_counters.get_mut(&player_index) {
                     let decision_index = *counter;
                     if decision_index < decisions.len() {
                         *counter += 1;
-                        return decisions[decision_index].clone();
+                        return Ok(decisions[decision_index].clone());
                     }
                 }
             }
             // Return Stop if no more decisions available
-            Decision::Stop
+            Ok(Decision::Stop)
         }
     }
 
@@ -163,7 +166,7 @@ mod tests {
         let mut world = World::new(game);
         world.add_system(Box::new(PlayerReactionSystem::new()));
         world.add_system(Box::new(
-            DecisionSystem::with_decision_maker(Box::new(decision_maker)),
+            DecisionSystem::new().with_decision_maker(Box::new(decision_maker)),
         ));
         world.add_system(Box::new(ActionSystem::new()));
         world.add_system(Box::new(PhysicsSystem::new()));
