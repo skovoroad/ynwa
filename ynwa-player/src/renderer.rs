@@ -28,6 +28,7 @@ pub fn render_field(game_config: &ynwa_core::game::GameConfig, game_state: &ynwa
     draw_center_line(&to_screen_x, &to_screen_y, field_width, field_length, white);
     draw_zones(&to_screen_x, &to_screen_y, field, scale, white);
     draw_players(&to_screen_x, &to_screen_y, game_config, game_state);
+    draw_ball(&to_screen_x, &to_screen_y, game_state);
 }
 
 fn draw_field_boundary(
@@ -217,4 +218,22 @@ fn draw_players(
             text_color,
         );
     }
+}
+
+fn draw_ball(
+    to_screen_x: &dyn Fn(f32) -> f32,
+    to_screen_y: &dyn Fn(f32) -> f32,
+    game_state: &ynwa_core::game::GameState,
+) {
+    let ball_state = &game_state.ball_state;
+    let bx = ball_state.position.x.get::<meter>();
+    let bz = ball_state.position.z.get::<meter>();
+
+    let ball_radius = 6.0;
+    let ball_color = WHITE;
+    let ball_outline_color = BLACK;
+
+    // Draw ball with black outline
+    draw_circle(to_screen_x(bz), to_screen_y(bx), ball_radius + 1.0, ball_outline_color);
+    draw_circle(to_screen_x(bz), to_screen_y(bx), ball_radius, ball_color);
 }

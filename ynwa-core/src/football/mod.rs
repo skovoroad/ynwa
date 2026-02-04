@@ -11,19 +11,22 @@ use crate::world::World;
 
 use field_builder::create_football_field;
 
-fn create_football_game_config() -> GameConfig {
-    let field = create_football_field();
-    let grid_dims = field.grid_dimensions();
-
-    // Get ball initial position from center_spot zone
+/// Extract ball initial position from center_spot zone (football rule)
+fn get_ball_initial_position(field: &crate::field::Field) -> crate::field::zones::Point3D {
     let center_spot_zone = field
         .get_zone("center_spot", None)
         .expect("Football field must have center_spot zone");
     
-    let ball_initial_position = match &center_spot_zone.geometry {
+    match &center_spot_zone.geometry {
         ZoneGeometry::Point(point) => point.position.clone(),
         _ => panic!("center_spot must be a Point zone"),
-    };
+    }
+}
+
+fn create_football_game_config() -> GameConfig {
+    let field = create_football_field();
+    let grid_dims = field.grid_dimensions();
+    let ball_initial_position = get_ball_initial_position(&field);
 
     let mut players = Vec::new();
     for i in 0..11 {
@@ -80,13 +83,27 @@ fn create_football_game_config() -> GameConfig {
 fn create_football_game_config_from_file(path: &std::path::Path) -> Result<GameConfig, String> {
     let config = SerializableGameConfig::from_file(path)?;
     let field = create_football_field();
-    config.to_game_config(field)
+    let mut game_config = config.to_game_config(field)?;
+    
+    // Set ball initial position to center_spot (football rule)
+    game_config.ball = BallDef {
+        initial_position: get_ball_initial_position(&game_config.field),
+    };
+    
+    Ok(game_config)
 }
 
 fn create_football_game_config_from_toml(toml_str: &str) -> Result<GameConfig, String> {
     let config = SerializableGameConfig::from_toml(toml_str)?;
     let field = create_football_field();
-    config.to_game_config(field)
+    let mut game_config = config.to_game_config(field)?;
+    
+    // Set ball initial position to center_spot (football rule)
+    game_config.ball = BallDef {
+        initial_position: get_ball_initial_position(&game_config.field),
+    };
+    
+    Ok(game_config)
 }
 
 fn add_football_systems(world: &mut World) {
