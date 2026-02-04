@@ -1,4 +1,5 @@
 use crate::game::Game;
+use crate::orientation::flip_point_orientation;
 use crate::team::Team;
 use serde_json::json;
 use uom::si::length::meter;
@@ -14,7 +15,8 @@ use super::DecisionError;
 pub struct ContextBuilder;
 
 impl ContextBuilder {
-    /// Build context with minimal information: positions, ball, time
+    /// Builds context for player's Lua script.
+    /// Team B sees coordinates in their own orientation (flipped from display).
     pub fn build(game: &Game, player_index: usize) -> Result<serde_json::Value, DecisionError> {
         let config = game.config();
         let state = game.state();
@@ -28,25 +30,36 @@ impl ContextBuilder {
         
         let player_def = &config.players[player_index];
         let player_state = &state.player_states[player_index];
+        let player_team = player_def.team;
+        
+        // Get field dimensions for coordinate transformation
+        let field_width = config.field.width().get::<meter>();
+        let field_length = config.field.length().get::<meter>();
         
         let context = json!({
             "me": {
-                "team": format!("{:?}", player_def.team),
+                "team": format!("{:?}", player_team),
                 "number": player_def.number,
-                "position": Self::position_to_json(&player_state.position)
+                "position": Self::position_to_json(&player_state.position, player_team, field_width, field_length)
             },
             "teammates": Self::build_team_positions(
                 &config.players,
                 &state.player_states,
-                player_def.team
+                player_team,
+                player_team, // viewer_team for coordinate transformation
+                field_width,
+                field_length
             ),
             "opponents": Self::build_team_positions(
                 &config.players,
                 &state.player_states,
-                player_def.team.opposite()
+                player_team.opposite(),
+                player_team, // viewer_team for coordinate transformation
+                field_width,
+                field_length
             ),
             "ball": {
-                "position": Self::position_to_json(&state.ball_state.position)
+                "position": Self::position_to_json(&state.ball_state.position, player_team, field_width, field_length)
             },
             "game": {
                 "elapsed_time": state.elapsed_time
@@ -56,11 +69,23 @@ impl ContextBuilder {
         Ok(context)
     }
     
-    fn position_to_json(pos: &crate::field::zones::Point3D) -> serde_json::Value {
+    fn position_to_json(
+        pos: &crate::field::zones::Point3D,
+        viewer_team: Team,
+        field_width: f32,
+        field_length: f32,
+    ) -> serde_json::Value {
+        // For Team B, flip coordinates from display orientation to Team B perspective
+        let transformed_pos = if viewer_team == Team::B {
+            flip_point_orientation(pos, field_width, field_length)
+        } else {
+            *pos
+        };
+        
         json!({
-            "x": pos.x.get::<meter>(),
-            "y": pos.y.get::<meter>(),
-            "z": pos.z.get::<meter>()
+            "x": transformed_pos.x.get::<meter>(),
+            "y": transformed_pos.y.get::<meter>(),
+            "z": transformed_pos.z.get::<meter>()
         })
     }
     
@@ -68,6 +93,9 @@ impl ContextBuilder {
         players: &[crate::game::PlayerDef],
         states: &[crate::game::PlayerState],
         team: Team,
+        viewer_team: Team,
+        field_width: f32,
+        field_length: f32,
     ) -> serde_json::Value {
         json!(
             players
@@ -77,7 +105,7 @@ impl ContextBuilder {
                 .map(|(def, state)| {
                     json!({
                         "number": def.number,
-                        "position": Self::position_to_json(&state.position)
+                        "position": Self::position_to_json(&state.position, viewer_team, field_width, field_length)
                     })
                 })
                 .collect::<Vec<_>>()
@@ -252,5 +280,112 @@ mod tests {
             }
             _ => panic!("Expected RuntimeError"),
         }
+    }
+
+    #[test]
+    fn test_team_a_sees_display_coordinates() {
+        // Team A should see coordinates in display orientation (unchanged)
+        let game = create_test_game_with_players();
+        let context = ContextBuilder::build(&game, 0).unwrap(); // Player 0 is Team A
+        
+        let me = context.get("me").unwrap();
+        let position = me.get("position").unwrap();
+        
+        // Team A player at start_region A10:K11 should see their actual position
+        // The center of region A10:K11 is approximately (3.846, 0, 22.727) for 26x44 grid on 100x60 field
+        let x = position.get("x").unwrap().as_f64().unwrap();
+        let z = position.get("z").unwrap().as_f64().unwrap();
+        
+        // Check that coordinates are in the left half of the field (Team A side)
+        assert!(x < 50.0, "Team A player should be on left side: x={}", x);
+        assert!(z > 0.0 && z < 60.0, "z should be within field bounds: z={}", z);
+    }
+
+    #[test]
+    fn test_team_b_sees_flipped_coordinates() {
+        // Team B should see coordinates flipped to their perspective
+        let game = create_test_game_with_players();
+        let context = ContextBuilder::build(&game, 2).unwrap(); // Player 2 is Team B
+        
+        let me = context.get("me").unwrap();
+        let position = me.get("position").unwrap();
+        
+        // Team B player at start_region B15:P16 (in Team B coordinates)
+        // In display coords, this is on the right side (x > 50)
+        // But in Team B's view, they should see themselves on the LEFT side (x < 50)
+        let x = position.get("x").unwrap().as_f64().unwrap();
+        let z = position.get("z").unwrap().as_f64().unwrap();
+        
+        // After flipping, Team B player should see themselves on their left side
+        assert!(x < 50.0, "Team B player should see themselves on left side (flipped): x={}", x);
+        assert!(z > 0.0 && z < 60.0, "z should be within field bounds: z={}", z);
+    }
+
+    #[test]
+    fn test_team_b_sees_ball_in_own_coordinates() {
+        // Team B should see ball position flipped to their perspective
+        let game = create_test_game_with_players();
+        let context_a = ContextBuilder::build(&game, 0).unwrap(); // Team A player
+        let context_b = ContextBuilder::build(&game, 2).unwrap(); // Team B player
+        
+        let ball_a = context_a.get("ball").unwrap().get("position").unwrap();
+        let ball_b = context_b.get("ball").unwrap().get("position").unwrap();
+        
+        let x_a = ball_a.get("x").unwrap().as_f64().unwrap();
+        let z_a = ball_a.get("z").unwrap().as_f64().unwrap();
+        
+        let x_b = ball_b.get("x").unwrap().as_f64().unwrap();
+        let z_b = ball_b.get("z").unwrap().as_f64().unwrap();
+        
+        // Ball coordinates should be flipped for Team B
+        // x: 100 - x_a, z: 60 - z_a
+        let expected_x_b = 100.0 - x_a;
+        let expected_z_b = 60.0 - z_a;
+        
+        assert!((x_b - expected_x_b).abs() < 0.01, 
+            "Ball x for Team B should be flipped: expected {}, got {}", expected_x_b, x_b);
+        assert!((z_b - expected_z_b).abs() < 0.01,
+            "Ball z for Team B should be flipped: expected {}, got {}", expected_z_b, z_b);
+    }
+
+    #[test]
+    fn test_team_b_sees_opponents_in_own_coordinates() {
+        // Team B should see opponent (Team A) positions flipped
+        let game = create_test_game_with_players();
+        let context_b = ContextBuilder::build(&game, 2).unwrap(); // Team B player
+        
+        let opponents = context_b.get("opponents").unwrap().as_array().unwrap();
+        
+        // Should have 2 opponents (both Team A players)
+        assert_eq!(opponents.len(), 2);
+        
+        // Check that opponent positions are in Team B's coordinate system
+        for opponent in opponents {
+            let position = opponent.get("position").unwrap();
+            let x = position.get("x").unwrap().as_f64().unwrap();
+            let z = position.get("z").unwrap().as_f64().unwrap();
+            
+            // Opponents (Team A) should appear on the RIGHT side from Team B's perspective
+            assert!(x > 50.0, "Opponents should be on right side in Team B coords: x={}", x);
+            assert!(z > 0.0 && z < 60.0, "z should be within field bounds: z={}", z);
+        }
+    }
+
+    #[test]
+    fn test_team_b_sees_teammates_in_own_coordinates() {
+        // Team B should see teammate positions in their coordinate system
+        let game = create_test_game_with_players();
+        let context_b = ContextBuilder::build(&game, 2).unwrap(); // Team B player
+        
+        let teammates = context_b.get("teammates").unwrap().as_array().unwrap();
+        
+        // Should have 1 teammate (only 1 Team B player in our test)
+        assert_eq!(teammates.len(), 1);
+        
+        let position = teammates[0].get("position").unwrap();
+        let x = position.get("x").unwrap().as_f64().unwrap();
+        
+        // Teammate (self) should be on the LEFT side from Team B's perspective
+        assert!(x < 50.0, "Teammate should be on left side in Team B coords: x={}", x);
     }
 }

@@ -1,8 +1,9 @@
-use crate::game::{Decision, DecisionTarget, Game};
+use crate::game::{convert_decision_to_display_orientation, Decision, DecisionTarget, Game};
 use crate::region::GridCell;
 use crate::system::System;
 use rand::Rng;
 use std::fmt;
+use uom::si::length::meter;
 
 // Design: DecisionSystem delegates decision-making to DecisionMaker implementations.
 // This separates coordination (when to decide) from strategy (what to decide).
@@ -107,12 +108,29 @@ impl System for DecisionSystem {
                 // Get decision or handle error
                 let decision_result = self.decision_maker.make_decision(game, player_index);
                 
+                // Get player's team for coordinate conversion
+                let player_team = game.config().players[player_index].team;
+                
+                // Get field dimensions for coordinate conversion
+                let field_width = game.config().field.width().get::<meter>();
+                let field_length = game.config().field.length().get::<meter>();
+                let grid_dims = game.config().field.grid_dimensions();
+                
                 let player_state = &mut game.state.player_states[player_index];
                 
                 match decision_result {
                     Ok(decision) => {
+                        // Convert decision from team's orientation to display orientation
+                        let display_decision = convert_decision_to_display_orientation(
+                            &decision,
+                            player_team,
+                            field_width,
+                            field_length,
+                            grid_dims,
+                        );
+                        
                         // Success: set the decision
-                        player_state.current_decision = Some(decision);
+                        player_state.current_decision = Some(display_decision);
                         player_state.decision_processed = false;
                         player_state.needs_decision = false;
                         player_state.last_decision_time = timestamp;
@@ -123,9 +141,20 @@ impl System for DecisionSystem {
                         let error_message = error.to_string();
                         let error_decision = (self.on_error)(&error, player_index);
                         
+                        // If error handler provides a decision, convert it too
+                        let converted_error_decision = error_decision.map(|d| {
+                            convert_decision_to_display_orientation(
+                                &d,
+                                player_team,
+                                field_width,
+                                field_length,
+                                grid_dims,
+                            )
+                        });
+                        
                         // Always treat error as "completed attempt" to prevent storm
                         // This ensures rate-limiting via PlayerReactionSystem's reaction_rate
-                        player_state.current_decision = error_decision;
+                        player_state.current_decision = converted_error_decision;
                         player_state.decision_processed = false;
                         player_state.needs_decision = false;
                         player_state.last_decision_time = timestamp;

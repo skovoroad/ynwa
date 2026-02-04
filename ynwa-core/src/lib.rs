@@ -4,6 +4,7 @@ pub mod config;
 pub mod field;
 pub mod football;
 pub mod game;
+pub mod orientation;
 pub mod physics_util;
 pub mod region;
 pub mod scripting;
@@ -22,6 +23,7 @@ pub use game::{
 pub use football::{
     create_football_world, create_football_world_from_file, create_football_world_from_toml,
 };
+pub use orientation::{flip_grid_cell_orientation, flip_point_orientation, flip_region_orientation};
 pub use physics_util::{distance, distance_length};
 pub use region::{GridCell, GridDimensions, Region, RegionError};
 pub use scripting::{LuaExecutor, ScriptError, ScriptResult};

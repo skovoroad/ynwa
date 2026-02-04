@@ -180,13 +180,9 @@ impl GridCell {
         Self::from_literal(&col_str, row)
     }
 
-    /// Flips the cell orientation for the opposite team.
+    /// Convenience wrapper for [`crate::orientation::flip_grid_cell_orientation`].
     pub fn flip_orientation(&self, grid_dims: GridDimensions) -> Result<Self, RegionError> {
-        // Flip both column and row
-        let new_col = grid_dims.columns - self.col + 1;
-        let new_row = grid_dims.rows - self.row + 1;
-
-        Self::new(new_col, new_row)
+        crate::orientation::flip_grid_cell_orientation(self, grid_dims)
     }
 
     /// Converts a 1-based column number to Excel-style label (A, B, ..., Z, AA, AB, ...).
@@ -327,19 +323,9 @@ impl Region {
         Point3D::from_meters(center_x, 0.0, center_z)
     }
 
-    /// Flips the region orientation for the opposite team.
-    /// Returns a new region with both corners flipped.
+    /// Convenience wrapper for [`crate::orientation::flip_region_orientation`].
     pub fn flip_orientation(&self, grid_dims: GridDimensions) -> Result<Self, RegionError> {
-        let new_top_left = self.top_left.flip_orientation(grid_dims)?;
-        let new_bottom_right = self.bottom_right.flip_orientation(grid_dims)?;
-
-        // Swap corners to maintain top_left <= bottom_right after flip
-        Region::new(
-            self.team.opposite(),
-            new_bottom_right,
-            new_top_left,
-            grid_dims,
-        )
+        crate::orientation::flip_region_orientation(self, grid_dims)
     }
 
     /// Convert region to grid notation string (e.g., "A1:B2")
