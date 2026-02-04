@@ -84,9 +84,30 @@ System execution order (important for correct operation):
 
 **DecisionMaker trait:**
 - Public interface for creating AI players
-- `make_decision(&mut self, game: &Game, player_index: usize) -> Decision`
+- `make_decision(&mut self, game: &Game, player_index: usize) -> Result<Decision, DecisionError>`
 - DecisionSystem::with_decision_maker() for dependency injection
-- PlaceholderDecisionMaker - basic implementation (generates random run decisions to grid cells)
+- Implementations:
+  - PlaceholderDecisionMaker - fallback (random movement)
+  - LuaDecisionMaker - Lua script execution per player
+
+**Lua Decision System (`systems/decision/`):**
+- **LuaDecisionMaker** - one isolated Lua VM per player (HashMap of LuaExecutors)
+  - 100ms timeout per script execution
+  - Scripts loaded from GameConfig
+- **ContextBuilder** - builds minimal JSON context (~500 bytes) for Lua scripts
+  - Context includes: player position, teammates, opponents, ball, elapsed time
+  - Uses json!() macro for flexibility (TODO: consider serde structures)
+- **lua_format.rs** - Lua-specific serialization format (separate from domain types)
+  - `LuaDecision` enum with serde derives for automatic deserialization
+  - `into_decision()` converts to domain Decision type
+  - Separation allows format changes without affecting game logic
+- Lua script contract: function `make_decision()` returns table:
+  - `{action = "stop"}` or
+  - `{action = "run", target_type = "cell", target = "A5"}` or
+  - `{action = "run", target_type = "region", target = {from = "A5", to = "C7"}}` or
+  - `{action = "run", target_type = "point", target = {x = 10.5, z = 20.0}}`
+- Error handling: errors stored in PlayerState.last_error, displayed in UI
+- Integration: football/mod.rs tries LuaDecisionMaker, falls back to PlaceholderDecisionMaker on error
 
 **Scripting System (`scripting/`):**
 - Game-agnostic Lua-based scripting for decision making
@@ -125,12 +146,11 @@ System execution order (important for correct operation):
   - Hook interval 10K instructions - balanced between timeout accuracy and performance
   - No built-in calibration - user controls timeout directly, can implement external calibration in game loop
   - Type-based error detection - safer than string matching, immune to mlua error message changes
-- Test coverage: 134 unit tests (37 scripting tests) covering all error cases, state behavior, data types, sandbox, and timeout
+- Test coverage: 175 unit tests (37 scripting, 31 decision system) covering all error cases, state behavior, data types, sandbox, and timeout
 
 ## TODO
 
 - [ ] Render game entities: players, ball, referees
-- [ ] Integrate Lua scripting with DecisionMaker trait
 - [ ] Add memory limits for scripts (optional future enhancement)
 
 ## Development Principles
