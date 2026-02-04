@@ -97,6 +97,7 @@ System execution order (important for correct operation):
 - Implementations:
   - PlaceholderDecisionMaker - fallback (random movement)
   - LuaDecisionMaker - Lua script execution per player
+- **Design principle:** Minimize dependencies in decision system code - it may be extracted into separate library in the future
 
 **Lua Decision System (`systems/decision/`):**
 - **LuaDecisionMaker** - one isolated Lua VM per player (HashMap of LuaExecutors)
