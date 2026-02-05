@@ -153,3 +153,106 @@ fn test_kick_decision() {
         "test_kick_decision"
     );
 }
+
+#[test]
+fn test_context_structure() {
+    // Test that context has all required fields according to documentation
+    // Script will fail with error if any required field is missing
+    let script = r#"
+        function make_decision()
+            local missing = {}
+            
+            -- Check context.me structure
+            if not context.me then
+                table.insert(missing, "context.me")
+            else
+                if not context.me.team then table.insert(missing, "context.me.team") end
+                if not context.me.number then table.insert(missing, "context.me.number") end
+                if not context.me.position then table.insert(missing, "context.me.position") end
+                if context.me.position then
+                    if not context.me.position.x then table.insert(missing, "context.me.position.x") end
+                    if not context.me.position.z then table.insert(missing, "context.me.position.z") end
+                end
+            end
+            
+            -- Check context.teammates
+            if not context.teammates then
+                table.insert(missing, "context.teammates")
+            end
+            
+            -- Check context.opponents
+            if not context.opponents then
+                table.insert(missing, "context.opponents")
+            end
+            
+            -- Check context.ball structure
+            if not context.ball then
+                table.insert(missing, "context.ball")
+            else
+                if not context.ball.position then
+                    table.insert(missing, "context.ball.position")
+                else
+                    if not context.ball.position.x then table.insert(missing, "context.ball.position.x") end
+                    if not context.ball.position.z then table.insert(missing, "context.ball.position.z") end
+                end
+                
+                -- Check if owner_index key exists (can be nil value, but key must exist)
+                local has_owner_key = false
+                for key in pairs(context.ball) do
+                    if key == "owner_index" then
+                        has_owner_key = true
+                        break
+                    end
+                end
+                if not has_owner_key then
+                    table.insert(missing, "context.ball.owner_index")
+                end
+            end
+            
+            -- Check context.game
+            if not context.game then
+                table.insert(missing, "context.game")
+            else
+                if not context.game.elapsed_time then
+                    table.insert(missing, "context.game.elapsed_time")
+                end
+            end
+            
+            -- If any fields are missing, report them all
+            if #missing > 0 then
+                error("Missing context fields: " .. table.concat(missing, ", "))
+            end
+            
+            -- All fields exist, return valid decision
+            return {action = "stop"}
+        end
+    "#;
+
+    // Create game with test script
+    let mut game = create_test_game_with_script(script);
+    
+    // Trigger decision
+    let mut reaction_system = PlayerReactionSystem::new();
+    reaction_system.update(&mut game, 1.0);
+    
+    let decision_maker = ScriptedDecisionMaker::new(&game)
+        .expect("Failed to create ScriptedDecisionMaker");
+    
+    let mut decision_system = DecisionSystem::new()
+        .with_decision_maker(Box::new(decision_maker));
+    
+    decision_system.update(&mut game, 1.0);
+    
+    // If script executed successfully, all required fields exist
+    let player_state = &game.state().player_states[0];
+    assert!(
+        player_state.last_error.is_none(),
+        "Context validation failed: {:?}",
+        player_state.last_error
+    );
+    
+    assert!(
+        player_state.current_decision.is_some(),
+        "Expected a decision to be created"
+    );
+}

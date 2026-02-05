@@ -97,7 +97,8 @@ impl ScriptedDecisionMaker {
                 field_length
             ),
             "ball": {
-                "position": Self::position_to_json(&state.ball_state.position, player_team, field_width, field_length)
+                "position": Self::position_to_json(&state.ball_state.position, player_team, field_width, field_length),
+                "owner_index": state.ball_state.possessed_by
             },
             "game": {
                 "elapsed_time": state.elapsed_time

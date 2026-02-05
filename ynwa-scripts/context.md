@@ -73,7 +73,8 @@ context = {
             x = 52.5,         -- Field center by default
             y = 0.0,
             z = 34.0
-        }
+        },
+        owner_index = 5       -- Global player index possessing the ball, or null if ball is free
     },
     
     -- Game time
@@ -168,12 +169,31 @@ Player runs to the center of a rectangular region defined by two corner cells.
 - `from` and `to` can be specified in any order
 - Region center is calculated automatically
 
-#### 2.3.5 Decision Validation
+#### 2.3.5 Kick
+
+```lua
+return {
+    action = "kick",
+    target = {
+        x = 75.0,    -- X coordinate to kick towards (meters)
+        z = 30.0,    -- Z coordinate to kick towards (meters)
+        y = 0.0      -- Height (optional, default 0)
+    }
+}
+```
+
+Player kicks the ball towards the specified point.
+
+**Notes**:
+- Target specifies direction
+- Ball physics determines actual trajectory
+
+#### 2.3.6 Decision Validation
 
 The core validates:
 - Presence of required `action` field
 - Correctness of `target_type` for `run` action
-- `target` format depending on `target_type`
+- `target` format depending on `target_type` or `action`
 - Existence of cells within field grid bounds
 
 On error:

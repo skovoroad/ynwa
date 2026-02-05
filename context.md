@@ -116,7 +116,7 @@ System execution order (important for correct operation):
   - `build_config()`: extracts player scripts from Game → JSON config
   - `build_context()`: Game state → JSON context (~500 bytes)
     - Team B sees flipped coordinates (mirror across field center)
-    - Includes: player position, teammates, opponents, ball, elapsed time
+    - Includes: player position, teammates, opponents, ball (position + owner_index), elapsed time
   - `parse_json_decision()`: JSON decision → domain Decision type
     - Uses serde intermediate structures (LuaRegionTarget, LuaPointTarget)
     - Type-safe deserialization with automatic validation
@@ -128,7 +128,8 @@ System execution order (important for correct operation):
   - `{action = "stop"}` or
   - `{action = "run", target_type = "cell", target = "A5"}` or
   - `{action = "run", target_type = "region", target = {from = "A5", to = "C7"}}` or
-  - `{action = "run", target_type = "point", target = {x = 10.5, z = 20.0}}`
+  - `{action = "run", target_type = "point", target = {x = 10.5, z = 20.0}}` or
+  - `{action = "kick", target = {x = 75.0, z = 30.0}}`
 - Error handling: errors stored in PlayerState.last_error, displayed in UI
 - Integration: football/mod.rs tries ScriptedDecisionMaker, falls back to PlaceholderDecisionMaker on error
 
