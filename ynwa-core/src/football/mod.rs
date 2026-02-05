@@ -4,7 +4,7 @@ use crate::config::SerializableGameConfig;
 use crate::field::zones::ZoneGeometry;
 use crate::game::{BallDef, Game, GameConfig, PlayerDef, RefereeDef};
 use crate::region::{GridCell, Region};
-use crate::systems::{ActionSystem, DecisionSystem, PhysicsSystem, PlayerReactionSystem};
+use crate::systems::{ActionSystem, BallPossessionSystem, DecisionSystem, PhysicsSystem, PlayerReactionSystem};
 use crate::systems::decision::LuaDecisionMaker;
 use crate::team::Team;
 use crate::world::World;
@@ -110,6 +110,7 @@ fn create_football_game_config_from_toml(toml_str: &str) -> Result<GameConfig, S
 
 fn add_football_systems(world: &mut World) {
     world.add_system(Box::new(PlayerReactionSystem));
+    world.add_system(Box::new(BallPossessionSystem::new()));
     
     // Try to create Lua-based decision maker, fall back to placeholder if it fails
     let decision_system = match LuaDecisionMaker::new(world.game().config()) {
