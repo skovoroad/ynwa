@@ -152,6 +152,8 @@ pub struct BallState {
     pub velocity: Velocity3D,
     /// Index of player possessing the ball, or None if ball is free
     pub possessed_by: Option<usize>,
+    /// Timestamp of last possession change (for anti-bounce)
+    pub last_possession_change_time: f32,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -223,6 +225,7 @@ impl Game {
                     position: config.ball.initial_position.clone(),
                     velocity: Velocity3D::default(),
                     possessed_by: None,
+                    last_possession_change_time: -1.0, // Set to negative so first change is allowed
                 },
                 referee_states,
             },
