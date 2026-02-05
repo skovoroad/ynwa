@@ -1,6 +1,45 @@
 team_a_preamble = """
+-- Common behavior for Team A: if I have the ball, kick it randomly; otherwise run to A1
+function common_behavior()
+    if am_i_ball_owner() then
+        -- I have the ball, kick it in random direction
+        local target_x = math.random() * FIELD_LENGTH
+        local target_z = math.random() * FIELD_WIDTH
+        return {
+            action = "kick",
+            target = {x = target_x, z = target_z}
+        }
+    else
+        -- Ball is not mine, run to A1
+        return {
+            action = "run",
+            target_type = "cell",
+            target = "A1"
+        }
+    end
+end
 """
+
 team_b_preamble = """
+-- Common behavior for Team B: if I have the ball, kick it randomly; otherwise run to A1
+function common_behavior()
+    if am_i_ball_owner() then
+        -- I have the ball, kick it in random direction
+        local target_x = math.random() * FIELD_LENGTH
+        local target_z = math.random() * FIELD_WIDTH
+        return {
+            action = "kick",
+            target = {x = target_x, z = target_z}
+        }
+    else
+        -- Ball is not mine, run to A1
+        return {
+            action = "run",
+            target_type = "cell",
+            target = "A1"
+        }
+    end
+end
 """
 
 # Team A Players (rows 23-44, defending goal at row 44, bottom of screen)
@@ -16,12 +55,7 @@ shot_accuracy = 50
 start_position = "M42"  # Center of goal area
 script = '''
 function make_decision()
-    -- Placeholder script for goalkeeper
-    return {
-        action = "run",
-        target_type = "cell",
-        target = "A1"
-    }
+    return common_behavior()
 end
 '''
 
@@ -37,11 +71,7 @@ shot_accuracy = 50
 start_position = "G37"  # Left back
 script = '''
 function make_decision()
-    return {
-        action = "run",
-        target_type = "cell",
-        target = "A1"
-    }
+    return common_behavior()
 end
 '''
 
@@ -57,11 +87,7 @@ shot_accuracy = 50
 start_position = "K37"  # Center back left
 script = '''
 function make_decision()
-    return {
-        action = "run",
-        target_type = "cell",
-        target = "A1"
-    }
+    return common_behavior()
 end
 '''
 
@@ -77,11 +103,7 @@ shot_accuracy = 50
 start_position = "O37"  # Center back right
 script = '''
 function make_decision()
-    return {
-        action = "run",
-        target_type = "cell",
-        target = "A1"
-    }
+    return common_behavior()
 end
 '''
 
@@ -97,11 +119,7 @@ shot_accuracy = 50
 start_position = "S37"  # Right back
 script = '''
 function make_decision()
-    return {
-        action = "run",
-        target_type = "cell",
-        target = "A1"
-    }
+    return common_behavior()
 end
 '''
 
@@ -117,11 +135,7 @@ shot_accuracy = 50
 start_position = "H31"  # Left midfielder
 script = '''
 function make_decision()
-    return {
-        action = "run",
-        target_type = "cell",
-        target = "A1"
-    }
+    return common_behavior()
 end
 '''
 
@@ -137,11 +151,7 @@ shot_accuracy = 50
 start_position = "M31"  # Center midfielder
 script = '''
 function make_decision()
-    return {
-        action = "run",
-        target_type = "cell",
-        target = "A1"
-    }
+    return common_behavior()
 end
 '''
 
@@ -157,11 +167,7 @@ shot_accuracy = 50
 start_position = "R31"  # Right midfielder
 script = '''
 function make_decision()
-    return {
-        action = "run",
-        target_type = "cell",
-        target = "A1"
-    }
+    return common_behavior()
 end
 '''
 
@@ -177,11 +183,7 @@ shot_accuracy = 50
 start_position = "G25"  # Left winger
 script = '''
 function make_decision()
-    return {
-        action = "run",
-        target_type = "cell",
-        target = "A1"
-    }
+    return common_behavior()
 end
 '''
 
@@ -197,11 +199,7 @@ shot_accuracy = 50
 start_position = "M25"  # Striker
 script = '''
 function make_decision()
-    return {
-        action = "run",
-        target_type = "cell",
-        target = "A1"
-    }
+    return common_behavior()
 end
 '''
 
@@ -217,11 +215,7 @@ shot_accuracy = 50
 start_position = "S25"  # Right winger
 script = '''
 function make_decision()
-    return {
-        action = "run",
-        target_type = "cell",
-        target = "A1"
-    }
+    return common_behavior()
 end
 '''
 
@@ -238,11 +232,7 @@ shot_accuracy = 50
 start_position = "M42"  # Center of goal area (own orientation)
 script = '''
 function make_decision()
-    return {
-        action = "run",
-        target_type = "cell",
-        target = "A1"
-    }
+    return common_behavior()
 end
 '''
 
@@ -258,11 +248,7 @@ shot_accuracy = 50
 start_position = "G37"  # Left back
 script = '''
 function make_decision()
-    return {
-        action = "run",
-        target_type = "cell",
-        target = "A1"
-    }
+    return common_behavior()
 end
 '''
 
@@ -278,11 +264,7 @@ shot_accuracy = 50
 start_position = "K37"  # Center back left
 script = '''
 function make_decision()
-    return {
-        action = "run",
-        target_type = "cell",
-        target = "A1"
-    }
+    return common_behavior()
 end
 '''
 
@@ -298,11 +280,7 @@ shot_accuracy = 50
 start_position = "O37"  # Center back right
 script = '''
 function make_decision()
-    return {
-        action = "run",
-        target_type = "cell",
-        target = "A1"
-    }
+    return common_behavior()
 end
 '''
 
@@ -318,11 +296,7 @@ shot_accuracy = 50
 start_position = "S37"  # Right back
 script = '''
 function make_decision()
-    return {
-        action = "run",
-        target_type = "cell",
-        target = "A1"
-    }
+    return common_behavior()
 end
 '''
 
@@ -338,11 +312,7 @@ shot_accuracy = 50
 start_position = "H31"  # Left midfielder
 script = '''
 function make_decision()
-    return {
-        action = "run",
-        target_type = "cell",
-        target = "A1"
-    }
+    return common_behavior()
 end
 '''
 
@@ -358,11 +328,7 @@ shot_accuracy = 50
 start_position = "M31"  # Center midfielder
 script = '''
 function make_decision()
-    return {
-        action = "run",
-        target_type = "cell",
-        target = "A1"
-    }
+    return common_behavior()
 end
 '''
 
@@ -378,11 +344,7 @@ shot_accuracy = 50
 start_position = "R31"  # Right midfielder
 script = '''
 function make_decision()
-    return {
-        action = "run",
-        target_type = "cell",
-        target = "A1"
-    }
+    return common_behavior()
 end
 '''
 
@@ -398,11 +360,7 @@ shot_accuracy = 50
 start_position = "G25"  # Left winger
 script = '''
 function make_decision()
-    return {
-        action = "run",
-        target_type = "cell",
-        target = "A1"
-    }
+    return common_behavior()
 end
 '''
 
@@ -418,11 +376,7 @@ shot_accuracy = 50
 start_position = "M25"  # Striker
 script = '''
 function make_decision()
-    return {
-        action = "run",
-        target_type = "cell",
-        target = "A1"
-    }
+    return common_behavior()
 end
 '''
 
@@ -438,10 +392,6 @@ shot_accuracy = 50
 start_position = "S25"  # Right winger
 script = '''
 function make_decision()
-    return {
-        action = "run",
-        target_type = "cell",
-        target = "A1"
-    }
+    return common_behavior()
 end
 '''

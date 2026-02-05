@@ -388,7 +388,17 @@ end
 
 **Rule**: Team preamble can use functions from core and stdlib, but not vice versa. Stdlib can use core, but not vice versa.
 
-### 3.4 User Script
+### 3.4 Implemented Functions (Current Status)
+
+**Core Preamble** (`preambles/core.lua`):
+- `FIELD_LENGTH`, `FIELD_WIDTH` - field dimensions in meters (TODO: move to config)
+- `ball_owner()` - returns global player index (0-21) or nil if ball is free
+- `my_number()` - returns current player's jersey number (1-99)
+
+**Stdlib Preamble** (`preambles/stdlib.lua`):
+- `am_i_ball_owner()` - returns true if current player owns the ball
+
+### 3.5 User Script
 
 **Files**: In game configuration (TOML), `script` field for each player
 

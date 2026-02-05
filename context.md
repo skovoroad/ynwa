@@ -24,9 +24,10 @@ The project is divided into independent modules using Rust workspace:
   - 45 unit tests, 1,633 LOC
   
 - **Scripts (`ynwa-scripts`)** - Lua scripts library (data only, no Rust code)
-  - `test-scripts/` - simple Lua scripts for testing decision system
-  - Scripts loaded from filesystem during tests
-  - No preamble or stdlib yet - plain scripts that return decisions
+  - `preambles/` - core.lua (elementary functions), stdlib.lua (utilities)
+  - `test-scripts/` - integration test scripts
+  - Three-level preamble system: core → stdlib → team → user script
+  - See `ynwa-scripts/context.md` for full scripting API documentation
   
 - **Clients** - applications using the core:
   - `ynwa-player` - local client, simulates the game locally and interacts with the player
@@ -159,7 +160,8 @@ System execution order (important for correct operation):
   - Can be published separately and reused in other games
   - ScriptedDecisionMaker adapts between JSON and game types using serde
   - Coordinate flipping for Team B happens at adapter boundaries, not in parser
-- Test coverage: 161 tests in ynwa-core (including decision system) + 45 tests in ynwa-decisions + 8 integration tests in ynwa-script-tests
+- Test coverage: 161 tests in ynwa-core + 47 tests in ynwa-decisions + 13 integration tests in ynwa-script-tests
+  - Script tests verify preamble functions, context structure, and decision generation
 
 
 ## TODO
