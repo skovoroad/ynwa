@@ -66,6 +66,17 @@ pub struct LuaExecutor {
     hook_check_interval: u32,
 }
 
+// Manual Debug impl because Lua doesn't implement Debug
+impl std::fmt::Debug for LuaExecutor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("LuaExecutor")
+            .field("preamble", &self.preamble)
+            .field("timeout", &self.timeout)
+            .field("hook_check_interval", &self.hook_check_interval)
+            .finish()
+    }
+}
+
 impl LuaExecutor {
     /// Create a new Lua executor with optional preamble and timeout.
     ///

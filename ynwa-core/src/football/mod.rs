@@ -5,7 +5,7 @@ use crate::field::zones::ZoneGeometry;
 use crate::game::{BallDef, Game, GameConfig, PlayerDef, RefereeDef};
 use crate::region::{GridCell, Region};
 use crate::systems::{ActionSystem, BallPossessionSystem, DecisionSystem, PhysicsSystem, PlayerReactionSystem};
-use crate::systems::decision::LuaDecisionMaker;
+use crate::systems::decision::ScriptedDecisionMaker;
 use crate::team::Team;
 use crate::world::World;
 
@@ -112,14 +112,14 @@ fn add_football_systems(world: &mut World) {
     world.add_system(Box::new(PlayerReactionSystem));
     world.add_system(Box::new(BallPossessionSystem::new()));
     
-    // Try to create Lua-based decision maker, fall back to placeholder if it fails
-    let decision_system = match LuaDecisionMaker::new(world.game().config()) {
-        Ok(lua_maker) => {
-            println!("Successfully initialized LuaDecisionMaker for {} players", world.game().config().players.len());
-            DecisionSystem::new().with_decision_maker(Box::new(lua_maker))
+    // Try to create scripted decision maker, fall back to placeholder if it fails
+    let decision_system = match ScriptedDecisionMaker::new(world.game()) {
+        Ok(scripted_maker) => {
+            println!("Successfully initialized ScriptedDecisionMaker for {} players", world.game().config().players.len());
+            DecisionSystem::new().with_decision_maker(Box::new(scripted_maker))
         }
         Err(e) => {
-            eprintln!("Warning: Failed to create LuaDecisionMaker: {}. Using placeholder.", e);
+            eprintln!("Warning: Failed to create ScriptedDecisionMaker: {}. Using placeholder.", e);
             DecisionSystem::new()
         }
     };

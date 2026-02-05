@@ -6,7 +6,7 @@ use ynwa_core::field::Field;
 use ynwa_core::game::{BallDef, Decision, DecisionTarget, Game, GameConfig, PlayerDef, RefereeDef};
 use ynwa_core::region::{GridCell, Region};
 use ynwa_core::system::System;
-use ynwa_core::systems::decision::{DecisionSystem, LuaDecisionMaker};
+use ynwa_core::systems::decision::{DecisionSystem, ScriptedDecisionMaker};
 use ynwa_core::systems::player_reaction::PlayerReactionSystem;
 use ynwa_core::team::Team;
 
@@ -62,7 +62,7 @@ fn test_team_a_cell_unchanged() {
     let mut game = create_game_with_team_script(Team::A, script);
     let mut reaction_system = PlayerReactionSystem::new();
     let mut decision_system = DecisionSystem::new()
-        .with_decision_maker(Box::new(LuaDecisionMaker::new(game.config()).unwrap()));
+        .with_decision_maker(Box::new(ScriptedDecisionMaker::new(&game).unwrap()));
 
     // Trigger decision
     reaction_system.update(&mut game, 0.0);
@@ -96,7 +96,7 @@ fn test_team_b_cell_flipped() {
     let mut game = create_game_with_team_script(Team::B, script);
     let mut reaction_system = PlayerReactionSystem::new();
     let mut decision_system = DecisionSystem::new()
-        .with_decision_maker(Box::new(LuaDecisionMaker::new(game.config()).unwrap()));
+        .with_decision_maker(Box::new(ScriptedDecisionMaker::new(&game).unwrap()));
 
     // Trigger decision
     reaction_system.update(&mut game, 0.0);
@@ -135,7 +135,7 @@ fn test_team_a_region_unchanged() {
     let mut game = create_game_with_team_script(Team::A, script);
     let mut reaction_system = PlayerReactionSystem::new();
     let mut decision_system = DecisionSystem::new()
-        .with_decision_maker(Box::new(LuaDecisionMaker::new(game.config()).unwrap()));
+        .with_decision_maker(Box::new(ScriptedDecisionMaker::new(&game).unwrap()));
 
     // Trigger decision
     reaction_system.update(&mut game, 0.0);
@@ -175,7 +175,7 @@ fn test_team_b_region_flipped() {
     let mut game = create_game_with_team_script(Team::B, script);
     let mut reaction_system = PlayerReactionSystem::new();
     let mut decision_system = DecisionSystem::new()
-        .with_decision_maker(Box::new(LuaDecisionMaker::new(game.config()).unwrap()));
+        .with_decision_maker(Box::new(ScriptedDecisionMaker::new(&game).unwrap()));
 
     // Trigger decision
     reaction_system.update(&mut game, 0.0);
@@ -221,7 +221,7 @@ fn test_team_b_point_flipped() {
     let mut game = create_game_with_team_script(Team::B, script);
     let mut reaction_system = PlayerReactionSystem::new();
     let mut decision_system = DecisionSystem::new()
-        .with_decision_maker(Box::new(LuaDecisionMaker::new(game.config()).unwrap()));
+        .with_decision_maker(Box::new(ScriptedDecisionMaker::new(&game).unwrap()));
 
     // Trigger decision
     reaction_system.update(&mut game, 0.0);
@@ -266,7 +266,7 @@ fn test_team_b_stop_unchanged() {
     let mut game = create_game_with_team_script(Team::B, script);
     let mut reaction_system = PlayerReactionSystem::new();
     let mut decision_system = DecisionSystem::new()
-        .with_decision_maker(Box::new(LuaDecisionMaker::new(game.config()).unwrap()));
+        .with_decision_maker(Box::new(ScriptedDecisionMaker::new(&game).unwrap()));
 
     // Trigger decision
     reaction_system.update(&mut game, 0.0);

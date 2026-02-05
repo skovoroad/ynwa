@@ -1,7 +1,7 @@
 // Integration test: verify that Lua scripts produce decisions in the decision system
 
 use ynwa_core::game::Decision;
-use ynwa_core::systems::decision::{DecisionSystem, LuaDecisionMaker};
+use ynwa_core::systems::decision::{DecisionSystem, ScriptedDecisionMaker};
 use ynwa_core::systems::player_reaction::PlayerReactionSystem;
 use ynwa_core::System;
 use ynwa_script_tests::{create_test_game_with_script, load_script};
@@ -18,9 +18,9 @@ fn test_simple_stop_script_produces_stop_decision() {
     let mut reaction_system = PlayerReactionSystem::new();
     reaction_system.update(&mut game, 1.0); // 1 second should trigger reaction
     
-    // Create decision system with Lua decision maker
-    let decision_maker = LuaDecisionMaker::new(game.config())
-        .expect("Failed to create LuaDecisionMaker");
+    // Create decision system with JSON decision maker
+    let decision_maker = ScriptedDecisionMaker::new(&game)
+        .expect("Failed to create ScriptedDecisionMaker");
     
     let mut decision_system = DecisionSystem::new()
         .with_decision_maker(Box::new(decision_maker));
@@ -52,9 +52,9 @@ fn test_run_to_cell_script_produces_run_decision() {
     let mut reaction_system = PlayerReactionSystem::new();
     reaction_system.update(&mut game, 1.0); // 1 second should trigger reaction
     
-    // Create decision system with Lua decision maker
-    let decision_maker = LuaDecisionMaker::new(game.config())
-        .expect("Failed to create LuaDecisionMaker");
+    // Create decision system with JSON decision maker
+    let decision_maker = ScriptedDecisionMaker::new(&game)
+        .expect("Failed to create ScriptedDecisionMaker");
     
     let mut decision_system = DecisionSystem::new()
         .with_decision_maker(Box::new(decision_maker));

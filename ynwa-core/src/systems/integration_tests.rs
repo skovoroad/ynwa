@@ -346,7 +346,7 @@ mod tests {
 
     #[test]
     fn test_lua_decision_maker_integration() {
-        use crate::systems::decision::LuaDecisionMaker;
+        use crate::systems::decision::ScriptedDecisionMaker;
         
         let field = Field::from_meters(100.0, 60.0, 26, 44);
         let grid_dims = field.grid_dimensions();
@@ -392,15 +392,15 @@ mod tests {
 
         let game = Game::new(config);
         
-        // Create LuaDecisionMaker
-        let lua_maker = LuaDecisionMaker::new(game.config())
-            .expect("Failed to create LuaDecisionMaker");
+        // Create ScriptedDecisionMaker
+        let json_maker = ScriptedDecisionMaker::new(&game)
+            .expect("Failed to create ScriptedDecisionMaker");
 
-        // Build world with Lua decision maker
+        // Build world with JSON decision maker
         let mut world = World::new(game);
         world.add_system(Box::new(PlayerReactionSystem));
         world.add_system(Box::new(
-            DecisionSystem::new().with_decision_maker(Box::new(lua_maker)),
+            DecisionSystem::new().with_decision_maker(Box::new(json_maker)),
         ));
         world.add_system(Box::new(ActionSystem));
         world.add_system(Box::new(PhysicsSystem::new()));
@@ -427,7 +427,7 @@ mod tests {
 
     #[test]
     fn test_lua_decision_maker_error_handling() {
-        use crate::systems::decision::LuaDecisionMaker;
+        use crate::systems::decision::ScriptedDecisionMaker;
         
         let field = Field::from_meters(100.0, 60.0, 26, 44);
         let grid_dims = field.grid_dimensions();
@@ -464,16 +464,14 @@ mod tests {
 
         let game = Game::new(config);
         
-        let lua_maker = LuaDecisionMaker::new(game.config())
-            .expect("Failed to create LuaDecisionMaker");
+        let json_maker = ScriptedDecisionMaker::new(&game)
+            .expect("Failed to create ScriptedDecisionMaker");
 
         let mut world = World::new(game);
         world.add_system(Box::new(PlayerReactionSystem));
         world.add_system(Box::new(
-            DecisionSystem::new().with_decision_maker(Box::new(lua_maker)),
-        ));
-
-        // Run simulation - should not crash despite error
+            DecisionSystem::new().with_decision_maker(Box::new(json_maker)),
+        ));        // Run simulation - should not crash despite error
         for _ in 0..60 {
             world.step(1.0 / 60.0);
         }
