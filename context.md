@@ -273,3 +273,31 @@ System execution order (important for correct operation):
 - Formula: `actual_speed = (speed_rate / 100.0) * MAX_SPEED_METERS_PER_SECOND`
 - Linear dependency on `speed_rate`
 
+## Ball Possession System
+
+**Purpose:** Determines which player possesses the ball based on proximity and player characteristics.
+
+**System location:** Executes between PlayerReactionSystem and DecisionSystem in pipeline.
+
+**Key parameters:**
+- `POSSESSION_RADIUS = 1.0m` - distance for possession contest
+- `POSSESSION_COOLDOWN = 1.0s` - minimum interval between possession changes (prevents bounce)
+- `tackle_rate`: 10-100 (player characteristic) - ability to win ball
+
+**Possession logic:**
+- Only opponents can contest ball from current possessor (teammates never steal from each other)
+- Free ball: all players within radius can claim it
+- Probabilistic selection when multiple opponents compete:
+  - Score = `tackle_rate × random_multiplier` where random_multiplier ∈ [0.5, 1.5]
+  - Multiplicative model ensures even weak players have chance (though small)
+- Possession change triggers `needs_decision = true` for all players
+
+**Ball state:**
+- `possessed_by: Option<usize>` - current owner's player index or None
+- `last_possession_change_time: f32` - timestamp of last change (for cooldown)
+
+**Design decisions:**
+- Teammate filtering in `find_nearby_players()` for clean separation of concerns
+- Cooldown prevents unrealistic rapid possession changes (drebezg)
+- Custom RNG support via `with_rng()` for deterministic testing
+
