@@ -38,9 +38,14 @@ impl BallPossessionSystem {
     }
 
     /// Find players within possession radius of the ball
+    /// If ball is possessed, only returns opponents of the current owner
     fn find_nearby_players(&self, game: &Game) -> Vec<usize> {
         let ball_pos = &game.state.ball_state.position;
         let radius = Length::new::<meter>(POSSESSION_RADIUS);
+
+        // Determine if we should filter by team
+        let owner_team = game.state.ball_state.possessed_by
+            .map(|owner_idx| game.config().players[owner_idx].team);
 
         game.state
             .player_states
@@ -49,6 +54,13 @@ impl BallPossessionSystem {
             .filter_map(|(idx, player_state)| {
                 let distance = distance_length(&player_state.position, ball_pos);
                 if distance <= radius {
+                    // If ball has owner, only include opponents
+                    if let Some(owner_team) = owner_team {
+                        let player_team = game.config().players[idx].team;
+                        if player_team == owner_team {
+                            return None; // Skip teammates
+                        }
+                    }
                     Some(idx)
                 } else {
                     None
@@ -92,15 +104,18 @@ impl System for BallPossessionSystem {
             return; // Skip possession determination during cooldown
         }
 
-        // Find players near the ball
+        // Find players near the ball (opponents only if ball is possessed)
         let nearby_players = self.find_nearby_players(game);
 
         // Determine new possession
         let new_possession = match nearby_players.len() {
-            0 => None, // No players nearby - ball is free
-            1 => Some(nearby_players[0]), // Single player gets possession
+            0 => {
+                // No opponents nearby - keep current possession
+                return;
+            }
+            1 => Some(nearby_players[0]), // Single opponent gets possession
             _ => {
-                // Multiple players - probabilistic selection
+                // Multiple opponents - probabilistic selection
                 let winner = self.select_winner(game, &nearby_players);
                 Some(winner)
             }
@@ -493,7 +508,7 @@ mod tests {
         // Ball at center
         let ball_pos = Point3D::from_meters(50.0, 30.0, 0.0);
         
-        // Two players within 1m
+        // Two players within 1m - DIFFERENT TEAMS
         let (player1_def, player1_state) = create_test_player(
             Team::A,
             1,
@@ -502,8 +517,8 @@ mod tests {
         );
         
         let (player2_def, player2_state) = create_test_player(
-            Team::A,
-            2,
+            Team::B, // Different team!
+            7,
             70,
             Point3D::from_meters(49.5, 30.0, 0.0),
         );
@@ -710,7 +725,7 @@ mod tests {
         );
         
         let (player2_def, player2_state) = create_test_player(
-            Team::A,
+            Team::B, // Different team!
             2,
             70,
             Point3D::from_meters(49.5, 30.0, 0.0),
@@ -753,6 +768,160 @@ mod tests {
         // Both players should need decision after transfer
         assert!(game.state.player_states[0].needs_decision, "Player 0 should need decision after losing ball");
         assert!(game.state.player_states[1].needs_decision, "Player 1 should need decision after getting ball");
+    }
+
+    #[test]
+    fn test_teammates_dont_steal_from_each_other() {
+        let field = create_test_field();
+        
+        // Ball at center
+        let ball_pos = Point3D::from_meters(50.0, 30.0, 0.0);
+        
+        // Three players from Team A, all near ball
+        let (player1_def, player1_state) = create_test_player(
+            Team::A,
+            1,
+            80, // High tackle rate
+            Point3D::from_meters(50.5, 30.0, 0.0),
+        );
+        
+        let (player2_def, player2_state) = create_test_player(
+            Team::A,
+            2,
+            90, // Even higher tackle rate
+            Point3D::from_meters(49.5, 30.0, 0.0),
+        );
+
+        let (player3_def, player3_state) = create_test_player(
+            Team::A,
+            3,
+            70,
+            Point3D::from_meters(50.0, 30.5, 0.0),
+        );
+
+        let config = GameConfig {
+            field,
+            players: vec![player1_def, player2_def, player3_def],
+            ball: BallDef::default(),
+            referees: vec![RefereeDef::default()],
+        };
+
+        let mut game = Game::new(config);
+        game.state.ball_state.position = ball_pos;
+        game.state.player_states = vec![player1_state, player2_state, player3_state];
+        
+        // Player 0 already has possession
+        game.state.ball_state.possessed_by = Some(0);
+        game.state.ball_state.last_possession_change_time = 0.0;
+
+        let mut system = BallPossessionSystem::with_rng(|| 0.5);
+        
+        // Update after cooldown - should NOT change (all teammates)
+        system.update(&mut game, 2.0);
+        
+        // Player 0 should still have possession
+        assert_eq!(game.state.ball_state.possessed_by, Some(0));
+    }
+
+    #[test]
+    fn test_opponents_can_steal_from_owner() {
+        let field = create_test_field();
+        
+        // Ball at center
+        let ball_pos = Point3D::from_meters(50.0, 30.0, 0.0);
+        
+        // Two players near ball - different teams
+        let (player1_def, player1_state) = create_test_player(
+            Team::A,
+            1,
+            70,
+            Point3D::from_meters(50.5, 30.0, 0.0),
+        );
+        
+        let (player2_def, player2_state) = create_test_player(
+            Team::B,
+            7,
+            80, // Higher tackle rate
+            Point3D::from_meters(49.5, 30.0, 0.0),
+        );
+
+        let config = GameConfig {
+            field,
+            players: vec![player1_def, player2_def],
+            ball: BallDef::default(),
+            referees: vec![RefereeDef::default()],
+        };
+
+        let mut game = Game::new(config);
+        game.state.ball_state.position = ball_pos;
+        game.state.player_states = vec![player1_state, player2_state];
+        
+        // Player 0 (Team A) has possession
+        game.state.ball_state.possessed_by = Some(0);
+        game.state.ball_state.last_possession_change_time = 0.0;
+
+        // Use RNG that favors player 1
+        let mut system = BallPossessionSystem::with_rng(|| 1.0);
+        
+        // Update after cooldown - opponent can steal
+        system.update(&mut game, 2.0);
+        
+        // Player 1 should steal the ball
+        assert_eq!(game.state.ball_state.possessed_by, Some(1));
+    }
+
+    #[test]
+    fn test_teammates_nearby_opponent_far_keeps_possession() {
+        let field = create_test_field();
+        
+        // Ball at center
+        let ball_pos = Point3D::from_meters(50.0, 30.0, 0.0);
+        
+        // Two teammates near ball
+        let (player1_def, player1_state) = create_test_player(
+            Team::A,
+            1,
+            70,
+            Point3D::from_meters(50.5, 30.0, 0.0),
+        );
+        
+        let (player2_def, player2_state) = create_test_player(
+            Team::A,
+            2,
+            60,
+            Point3D::from_meters(49.5, 30.0, 0.0),
+        );
+
+        // Opponent far away
+        let (player3_def, player3_state) = create_test_player(
+            Team::B,
+            7,
+            90,
+            Point3D::from_meters(60.0, 30.0, 0.0), // 10m away
+        );
+
+        let config = GameConfig {
+            field,
+            players: vec![player1_def, player2_def, player3_def],
+            ball: BallDef::default(),
+            referees: vec![RefereeDef::default()],
+        };
+
+        let mut game = Game::new(config);
+        game.state.ball_state.position = ball_pos;
+        game.state.player_states = vec![player1_state, player2_state, player3_state];
+        
+        // Player 0 has possession
+        game.state.ball_state.possessed_by = Some(0);
+        game.state.ball_state.last_possession_change_time = 0.0;
+
+        let mut system = BallPossessionSystem::with_rng(|| 0.5);
+        
+        // Update after cooldown
+        system.update(&mut game, 2.0);
+        
+        // Should keep possession (only teammates nearby)
+        assert_eq!(game.state.ball_state.possessed_by, Some(0));
     }
 
     #[test]
