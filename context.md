@@ -14,6 +14,14 @@ The project is divided into independent modules using Rust workspace:
   - Knows only game simulation logic
   - Receives all parameters (characteristics, commands, instructions) from outside via API
   - Does not depend on specific client implementations
+  - Uses `ynwa-decisions` for Lua scripting support
+  
+- **Decision Engine (`ynwa-decisions`)** - game-agnostic decision-making library
+  - Independent crate with Lua scripting support
+  - No dependencies on game domain types (no GridCell, Region, Point3D)
+  - JSON-based contract: config → context → decision
+  - Can be published separately and reused in other games
+  - 45 unit tests, 1,633 LOC
   
 - **Scripts (`ynwa-scripts`)** - Lua scripts library (data only, no Rust code)
   - `test-scripts/` - simple Lua scripts for testing decision system
@@ -96,66 +104,62 @@ System execution order (important for correct operation):
 - DecisionSystem::with_decision_maker() for dependency injection
 - Implementations:
   - PlaceholderDecisionMaker - fallback (random movement)
-  - LuaDecisionMaker - Lua script execution per player
-- **Design principle:** Minimize dependencies in decision system code - it may be extracted into separate library in the future
+  - ScriptedDecisionMaker - Lua script execution per player via ynwa-decisions
+- **Design principle:** Decision system is independent - uses ynwa-decisions crate for Lua support
 
-**Lua Decision System (`systems/decision/`):**
-- **LuaDecisionMaker** - one isolated Lua VM per player (HashMap of LuaExecutors)
+**Scripted Decision System (`systems/decision/scripted_decision_maker.rs`):**
+- **ScriptedDecisionMaker** - adapter between ynwa-core domain types and ynwa-decisions JSON API
+  - Uses DecisionEngine from ynwa-decisions crate (one isolated Lua VM per player)
   - 100ms timeout per script execution
   - Scripts loaded from GameConfig
-- **ContextBuilder** - builds minimal JSON context (~500 bytes) for Lua scripts
-  - Context includes: player position, teammates, opponents, ball, elapsed time
-  - Uses json!() macro for flexibility (TODO: consider serde structures)
-- **lua_format.rs** - Lua-specific serialization format (separate from domain types)
-  - `LuaDecision` enum with serde derives for automatic deserialization
-  - `into_decision()` converts to domain Decision type
-  - Separation allows format changes without affecting game logic
+- **JSON Contract:** ynwa-core ↔ ynwa-decisions communication via JSON
+  - `build_config()`: extracts player scripts from Game → JSON config
+  - `build_context()`: Game state → JSON context (~500 bytes)
+    - Team B sees flipped coordinates (mirror across field center)
+    - Includes: player position, teammates, opponents, ball, elapsed time
+  - `parse_json_decision()`: JSON decision → domain Decision type
+    - Uses serde intermediate structures (LuaRegionTarget, LuaPointTarget)
+    - Type-safe deserialization with automatic validation
+- **Coordinate Flipping Logic:**
+  - Team B input: context has flipped coordinates (scripts see field as if playing from same side)
+  - Team B output: DecisionSystem flips decision targets back to global coordinates
+  - Parser does NOT flip - conversion happens at system boundaries
 - Lua script contract: function `make_decision()` returns table:
   - `{action = "stop"}` or
   - `{action = "run", target_type = "cell", target = "A5"}` or
   - `{action = "run", target_type = "region", target = {from = "A5", to = "C7"}}` or
   - `{action = "run", target_type = "point", target = {x = 10.5, z = 20.0}}`
 - Error handling: errors stored in PlayerState.last_error, displayed in UI
-- Integration: football/mod.rs tries LuaDecisionMaker, falls back to PlaceholderDecisionMaker on error
+- Integration: football/mod.rs tries ScriptedDecisionMaker, falls back to PlaceholderDecisionMaker on error
 
-**Scripting System (`scripting/`):**
+**Decision Engine Library (`ynwa-decisions` crate):**
 - Game-agnostic Lua-based scripting for decision making
+- **DecisionEngine** - main API, JSON in/out, no domain types
+  - `new(config_json)` - loads player scripts from JSON config
+  - `make_decision(player_index, context_json)` - executes script, returns JSON decision
+  - Maintains HashMap of LuaExecutors (one per player)
 - **LuaExecutor** - executes Lua scripts with context data
   - Uses mlua with vendored Lua 5.4
-  - Serialization via serde (Rust structs → Lua tables)
-  - Returns ScriptResult with JSON value for game-specific parsing
-  - `execute(script, function_name, context)` - loads script and calls specified function
-  - State behavior: script code reloads on each execute(), preamble persists
-  - Preamble: optional Lua code string injected once at creation
+  - Returns JSON value for game-specific parsing
+  - `execute(script, function_name, context_json)` - loads script and calls specified function
+  - State behavior: script code reloads on each execute()
   - **Sandbox:** dangerous libraries/globals disabled (io, os, package, require, load, loadfile, dofile, debug, collectgarbage, _G)
   - **Timeout:** optional execution time limit via hook mechanism
-    - Enabled via `new(preamble, Some(Duration))` parameter
+    - Enabled via `new(Some(Duration))` parameter
     - Hook checks every 10,000 Lua instructions (balanced overhead ~2x)
-    - Returns ScriptError::Timeout if limit exceeded
+    - Returns error if limit exceeded
     - Performance impact: ~2x slowdown when enabled (acceptable for 30 FPS target)
-    - Can be disabled for production with trusted scripts (pass None)
-    - User controls timeout value directly - no built-in calibration
-    - External calibration possible: measure script execution time in game loop and adjust timeout dynamically
-- **ScriptError** - structured error handling with type-based detection
-  - Error types: SyntaxError, RuntimeError, SerializationError, DeserializationError, FunctionNotFound, Timeout
-  - Type-safe error mapping: uses mlua::Error variants (ExternalError, SyntaxError) instead of string matching
-  - Timeout detection: TimeoutError marker type with ExternalError wrapping + fallback for mlua-wrapped errors
-- User scripts contract:
-  - Must implement function with specified name (e.g., `make_decision()`)
-  - Access context via global `context` variable
-  - Return Lua table (structure depends on game)
-- Design decisions:
-  - Lua chosen over Python for better embedding support (control, isolation, performance)
-  - serde used instead of JSON for direct Rust ↔ Lua table conversion (faster, type-safe)
-  - ScriptResult uses JSON internally to maintain game-agnostic design
-  - Function name passed as parameter for flexibility (can call different functions from same script)
-  - Preamble as plain string (no builder) - game integration decides how to construct it
-  - Sandbox hardcoded (no configuration) - security by default, simplifies API
-  - Timeout optional - enabled when needed for untrusted scripts, disabled for performance
-  - Hook interval 10K instructions - balanced between timeout accuracy and performance
-  - No built-in calibration - user controls timeout directly, can implement external calibration in game loop
-  - Type-based error detection - safer than string matching, immune to mlua error message changes
-- Test coverage: 173 unit tests in ynwa-core (37 scripting, 29 decision system) + 2 integration tests in ynwa-script-tests
+- **LuaDecision** - validates JSON decision format
+  - Ensures correct structure: action field, target fields when needed
+  - Basic validation, detailed parsing happens in game code
+- **Design decisions:**
+  - JSON as lingua franca - no shared domain types between crates
+  - Independent development - ynwa-decisions has no dependency on ynwa-core
+  - Can be published separately and reused in other games
+  - ScriptedDecisionMaker adapts between JSON and game types using serde
+  - Coordinate flipping for Team B happens at adapter boundaries, not in parser
+- Test coverage: 161 tests in ynwa-core (including decision system) + 45 tests in ynwa-decisions + 8 integration tests in ynwa-script-tests
+
 
 ## TODO
 
