@@ -207,6 +207,7 @@ mod tests {
             players: vec![player_def],
             ball: BallDef::default(),
             referees: vec![RefereeDef::default()],
+            scripting: crate::game::ScriptingConfig::empty(),
         };
 
         let mut game = Game::new(config);
@@ -241,6 +242,7 @@ mod tests {
             players: vec![player_def],
             ball: BallDef::default(),
             referees: vec![RefereeDef::default()],
+            scripting: crate::game::ScriptingConfig::empty(),
         };
 
         let mut game = Game::new(config);
@@ -282,6 +284,7 @@ mod tests {
             players: vec![player1_def, player2_def],
             ball: BallDef::default(),
             referees: vec![RefereeDef::default()],
+            scripting: crate::game::ScriptingConfig::empty(),
         };
 
         let mut game = Game::new(config);
@@ -326,6 +329,7 @@ mod tests {
             players: vec![player1_def, player2_def],
             ball: BallDef::default(),
             referees: vec![RefereeDef::default()],
+            scripting: crate::game::ScriptingConfig::empty(),
         };
 
         let mut game = Game::new(config);
@@ -376,6 +380,7 @@ mod tests {
             players: vec![player1_def, player2_def],
             ball: BallDef::default(),
             referees: vec![RefereeDef::default()],
+            scripting: crate::game::ScriptingConfig::empty(),
         };
 
         let mut game = Game::new(config);
@@ -426,6 +431,7 @@ mod tests {
             players: vec![player1_def, player2_def],
             ball: BallDef::default(),
             referees: vec![RefereeDef::default()],
+            scripting: crate::game::ScriptingConfig::empty(),
         };
 
         let mut game = Game::new(config);
@@ -475,6 +481,7 @@ mod tests {
             players: vec![player1_def, player2_def],
             ball: BallDef::default(),
             referees: vec![RefereeDef::default()],
+            scripting: crate::game::ScriptingConfig::empty(),
         };
 
         let mut game = Game::new(config);
@@ -528,6 +535,7 @@ mod tests {
             players: vec![player1_def, player2_def],
             ball: BallDef::default(),
             referees: vec![RefereeDef::default()],
+            scripting: crate::game::ScriptingConfig::empty(),
         };
 
         let mut game = Game::new(config);
@@ -578,6 +586,7 @@ mod tests {
             players: vec![player_def],
             ball: BallDef::default(),
             referees: vec![RefereeDef::default()],
+            scripting: crate::game::ScriptingConfig::empty(),
         };
 
         let mut game = Game::new(config);
@@ -638,6 +647,7 @@ mod tests {
             players: vec![player1_def, player2_def, player3_def],
             ball: BallDef::default(),
             referees: vec![RefereeDef::default()],
+            scripting: crate::game::ScriptingConfig::empty(),
         };
 
         let mut game = Game::new(config);
@@ -683,6 +693,7 @@ mod tests {
             players: vec![player1_def, player2_def],
             ball: BallDef::default(),
             referees: vec![RefereeDef::default()],
+            scripting: crate::game::ScriptingConfig::empty(),
         };
 
         let mut game = Game::new(config);
@@ -736,6 +747,7 @@ mod tests {
             players: vec![player1_def, player2_def],
             ball: BallDef::default(),
             referees: vec![RefereeDef::default()],
+            scripting: crate::game::ScriptingConfig::empty(),
         };
 
         let mut game = Game::new(config);
@@ -804,6 +816,7 @@ mod tests {
             players: vec![player1_def, player2_def, player3_def],
             ball: BallDef::default(),
             referees: vec![RefereeDef::default()],
+            scripting: crate::game::ScriptingConfig::empty(),
         };
 
         let mut game = Game::new(config);
@@ -850,6 +863,7 @@ mod tests {
             players: vec![player1_def, player2_def],
             ball: BallDef::default(),
             referees: vec![RefereeDef::default()],
+            scripting: crate::game::ScriptingConfig::empty(),
         };
 
         let mut game = Game::new(config);
@@ -905,6 +919,7 @@ mod tests {
             players: vec![player1_def, player2_def, player3_def],
             ball: BallDef::default(),
             referees: vec![RefereeDef::default()],
+            scripting: crate::game::ScriptingConfig::empty(),
         };
 
         let mut game = Game::new(config);

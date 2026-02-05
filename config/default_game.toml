@@ -1,3 +1,8 @@
+team_a_preamble = """
+"""
+team_b_preamble = """
+"""
+
 # Team A Players (rows 23-44, defending goal at row 44, bottom of screen)
 [[players]]
 team = "A"

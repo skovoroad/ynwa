@@ -200,6 +200,7 @@ mod tests {
             )],
             ball: BallDef::default(),
             referees: vec![RefereeDef::default()],
+            scripting: crate::game::ScriptingConfig::empty(),
         };
 
         Game::new(config)

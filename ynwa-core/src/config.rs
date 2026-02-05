@@ -99,6 +99,10 @@ impl PlayerConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SerializableGameConfig {
     pub players: Vec<PlayerConfig>,
+    #[serde(default)]
+    pub team_a_preamble: String,
+    #[serde(default)]
+    pub team_b_preamble: String,
 }
 
 impl SerializableGameConfig {
@@ -140,6 +144,12 @@ impl SerializableGameConfig {
             players,
             ball: crate::game::BallDef::default(),
             referees: vec![crate::game::RefereeDef::default()],
+            scripting: crate::game::ScriptingConfig {
+                core_preamble: String::new(),
+                stdlib_preamble: String::new(),
+                team_a_preamble: self.team_a_preamble.clone(),
+                team_b_preamble: self.team_b_preamble.clone(),
+            },
         })
     }
 
@@ -151,7 +161,11 @@ impl SerializableGameConfig {
             players.push(PlayerConfig::from_player_def(player_def)?);
         }
 
-        Ok(Self { players })
+        Ok(Self {
+            players,
+            team_a_preamble: game_config.scripting.team_a_preamble.clone(),
+            team_b_preamble: game_config.scripting.team_b_preamble.clone(),
+        })
     }
 }
 
@@ -214,6 +228,8 @@ mod tests {
                     script: "function make_decision() return {} end".to_string(),
                 },
             ],
+            team_a_preamble: String::new(),
+            team_b_preamble: String::new(),
         };
 
         let toml_str = config.to_toml().unwrap();
@@ -315,6 +331,8 @@ mod tests {
                     script: "function make_decision() return {} end".to_string(),
                 },
             ],
+            team_a_preamble: String::new(),
+            team_b_preamble: String::new(),
         };
 
         // Convert to GameConfig
@@ -349,6 +367,8 @@ mod tests {
                 start_position: "A1:B2".to_string(),
                 script: "function make_decision() return {} end".to_string(),
             }],
+            team_a_preamble: String::new(),
+            team_b_preamble: String::new(),
         };
 
         let result = config.to_game_config(field);
@@ -537,6 +557,8 @@ mod tests {
 
         let serializable = SerializableGameConfig {
             players: vec![config_with_custom_script.clone(), config_with_placeholder.clone()],
+            team_a_preamble: String::new(),
+            team_b_preamble: String::new(),
         };
 
         // Serialize to TOML

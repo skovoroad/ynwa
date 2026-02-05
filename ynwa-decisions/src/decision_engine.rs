@@ -71,18 +71,43 @@ pub struct DecisionEngine {
 }
 
 impl DecisionEngine {
-    /// Create new DecisionEngine from JSON config
+    /// Create new DecisionEngine from JSON config with preambles
+    ///
+    /// # Preambles
+    /// * `core_preamble` - Elementary functions (read game state, create decisions)
+    /// * `stdlib_preamble` - Common utilities (geometry, search, etc.)
+    ///
+    /// Team preambles are extracted from top-level `team_preambles` object in config JSON.
+    /// Player definitions reference their team via "team" field ("team_a" or "team_b").
+    /// Preambles are concatenated: `core + stdlib + team_preamble + user_script` for each player.
     ///
     /// # Example
     /// ```json
     /// {
+    ///   "team_preambles": {
+    ///     "team_a": "function team_strategy() end",
+    ///     "team_b": "function team_strategy() end"
+    ///   },
     ///   "players": [
-    ///     {"script": "function make_decision() return {action = 'stop'} end"},
-    ///     {"script": "function make_decision() return {action = 'stop'} end"}
+    ///     {
+    ///       "script": "function make_decision() return {action = 'stop'} end",
+    ///       "team": "team_a"
+    ///     }
     ///   ]
     /// }
     /// ```
-    pub fn new(config: &JsonValue) -> Result<Self, DecisionEngineError> {
+    pub fn new(
+        config: &JsonValue,
+        core_preamble: &str,
+        stdlib_preamble: &str,
+    ) -> Result<Self, DecisionEngineError> {
+        let team_preambles = config
+            .get("team_preambles")
+            .and_then(|tp| tp.as_object())
+            .ok_or_else(|| {
+                DecisionEngineError::InvalidConfig("Missing 'team_preambles' object".to_string())
+            })?;
+
         let players = config
             .get("players")
             .and_then(|p| p.as_array())
@@ -104,8 +129,33 @@ impl DecisionEngine {
                     ))
                 })?;
 
-            // Create executor with 100ms timeout
-            let executor = LuaExecutor::new(None, Some(Duration::from_millis(100)))
+            let team_key = player
+                .get("team")
+                .and_then(|t| t.as_str())
+                .ok_or_else(|| {
+                    DecisionEngineError::InvalidConfig(format!(
+                        "Player {} missing 'team' field",
+                        player_index
+                    ))
+                })?;
+
+            let team_preamble = team_preambles
+                .get(team_key)
+                .and_then(|tp| tp.as_str())
+                .unwrap_or("");
+
+            let combined_preamble = format!(
+                "{}\n{}\n{}",
+                core_preamble,
+                stdlib_preamble,
+                team_preamble
+            );
+
+            // Create executor with combined preamble and 100ms timeout
+            let executor = LuaExecutor::new(
+                Some(combined_preamble),
+                Some(Duration::from_millis(100))
+            )
                 .map_err(|e| {
                     DecisionEngineError::RuntimeError(format!(
                         "Failed to create executor for player {}: {}",
@@ -176,8 +226,15 @@ mod tests {
 
     fn create_test_config(script: &str) -> JsonValue {
         json!({
+            "team_preambles": {
+                "team_a": "",
+                "team_b": ""
+            },
             "players": [
-                {"script": script}
+                {
+                    "script": script,
+                    "team": "team_a"
+                }
             ]
         })
     }
@@ -192,7 +249,7 @@ mod tests {
             "#,
         );
 
-        let result = DecisionEngine::new(&config);
+        let result = DecisionEngine::new(&config, "", "");
         assert!(result.is_ok());
 
         let engine = result.unwrap();
@@ -210,7 +267,7 @@ mod tests {
             "#,
         );
 
-        let engine = DecisionEngine::new(&config).unwrap();
+        let engine = DecisionEngine::new(&config, "", "").unwrap();
         let context = json!({"me": {"number": 1}});
         let decision = engine.make_decision(0, &context);
 
@@ -233,7 +290,7 @@ mod tests {
             "#,
         );
 
-        let engine = DecisionEngine::new(&config).unwrap();
+        let engine = DecisionEngine::new(&config, "", "").unwrap();
         let context = json!({"me": {"number": 1}});
         let decision = engine.make_decision(0, &context);
 
@@ -265,7 +322,7 @@ mod tests {
             "#,
         );
 
-        let engine = DecisionEngine::new(&config).unwrap();
+        let engine = DecisionEngine::new(&config, "", "").unwrap();
         let context = json!({"me": {"number": 1}});
         let decision = engine.make_decision(0, &context);
 
@@ -286,7 +343,7 @@ mod tests {
             "#,
         );
 
-        let engine = DecisionEngine::new(&config).unwrap();
+        let engine = DecisionEngine::new(&config, "", "").unwrap();
         let context = json!({"me": {"number": 1}});
         let decision = engine.make_decision(0, &context);
 
@@ -307,7 +364,7 @@ mod tests {
             "#,
         );
 
-        let engine = DecisionEngine::new(&config).unwrap();
+        let engine = DecisionEngine::new(&config, "", "").unwrap();
         let context = json!({"me": {"number": 1}});
         let decision = engine.make_decision(999, &context);
 
@@ -321,7 +378,7 @@ mod tests {
     #[test]
     fn test_decision_engine_missing_config_players() {
         let config = json!({});
-        let result = DecisionEngine::new(&config);
+        let result = DecisionEngine::new(&config, "", "");
 
         assert!(result.is_err());
         assert!(matches!(
@@ -333,17 +390,117 @@ mod tests {
     #[test]
     fn test_decision_engine_multiple_players() {
         let config = json!({
+            "team_preambles": {
+                "team_a": "",
+                "team_b": ""
+            },
             "players": [
-                {"script": "function make_decision() return {action = 'stop'} end"},
-                {"script": "function make_decision() return {action = 'stop'} end"}
+                {
+                    "script": "function make_decision() return {action = 'stop'} end",
+                    "team": "team_a"
+                },
+                {
+                    "script": "function make_decision() return {action = 'stop'} end",
+                    "team": "team_b"
+                }
             ]
         });
 
-        let engine = DecisionEngine::new(&config).unwrap();
+        let engine = DecisionEngine::new(&config, "", "").unwrap();
         assert_eq!(engine.executors.len(), 2);
 
         let context = json!({"me": {"number": 1}});
         assert!(engine.make_decision(0, &context).is_ok());
         assert!(engine.make_decision(1, &context).is_ok());
+    }
+
+    #[test]
+    fn test_decision_engine_preambles_available_to_script() {
+        // Test that all three preamble levels (core, stdlib, team) are accessible in player script
+        let core_preamble = r#"
+            function core_function()
+                return "core"
+            end
+        "#;
+
+        let stdlib_preamble = r#"
+            function stdlib_function()
+                return "stdlib"
+            end
+        "#;
+
+        let team_a_preamble = r#"
+            function team_function()
+                return "team_a"
+            end
+        "#;
+
+        let team_b_preamble = r#"
+            function team_function()
+                return "team_b"
+            end
+        "#;
+
+        let config = json!({
+            "team_preambles": {
+                "team_a": team_a_preamble,
+                "team_b": team_b_preamble
+            },
+            "players": [
+                {
+                    "script": r#"
+                        function make_decision()
+                            local core_val = core_function()
+                            local stdlib_val = stdlib_function()
+                            local team_val = team_function()
+                            return {
+                                action = "run",
+                                target_type = "point",
+                                target = {
+                                    x = 10.0,
+                                    z = 20.0
+                                },
+                                -- Store values to verify they were called
+                                debug_info = {
+                                    core = core_val,
+                                    stdlib = stdlib_val,
+                                    team = team_val
+                                }
+                            }
+                        end
+                    "#,
+                    "team": "team_a"
+                },
+                {
+                    "script": r#"
+                        function make_decision()
+                            local team_val = team_function()
+                            return {
+                                action = "stop",
+                                debug_team = team_val
+                            }
+                        end
+                    "#,
+                    "team": "team_b"
+                }
+            ]
+        });
+
+        let engine = DecisionEngine::new(&config, core_preamble, stdlib_preamble).unwrap();
+        let context = json!({"me": {"number": 1}});
+
+        // Test team_a player
+        let decision_a = engine.make_decision(0, &context).unwrap();
+        assert_eq!(decision_a.get("action").and_then(|a| a.as_str()), Some("run"));
+        
+        let debug_info = decision_a.get("debug_info").unwrap();
+        assert_eq!(debug_info.get("core").and_then(|v| v.as_str()), Some("core"));
+        assert_eq!(debug_info.get("stdlib").and_then(|v| v.as_str()), Some("stdlib"));
+        assert_eq!(debug_info.get("team").and_then(|v| v.as_str()), Some("team_a"));
+
+        // Test team_b player - should have access to team_b preamble
+        let decision_b = engine.make_decision(1, &context).unwrap();
+        assert_eq!(decision_b.get("action").and_then(|a| a.as_str()), Some("stop"));
+        assert_eq!(decision_b.get("debug_team").and_then(|v| v.as_str()), Some("team_b"));
     }
 }

@@ -46,6 +46,7 @@ pub fn create_test_game_with_script(script: &str) -> Game {
         )],
         ball: BallDef::default(),
         referees: vec![RefereeDef::default()],
+        scripting: ynwa_core::game::ScriptingConfig::empty(),
     };
 
     Game::new(config)

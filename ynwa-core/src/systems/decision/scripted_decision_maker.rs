@@ -37,11 +37,15 @@ pub struct ScriptedDecisionMaker {
 
 impl ScriptedDecisionMaker {
     pub fn new(game: &Game) -> Result<Self, DecisionError> {
-        // Build JSON config for DecisionEngine
         let config = Self::build_config(game);
+        let scripting = &game.config().scripting;
 
-        // Create DecisionEngine
-        let engine = DecisionEngine::new(&config).map_err(|e| {
+        // Create DecisionEngine with preambles from game config
+        let engine = DecisionEngine::new(
+            &config,
+            &scripting.core_preamble,
+            &scripting.stdlib_preamble,
+        ).map_err(|e| {
             DecisionError::RuntimeError(format!("Failed to create DecisionEngine: {}", e))
         })?;
 
@@ -50,9 +54,22 @@ impl ScriptedDecisionMaker {
 
     fn build_config(game: &Game) -> serde_json::Value {
         let config = game.config();
+        let scripting = &config.scripting;
+        
         json!({
+            "team_preambles": {
+                "team_a": scripting.team_a_preamble,
+                "team_b": scripting.team_b_preamble
+            },
             "players": config.players.iter().map(|p| {
-                json!({"script": p.script})
+                let team_key = match p.team {
+                    Team::A => "team_a",
+                    Team::B => "team_b",
+                };
+                json!({
+                    "script": p.script,
+                    "team": team_key
+                })
             }).collect::<Vec<_>>()
         })
     }
@@ -322,6 +339,7 @@ mod tests {
             )],
             ball: BallDef::default(),
             referees: vec![RefereeDef::default()],
+            scripting: crate::game::ScriptingConfig::empty(),
         };
 
         Game::new(config)

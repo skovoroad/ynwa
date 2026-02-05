@@ -79,13 +79,52 @@ fn create_football_game_config() -> GameConfig {
             initial_position: ball_initial_position,
         },
         referees: vec![RefereeDef::default()],
+        scripting: crate::game::ScriptingConfig::empty(),
     }
+}
+
+/// TEMPORARILY load core and stdlib preambles from filesystem.
+/// Team preambles are loaded from TOML config.
+/// Used only for development via create_football_world_from_file().
+/// In future all data will come from API/DB, this function will be removed.
+fn load_core_and_stdlib_preambles(config_path: &std::path::Path) -> Result<(String, String), String> {
+    let config_dir = config_path.parent()
+        .ok_or("Cannot determine config directory")?;
+    let project_root = config_dir.parent()
+        .ok_or("Cannot determine project root")?;
+    let scripts_dir = project_root.join("ynwa-scripts");
+    
+    let core_path = scripts_dir.join("preambles/core.lua");
+    let core_preamble = std::fs::read_to_string(&core_path)
+        .unwrap_or_else(|_| {
+            eprintln!("Warning: Cannot read {:?}, using empty core preamble", core_path);
+            String::new()
+        });
+    
+    let stdlib_path = scripts_dir.join("preambles/stdlib.lua");
+    let stdlib_preamble = std::fs::read_to_string(&stdlib_path)
+        .unwrap_or_else(|_| {
+            eprintln!("Warning: Cannot read {:?}, using empty stdlib preamble", stdlib_path);
+            String::new()
+        });
+    
+    Ok((core_preamble, stdlib_preamble))
 }
 
 fn create_football_game_config_from_file(path: &std::path::Path) -> Result<GameConfig, String> {
     let config = SerializableGameConfig::from_file(path)?;
     let field = create_football_field();
     let mut game_config = config.to_game_config(field)?;
+    
+    // TEMPORARILY: Load core and stdlib from filesystem
+    // Team preambles are already loaded from TOML
+    // If core/stdlib are empty in config, load from files
+    if game_config.scripting.core_preamble.is_empty() 
+        && game_config.scripting.stdlib_preamble.is_empty() {
+        let (core, stdlib) = load_core_and_stdlib_preambles(path)?;
+        game_config.scripting.core_preamble = core;
+        game_config.scripting.stdlib_preamble = stdlib;
+    }
     
     // Set ball initial position to center_spot (football rule)
     game_config.ball = BallDef {

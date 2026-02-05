@@ -107,6 +107,7 @@ mod tests {
             players: vec![player_0, player_1],
             ball: BallDef::default(),
             referees: vec![],
+            scripting: crate::game::ScriptingConfig::empty(),
         };
 
         Game::new(config)
@@ -388,6 +389,7 @@ mod tests {
             )],
             ball: BallDef::default(),
             referees: vec![],
+            scripting: crate::game::ScriptingConfig::empty(),
         };
 
         let game = Game::new(config);
@@ -460,6 +462,7 @@ mod tests {
             )],
             ball: BallDef::default(),
             referees: vec![],
+            scripting: crate::game::ScriptingConfig::empty(),
         };
 
         let game = Game::new(config);

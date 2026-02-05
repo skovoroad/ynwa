@@ -163,11 +163,38 @@ pub struct RefereeState {
 }
 
 #[derive(Debug, Clone)]
+pub struct ScriptingConfig {
+    pub core_preamble: String,
+    pub stdlib_preamble: String,
+    pub team_a_preamble: String,
+    pub team_b_preamble: String,
+}
+
+impl ScriptingConfig {
+    pub fn empty() -> Self {
+        Self {
+            core_preamble: String::new(),
+            stdlib_preamble: String::new(),
+            team_a_preamble: String::new(),
+            team_b_preamble: String::new(),
+        }
+    }
+
+    pub fn team_preamble(&self, team: Team) -> &str {
+        match team {
+            Team::A => &self.team_a_preamble,
+            Team::B => &self.team_b_preamble,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct GameConfig {
     pub field: Field,
     pub players: Vec<PlayerDef>,
     pub ball: BallDef,
     pub referees: Vec<RefereeDef>,
+    pub scripting: ScriptingConfig,
 }
 
 #[derive(Debug, Clone)]
@@ -290,6 +317,7 @@ mod tests {
             ],
             ball: BallDef::default(),
             referees: vec![RefereeDef::default()],
+            scripting: ScriptingConfig::empty(),
         }
     }
 

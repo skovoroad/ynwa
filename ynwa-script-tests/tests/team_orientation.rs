@@ -41,6 +41,7 @@ fn create_game_with_team_script(team: Team, script: String) -> Game {
         players: vec![player],
         ball: BallDef::default(),
         referees: vec![RefereeDef::default()],
+        scripting: ynwa_core::game::ScriptingConfig::empty(),
     };
 
     Game::new(config)
