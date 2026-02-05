@@ -2,11 +2,33 @@ use crate::field::zones::Point3D;
 use crate::game::{Decision, DecisionTarget, Game};
 use crate::region::{GridCell, Region};
 use crate::team::Team;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use uom::si::length::meter;
 use ynwa_decisions::DecisionEngine;
 
 use super::{DecisionError, DecisionMaker};
+
+/// Intermediate structures for deserializing JSON decisions from scripts
+/// These structures represent the JSON format that Lua scripts return,
+/// and are then converted to domain types (Decision, DecisionTarget).
+///
+/// Design decision: Use serde for deserialization instead of manual parsing
+/// for better type safety, automatic validation, and clearer error messages.
+
+#[derive(Debug, Deserialize, Serialize)]
+struct LuaRegionTarget {
+    from: String,
+    to: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+struct LuaPointTarget {
+    x: f32,
+    z: f32,
+    #[serde(default)]
+    y: f32,
+}
 
 /// DecisionMaker that executes user-defined scripts via ynwa-decisions engine
 pub struct ScriptedDecisionMaker {
@@ -179,12 +201,17 @@ impl ScriptedDecisionMaker {
     }
 
     fn parse_cell_target(value: &serde_json::Value) -> Result<DecisionTarget, DecisionError> {
+        // Cell can be either a direct string "A5" or structure {cell = "A5"}
+        // We support direct string format for simplicity
         let cell_str = value.as_str().ok_or_else(|| {
-            DecisionError::RuntimeError("Cell target must be a string".to_string())
+            DecisionError::RuntimeError(format!(
+                "Cell target must be a string (e.g., 'A5'), got: {:?}",
+                value
+            ))
         })?;
 
         let cell = GridCell::from_notation(cell_str)
-            .map_err(|e| DecisionError::RuntimeError(format!("Invalid cell notation: {}", e)))?;
+            .map_err(|e| DecisionError::RuntimeError(format!("Invalid cell notation '{}': {}", cell_str, e)))?;
 
         Ok(DecisionTarget::GridCell(cell))
     }
@@ -193,23 +220,19 @@ impl ScriptedDecisionMaker {
         value: &serde_json::Value,
         game: &Game,
     ) -> Result<DecisionTarget, DecisionError> {
-        let from_str = value
-            .get("from")
-            .and_then(|f| f.as_str())
-            .ok_or_else(|| {
-                DecisionError::RuntimeError("Region target missing 'from' field".to_string())
-            })?;
+        // Deserialize using serde
+        let region_target: LuaRegionTarget = serde_json::from_value(value.clone())
+            .map_err(|e| DecisionError::RuntimeError(format!(
+                "Invalid region target format (expected {{from: 'A5', to: 'C7'}}): {}",
+                e
+            )))?;
 
-        let to_str = value.get("to").and_then(|t| t.as_str()).ok_or_else(|| {
-            DecisionError::RuntimeError("Region target missing 'to' field".to_string())
+        let from_cell = GridCell::from_notation(&region_target.from).map_err(|e| {
+            DecisionError::RuntimeError(format!("Invalid 'from' cell '{}': {}", region_target.from, e))
         })?;
 
-        let from_cell = GridCell::from_notation(from_str).map_err(|e| {
-            DecisionError::RuntimeError(format!("Invalid 'from' cell notation: {}", e))
-        })?;
-
-        let to_cell = GridCell::from_notation(to_str).map_err(|e| {
-            DecisionError::RuntimeError(format!("Invalid 'to' cell notation: {}", e))
+        let to_cell = GridCell::from_notation(&region_target.to).map_err(|e| {
+            DecisionError::RuntimeError(format!("Invalid 'to' cell '{}': {}", region_target.to, e))
         })?;
 
         let grid_dims = game.config().field.grid_dimensions();
@@ -225,28 +248,21 @@ impl ScriptedDecisionMaker {
         _game: &Game,
         _player_team: Team,
     ) -> Result<DecisionTarget, DecisionError> {
-        let x = value.get("x").and_then(|x| x.as_f64()).ok_or_else(|| {
-            DecisionError::RuntimeError("Point target missing 'x' field".to_string())
-        })? as f32;
-
-        let z = value.get("z").and_then(|z| z.as_f64()).ok_or_else(|| {
-            DecisionError::RuntimeError("Point target missing 'z' field".to_string())
-        })? as f32;
-
-        let y = value
-            .get("y")
-            .and_then(|y| y.as_f64())
-            .map(|y| y as f32)
-            .unwrap_or(0.0);
+        // Deserialize using serde
+        let point_target: LuaPointTarget = serde_json::from_value(value.clone())
+            .map_err(|e| DecisionError::RuntimeError(format!(
+                "Invalid point target format (expected {{x: 10.5, z: 20.0}}): {}",
+                e
+            )))?;
 
         // Point from Lua is in player's orientation - no conversion here
         // Conversion happens in DecisionSystem via convert_decision_to_display_orientation
         use uom::si::f32::Length;
 
         let point = Point3D {
-            x: Length::new::<meter>(x),
-            y: Length::new::<meter>(y),
-            z: Length::new::<meter>(z),
+            x: Length::new::<meter>(point_target.x),
+            y: Length::new::<meter>(point_target.y),
+            z: Length::new::<meter>(point_target.z),
         };
 
         Ok(DecisionTarget::Point(point))
