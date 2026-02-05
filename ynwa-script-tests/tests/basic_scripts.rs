@@ -4,7 +4,7 @@ use ynwa_core::game::{Decision, DecisionTarget};
 use ynwa_core::systems::decision::{DecisionSystem, ScriptedDecisionMaker};
 use ynwa_core::systems::player_reaction::PlayerReactionSystem;
 use ynwa_core::System;
-use ynwa_script_tests::create_test_game_with_script;
+use ynwa_script_tests::{create_test_game_with_script, create_test_game_with_preambles, load_test_script};
 use uom::si::length::meter;
 
 /// Helper function to test that a Lua script produces expected decision type
@@ -256,4 +256,50 @@ fn test_context_structure() {
         player_state.current_decision.is_some(),
         "Expected a decision to be created"
     );
+}
+
+#[test]
+fn test_kick_if_ball_owner() {
+    // Test the team library function: "if ball is mine, kick it in random direction"
+    // This function uses am_i_ball_owner() from stdlib and ball_owner() from core
+    // Since we can't easily set ball owner, we test that the function works correctly
+    // when ball is free (owner_index is nil)
+    let script = load_test_script("kick_if_ball_owner.lua");
+
+    // Create game with test script
+    let mut game = create_test_game_with_preambles(&script);
+    
+    // Trigger decision
+    let mut reaction_system = PlayerReactionSystem::new();
+    reaction_system.update(&mut game, 1.0);
+    
+    let decision_maker = ScriptedDecisionMaker::new(&game)
+        .expect("Failed to create ScriptedDecisionMaker");
+    
+    let mut decision_system = DecisionSystem::new()
+        .with_decision_maker(Box::new(decision_maker));
+    
+    decision_system.update(&mut game, 1.0);
+    
+    // Verify that script executed without errors
+    let player_state = &game.state().player_states[0];
+    assert!(
+        player_state.last_error.is_none(),
+        "Script error: {:?}",
+        player_state.last_error
+    );
+    
+    assert!(
+        player_state.current_decision.is_some(),
+        "Expected a decision"
+    );
+    
+    // Since ball is free by default (owner_index is nil),
+    // am_i_ball_owner() should return false, so decision should be Stop
+    match &player_state.current_decision {
+        Some(Decision::Stop) => {
+            // Expected: ball is free, so stop
+        }
+        other => panic!("Expected Stop decision since ball is free, got: {:?}", other),
+    }
 }
