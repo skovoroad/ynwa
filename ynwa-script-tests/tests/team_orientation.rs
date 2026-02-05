@@ -31,6 +31,7 @@ fn create_game_with_team_script(team: Team, script: String) -> Game {
         format!("Player {:?}1", team),
         100, // Fast reaction rate
         50,
+        50,
         script,
         start_region,
     );

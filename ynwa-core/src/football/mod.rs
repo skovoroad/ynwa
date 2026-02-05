@@ -45,6 +45,7 @@ fn create_football_game_config() -> GameConfig {
             format!("Player A{}", i + 1),
             50,
             50,
+            50,
             "function make_decision() return {} end".to_string(),
             start_region,
         ));
@@ -63,6 +64,7 @@ fn create_football_game_config() -> GameConfig {
             Team::B,
             i + 1,
             format!("Player B{}", i + 1),
+            50,
             50,
             50,
             "function make_decision() return {} end".to_string(),

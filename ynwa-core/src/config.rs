@@ -11,8 +11,14 @@ pub struct PlayerConfig {
     pub name: String,
     pub reaction_rate: u32,     // 10-100: player's reaction speed
     pub speed_rate: u32,        // 10-100: player's movement speed
+    #[serde(default = "default_tackle_rate")]
+    pub tackle_rate: u32,       // 10-100: player's ball control ability
     pub start_position: String, // Grid notation like "A1:B2"
     pub script: String,         // Lua script for decision making (mandatory)
+}
+
+fn default_tackle_rate() -> u32 {
+    50
 }
 
 impl PlayerConfig {
@@ -48,6 +54,7 @@ impl PlayerConfig {
             self.name.clone(),
             self.reaction_rate,
             self.speed_rate,
+            self.tackle_rate,
             self.script.clone(),
             start_region_absolute,
         ))
@@ -81,6 +88,7 @@ impl PlayerConfig {
             name: player_def.name.clone(),
             reaction_rate: player_def.reaction_rate,
             speed_rate: player_def.speed_rate,
+            tackle_rate: player_def.tackle_rate,
             start_position: start_region_own.to_grid_notation(),
             script: player_def.script.clone(),
         })
@@ -163,6 +171,7 @@ mod tests {
             name: "Test Player".to_string(),
             reaction_rate: 50,
             speed_rate: 50,
+            tackle_rate: 50,
             start_position: "C3:D4".to_string(),
             script: "function make_decision() return {} end".to_string(),
         };
@@ -190,6 +199,7 @@ mod tests {
                     name: "Goalkeeper".to_string(),
                     reaction_rate: 50,
                     speed_rate: 50,
+            tackle_rate: 50,
                     start_position: "A22:B24".to_string(),
                     script: "function make_decision() return {} end".to_string(),
                 },
@@ -199,6 +209,7 @@ mod tests {
                     name: "Striker".to_string(),
                     reaction_rate: 50,
                     speed_rate: 50,
+            tackle_rate: 50,
                     start_position: "Y22:Z24".to_string(),
                     script: "function make_decision() return {} end".to_string(),
                 },
@@ -226,6 +237,7 @@ mod tests {
             name: "Test Player".to_string(),
             reaction_rate: 50,
             speed_rate: 50,
+            tackle_rate: 50,
             start_position: "C3:D4".to_string(),
             script: "function make_decision() return {} end".to_string(),
         };
@@ -246,6 +258,7 @@ mod tests {
             name: "Test Player".to_string(),
             reaction_rate: 50,
             speed_rate: 50,
+            tackle_rate: 50,
             start_position: "INVALID".to_string(), // Invalid notation
             script: "function make_decision() return {} end".to_string(),
         };
@@ -266,6 +279,7 @@ mod tests {
             name: "Test Player".to_string(),
             reaction_rate: 50,
             speed_rate: 50,
+            tackle_rate: 50,
             start_position: "A1:AA50".to_string(), // Out of bounds
             script: "function make_decision() return {} end".to_string(),
         };
@@ -286,6 +300,7 @@ mod tests {
                     name: "Goalkeeper".to_string(),
                     reaction_rate: 50,
                     speed_rate: 50,
+            tackle_rate: 50,
                     start_position: "A22:B24".to_string(),
                     script: "function make_decision() return {} end".to_string(),
                 },
@@ -295,6 +310,7 @@ mod tests {
                     name: "Forward".to_string(),
                     reaction_rate: 50,
                     speed_rate: 50,
+            tackle_rate: 50,
                     start_position: "Y22:Z24".to_string(),
                     script: "function make_decision() return {} end".to_string(),
                 },
@@ -329,6 +345,7 @@ mod tests {
                 name: "Bad Player".to_string(),
                 reaction_rate: 50,
                 speed_rate: 50,
+            tackle_rate: 50,
                 start_position: "A1:B2".to_string(),
                 script: "function make_decision() return {} end".to_string(),
             }],
@@ -351,6 +368,7 @@ mod tests {
             name: "Goalkeeper B".to_string(),
             reaction_rate: 50,
             speed_rate: 50,
+            tackle_rate: 50,
             start_position: "M42".to_string(), // Own orientation: near their goal
             script: "function make_decision() return {} end".to_string(),
         };
@@ -370,6 +388,7 @@ mod tests {
             name: "Goalkeeper A".to_string(),
             reaction_rate: 50,
             speed_rate: 50,
+            tackle_rate: 50,
             start_position: "M42".to_string(),
             script: "function make_decision() return {} end".to_string(),
         };
@@ -392,6 +411,7 @@ mod tests {
             name: "Test Player B".to_string(),
             reaction_rate: 50,
             speed_rate: 50,
+            tackle_rate: 50,
             start_position: "M25".to_string(), // Own orientation
             script: "function make_decision() return {} end".to_string(),
         };
@@ -499,6 +519,7 @@ mod tests {
             name: "Test Player".to_string(),
             reaction_rate: 50,
             speed_rate: 50,
+            tackle_rate: 50,
             start_position: "M42".to_string(),
             script: "function make_decision()\n    return { action = \"custom\" }\nend".to_string(),
         };
@@ -509,6 +530,7 @@ mod tests {
             name: "Test Player 2".to_string(),
             reaction_rate: 50,
             speed_rate: 50,
+            tackle_rate: 50,
             start_position: "M42".to_string(),
             script: "function make_decision() return {} end".to_string(),
         };

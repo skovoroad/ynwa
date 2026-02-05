@@ -77,6 +77,7 @@ mod tests {
             "Fast Player".to_string(),
             100, // reaction_rate = 100 (1 second interval)
             100, // speed_rate = 100 (full speed)
+            50,
             "function make_decision() return {} end".to_string(),
             start_region_0,
         );
@@ -96,6 +97,7 @@ mod tests {
             "Slow Player".to_string(),
             50, // reaction_rate = 50 (2 second interval)
             50, // speed_rate = 50 (half speed)
+            50,
             "function make_decision() return {} end".to_string(),
             start_region_1,
         );
@@ -366,6 +368,7 @@ mod tests {
                 "Lua Player".to_string(),
                 100, // Fast reaction
                 100, // Fast movement
+                50,
                 r#"
                 function make_decision()
                     -- Check context is available
@@ -446,6 +449,7 @@ mod tests {
                 "Buggy Player".to_string(),
                 100,
                 100,
+                50,
                 r#"
                 function make_decision()
                     error("Intentional error for testing")

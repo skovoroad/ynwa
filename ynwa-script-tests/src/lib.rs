@@ -40,6 +40,7 @@ pub fn create_test_game_with_script(script: &str) -> Game {
             "Test Player".to_string(),
             50,
             50,
+            50,
             script.to_string(),
             start_region,
         )],

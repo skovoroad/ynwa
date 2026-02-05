@@ -108,6 +108,7 @@ mod tests {
                 "Test Player".to_string(),
                 50,
                 50,
+                50,
                 script.to_string(),
                 start_region,
             )],
@@ -279,6 +280,7 @@ mod tests {
                     "Player 1".to_string(),
                     50,
                     50,
+                    50,
                     r#"
                     function make_decision()
                         return {action = "stop"}
@@ -293,6 +295,7 @@ mod tests {
                     "Player 2".to_string(),
                     60,
                     60,
+                    50,
                     r#"
                     function make_decision()
                         return {
