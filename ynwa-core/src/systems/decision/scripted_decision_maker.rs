@@ -1,36 +1,17 @@
 use crate::field::zones::Point3D;
-use crate::game::{Decision, DecisionTarget, Game};
-use crate::region::{GridCell, Region};
+use crate::game::{Decision, Game};
 use crate::team::Team;
-use serde::{Deserialize, Serialize};
 use serde_json::json;
 use uom::si::length::meter;
 use ynwa_decisions::DecisionEngine;
 
+use super::decision_parser;
 use super::{DecisionError, DecisionMaker};
 
-/// Intermediate structures for deserializing JSON decisions from scripts
-/// These structures represent the JSON format that Lua scripts return,
-/// and are then converted to domain types (Decision, DecisionTarget).
+/// DecisionMaker that executes user-defined Lua scripts via ynwa-decisions engine.
 ///
-/// Design decision: Use serde for deserialization instead of manual parsing
-/// for better type safety, automatic validation, and clearer error messages.
-
-#[derive(Debug, Deserialize, Serialize)]
-struct LuaRegionTarget {
-    from: String,
-    to: String,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-struct LuaPointTarget {
-    x: f32,
-    z: f32,
-    #[serde(default)]
-    y: f32,
-}
-
-/// DecisionMaker that executes user-defined scripts via ynwa-decisions engine
+/// This implementation builds context from game state, executes player scripts,
+/// and parses the resulting JSON decisions using the decision_parser module.
 pub struct ScriptedDecisionMaker {
     engine: DecisionEngine,
 }
@@ -171,137 +152,6 @@ impl ScriptedDecisionMaker {
                 .collect::<Vec<_>>()
         )
     }
-
-    fn parse_json_decision(
-        value: &serde_json::Value,
-        game: &Game,
-        player_team: Team,
-    ) -> Result<Decision, DecisionError> {
-        let action = value
-            .get("action")
-            .and_then(|a| a.as_str())
-            .ok_or_else(|| DecisionError::RuntimeError("Missing 'action' field".to_string()))?;
-
-        match action {
-            "stop" => Ok(Decision::Stop),
-            "run" => {
-                let target_type = value
-                    .get("target_type")
-                    .and_then(|t| t.as_str())
-                    .ok_or_else(|| {
-                        DecisionError::RuntimeError("Missing 'target_type' field".to_string())
-                    })?;
-
-                let target = value.get("target").ok_or_else(|| {
-                    DecisionError::RuntimeError("Missing 'target' field".to_string())
-                })?;
-
-                let decision_target = match target_type {
-                    "cell" => Self::parse_cell_target(target)?,
-                    "region" => Self::parse_region_target(target, game)?,
-                    "point" => Self::parse_point_target(target, game, player_team)?,
-                    _ => {
-                        return Err(DecisionError::RuntimeError(format!(
-                            "Unknown target_type: {}",
-                            target_type
-                        )))
-                    }
-                };
-
-                Ok(Decision::Run(decision_target))
-            }
-            "kick" => {
-                let target = value.get("target").ok_or_else(|| {
-                    DecisionError::RuntimeError("Missing 'target' field for kick".to_string())
-                })?;
-
-                let kick_target = Self::parse_point(target, game, player_team)?;
-                Ok(Decision::Kick(kick_target))
-            }
-            _ => Err(DecisionError::RuntimeError(format!(
-                "Unknown action: {}",
-                action
-            ))),
-        }
-    }
-
-    fn parse_cell_target(value: &serde_json::Value) -> Result<DecisionTarget, DecisionError> {
-        // Cell can be either a direct string "A5" or structure {cell = "A5"}
-        // We support direct string format for simplicity
-        let cell_str = value.as_str().ok_or_else(|| {
-            DecisionError::RuntimeError(format!(
-                "Cell target must be a string (e.g., 'A5'), got: {:?}",
-                value
-            ))
-        })?;
-
-        let cell = GridCell::from_notation(cell_str)
-            .map_err(|e| DecisionError::RuntimeError(format!("Invalid cell notation '{}': {}", cell_str, e)))?;
-
-        Ok(DecisionTarget::GridCell(cell))
-    }
-
-    fn parse_region_target(
-        value: &serde_json::Value,
-        game: &Game,
-    ) -> Result<DecisionTarget, DecisionError> {
-        // Deserialize using serde
-        let region_target: LuaRegionTarget = serde_json::from_value(value.clone())
-            .map_err(|e| DecisionError::RuntimeError(format!(
-                "Invalid region target format (expected {{from: 'A5', to: 'C7'}}): {}",
-                e
-            )))?;
-
-        let from_cell = GridCell::from_notation(&region_target.from).map_err(|e| {
-            DecisionError::RuntimeError(format!("Invalid 'from' cell '{}': {}", region_target.from, e))
-        })?;
-
-        let to_cell = GridCell::from_notation(&region_target.to).map_err(|e| {
-            DecisionError::RuntimeError(format!("Invalid 'to' cell '{}': {}", region_target.to, e))
-        })?;
-
-        let grid_dims = game.config().field.grid_dimensions();
-        let region = Region::new(Team::A, from_cell, to_cell, grid_dims).map_err(|e| {
-            DecisionError::RuntimeError(format!("Invalid region: {}", e))
-        })?;
-
-        Ok(DecisionTarget::Region(region))
-    }
-
-    /// Parse point coordinates from JSON value
-    fn parse_point(
-        value: &serde_json::Value,
-        _game: &Game,
-        _player_team: Team,
-    ) -> Result<Point3D, DecisionError> {
-        // Deserialize using serde
-        let point_target: LuaPointTarget = serde_json::from_value(value.clone())
-            .map_err(|e| DecisionError::RuntimeError(format!(
-                "Invalid point target format (expected {{x: 10.5, z: 20.0}}): {}",
-                e
-            )))?;
-
-        // Point from Lua is in player's orientation - no conversion here
-        // Conversion happens in DecisionSystem via convert_decision_to_display_orientation
-        use uom::si::f32::Length;
-
-        let point = Point3D {
-            x: Length::new::<meter>(point_target.x),
-            y: Length::new::<meter>(point_target.y),
-            z: Length::new::<meter>(point_target.z),
-        };
-
-        Ok(point)
-    }
-
-    fn parse_point_target(
-        value: &serde_json::Value,
-        game: &Game,
-        player_team: Team,
-    ) -> Result<DecisionTarget, DecisionError> {
-        let point = Self::parse_point(value, game, player_team)?;
-        Ok(DecisionTarget::Point(point))
-    }
 }
 
 impl DecisionMaker for ScriptedDecisionMaker {
@@ -319,9 +169,8 @@ impl DecisionMaker for ScriptedDecisionMaker {
             .make_decision(player_index, &context)
             .map_err(|e| DecisionError::RuntimeError(format!("Engine error: {}", e)))?;
 
-        // Parse JSON decision to Decision type
-        let player_team = game.config().players[player_index].team;
-        Self::parse_json_decision(&decision_json, game, player_team)
+        // Parse JSON decision to Decision type using decision_parser
+        decision_parser::parse_decision(&decision_json)
     }
 }
 
@@ -330,6 +179,7 @@ mod tests {
     use super::*;
     use crate::field::Field;
     use crate::game::{BallDef, GameConfig, PlayerDef, RefereeDef};
+    use crate::region::{GridCell, Region};
 
     fn create_test_game_with_script(script: &str) -> Game {
         let field = Field::from_meters(100.0, 60.0, 26, 44);

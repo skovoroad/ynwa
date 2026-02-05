@@ -1,3 +1,4 @@
+mod decision_parser;
 mod decision_system;
 mod scripted_decision_maker;
 
