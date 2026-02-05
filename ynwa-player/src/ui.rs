@@ -88,6 +88,7 @@ fn draw_player_decisions_table(
                 }
             },
             Some(Decision::Stop) => "Stop".to_string(),
+            Some(Decision::Kick(_)) => "Kick".to_string(),
             None => {
                 // Check if there's an error to display
                 if let Some(error) = &player_state.last_error {

@@ -1,5 +1,10 @@
 # Future Architecture Considerations
 
+**IMPORTANT: AI Assistant Guidelines**
+- Do NOT create documentation files (.md) without explicit user request
+- Do NOT create summary files, changelog files, or progress reports automatically
+- Changes should be reflected in code and tests only, unless user asks for documentation
+
 This document outlines architectural analysis for two major features planned for future implementation:
 1. Game serialization and replay
 2. Server-side parallel game processing

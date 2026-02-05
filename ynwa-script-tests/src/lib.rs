@@ -6,19 +6,6 @@ use ynwa_core::game::{BallDef, Game, GameConfig, PlayerDef, RefereeDef};
 use ynwa_core::region::{GridCell, Region};
 use ynwa_core::team::Team;
 
-/// Load Lua script from file in ynwa-scripts/test-scripts/
-pub fn load_script(relative_path: &str) -> String {
-    let base_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .unwrap()
-        .join("ynwa-scripts");
-    
-    let script_path = base_path.join(relative_path);
-    
-    std::fs::read_to_string(&script_path)
-        .unwrap_or_else(|e| panic!("Failed to load script {}: {}", script_path.display(), e))
-}
-
 /// Create a simple test game with one player using the given script
 pub fn create_test_game_with_script(script: &str) -> Game {
     let field = Field::from_meters(100.0, 60.0, 26, 44);

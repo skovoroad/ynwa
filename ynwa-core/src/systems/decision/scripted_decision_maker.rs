@@ -210,6 +210,14 @@ impl ScriptedDecisionMaker {
 
                 Ok(Decision::Run(decision_target))
             }
+            "kick" => {
+                let target = value.get("target").ok_or_else(|| {
+                    DecisionError::RuntimeError("Missing 'target' field for kick".to_string())
+                })?;
+
+                let kick_target = Self::parse_point(target, game, player_team)?;
+                Ok(Decision::Kick(kick_target))
+            }
             _ => Err(DecisionError::RuntimeError(format!(
                 "Unknown action: {}",
                 action
@@ -260,11 +268,12 @@ impl ScriptedDecisionMaker {
         Ok(DecisionTarget::Region(region))
     }
 
-    fn parse_point_target(
+    /// Parse point coordinates from JSON value
+    fn parse_point(
         value: &serde_json::Value,
         _game: &Game,
         _player_team: Team,
-    ) -> Result<DecisionTarget, DecisionError> {
+    ) -> Result<Point3D, DecisionError> {
         // Deserialize using serde
         let point_target: LuaPointTarget = serde_json::from_value(value.clone())
             .map_err(|e| DecisionError::RuntimeError(format!(
@@ -282,6 +291,15 @@ impl ScriptedDecisionMaker {
             z: Length::new::<meter>(point_target.z),
         };
 
+        Ok(point)
+    }
+
+    fn parse_point_target(
+        value: &serde_json::Value,
+        game: &Game,
+        player_team: Team,
+    ) -> Result<DecisionTarget, DecisionError> {
+        let point = Self::parse_point(value, game, player_team)?;
         Ok(DecisionTarget::Point(point))
     }
 }
@@ -362,6 +380,33 @@ mod tests {
 
         assert!(decision.is_ok());
         assert!(matches!(decision.unwrap(), Decision::Stop));
+    }
+
+    #[test]
+    fn test_json_decision_maker_kick() {
+        let game = create_test_game_with_script(
+            r#"
+            function make_decision()
+                return {
+                    action = "kick",
+                    target = {x = 50.0, z = 30.0}
+                }
+            end
+            "#,
+        );
+
+        let mut maker = ScriptedDecisionMaker::new(&game).unwrap();
+        let decision = maker.make_decision(&game, 0);
+
+        assert!(decision.is_ok());
+        match decision.unwrap() {
+            Decision::Kick(point) => {
+                use uom::si::length::meter;
+                assert!((point.x.get::<meter>() - 50.0).abs() < 0.01);
+                assert!((point.z.get::<meter>() - 30.0).abs() < 0.01);
+            }
+            _ => panic!("Expected Kick decision"),
+        }
     }
 
     #[test]

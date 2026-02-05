@@ -11,12 +11,16 @@ use serde::{Deserialize, Serialize};
 /// - `{action = "run", target_type = "cell", target = "A5"}` for running to cell
 /// - `{action = "run", target_type = "region", target = {from = "A5", to = "C7"}}` for region
 /// - `{action = "run", target_type = "point", target = {x = 10.5, z = 20.0}}` for point
+/// - `{action = "kick", target = {x = 50.0, z = 30.0}}` for kicking towards point
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(tag = "action", rename_all = "lowercase")]
 pub enum LuaDecision {
     Stop,
     Run {
         target_type: String,
+        target: serde_json::Value,
+    },
+    Kick {
         target: serde_json::Value,
     },
 }
@@ -78,6 +82,21 @@ mod tests {
                 assert_eq!(target_type, "region");
             }
             _ => panic!("Expected Run"),
+        }
+    }
+
+    #[test]
+    fn test_lua_decision_kick() {
+        let json = json!({
+            "action": "kick",
+            "target": {"x": 50.0, "z": 30.0}
+        });
+        let decision: LuaDecision = serde_json::from_value(json).unwrap();
+        match decision {
+            LuaDecision::Kick { .. } => {
+                // Success
+            }
+            _ => panic!("Expected Kick"),
         }
     }
 }

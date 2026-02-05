@@ -103,6 +103,11 @@ impl System for ActionSystem {
 
                             game.state.player_states[player_index].velocity = velocity;
                         }
+                        Decision::Kick(_target_point) => {
+                            // TODO: Implement kick mechanics
+                            // For now, just stop the player (no action taken)
+                            game.state.player_states[player_index].velocity = Velocity3D::default();
+                        }
                     }
 
                     game.state.player_states[player_index].decision_processed = true;

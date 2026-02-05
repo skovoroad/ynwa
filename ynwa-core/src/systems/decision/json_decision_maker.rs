@@ -171,6 +171,14 @@ impl JsonDecisionMaker {
 
                 Ok(Decision::Run(decision_target))
             }
+            "kick" => {
+                let target = value.get("target").ok_or_else(|| {
+                    DecisionError::RuntimeError("Missing 'target' field for kick".to_string())
+                })?;
+
+                let kick_target = Self::parse_point(target, game, player_team)?;
+                Ok(Decision::Kick(kick_target))
+            }
             _ => Err(DecisionError::RuntimeError(format!(
                 "Unknown action: {}",
                 action
@@ -220,11 +228,12 @@ impl JsonDecisionMaker {
         Ok(DecisionTarget::Region(region))
     }
 
-    fn parse_point_target(
+    /// Parse point coordinates from JSON value
+    fn parse_point(
         value: &serde_json::Value,
         _game: &Game,
         _player_team: Team,
-    ) -> Result<DecisionTarget, DecisionError> {
+    ) -> Result<Point3D, DecisionError> {
         let x = value.get("x").and_then(|x| x.as_f64()).ok_or_else(|| {
             DecisionError::RuntimeError("Point target missing 'x' field".to_string())
         })? as f32;
@@ -249,6 +258,15 @@ impl JsonDecisionMaker {
             z: Length::new::<meter>(z),
         };
 
+        Ok(point)
+    }
+
+    fn parse_point_target(
+        value: &serde_json::Value,
+        game: &Game,
+        player_team: Team,
+    ) -> Result<DecisionTarget, DecisionError> {
+        let point = Self::parse_point(value, game, player_team)?;
         Ok(DecisionTarget::Point(point))
     }
 }
@@ -301,6 +319,8 @@ mod tests {
                 50,
                 50,
                 50,
+                50,
+                50,
                 script.to_string(),
                 start_region,
             )],
@@ -327,6 +347,33 @@ mod tests {
 
         assert!(decision.is_ok());
         assert!(matches!(decision.unwrap(), Decision::Stop));
+    }
+
+    #[test]
+    fn test_json_decision_maker_kick() {
+        let game = create_test_game_with_script(
+            r#"
+            function make_decision()
+                return {
+                    action = "kick",
+                    target = {x = 50.0, z = 30.0}
+                }
+            end
+            "#,
+        );
+
+        let mut maker = JsonDecisionMaker::new(&game).unwrap();
+        let decision = maker.make_decision(&game, 0);
+
+        assert!(decision.is_ok());
+        match decision.unwrap() {
+            Decision::Kick(point) => {
+                use uom::si::length::meter;
+                assert!((point.x.get::<meter>() - 50.0).abs() < 0.01);
+                assert!((point.z.get::<meter>() - 30.0).abs() < 0.01);
+            }
+            _ => panic!("Expected Kick decision"),
+        }
     }
 
     #[test]

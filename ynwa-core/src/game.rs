@@ -21,6 +21,7 @@ pub enum DecisionTarget {
 pub enum Decision {
     Run(DecisionTarget),
     Stop,
+    Kick(Point3D), // Kick the ball towards target point
 }
 
 /// Converts Team B coordinates to display orientation (Team A perspective).
@@ -63,6 +64,9 @@ pub fn convert_decision_to_display_orientation(
             Decision::Run(flipped_target)
         }
         Decision::Stop => Decision::Stop,
+        Decision::Kick(target_point) => {
+            Decision::Kick(flip_point_orientation(&target_point, field_width, field_height))
+        }
     }
 }
 
