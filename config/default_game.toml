@@ -11,6 +11,8 @@ name = "Goalkeeper A"
 reaction_rate = 85
 speed_rate = 45
 tackle_rate = 90
+shot_power = 50
+shot_accuracy = 50
 start_position = "M42"  # Center of goal area
 script = '''
 function make_decision()
@@ -30,6 +32,8 @@ name = "Defender A1"
 reaction_rate = 62
 speed_rate = 58
 tackle_rate = 70
+shot_power = 50
+shot_accuracy = 50
 start_position = "G37"  # Left back
 script = '''
 function make_decision()
@@ -48,6 +52,8 @@ name = "Defender A2"
 reaction_rate = 68
 speed_rate = 55
 tackle_rate = 72
+shot_power = 50
+shot_accuracy = 50
 start_position = "K37"  # Center back left
 script = '''
 function make_decision()
@@ -66,6 +72,8 @@ name = "Defender A3"
 reaction_rate = 65
 speed_rate = 57
 tackle_rate = 74
+shot_power = 50
+shot_accuracy = 50
 start_position = "O37"  # Center back right
 script = '''
 function make_decision()
@@ -84,6 +92,8 @@ name = "Defender A4"
 reaction_rate = 60
 speed_rate = 61
 tackle_rate = 68
+shot_power = 50
+shot_accuracy = 50
 start_position = "S37"  # Right back
 script = '''
 function make_decision()
@@ -102,6 +112,8 @@ name = "Midfielder A1"
 reaction_rate = 72
 speed_rate = 68
 tackle_rate = 62
+shot_power = 50
+shot_accuracy = 50
 start_position = "H31"  # Left midfielder
 script = '''
 function make_decision()
@@ -120,6 +132,8 @@ name = "Midfielder A2"
 reaction_rate = 75
 speed_rate = 65
 tackle_rate = 65
+shot_power = 50
+shot_accuracy = 50
 start_position = "M31"  # Center midfielder
 script = '''
 function make_decision()
@@ -138,6 +152,8 @@ name = "Midfielder A3"
 reaction_rate = 70
 speed_rate = 70
 tackle_rate = 60
+shot_power = 50
+shot_accuracy = 50
 start_position = "R31"  # Right midfielder
 script = '''
 function make_decision()
@@ -156,6 +172,8 @@ name = "Forward A1"
 reaction_rate = 78
 speed_rate = 82
 tackle_rate = 48
+shot_power = 50
+shot_accuracy = 50
 start_position = "G25"  # Left winger
 script = '''
 function make_decision()
@@ -174,6 +192,8 @@ name = "Forward A2"
 reaction_rate = 80
 speed_rate = 75
 tackle_rate = 52
+shot_power = 50
+shot_accuracy = 50
 start_position = "M25"  # Striker
 script = '''
 function make_decision()
@@ -192,6 +212,8 @@ name = "Forward A3"
 reaction_rate = 76
 speed_rate = 85
 tackle_rate = 45
+shot_power = 50
+shot_accuracy = 50
 start_position = "S25"  # Right winger
 script = '''
 function make_decision()
@@ -211,6 +233,8 @@ name = "Goalkeeper B"
 reaction_rate = 88
 speed_rate = 42
 tackle_rate = 92
+shot_power = 50
+shot_accuracy = 50
 start_position = "M42"  # Center of goal area (own orientation)
 script = '''
 function make_decision()
@@ -229,6 +253,8 @@ name = "Defender B1"
 reaction_rate = 64
 speed_rate = 60
 tackle_rate = 71
+shot_power = 50
+shot_accuracy = 50
 start_position = "G37"  # Left back
 script = '''
 function make_decision()
@@ -247,6 +273,8 @@ name = "Defender B2"
 reaction_rate = 70
 speed_rate = 53
 tackle_rate = 75
+shot_power = 50
+shot_accuracy = 50
 start_position = "K37"  # Center back left
 script = '''
 function make_decision()
@@ -265,6 +293,8 @@ name = "Defender B3"
 reaction_rate = 67
 speed_rate = 56
 tackle_rate = 73
+shot_power = 50
+shot_accuracy = 50
 start_position = "O37"  # Center back right
 script = '''
 function make_decision()
@@ -283,6 +313,8 @@ name = "Defender B4"
 reaction_rate = 63
 speed_rate = 62
 tackle_rate = 69
+shot_power = 50
+shot_accuracy = 50
 start_position = "S37"  # Right back
 script = '''
 function make_decision()
@@ -301,6 +333,8 @@ name = "Midfielder B1"
 reaction_rate = 74
 speed_rate = 70
 tackle_rate = 63
+shot_power = 50
+shot_accuracy = 50
 start_position = "H31"  # Left midfielder
 script = '''
 function make_decision()
@@ -319,6 +353,8 @@ name = "Midfielder B2"
 reaction_rate = 77
 speed_rate = 67
 tackle_rate = 66
+shot_power = 50
+shot_accuracy = 50
 start_position = "M31"  # Center midfielder
 script = '''
 function make_decision()
@@ -337,6 +373,8 @@ name = "Midfielder B3"
 reaction_rate = 71
 speed_rate = 72
 tackle_rate = 61
+shot_power = 50
+shot_accuracy = 50
 start_position = "R31"  # Right midfielder
 script = '''
 function make_decision()
@@ -355,6 +393,8 @@ name = "Forward B1"
 reaction_rate = 79
 speed_rate = 80
 tackle_rate = 49
+shot_power = 50
+shot_accuracy = 50
 start_position = "G25"  # Left winger
 script = '''
 function make_decision()
@@ -373,6 +413,8 @@ name = "Forward B2"
 reaction_rate = 82
 speed_rate = 78
 tackle_rate = 54
+shot_power = 50
+shot_accuracy = 50
 start_position = "M25"  # Striker
 script = '''
 function make_decision()
@@ -391,6 +433,8 @@ name = "Forward B3"
 reaction_rate = 75
 speed_rate = 88
 tackle_rate = 46
+shot_power = 50
+shot_accuracy = 50
 start_position = "S25"  # Right winger
 script = '''
 function make_decision()

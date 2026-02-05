@@ -170,7 +170,7 @@ mod tests {
             50,
             50,
             tackle_rate,
-            "function make_decision() return {} end".to_string(),
+            50, 50, "function make_decision() return {} end".to_string(),
             start_region,
         );
 

@@ -334,6 +334,8 @@ mod tests {
                 50,
                 50,
                 50,
+                50,
+                50,
                 script.to_string(),
                 start_region,
             )],

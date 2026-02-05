@@ -61,9 +61,9 @@ mod tests {
         .unwrap();
 
         let players = vec![
-            PlayerDef::new(Team::A, 1, "Player 1".to_string(), 100, 50, 50, "function make_decision() return {} end".to_string(), start_region.clone()),
-            PlayerDef::new(Team::A, 2, "Player 2".to_string(), 55, 50, 50, "function make_decision() return {} end".to_string(), start_region.clone()),
-            PlayerDef::new(Team::A, 3, "Player 3".to_string(), 10, 50, 50, "function make_decision() return {} end".to_string(), start_region.clone()),
+            PlayerDef::new(Team::A, 1, "Player 1".to_string(), 100, 50, 50, 50, 50, "function make_decision() return {} end".to_string(), start_region.clone()),
+            PlayerDef::new(Team::A, 2, "Player 2".to_string(), 55, 50, 50, 50, 50, "function make_decision() return {} end".to_string(), start_region.clone()),
+            PlayerDef::new(Team::A, 3, "Player 3".to_string(), 10, 50, 50, 50, 50, "function make_decision() return {} end".to_string(), start_region.clone()),
         ];
 
         let config = GameConfig {

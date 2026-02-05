@@ -13,11 +13,23 @@ pub struct PlayerConfig {
     pub speed_rate: u32,        // 10-100: player's movement speed
     #[serde(default = "default_tackle_rate")]
     pub tackle_rate: u32,       // 10-100: player's ball control ability
+    #[serde(default = "default_shot_power")]
+    pub shot_power: u32,        // 10-100: player's shot power
+    #[serde(default = "default_shot_accuracy")]
+    pub shot_accuracy: u32,     // 10-100: player's shot accuracy
     pub start_position: String, // Grid notation like "A1:B2"
     pub script: String,         // Lua script for decision making (mandatory)
 }
 
 fn default_tackle_rate() -> u32 {
+    50
+}
+
+fn default_shot_power() -> u32 {
+    50
+}
+
+fn default_shot_accuracy() -> u32 {
     50
 }
 
@@ -55,6 +67,8 @@ impl PlayerConfig {
             self.reaction_rate,
             self.speed_rate,
             self.tackle_rate,
+            self.shot_power,
+            self.shot_accuracy,
             self.script.clone(),
             start_region_absolute,
         ))
@@ -89,6 +103,8 @@ impl PlayerConfig {
             reaction_rate: player_def.reaction_rate,
             speed_rate: player_def.speed_rate,
             tackle_rate: player_def.tackle_rate,
+            shot_power: player_def.shot_power,
+            shot_accuracy: player_def.shot_accuracy,
             start_position: start_region_own.to_grid_notation(),
             script: player_def.script.clone(),
         })
@@ -186,6 +202,8 @@ mod tests {
             reaction_rate: 50,
             speed_rate: 50,
             tackle_rate: 50,
+            shot_power: 50,
+            shot_accuracy: 50,
             start_position: "C3:D4".to_string(),
             script: "function make_decision() return {} end".to_string(),
         };
@@ -213,7 +231,9 @@ mod tests {
                     name: "Goalkeeper".to_string(),
                     reaction_rate: 50,
                     speed_rate: 50,
-            tackle_rate: 50,
+                    tackle_rate: 50,
+            shot_power: 50,
+            shot_accuracy: 50,
                     start_position: "A22:B24".to_string(),
                     script: "function make_decision() return {} end".to_string(),
                 },
@@ -223,7 +243,9 @@ mod tests {
                     name: "Striker".to_string(),
                     reaction_rate: 50,
                     speed_rate: 50,
-            tackle_rate: 50,
+                    tackle_rate: 50,
+            shot_power: 50,
+            shot_accuracy: 50,
                     start_position: "Y22:Z24".to_string(),
                     script: "function make_decision() return {} end".to_string(),
                 },
@@ -254,6 +276,8 @@ mod tests {
             reaction_rate: 50,
             speed_rate: 50,
             tackle_rate: 50,
+            shot_power: 50,
+            shot_accuracy: 50,
             start_position: "C3:D4".to_string(),
             script: "function make_decision() return {} end".to_string(),
         };
@@ -275,6 +299,8 @@ mod tests {
             reaction_rate: 50,
             speed_rate: 50,
             tackle_rate: 50,
+            shot_power: 50,
+            shot_accuracy: 50,
             start_position: "INVALID".to_string(), // Invalid notation
             script: "function make_decision() return {} end".to_string(),
         };
@@ -296,6 +322,8 @@ mod tests {
             reaction_rate: 50,
             speed_rate: 50,
             tackle_rate: 50,
+            shot_power: 50,
+            shot_accuracy: 50,
             start_position: "A1:AA50".to_string(), // Out of bounds
             script: "function make_decision() return {} end".to_string(),
         };
@@ -317,6 +345,8 @@ mod tests {
                     reaction_rate: 50,
                     speed_rate: 50,
             tackle_rate: 50,
+            shot_power: 50,
+            shot_accuracy: 50,
                     start_position: "A22:B24".to_string(),
                     script: "function make_decision() return {} end".to_string(),
                 },
@@ -327,6 +357,8 @@ mod tests {
                     reaction_rate: 50,
                     speed_rate: 50,
             tackle_rate: 50,
+            shot_power: 50,
+            shot_accuracy: 50,
                     start_position: "Y22:Z24".to_string(),
                     script: "function make_decision() return {} end".to_string(),
                 },
@@ -364,6 +396,8 @@ mod tests {
                 reaction_rate: 50,
                 speed_rate: 50,
             tackle_rate: 50,
+            shot_power: 50,
+            shot_accuracy: 50,
                 start_position: "A1:B2".to_string(),
                 script: "function make_decision() return {} end".to_string(),
             }],
@@ -389,6 +423,8 @@ mod tests {
             reaction_rate: 50,
             speed_rate: 50,
             tackle_rate: 50,
+            shot_power: 50,
+            shot_accuracy: 50,
             start_position: "M42".to_string(), // Own orientation: near their goal
             script: "function make_decision() return {} end".to_string(),
         };
@@ -409,6 +445,8 @@ mod tests {
             reaction_rate: 50,
             speed_rate: 50,
             tackle_rate: 50,
+            shot_power: 50,
+            shot_accuracy: 50,
             start_position: "M42".to_string(),
             script: "function make_decision() return {} end".to_string(),
         };
@@ -432,6 +470,8 @@ mod tests {
             reaction_rate: 50,
             speed_rate: 50,
             tackle_rate: 50,
+            shot_power: 50,
+            shot_accuracy: 50,
             start_position: "M25".to_string(), // Own orientation
             script: "function make_decision() return {} end".to_string(),
         };
@@ -540,6 +580,8 @@ mod tests {
             reaction_rate: 50,
             speed_rate: 50,
             tackle_rate: 50,
+            shot_power: 50,
+            shot_accuracy: 50,
             start_position: "M42".to_string(),
             script: "function make_decision()\n    return { action = \"custom\" }\nend".to_string(),
         };
@@ -551,6 +593,8 @@ mod tests {
             reaction_rate: 50,
             speed_rate: 50,
             tackle_rate: 50,
+            shot_power: 50,
+            shot_accuracy: 50,
             start_position: "M42".to_string(),
             script: "function make_decision() return {} end".to_string(),
         };
@@ -578,6 +622,87 @@ mod tests {
         // Check custom script content
         assert!(parsed.players[0].script.contains("custom"), "Player 1 should have custom script");
         assert!(parsed.players[1].script.contains("function make_decision"), "Player 2 should have a valid script");
+    }
+
+    #[test]
+    fn test_shot_characteristics_serialization() {
+        let field = Field::from_meters(60.0, 100.0, 26, 44);
+        let grid_dims = field.grid_dimensions();
+
+        // Create config with specific shot characteristics
+        let config = PlayerConfig {
+            team: "A".to_string(),
+            number: 10,
+            name: "Striker".to_string(),
+            reaction_rate: 50,
+            speed_rate: 50,
+            tackle_rate: 50,
+            shot_power: 85,
+            shot_accuracy: 75,
+            start_position: "M25".to_string(),
+            script: "function make_decision() return {} end".to_string(),
+        };
+
+        // Convert to PlayerDef
+        let player_def = config.to_player_def(grid_dims).unwrap();
+        assert_eq!(player_def.shot_power, 85);
+        assert_eq!(player_def.shot_accuracy, 75);
+
+        // Convert back to PlayerConfig
+        let config_back = PlayerConfig::from_player_def(&player_def).unwrap();
+        assert_eq!(config_back.shot_power, 85);
+        assert_eq!(config_back.shot_accuracy, 75);
+    }
+
+    #[test]
+    fn test_shot_characteristics_toml_roundtrip() {
+        let config = SerializableGameConfig {
+            players: vec![
+                PlayerConfig {
+                    team: "A".to_string(),
+                    number: 9,
+                    name: "Forward".to_string(),
+                    reaction_rate: 60,
+                    speed_rate: 70,
+                    tackle_rate: 40,
+                    shot_power: 90,
+                    shot_accuracy: 80,
+                    start_position: "M20".to_string(),
+                    script: "function make_decision() return {} end".to_string(),
+                },
+            ],
+            team_a_preamble: String::new(),
+            team_b_preamble: String::new(),
+        };
+
+        // Serialize to TOML
+        let toml_str = config.to_toml().unwrap();
+        assert!(toml_str.contains("shot_power = 90"));
+        assert!(toml_str.contains("shot_accuracy = 80"));
+
+        // Deserialize back
+        let parsed = SerializableGameConfig::from_toml(&toml_str).unwrap();
+        assert_eq!(parsed.players[0].shot_power, 90);
+        assert_eq!(parsed.players[0].shot_accuracy, 80);
+    }
+
+    #[test]
+    fn test_shot_characteristics_defaults() {
+        // Test that missing shot_power and shot_accuracy get default values
+        let toml_without_shot_fields = r#"
+            [[players]]
+            team = "A"
+            number = 1
+            name = "Test Player"
+            reaction_rate = 50
+            speed_rate = 50
+            start_position = "M42"
+            script = "function make_decision() return {} end"
+        "#;
+
+        let result = SerializableGameConfig::from_toml(toml_without_shot_fields).unwrap();
+        assert_eq!(result.players[0].shot_power, 50, "Default shot_power should be 50");
+        assert_eq!(result.players[0].shot_accuracy, 50, "Default shot_accuracy should be 50");
     }
 
     #[test]
