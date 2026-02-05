@@ -393,14 +393,14 @@ mod tests {
         let game = Game::new(config);
         
         // Create ScriptedDecisionMaker
-        let json_maker = ScriptedDecisionMaker::new(&game)
+        let scripted_maker = ScriptedDecisionMaker::new(&game)
             .expect("Failed to create ScriptedDecisionMaker");
 
-        // Build world with JSON decision maker
+        // Build world with scripted decision maker
         let mut world = World::new(game);
         world.add_system(Box::new(PlayerReactionSystem));
         world.add_system(Box::new(
-            DecisionSystem::new().with_decision_maker(Box::new(json_maker)),
+            DecisionSystem::new().with_decision_maker(Box::new(scripted_maker)),
         ));
         world.add_system(Box::new(ActionSystem));
         world.add_system(Box::new(PhysicsSystem::new()));
@@ -464,13 +464,13 @@ mod tests {
 
         let game = Game::new(config);
         
-        let json_maker = ScriptedDecisionMaker::new(&game)
+        let scripted_maker = ScriptedDecisionMaker::new(&game)
             .expect("Failed to create ScriptedDecisionMaker");
 
         let mut world = World::new(game);
         world.add_system(Box::new(PlayerReactionSystem));
         world.add_system(Box::new(
-            DecisionSystem::new().with_decision_maker(Box::new(json_maker)),
+            DecisionSystem::new().with_decision_maker(Box::new(scripted_maker)),
         ));        // Run simulation - should not crash despite error
         for _ in 0..60 {
             world.step(1.0 / 60.0);
