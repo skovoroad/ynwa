@@ -538,3 +538,382 @@ The main challenges are:
 - **Total: 3-4 weeks** for solid implementation
 
 This is a **manageable scope** that doesn't require architectural redesign.
+
+---
+
+## 3. Client-Server Architecture and Network Protocol
+
+### Data Size Analysis
+
+For network transmission, we need to send game state updates to clients. Let's calculate the data requirements:
+
+#### GameState Structure
+```rust
+pub struct GameState {
+    pub elapsed_time: f32,              // 4 bytes
+    pub player_states: Vec<PlayerState>, // 22 players
+    pub ball_state: BallState,           // ~40 bytes
+    pub referee_states: Vec<RefereeState>,
+}
+```
+
+#### PlayerState per Player
+```rust
+pub struct PlayerState {
+    pub position: Point3D,          // 3 × f32 = 12 bytes
+    pub velocity: Velocity3D,       // 3 × f32 = 12 bytes
+    pub last_decision_time: f32,    // 4 bytes
+    pub needs_decision: bool,       // 1 byte
+    pub current_decision: Option<Decision>, // ~20-50 bytes
+    pub decision_processed: bool,   // 1 byte
+    pub last_error: Option<String>, // variable size
+}
+```
+
+**Size per player: ~50-80 bytes** (without errors and full decisions)  
+**22 players: ~1100-1760 bytes**  
+**Ball: ~40 bytes**  
+**Metadata: ~100 bytes**
+
+**Total per frame: ~1.2-2 KB**
+
+---
+
+### Network Transmission Scenarios
+
+#### **Option 1: Full State Every Frame**
+
+**What to send:**
+```json
+{
+  "timestamp": 45.67,
+  "players": [
+    {"id": 0, "pos": [10.5, 0, 20.3], "vel": [1.2, 0, 0.8]},
+    {"id": 1, "pos": [15.2, 0, 18.1], "vel": [0.5, 0, -0.3]},
+    ...
+  ],
+  "ball": {"pos": [50.0, 0.1, 30.0], "vel": [2.0, 0.5, 1.0], "owner": 5}
+}
+```
+
+**Size:** ~1.5-2 KB in JSON, ~800-1200 bytes in binary format (MessagePack/Protobuf)
+
+**Update frequency bandwidth:**
+- **60 FPS:** 1.5 KB × 60 = **90 KB/sec = 720 Kbps** per client
+- **30 FPS:** 1.5 KB × 30 = **45 KB/sec = 360 Kbps** per client
+- **20 FPS:** 1.5 KB × 20 = **30 KB/sec = 240 Kbps** per client
+
+**For 1000 spectators:**
+- 60 FPS: **90 MB/sec = 720 Mbps**
+- 30 FPS: **45 MB/sec = 360 Mbps**
+- 20 FPS: **30 MB/sec = 240 Mbps**
+
+✅ **Feasible for modern servers and networks!**
+
+#### **Option 2: Delta Updates**
+
+**Concept:** Only send changes since last frame
+
+```json
+{
+  "frame": 2734,
+  "delta": {
+    "players": {
+      "0": {"pos": [10.52, 0, 20.31]},  // only position changed
+      "5": {"vel": [0, 0, 0]}           // stopped
+    },
+    "ball": {"owner": 7}  // possession changed
+  }
+}
+```
+
+**Size:** ~200-500 bytes (on average 5-10 players change per frame)
+
+**Bandwidth:**
+- **60 FPS:** 0.3 KB × 60 = **18 KB/sec = 144 Kbps**
+- **30 FPS:** 0.3 KB × 30 = **9 KB/sec = 72 Kbps**
+
+**For 1000 spectators:**
+- 60 FPS: **18 MB/sec = 144 Mbps**
+- 30 FPS: **9 MB/sec = 72 Mbps**
+
+✅ **Excellent scalability!**
+
+#### **Option 3: Hybrid Approach (Recommended)**
+
+**Strategy:**
+1. **Initial connection:** Full checkpoint (1.5 KB)
+2. **Regular updates:** Delta updates every 33ms (30 FPS)
+3. **Periodic checkpoints:** Full state every 2-5 seconds (for synchronization)
+
+**Size calculation:**
+- Initial: 1.5 KB
+- Deltas: 0.3 KB × 30 = 9 KB/sec
+- Checkpoint (every 3 sec): +0.5 KB/sec
+- **Total: ~10 KB/sec = 80 Kbps** per client
+
+✅ **Perfect balance!**
+
+---
+
+### Network Serialization Implementation
+
+The serialization approach from this document is **ideal** for client-server! Small additions needed:
+
+```rust
+// Add Serialize/Deserialize to core structures
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PlayerState {
+    pub position: Point3D,
+    pub velocity: Velocity3D,
+    // Note: last_decision_time, needs_decision etc. are NOT needed by clients!
+    // Can use #[serde(skip)] for them
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BallState {
+    pub position: Point3D,
+    pub velocity: Velocity3D,
+    pub possessed_by: Option<usize>,
+}
+
+// Compact version for network
+#[derive(Serialize, Deserialize)]
+pub struct NetworkGameState {
+    pub timestamp: f32,
+    pub players: Vec<NetworkPlayerState>,
+    pub ball: NetworkBallState,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct NetworkPlayerState {
+    pub pos: [f32; 3],  // more compact than Point3D with units
+    pub vel: [f32; 3],
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct NetworkBallState {
+    pub pos: [f32; 3],
+    pub vel: [f32; 3],
+    pub owner: Option<u8>,  // u8 instead of usize
+}
+```
+
+---
+
+### Network Protocol Options
+
+#### **Option 1: WebSocket + MessagePack**
+```rust
+use tokio_tungstenite::{connect_async, WebSocketStream};
+use rmp_serde as rmps;
+
+async fn send_state_to_clients(state: &GameState, clients: &[WebSocket]) {
+    let network_state = NetworkGameState::from(state);
+    let bytes = rmps::to_vec(&network_state).unwrap();
+    
+    for client in clients {
+        client.send(Message::Binary(bytes.clone())).await;
+    }
+}
+```
+
+**Size:** ~800 bytes (binary MessagePack)  
+✅ Browser support  
+✅ Binary data  
+✅ Bidirectional communication
+
+#### **Option 2: UDP + Custom Game Protocol**
+```rust
+use tokio::net::UdpSocket;
+
+async fn broadcast_state(socket: &UdpSocket, state: &GameState, clients: &[SocketAddr]) {
+    let packet = serialize_state(state);
+    
+    for addr in clients {
+        socket.send_to(&packet, addr).await;
+    }
+}
+```
+
+**Size:** ~500-700 bytes (custom protocol)  
+✅ Minimal latency  
+✅ Packet loss not critical (next update in 33ms)  
+❌ Doesn't work in browsers
+
+#### **Option 3: HTTP/2 Server-Sent Events (SSE)**
+```rust
+use axum::{
+    response::sse::{Event, Sse},
+};
+
+async fn stream_game_state(State(game): State<Arc<Mutex<Game>>>) 
+    -> Sse<impl Stream<Item = Result<Event, Infallible>>> 
+{
+    let stream = tokio_stream::wrappers::IntervalStream::new(
+        interval(Duration::from_millis(33))
+    )
+    .map(move |_| {
+        let state = game.lock().unwrap();
+        let json = serde_json::to_string(&state).unwrap();
+        Ok(Event::default().data(json))
+    });
+    
+    Sse::new(stream)
+}
+```
+
+**Size:** ~1.5-2 KB (JSON)  
+✅ Simple implementation  
+✅ Works in browsers  
+❌ More overhead
+
+---
+
+### Recommended Server Architecture
+
+```rust
+// Server
+struct GameServer {
+    games: Arc<RwLock<HashMap<GameId, World>>>,
+    clients: Arc<RwLock<HashMap<ClientId, ClientConnection>>>,
+}
+
+struct ClientConnection {
+    websocket: WebSocket,
+    subscribed_games: Vec<GameId>,
+    last_checkpoint: Instant,
+}
+
+impl GameServer {
+    async fn simulation_loop(&self) {
+        let mut interval = interval(Duration::from_millis(16)); // 60 FPS simulation
+        
+        loop {
+            interval.tick().await;
+            
+            // Parallel computation of all games (rayon)
+            let games = self.games.read().unwrap();
+            games.par_iter_mut().for_each(|(_, world)| {
+                world.step(0.016);
+            });
+            
+            // Send updates to clients (tokio)
+            self.broadcast_updates().await;
+        }
+    }
+    
+    async fn broadcast_updates(&self) {
+        let games = self.games.read().unwrap();
+        let clients = self.clients.read().unwrap();
+        
+        for (client_id, conn) in clients.iter() {
+            for game_id in &conn.subscribed_games {
+                if let Some(world) = games.get(game_id) {
+                    let state = world.game().state();
+                    
+                    // Delta or checkpoint?
+                    let update = if conn.needs_checkpoint() {
+                        NetworkUpdate::Checkpoint(state.to_network())
+                    } else {
+                        NetworkUpdate::Delta(state.delta_from_last())
+                    };
+                    
+                    let bytes = rmps::to_vec(&update).unwrap();
+                    conn.websocket.send(Message::Binary(bytes)).await;
+                }
+            }
+        }
+    }
+}
+```
+
+---
+
+### Scalability Analysis
+
+#### **Single-threaded Server (baseline)**
+- **Simulation:** 1000 games × 0.1ms = 100ms (10 FPS for all games)
+- **Network:** 1000 clients × 10 KB/s = 10 MB/s = 80 Mbps
+- ❌ Does not scale
+
+#### **Parallel Simulation (rayon)**
+- **Simulation:** 1000 games / 8 cores = 125 games per core × 0.1ms = 12.5ms (80 FPS)
+- **Network:** 1000 clients × 10 KB/s = 10 MB/s = 80 Mbps
+- ✅ **10,000 games on 64-core server**
+- ✅ **10,000 clients = 100 MB/s = 800 Mbps** (modern servers: 1-10 Gbps)
+
+#### **Distributed Architecture**
+```
+        Load Balancer
+             |
+    +--------+--------+
+    |        |        |
+Game Server 1  GS2   GS3  (3000 games each)
+    |        |        |
+    +--------+--------+
+             |
+       Redis PubSub
+             |
+    +--------+--------+
+    |        |        |
+  WS1      WS2      WS3  (WebSocket servers)
+   (3000    (3000   (3000 clients each)
+   clients) clients) clients)
+```
+
+✅ **Scales to 100,000+ games and millions of spectators!**
+
+---
+
+### Network Optimizations
+
+#### 1. Compression (zstd/lz4)
+- 800 bytes → 200-300 bytes
+- **4x bandwidth savings**
+
+#### 2. Adaptive Frame Rate
+- Active gameplay: 60 FPS
+- Slow movement: 20 FPS
+- Paused: 1 FPS
+
+#### 3. Priorities
+- Players near ball: high precision
+- Players far away: client-side interpolation
+
+#### 4. Client-side Interpolation
+- Server: 20 FPS (50ms between frames)
+- Client: interpolation → smooth 60 FPS
+
+---
+
+### Implementation Summary
+
+#### **Is this feasible with our approach?**
+- ✅ **YES!** Architecture from this document is ideal
+- ✅ Serialization via serde works out-of-the-box
+- ✅ Determinism + replication = reliable synchronization
+
+#### **Is this scalable?**
+- ✅ **1 game:** 10 KB/s × 2 clients = **20 KB/s = 160 Kbps**
+- ✅ **1000 games:** 10 MB/s × 2000 clients = **20 MB/s = 160 Mbps** (easy!)
+- ✅ **10,000 spectators for one game:** 10 KB/s × 10,000 = **100 MB/s = 800 Mbps**
+- ✅ With CDN and compression: **millions of spectators**
+
+#### **Required Changes:**
+1. Add `#[derive(Serialize, Deserialize)]` to structures (1 day)
+2. Create `NetworkGameState` (compact version) (1 day)
+3. Implement delta updates (2-3 days)
+4. WebSocket server (tokio-tungstenite) (2-3 days)
+5. Load testing (1 week)
+
+**Total: 2-3 weeks to production-ready solution!** 🎉
+
+#### **Concrete Bandwidth Metrics:**
+- **Single game broadcast to 2 players:** 160 Kbps (trivial)
+- **1000 concurrent games with 2 players each:** 160 Mbps (standard server)
+- **Single game with 10,000 spectators:** 800 Mbps (needs optimization)
+- **With delta updates and compression:** 200 Mbps for 10,000 spectators
+- **With CDN for popular games:** unlimited spectators
+
+The architecture is **production-ready for client-server gaming** with minimal modifications!
