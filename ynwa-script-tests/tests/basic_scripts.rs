@@ -168,6 +168,7 @@ fn test_context_structure() {
             else
                 if not context.me.team then table.insert(missing, "context.me.team") end
                 if not context.me.number then table.insert(missing, "context.me.number") end
+                if not context.me.index then table.insert(missing, "context.me.index") end
                 if not context.me.position then table.insert(missing, "context.me.position") end
                 if context.me.position then
                     if not context.me.position.x then table.insert(missing, "context.me.position.x") end

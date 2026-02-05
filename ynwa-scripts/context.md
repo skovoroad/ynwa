@@ -34,7 +34,8 @@ context = {
     -- Current player information
     me = {
         team = "A",           -- Player's team: "A" or "B"
-        number = 10,          -- Player number in the team
+        number = 10,          -- Player number in the team (jersey number, 1-99)
+        index = 5,            -- Global player index (0-21, position in players array)
         position = {
             x = 15.5,         -- X coordinate (meters)
             y = 0.0,          -- Height (meters)
@@ -99,6 +100,27 @@ context = {
    - X: along the field (length)
    - Y: height above field
    - Z: across the field (width)
+
+#### Player Identification: Two Methods
+
+There are two ways to identify players in the game:
+
+1. **Global Index (`index`)** - Technical identifier (0-21)
+   - Used internally by the game engine
+   - Position in the players array (Team A: 0-10, Team B: 11-21)
+   - **Use for:** Comparing with `context.ball.owner_index`, matching with `teammates[i].index`
+   - **Example:** Check if I own the ball: `context.me.index == context.ball.owner_index`
+
+2. **Team + Number (`team`, `number`)** - Domain identifier
+   - `team`: "A" or "B"
+   - `number`: Jersey number (1-99, arbitrary, can be non-unique)
+   - **Use for:** Human-readable player identification, game configuration
+   - **Example:** "Player #10 from Team A"
+
+**Important:** 
+- For internal comparisons (ball ownership, finding specific player) → use `index`
+- For display and configuration → use `team` + `number`
+- `context.ball.owner_index` contains global index, not number
 
 ### 2.3 Output Data: Decision Formats
 

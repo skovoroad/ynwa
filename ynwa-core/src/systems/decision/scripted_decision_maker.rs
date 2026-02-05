@@ -78,6 +78,7 @@ impl ScriptedDecisionMaker {
             "me": {
                 "team": format!("{:?}", player_team),
                 "number": player_def.number,
+                "index": player_index,
                 "position": Self::position_to_json(&player_state.position, player_team, field_width, field_length)
             },
             "teammates": Self::build_team_positions(
