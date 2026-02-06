@@ -4,6 +4,7 @@ mod simulation;
 mod ui;
 
 use macroquad::prelude::*;
+use std::env;
 use std::path::Path;
 use uom::si::length::meter;
 use ynwa_core::create_football_world_from_file;
@@ -25,7 +26,14 @@ fn window_conf() -> Conf {
 
 #[macroquad::main(window_conf)]
 async fn main() {
-    let config_path = Path::new("config/default_game.toml");
+    // Получаем путь к конфигу из аргументов
+    let args: Vec<String> = env::args().collect();
+    let config_path = if args.len() > 1 {
+        Path::new(&args[1])
+    } else {
+        Path::new("config/default_game.toml")
+    };
+
     let mut world =
         create_football_world_from_file(config_path).expect("Failed to load game configuration");
 

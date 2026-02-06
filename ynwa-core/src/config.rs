@@ -115,10 +115,16 @@ impl PlayerConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SerializableGameConfig {
     pub players: Vec<PlayerConfig>,
+    /// Paths to preamble files (optional, will use defaults if not specified)
     #[serde(default)]
-    pub team_a_preamble: String,
+    pub core_preamble_path: Option<String>,
     #[serde(default)]
-    pub team_b_preamble: String,
+    pub stdlib_preamble_path: Option<String>,
+    #[serde(default)]
+    pub team_a_preamble_path: Option<String>,
+    #[serde(default)]
+    pub team_b_preamble_path: Option<String>,
+    // ...existing code...
 }
 
 impl SerializableGameConfig {
@@ -155,16 +161,45 @@ impl SerializableGameConfig {
             players.push(player_config.to_player_def(grid_dims)?);
         }
 
+        // Load preambles from files if paths are specified
+        let core_preamble = if let Some(path) = &self.core_preamble_path {
+            std::fs::read_to_string(path)
+                .map_err(|e| format!("Failed to read core preamble from '{}': {}", path, e))?
+        } else {
+            String::new()
+        };
+
+        let stdlib_preamble = if let Some(path) = &self.stdlib_preamble_path {
+            std::fs::read_to_string(path)
+                .map_err(|e| format!("Failed to read stdlib preamble from '{}': {}", path, e))?
+        } else {
+            String::new()
+        };
+
+        let team_a_preamble = if let Some(path) = &self.team_a_preamble_path {
+            std::fs::read_to_string(path)
+                .map_err(|e| format!("Failed to read team A preamble from '{}': {}", path, e))?
+        } else {
+            String::new()
+        };
+
+        let team_b_preamble = if let Some(path) = &self.team_b_preamble_path {
+            std::fs::read_to_string(path)
+                .map_err(|e| format!("Failed to read team B preamble from '{}': {}", path, e))?
+        } else {
+            String::new()
+        };
+
         Ok(GameConfig {
             field,
             players,
             ball: crate::game::BallDef::default(),
             referees: vec![crate::game::RefereeDef::default()],
             scripting: crate::game::ScriptingConfig {
-                core_preamble: String::new(),
-                stdlib_preamble: String::new(),
-                team_a_preamble: self.team_a_preamble.clone(),
-                team_b_preamble: self.team_b_preamble.clone(),
+                core_preamble,
+                stdlib_preamble,
+                team_a_preamble,
+                team_b_preamble,
             },
         })
     }
@@ -179,8 +214,10 @@ impl SerializableGameConfig {
 
         Ok(Self {
             players,
-            team_a_preamble: game_config.scripting.team_a_preamble.clone(),
-            team_b_preamble: game_config.scripting.team_b_preamble.clone(),
+            core_preamble_path: None,
+            stdlib_preamble_path: None,
+            team_a_preamble_path: None,
+            team_b_preamble_path: None,
         })
     }
 }
@@ -250,8 +287,10 @@ mod tests {
                     script: "function make_decision() return {} end".to_string(),
                 },
             ],
-            team_a_preamble: String::new(),
-            team_b_preamble: String::new(),
+            core_preamble_path: None,
+            stdlib_preamble_path: None,
+            team_a_preamble_path: None,
+            team_b_preamble_path: None,
         };
 
         let toml_str = config.to_toml().unwrap();
@@ -363,8 +402,10 @@ mod tests {
                     script: "function make_decision() return {} end".to_string(),
                 },
             ],
-            team_a_preamble: String::new(),
-            team_b_preamble: String::new(),
+            core_preamble_path: None,
+            stdlib_preamble_path: None,
+            team_a_preamble_path: None,
+            team_b_preamble_path: None,
         };
 
         // Convert to GameConfig
@@ -401,8 +442,10 @@ mod tests {
                 start_position: "A1:B2".to_string(),
                 script: "function make_decision() return {} end".to_string(),
             }],
-            team_a_preamble: String::new(),
-            team_b_preamble: String::new(),
+            core_preamble_path: None,
+            stdlib_preamble_path: None,
+            team_a_preamble_path: None,
+            team_b_preamble_path: None,
         };
 
         let result = config.to_game_config(field);
@@ -601,8 +644,10 @@ mod tests {
 
         let serializable = SerializableGameConfig {
             players: vec![config_with_custom_script.clone(), config_with_placeholder.clone()],
-            team_a_preamble: String::new(),
-            team_b_preamble: String::new(),
+            core_preamble_path: None,
+            stdlib_preamble_path: None,
+            team_a_preamble_path: None,
+            team_b_preamble_path: None,
         };
 
         // Serialize to TOML
@@ -671,8 +716,10 @@ mod tests {
                     script: "function make_decision() return {} end".to_string(),
                 },
             ],
-            team_a_preamble: String::new(),
-            team_b_preamble: String::new(),
+            core_preamble_path: None,
+            stdlib_preamble_path: None,
+            team_a_preamble_path: None,
+            team_b_preamble_path: None,
         };
 
         // Serialize to TOML
