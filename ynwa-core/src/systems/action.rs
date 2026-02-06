@@ -157,9 +157,6 @@ impl System for ActionSystem {
                                 
                                 // Release possession
                                 game.state.ball_state.possessed_by = None;
-                                
-                                // Player stops after kick
-                                game.state.player_states[player_index].velocity = Velocity3D::default();
                             }
                             // If player doesn't own ball, ignore kick decision (no action)
                         }
@@ -412,8 +409,7 @@ mod tests {
         // Possession should be released
         assert_eq!(game.state.ball_state.possessed_by, None);
         
-        // Player should stop
-        assert_eq!(game.state.player_states[0].velocity.x.get::<meter_per_second>(), 0.0);
+        // Decision should be processed
         assert!(game.state.player_states[0].decision_processed);
     }
 
@@ -560,5 +556,40 @@ mod tests {
         
         // Decision should still be marked as processed
         assert!(game.state.player_states[1].decision_processed);
+    }
+
+    #[test]
+    fn test_kick_preserves_player_velocity() {
+        let mut game = create_test_game_with_player_stats(100, 50, 50, 100, 100);
+        
+        // Set player as ball owner
+        game.state.ball_state.possessed_by = Some(0);
+        game.state.ball_state.position = Point3D::from_meters(50.0, 30.0, 0.0);
+        
+        // Give player some velocity (running)
+        let player_velocity = Velocity3D::from_meters_per_second(3.0, 0.0, 2.0);
+        game.state.player_states[0].velocity = player_velocity;
+        
+        // Player kicks while running
+        let target = Point3D::from_meters(60.0, 30.0, 0.0);
+        game.state.player_states[0].current_decision = Some(Decision::Kick(target));
+        game.state.player_states[0].decision_processed = false;
+        
+        let mut system = ActionSystem::with_rng(|| 0.5);
+        system.update(&mut game, 0.0);
+        
+        // Ball should move
+        let ball_vel = &game.state.ball_state.velocity;
+        assert!(ball_vel.x.get::<meter_per_second>() > 0.0);
+        
+        // Possession should be released
+        assert_eq!(game.state.ball_state.possessed_by, None);
+        
+        // Player velocity should be UNCHANGED (continues running)
+        assert_eq!(game.state.player_states[0].velocity.x.get::<meter_per_second>(), 3.0);
+        assert_eq!(game.state.player_states[0].velocity.y.get::<meter_per_second>(), 0.0);
+        assert_eq!(game.state.player_states[0].velocity.z.get::<meter_per_second>(), 2.0);
+        
+        assert!(game.state.player_states[0].decision_processed);
     }
 }
