@@ -8,6 +8,9 @@ use uom::si::length::meter;
 #[cfg(test)]
 use uom::si::velocity::meter_per_second;
 
+#[cfg(test)]
+use crate::physics_util::{KICK_POWER_DIVISOR, KICK_POWER_VARIATION_MIN, KICK_POWER_VARIATION_MAX};
+
 // Maximum player speed when speed_rate = 100 (roughly 36 km/h, realistic for professional football)
 const MAX_SPEED_METERS_PER_SECOND: f32 = 10.0;
 
@@ -401,9 +404,10 @@ mod tests {
         let vx = ball_vel.x.get::<meter_per_second>();
         let vz = ball_vel.z.get::<meter_per_second>();
         
-        // shot_power=100, rng=0.5 → 10.0 m/s
+        // shot_power=100, rng=0.5 → base velocity (no variation)
         // shot_accuracy=100, rng=0.5 → no deviation, straight along X
-        assert!((vx - 10.0).abs() < 0.01);
+        let expected_velocity = 100.0 / KICK_POWER_DIVISOR;
+        assert!((vx - expected_velocity).abs() < 0.01);
         assert!(vz.abs() < 0.01);
         
         // Possession should be released
@@ -437,8 +441,9 @@ mod tests {
         let ball_vel = &game.state.ball_state.velocity;
         let vx = ball_vel.x.get::<meter_per_second>();
         
-        // shot_power=100, rng=0.0 → 7.5 m/s (-25%)
-        assert!((vx - 7.5).abs() < 0.01);
+        // shot_power=100, rng=0.0 → min variation
+        let expected_velocity = (100.0 / KICK_POWER_DIVISOR) * KICK_POWER_VARIATION_MIN;
+        assert!((vx - expected_velocity).abs() < 0.01);
         assert_eq!(game.state.ball_state.possessed_by, None);
     }
 
@@ -466,8 +471,9 @@ mod tests {
         let ball_vel = &game.state.ball_state.velocity;
         let vx = ball_vel.x.get::<meter_per_second>();
         
-        // shot_power=100, rng=1.0 → 12.5 m/s (+25%)
-        assert!((vx - 12.5).abs() < 0.01);
+        // shot_power=100, rng=1.0 → max variation
+        let expected_velocity = (100.0 / KICK_POWER_DIVISOR) * KICK_POWER_VARIATION_MAX;
+        assert!((vx - expected_velocity).abs() < 0.01);
         assert_eq!(game.state.ball_state.possessed_by, None);
     }
 
@@ -498,9 +504,11 @@ mod tests {
         
         // shot_accuracy=10, rng=1.0 → +45 degrees deviation
         // 45° rotation: cos(45°)≈0.707, sin(45°)≈0.707
-        // Velocity magnitude: 10.0 m/s
-        assert!((vx - 7.07).abs() < 0.1); // 10.0 * 0.707
-        assert!((vz - 7.07).abs() < 0.1); // 10.0 * 0.707
+        let base_velocity = 100.0 / KICK_POWER_DIVISOR;
+        let expected_vx = base_velocity * 0.707;
+        let expected_vz = base_velocity * 0.707;
+        assert!((vx - expected_vx).abs() < 0.1);
+        assert!((vz - expected_vz).abs() < 0.1);
         assert_eq!(game.state.ball_state.possessed_by, None);
     }
 

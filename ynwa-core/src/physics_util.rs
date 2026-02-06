@@ -2,6 +2,14 @@ use crate::field::zones::Point3D;
 use uom::si::f32::Length;
 use uom::si::length::meter;
 
+/// Kick power conversion factor: shot_power is divided by this to get base m/s
+/// shot_power=100 → base velocity = 100/KICK_POWER_DIVISOR m/s
+pub const KICK_POWER_DIVISOR: f32 = 5.0;
+
+/// Kick power variation range (±25% around base)
+pub const KICK_POWER_VARIATION_MIN: f32 = 0.75; // -25%
+pub const KICK_POWER_VARIATION_MAX: f32 = 1.25; // +25%
+
 /// Calculate distance between two 3D points (returns raw f32 in meters)
 pub fn distance(a: &Point3D, b: &Point3D) -> f32 {
     let dx = a.x.get::<meter>() - b.x.get::<meter>();
@@ -15,10 +23,10 @@ pub fn distance_length(a: &Point3D, b: &Point3D) -> Length {
     Length::new::<meter>(distance(a, b))
 }
 
-/// Calculate kick velocity: shot_power/10 * (0.75 + rng*0.5) → base ±25% variation
+/// Calculate kick velocity: shot_power/KICK_POWER_DIVISOR * (0.75 + rng*0.5) → base ±25% variation
 pub fn calculate_kick_velocity(shot_power: u32, rng_value: f32) -> f32 {
-    let base_speed = shot_power as f32 / 10.0; // shot_power=100 → 10 m/s
-    let variation = 0.75 + rng_value * 0.5; // 0.75 to 1.25 (±25%)
+    let base_speed = shot_power as f32 / KICK_POWER_DIVISOR;
+    let variation = KICK_POWER_VARIATION_MIN + rng_value * (KICK_POWER_VARIATION_MAX - KICK_POWER_VARIATION_MIN);
     base_speed * variation
 }
 
@@ -118,27 +126,31 @@ mod tests {
 
     #[test]
     fn test_kick_velocity_base_calculation() {
-        // shot_power=100, no variation (rng=0.5) → 10.0 m/s
+        // shot_power=100, no variation (rng=0.5)
         let velocity = calculate_kick_velocity(100, 0.5);
-        assert!((velocity - 10.0).abs() < 0.001);
+        let expected = 100.0 / KICK_POWER_DIVISOR; // Base speed without variation
+        assert!((velocity - expected).abs() < 0.001);
         
-        // shot_power=50, no variation → 5.0 m/s
+        // shot_power=50, no variation
         let velocity = calculate_kick_velocity(50, 0.5);
-        assert!((velocity - 5.0).abs() < 0.001);
+        let expected = 50.0 / KICK_POWER_DIVISOR;
+        assert!((velocity - expected).abs() < 0.001);
     }
 
     #[test]
     fn test_kick_velocity_min_variation() {
-        // shot_power=100, min variation (rng=0.0) → 7.5 m/s (-25%)
+        // shot_power=100, min variation (rng=0.0)
         let velocity = calculate_kick_velocity(100, 0.0);
-        assert!((velocity - 7.5).abs() < 0.001);
+        let expected = (100.0 / KICK_POWER_DIVISOR) * KICK_POWER_VARIATION_MIN;
+        assert!((velocity - expected).abs() < 0.001);
     }
 
     #[test]
     fn test_kick_velocity_max_variation() {
-        // shot_power=100, max variation (rng=1.0) → 12.5 m/s (+25%)
+        // shot_power=100, max variation (rng=1.0)
         let velocity = calculate_kick_velocity(100, 1.0);
-        assert!((velocity - 12.5).abs() < 0.001);
+        let expected = (100.0 / KICK_POWER_DIVISOR) * KICK_POWER_VARIATION_MAX;
+        assert!((velocity - expected).abs() < 0.001);
     }
 
     #[test]
