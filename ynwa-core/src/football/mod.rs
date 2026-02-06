@@ -94,8 +94,8 @@ fn create_football_game_config_from_file(path: &std::path::Path) -> Result<GameC
     let field = create_football_field();
 
     // Resolve preamble paths relative to config file directory
-    let config_dir = path.parent().unwrap_or(std::path::Path::new("."));
-    let game_config = config.to_game_config_with_base(field, config_dir)?;
+    let config_dir = path.parent();
+    let game_config = config.to_game_config(field, config_dir)?;
 
     // Set ball initial position to center_spot (football rule)
     let mut game_config = game_config;
@@ -109,7 +109,9 @@ fn create_football_game_config_from_file(path: &std::path::Path) -> Result<GameC
 fn create_football_game_config_from_toml(toml_str: &str) -> Result<GameConfig, String> {
     let config = SerializableGameConfig::from_toml(toml_str)?;
     let field = create_football_field();
-    let mut game_config = config.to_game_config(field)?;
+
+    // No config directory for inline TOML, paths will be relative to CWD
+    let mut game_config = config.to_game_config(field, None)?;
 
     // Set ball initial position to center_spot (football rule)
     game_config.ball = BallDef {

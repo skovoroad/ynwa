@@ -153,17 +153,13 @@ impl SerializableGameConfig {
     }
 
     /// Convert to GameConfig (requires field to be provided)
-    /// Paths in config are resolved relative to current working directory
-    pub fn to_game_config(&self, field: crate::field::Field) -> Result<GameConfig, String> {
-        self.to_game_config_with_base(field, std::path::Path::new("."))
-    }
-
-    /// Convert to GameConfig, resolving preamble paths relative to config_base_path
-    /// This allows the same config file to work from different working directories
-    pub fn to_game_config_with_base(
+    ///
+    /// If `config_dir` is provided, preamble paths are resolved relative to it.
+    /// Otherwise, they are resolved relative to the current working directory.
+    pub fn to_game_config(
         &self,
         field: crate::field::Field,
-        config_base_path: &std::path::Path,
+        config_dir: Option<&std::path::Path>,
     ) -> Result<GameConfig, String> {
         let grid_dims = field.grid_dimensions();
         let mut players = Vec::new();
@@ -172,10 +168,18 @@ impl SerializableGameConfig {
             players.push(player_config.to_player_def(grid_dims)?);
         }
 
+        // Helper to resolve path relative to config_dir if provided
+        let resolve_path = |path: &str| -> std::path::PathBuf {
+            if let Some(base) = config_dir {
+                base.join(path)
+            } else {
+                std::path::PathBuf::from(path)
+            }
+        };
+
         // Load preambles from files if paths are specified
-        // Paths are resolved relative to config_base_path
         let core_preamble = if let Some(path) = &self.core_preamble_path {
-            let full_path = config_base_path.join(path);
+            let full_path = resolve_path(path);
             std::fs::read_to_string(&full_path).map_err(|e| {
                 format!(
                     "Failed to read core preamble from '{}': {}",
@@ -188,7 +192,7 @@ impl SerializableGameConfig {
         };
 
         let stdlib_preamble = if let Some(path) = &self.stdlib_preamble_path {
-            let full_path = config_base_path.join(path);
+            let full_path = resolve_path(path);
             std::fs::read_to_string(&full_path).map_err(|e| {
                 format!(
                     "Failed to read stdlib preamble from '{}': {}",
@@ -201,7 +205,7 @@ impl SerializableGameConfig {
         };
 
         let team_a_preamble = if let Some(path) = &self.team_a_preamble_path {
-            let full_path = config_base_path.join(path);
+            let full_path = resolve_path(path);
             std::fs::read_to_string(&full_path).map_err(|e| {
                 format!(
                     "Failed to read team A preamble from '{}': {}",
@@ -214,7 +218,7 @@ impl SerializableGameConfig {
         };
 
         let team_b_preamble = if let Some(path) = &self.team_b_preamble_path {
-            let full_path = config_base_path.join(path);
+            let full_path = resolve_path(path);
             std::fs::read_to_string(&full_path).map_err(|e| {
                 format!(
                     "Failed to read team B preamble from '{}': {}",
@@ -445,7 +449,9 @@ mod tests {
         };
 
         // Convert to GameConfig
-        let game_config = serializable_config.to_game_config(field.clone()).unwrap();
+        let game_config = serializable_config
+            .to_game_config(field.clone(), None)
+            .unwrap();
         assert_eq!(game_config.players.len(), 2);
         assert_eq!(game_config.players[0].name, "Goalkeeper");
         assert_eq!(game_config.players[0].number, 1);
@@ -484,7 +490,7 @@ mod tests {
             team_b_preamble_path: None,
         };
 
-        let result = config.to_game_config(field);
+        let result = config.to_game_config(field, None);
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("Invalid team"));
     }
@@ -625,8 +631,11 @@ mod tests {
 
         // Verify the config can be converted to GameConfig
         let field = crate::field::Field::from_meters(60.0, 100.0, 26, 44);
+
+        // Resolve paths relative to config file directory
+        let config_dir = config_path.parent();
         let game_config = config
-            .to_game_config(field)
+            .to_game_config(field, config_dir)
             .expect("Should convert to GameConfig");
 
         assert_eq!(game_config.players.len(), 22);

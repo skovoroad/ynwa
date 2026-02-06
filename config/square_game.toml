@@ -1,8 +1,8 @@
 # Preamble paths (relative to config file location)
-core_preamble_path = "ynwa-scripts/preambles/core.lua"
-stdlib_preamble_path = "ynwa-scripts/preambles/stdlib.lua"
-team_a_preamble_path = "ynwa-scripts/team-libs/team_a.lua"
-team_b_preamble_path = "ynwa-scripts/team-libs/team_b.lua"
+core_preamble_path = "../ynwa-scripts/preambles/core.lua"
+stdlib_preamble_path = "../ynwa-scripts/preambles/stdlib.lua"
+team_a_preamble_path = "../ynwa-scripts/team-libs/team_a.lua"
+team_b_preamble_path = "../ynwa-scripts/team-libs/team_b.lua"
 
 # Team A Players (rows 23-44, defending goal at row 44, bottom of screen)
 [[players]]
