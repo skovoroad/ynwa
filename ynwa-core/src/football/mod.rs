@@ -92,7 +92,10 @@ fn create_football_game_config() -> GameConfig {
 fn create_football_game_config_from_file(path: &std::path::Path) -> Result<GameConfig, String> {
     let config = SerializableGameConfig::from_file(path)?;
     let field = create_football_field();
-    let game_config = config.to_game_config(field)?;
+
+    // Resolve preamble paths relative to config file directory
+    let config_dir = path.parent().unwrap_or(std::path::Path::new("."));
+    let game_config = config.to_game_config_with_base(field, config_dir)?;
 
     // Set ball initial position to center_spot (football rule)
     let mut game_config = game_config;

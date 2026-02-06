@@ -226,6 +226,10 @@ function common_behavior()
         -- If less than 3 teammates are closer, I'm among top 3
         if closer_count < 3 then
             -- Run to the ball
-            return run_to_point(ball_pos.x, ball_pos.z)        
+            return run_to_point(ball_pos.x, ball_pos.z)
+        else
+            -- I'm not in top 3, run randomly
+            return run_to_random_position()
+        end
     end
 end

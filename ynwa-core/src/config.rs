@@ -153,7 +153,18 @@ impl SerializableGameConfig {
     }
 
     /// Convert to GameConfig (requires field to be provided)
+    /// Paths in config are resolved relative to current working directory
     pub fn to_game_config(&self, field: crate::field::Field) -> Result<GameConfig, String> {
+        self.to_game_config_with_base(field, std::path::Path::new("."))
+    }
+
+    /// Convert to GameConfig, resolving preamble paths relative to config_base_path
+    /// This allows the same config file to work from different working directories
+    pub fn to_game_config_with_base(
+        &self,
+        field: crate::field::Field,
+        config_base_path: &std::path::Path,
+    ) -> Result<GameConfig, String> {
         let grid_dims = field.grid_dimensions();
         let mut players = Vec::new();
 
@@ -162,30 +173,55 @@ impl SerializableGameConfig {
         }
 
         // Load preambles from files if paths are specified
+        // Paths are resolved relative to config_base_path
         let core_preamble = if let Some(path) = &self.core_preamble_path {
-            std::fs::read_to_string(path)
-                .map_err(|e| format!("Failed to read core preamble from '{}': {}", path, e))?
+            let full_path = config_base_path.join(path);
+            std::fs::read_to_string(&full_path).map_err(|e| {
+                format!(
+                    "Failed to read core preamble from '{}': {}",
+                    full_path.display(),
+                    e
+                )
+            })?
         } else {
             String::new()
         };
 
         let stdlib_preamble = if let Some(path) = &self.stdlib_preamble_path {
-            std::fs::read_to_string(path)
-                .map_err(|e| format!("Failed to read stdlib preamble from '{}': {}", path, e))?
+            let full_path = config_base_path.join(path);
+            std::fs::read_to_string(&full_path).map_err(|e| {
+                format!(
+                    "Failed to read stdlib preamble from '{}': {}",
+                    full_path.display(),
+                    e
+                )
+            })?
         } else {
             String::new()
         };
 
         let team_a_preamble = if let Some(path) = &self.team_a_preamble_path {
-            std::fs::read_to_string(path)
-                .map_err(|e| format!("Failed to read team A preamble from '{}': {}", path, e))?
+            let full_path = config_base_path.join(path);
+            std::fs::read_to_string(&full_path).map_err(|e| {
+                format!(
+                    "Failed to read team A preamble from '{}': {}",
+                    full_path.display(),
+                    e
+                )
+            })?
         } else {
             String::new()
         };
 
         let team_b_preamble = if let Some(path) = &self.team_b_preamble_path {
-            std::fs::read_to_string(path)
-                .map_err(|e| format!("Failed to read team B preamble from '{}': {}", path, e))?
+            let full_path = config_base_path.join(path);
+            std::fs::read_to_string(&full_path).map_err(|e| {
+                format!(
+                    "Failed to read team B preamble from '{}': {}",
+                    full_path.display(),
+                    e
+                )
+            })?
         } else {
             String::new()
         };
