@@ -15,6 +15,7 @@ The project is divided into independent modules using Rust workspace:
   - Receives all parameters (characteristics, commands, instructions) from outside via API
   - Does not depend on specific client implementations
   - Uses `ynwa-decisions` for Lua scripting support
+  - No external physics engine - custom physics in PhysicsSystem
   
 - **Decision Engine (`ynwa-decisions`)** - game-agnostic decision-making library
   - Independent crate with Lua scripting support
@@ -87,9 +88,10 @@ The following aspects are considered in the design but implementation is postpon
 **Game Systems:**
 System execution order (important for correct operation):
 1. **PlayerReactionSystem** - determines when player is ready to accept new decision based on reaction_rate
-2. **DecisionSystem** - creates decisions (Decision) for players using DecisionMaker trait
-3. **ActionSystem** - transforms decisions into velocity (applies speed_rate)
-4. **PhysicsSystem** - applies velocity to position using kinematics: position += velocity × delta_time
+2. **BallPossessionSystem** - determines which player possesses the ball (see Ball Possession System section)
+3. **DecisionSystem** - creates decisions (Decision) for players using DecisionMaker trait
+4. **ActionSystem** - transforms decisions into velocity (applies speed_rate)
+5. **PhysicsSystem** - applies velocity to position using kinematics: position += velocity × delta_time
 
 **Player Decisions (Decision):**
 - `Decision::Run(DecisionTarget)` - run to target
@@ -217,11 +219,9 @@ System execution order (important for correct operation):
 ### Technology Stack
 
 #### Core
-- **Physics engine:** `rapier3d` - 3D physics for movements, distance calculations, collisions, ball flight
-- **Scripting (future):**
-  - Lua - via `mlua`
-  - Python - via `PyO3`
-  - Scripts receive and return data structures from core
+- **Scripting:** Lua via `mlua` (implemented in `ynwa-decisions` crate)
+- **Physics:** Custom PhysicsSystem (kinematics: position += velocity × dt)
+- **Math:** `uom` for type-safe physical quantities (Length, Velocity, etc.)
 
 #### Local Client
 - **UI:** `egui` - immediate mode GUI for controls (buttons, text fields, selectors)
@@ -241,7 +241,51 @@ System execution order (important for correct operation):
 
 - High test coverage
 - Modular architecture facilitates testing of individual components
-- Deterministic physics (Rapier mode) for reproducible tests
+- Deterministic physics for reproducible tests
+
+## Field System (field/)
+
+**Purpose:** Playing field with dimensions, grid, and named zones.
+
+**Key types:**
+- `Field` - playing field with width, length, grid dimensions, and zones
+  - Grid for region addressing via `GridDimensions`
+  - Zones stored in HashMap with (name, team) key for O(1) lookup
+- `FieldBuilder` - builder pattern for creating fields with zones
+- `Zone` - named area on field with optional team ownership and geometry
+- `ZoneGeometry` - geometric primitives: Rectangle, Circle, Arc, PointZone
+
+**Coordinate system (zones.rs):** Y-up right-handed system
+- X: field width (left-right)
+- Y: height (up)
+- Z: field length (team A to team B)
+
+**Types:**
+- `Point3D { x: Length, y: Length, z: Length }` - 3D position
+- `Velocity3D { x: Velocity, y: Velocity, z: Velocity }` - 3D velocity
+- Rectangle, Circle, Arc - zone geometry primitives with validation
+
+**Design decisions:**
+- Zones stored both in HashMap key and Zone struct for O(1) lookup and self-contained objects
+- Geometric primitives validate inputs at construction (assert!)
+- Cell size calculated as field width / grid columns
+
+## Orientation System (orientation.rs)
+
+**Purpose:** Coordinate transformations between team perspectives.
+
+**Concept:**
+- Display orientation: Team A's left-to-right perspective (canonical)
+- Team B perspective: Right-to-left (scripts see flipped coordinates)
+
+**Functions:**
+- `flip_grid_cell_orientation(cell, grid_dims)` - flips GridCell coordinates
+- `flip_region_orientation(region, grid_dims)` - flips Region and swaps team
+- `flip_point_orientation(point, width, length)` - flips Point3D (Y unchanged)
+
+**Usage:** Applied at system boundaries in ScriptedDecisionMaker:
+- Input: context for Team B has flipped coordinates
+- Output: decisions from Team B are flipped back to display orientation
 
 ## Region System (region.rs)
 
@@ -264,6 +308,8 @@ System execution order (important for correct operation):
 **Purpose:** TOML-based configuration system for initial game parameters.
 
 ## Physics and Speed
+
+**Coordinate system:** Y-up right-handed (see Field System section)
 
 **Coordinate and velocity types:**
 - `Point3D { x: Length, y: Length, z: Length }` - position in meters

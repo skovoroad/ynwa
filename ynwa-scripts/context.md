@@ -391,12 +391,37 @@ end
 ### 3.4 Implemented Functions (Current Status)
 
 **Core Preamble** (`preambles/core.lua`):
+
+*Constants:*
 - `FIELD_LENGTH`, `FIELD_WIDTH` - field dimensions in meters (TODO: move to config)
-- `ball_owner()` - returns global player index (0-21) or nil if ball is free
-- `my_number()` - returns current player's jersey number (1-99)
+
+*Context Access:*
+- `my_position()` - returns current player's position `{x, y, z}`
+- `my_index()` - returns global player index (0-21)
+- `my_number()` - returns jersey number (1-99)
+- `ball_position()` - returns ball position `{x, y, z}`
+- `ball_owner()` - returns global player index who owns ball, or nil if free
+- `get_teammates()` - returns array of teammates (each has `index`, `number`, `position`)
+- `get_opponents()` - returns array of opponents (each has `index`, `number`, `position`)
+
+*Decision Factories:*
+- `stop()` - creates "stop" decision
+- `run_to_point(x, z, y)` - creates "run to point" decision (y optional, default 0)
+- `run_to_random_position()` - creates "run to random position" decision
+- `kick_to(x, z, y)` - creates "kick" decision (y optional, default 0)
 
 **Stdlib Preamble** (`preambles/stdlib.lua`):
+
+*Ball Ownership:*
 - `am_i_ball_owner()` - returns true if current player owns the ball
+- `is_ball_owned_by_my_team()` - returns true if ball owned by any teammate (or me)
+
+*Geometric Utilities:*
+- `distance(pos1, pos2)` - calculates 2D distance between two positions (ignoring Y)
+
+*Search Functions:*
+- `find_nearest_opponent()` - returns `{opponent = <opponent_data>, distance = <number>}` (or `{opponent = nil, distance = math.huge}`)
+- `am_i_closest_teammate_to_ball()` - returns true if current player is closest teammate to ball
 
 ### 3.5 User Script
 
@@ -484,12 +509,75 @@ It's sufficient to know:
 ### 4.4 Example Test Scripts
 
 See files in `ynwa-scripts/test-scripts/`:
-- `simple_stop.lua` - minimal script (stop only)
-- `run_to_cell.lua` - run to fixed cell
+- `kick_if_ball_owner.lua` - kick ball randomly if I own it, otherwise stop
 
-## 5. Future Extensions
+## 5. Testing Infrastructure (ynwa-script-tests)
 
-### 5.1 Planned Contract Features
+### 5.1 Project Structure
+
+**Directory Layout:**
+- `src/lib.rs` - helper functions for creating test games
+- `tests/` - integration tests:
+  - `basic_scripts.rs` - tests decision format validation
+  - `stdlib_functions.rs` - tests preamble function correctness
+  - `team_orientation.rs` - tests coordinate transformation for Team B
+
+### 5.2 Running Tests
+
+```bash
+# Run all script tests
+cargo test --package ynwa-script-tests
+
+# Run specific test file
+cargo test --package ynwa-script-tests --test basic_scripts
+cargo test --package ynwa-script-tests --test stdlib_functions
+```
+
+### 5.3 Helper Functions
+
+**`create_test_game_with_script(script: &str)`**
+- Creates minimal game with one player running the given script
+- No preambles loaded - use only for testing raw decision formats
+
+**`create_test_game_with_preambles(script: &str)`**
+- Creates game with core and stdlib preambles loaded
+- Use for testing preamble functions and realistic scripts
+
+**`load_test_script(name: &str)`**
+- Loads test script from `ynwa-scripts/test-scripts/` directory
+- Returns script content as String
+
+### 5.4 Writing New Tests
+
+To test a preamble function:
+
+```rust
+use ynwa_script_tests::create_test_game_with_preambles;
+
+#[test]
+fn test_my_function() {
+    let script = r#"
+        function test_function()
+            local result = my_function()
+            if not result then
+                error("my_function() failed")
+            end
+        end
+        test_function()
+        
+        function make_decision()
+            return {action = "stop"}
+        end
+    "#;
+    
+    let mut game = create_test_game_with_preambles(script);
+    // ... trigger systems and check for errors
+}
+```
+
+## 6. Future Extensions
+
+### 6.1 Planned Contract Features
 
 - Ball possession information
 - Player and ball velocities
@@ -497,14 +585,14 @@ See files in `ynwa-scripts/test-scripts/`:
 - Events - goals, fouls, etc.
 - Game phases - attack, defense, set pieces
 
-### 5.2 Planned Preamble Capabilities
+### 6.2 Planned Preamble Capabilities
 
 - Finite State Machines (FSM) for players
 - Behavior trees
 - Group coordination utilities
 - Trajectory prediction
 
-### 5.3 Tooling
+### 6.3 Tooling
 
 - Context visualizer (web interface for debugging)
 - REPL for interactive Lua function testing
