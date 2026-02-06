@@ -193,3 +193,39 @@ function calculate_away_position_near_ball(from_pos, away_distance, max_ball_dis
     
     return {x = target_x, z = target_z}
 end
+
+
+function common_behavior()
+    if am_i_ball_owner() then
+        -- I have the ball, kick it in random direction
+        local target_x = math.random() * FIELD_LENGTH
+        local target_z = math.random() * FIELD_WIDTH
+        return {
+            action = "kick",
+            target = {x = target_x, z = target_z}
+        }
+    elseif is_ball_owned_by_my_team() then
+        return {
+            action = "run",
+            target_type = "region",
+            target = {from = "K19", to = "R27"}
+        }
+    else
+        local ball_pos = ball_position()
+        local my_pos = my_position()
+        local my_dist_to_ball = distance(my_pos, ball_pos)
+        
+        -- Count how many teammates are closer to ball than me
+        local closer_count = 0
+        for _, tm in ipairs(get_teammates()) do
+            if distance(tm.position, ball_pos) < my_dist_to_ball then
+                closer_count = closer_count + 1
+            end
+        end
+        
+        -- If less than 3 teammates are closer, I'm among top 3
+        if closer_count < 3 then
+            -- Run to the ball
+            return run_to_point(ball_pos.x, ball_pos.z)        
+    end
+end
