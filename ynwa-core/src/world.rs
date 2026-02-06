@@ -26,9 +26,9 @@ use crate::system::System;
 ///     
 ///     // Check player positions
 ///     for (i, player) in game.state().player_states.iter().enumerate() {
-///         println!("Player {}: ({:.2}, {:.2})", 
-///             i, 
-///             player.position.x.get::<meter>(), 
+///         println!("Player {}: ({:.2}, {:.2})",
+///             i,
+///             player.position.x.get::<meter>(),
 ///             player.position.z.get::<meter>());
 ///     }
 /// }
@@ -105,7 +105,9 @@ mod tests {
                 50,
                 50,
                 50,
-                50, 50, "function make_decision() return {} end".to_string(),
+                50,
+                50,
+                "function make_decision() return {} end".to_string(),
                 start_region,
             )],
             ball: BallDef::default(),

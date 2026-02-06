@@ -51,7 +51,7 @@ impl System for PhysicsSystem {
 
         // Update ball
         let ball_state = &mut game.state.ball_state;
-        
+
         if let Some(player_index) = ball_state.possessed_by {
             // Ball moves with player
             if player_index < game.state.player_states.len() {
@@ -63,27 +63,27 @@ impl System for PhysicsSystem {
             let vx = ball_state.velocity.x.get::<meter_per_second>();
             let vy = ball_state.velocity.y.get::<meter_per_second>();
             let vz = ball_state.velocity.z.get::<meter_per_second>();
-            
+
             // Calculate speed (magnitude of velocity)
             let speed = (vx * vx + vy * vy + vz * vz).sqrt();
-            
+
             if speed > 0.0 {
                 // Apply friction deceleration
                 let deceleration = BALL_FRICTION_DECELERATION * delta_time;
                 let new_speed = (speed - deceleration).max(0.0);
-                
+
                 // Scale velocity to new speed
                 let scale = new_speed / speed;
                 ball_state.velocity.x = uom::si::f32::Velocity::new::<meter_per_second>(vx * scale);
                 ball_state.velocity.y = uom::si::f32::Velocity::new::<meter_per_second>(vy * scale);
                 ball_state.velocity.z = uom::si::f32::Velocity::new::<meter_per_second>(vz * scale);
             }
-            
+
             // Apply velocity to position
             let dx = ball_state.velocity.x.get::<meter_per_second>() * delta_time;
             let dy = ball_state.velocity.y.get::<meter_per_second>() * delta_time;
             let dz = ball_state.velocity.z.get::<meter_per_second>() * delta_time;
-            
+
             ball_state.position.x += uom::si::f32::Length::new::<meter>(dx);
             ball_state.position.y += uom::si::f32::Length::new::<meter>(dy);
             ball_state.position.z += uom::si::f32::Length::new::<meter>(dz);
@@ -119,7 +119,9 @@ mod tests {
             100,
             50,
             50,
-            50, 50, "function make_decision() return {} end".to_string(),
+            50,
+            50,
+            "function make_decision() return {} end".to_string(),
             start_region,
         )];
 
@@ -158,10 +160,10 @@ mod tests {
         game.state.player_states[0].position = Point3D::from_meters(0.0, 0.0, 0.0);
         game.state.player_states[0].velocity = Velocity3D::from_meters_per_second(5.0, 0.0, 0.0);
 
-        system.update(&mut game, 1.0);  // Initialize last_update
+        system.update(&mut game, 1.0); // Initialize last_update
         let pos_after_first = game.state.player_states[0].position.x.get::<meter>();
-        
-        system.update(&mut game, 1.0);  // Same timestamp - delta = 0
+
+        system.update(&mut game, 1.0); // Same timestamp - delta = 0
         let pos_after_second = game.state.player_states[0].position.x.get::<meter>();
 
         // Position should not change when delta_time = 0

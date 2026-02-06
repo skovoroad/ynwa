@@ -26,7 +26,8 @@ impl ScriptedDecisionMaker {
             &config,
             &scripting.core_preamble,
             &scripting.stdlib_preamble,
-        ).map_err(|e| {
+        )
+        .map_err(|e| {
             DecisionError::RuntimeError(format!("Failed to create DecisionEngine: {}", e))
         })?;
 
@@ -36,7 +37,7 @@ impl ScriptedDecisionMaker {
     fn build_config(game: &Game) -> serde_json::Value {
         let config = game.config();
         let scripting = &config.scripting;
-        
+
         json!({
             "team_preambles": {
                 "team_a": scripting.team_a_preamble,

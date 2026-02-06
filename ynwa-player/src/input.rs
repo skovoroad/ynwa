@@ -19,7 +19,7 @@ pub fn handle_input(simulation: &mut SimulationControl, is_fullscreen: &mut bool
     if is_key_pressed(KeyCode::Equal) || is_key_pressed(KeyCode::KpAdd) {
         simulation.increase_rate();
     }
-    
+
     if is_key_pressed(KeyCode::Minus) || is_key_pressed(KeyCode::KpSubtract) {
         simulation.decrease_rate();
     }

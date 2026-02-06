@@ -5,10 +5,10 @@ mod tests {
     use crate::game::{BallDef, Decision, DecisionTarget, Game, GameConfig, PlayerDef};
     use crate::physics_util::distance;
     use crate::region::{GridCell, Region};
+    use crate::systems::decision::DecisionError;
     use crate::systems::{
         ActionSystem, DecisionMaker, DecisionSystem, PhysicsSystem, PlayerReactionSystem,
     };
-    use crate::systems::decision::DecisionError;
     use crate::team::Team;
     use crate::world::World;
     use std::collections::HashMap;
@@ -40,9 +40,11 @@ mod tests {
     }
 
     impl DecisionMaker for ScriptedDecisionMaker {
-        fn make_decision(&mut self, _game: &Game, player_index: usize) 
-            -> Result<Decision, DecisionError> 
-        {
+        fn make_decision(
+            &mut self,
+            _game: &Game,
+            player_index: usize,
+        ) -> Result<Decision, DecisionError> {
             if let Some(decisions) = self.decisions.get(&player_index) {
                 if let Some(counter) = self.decision_counters.get_mut(&player_index) {
                     let decision_index = *counter;
@@ -78,7 +80,9 @@ mod tests {
             100, // reaction_rate = 100 (1 second interval)
             100, // speed_rate = 100 (full speed)
             50,
-            50, 50, "function make_decision() return {} end".to_string(),
+            50,
+            50,
+            "function make_decision() return {} end".to_string(),
             start_region_0,
         );
 
@@ -98,7 +102,9 @@ mod tests {
             50, // reaction_rate = 50 (2 second interval)
             50, // speed_rate = 50 (half speed)
             50,
-            50, 50, "function make_decision() return {} end".to_string(),
+            50,
+            50,
+            "function make_decision() return {} end".to_string(),
             start_region_1,
         );
 
@@ -203,10 +209,14 @@ mod tests {
         );
 
         // - Positions changed (PhysicsSystem applied velocity with delta=0.1)
-        let player_0_moved =
-            distance(&world.game().state.player_states[0].position, &initial_pos_0) > 0.0;
-        let player_1_moved =
-            distance(&world.game().state.player_states[1].position, &initial_pos_1) > 0.0;
+        let player_0_moved = distance(
+            &world.game().state.player_states[0].position,
+            &initial_pos_0,
+        ) > 0.0;
+        let player_1_moved = distance(
+            &world.game().state.player_states[1].position,
+            &initial_pos_1,
+        ) > 0.0;
         assert!(player_0_moved);
         assert!(player_1_moved);
 
@@ -214,10 +224,14 @@ mod tests {
         world.step(0.1);
 
         // Positions changed
-        let player_0_moved =
-            distance(&world.game().state.player_states[0].position, &initial_pos_0) > 0.0;
-        let player_1_moved =
-            distance(&world.game().state.player_states[1].position, &initial_pos_1) > 0.0;
+        let player_0_moved = distance(
+            &world.game().state.player_states[0].position,
+            &initial_pos_0,
+        ) > 0.0;
+        let player_1_moved = distance(
+            &world.game().state.player_states[1].position,
+            &initial_pos_1,
+        ) > 0.0;
         assert!(player_0_moved);
         assert!(player_1_moved);
 
@@ -348,7 +362,7 @@ mod tests {
     #[test]
     fn test_lua_decision_maker_integration() {
         use crate::systems::decision::ScriptedDecisionMaker;
-        
+
         let field = Field::from_meters(100.0, 60.0, 26, 44);
         let grid_dims = field.grid_dimensions();
 
@@ -395,10 +409,10 @@ mod tests {
         };
 
         let game = Game::new(config);
-        
+
         // Create ScriptedDecisionMaker
-        let scripted_maker = ScriptedDecisionMaker::new(&game)
-            .expect("Failed to create ScriptedDecisionMaker");
+        let scripted_maker =
+            ScriptedDecisionMaker::new(&game).expect("Failed to create ScriptedDecisionMaker");
 
         // Build world with scripted decision maker
         let mut world = World::new(game);
@@ -432,7 +446,7 @@ mod tests {
     #[test]
     fn test_lua_decision_maker_error_handling() {
         use crate::systems::decision::ScriptedDecisionMaker;
-        
+
         let field = Field::from_meters(100.0, 60.0, 26, 44);
         let grid_dims = field.grid_dimensions();
 
@@ -470,15 +484,15 @@ mod tests {
         };
 
         let game = Game::new(config);
-        
-        let scripted_maker = ScriptedDecisionMaker::new(&game)
-            .expect("Failed to create ScriptedDecisionMaker");
+
+        let scripted_maker =
+            ScriptedDecisionMaker::new(&game).expect("Failed to create ScriptedDecisionMaker");
 
         let mut world = World::new(game);
         world.add_system(Box::new(PlayerReactionSystem));
         world.add_system(Box::new(
             DecisionSystem::new().with_decision_maker(Box::new(scripted_maker)),
-        ));        // Run simulation - should not crash despite error
+        )); // Run simulation - should not crash despite error
         for _ in 0..60 {
             world.step(1.0 / 60.0);
         }
@@ -486,7 +500,7 @@ mod tests {
         // Player should have error message saved
         let player_state = &world.game().state.player_states[0];
         assert!(player_state.last_error.is_some());
-        
+
         let error_msg = player_state.last_error.as_ref().unwrap();
         assert!(error_msg.contains("Intentional error"));
 
@@ -494,4 +508,3 @@ mod tests {
         assert!(player_state.current_decision.is_none());
     }
 }
-

@@ -46,11 +46,8 @@ pub fn convert_decision_to_display_orientation(
                     // Flip the coordinates but keep team as A (display orientation)
                     let flipped = region.flip_orientation(grid_dimensions).unwrap();
                     // Region::flip_orientation swaps the team, but we want all display coords to be Team A
-                    let display_region = Region::new_unchecked(
-                        Team::A,
-                        flipped.top_left,
-                        flipped.bottom_right,
-                    );
+                    let display_region =
+                        Region::new_unchecked(Team::A, flipped.top_left, flipped.bottom_right);
                     DecisionTarget::Region(display_region)
                 }
                 DecisionTarget::GridCell(cell) => {
@@ -64,9 +61,11 @@ pub fn convert_decision_to_display_orientation(
             Decision::Run(flipped_target)
         }
         Decision::Stop => Decision::Stop,
-        Decision::Kick(target_point) => {
-            Decision::Kick(flip_point_orientation(&target_point, field_width, field_height))
-        }
+        Decision::Kick(target_point) => Decision::Kick(flip_point_orientation(
+            &target_point,
+            field_width,
+            field_height,
+        )),
     }
 }
 
@@ -198,6 +197,18 @@ impl ScriptingConfig {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum GameStage {
+    Play,
+    Setup(String),
+}
+
+impl Default for GameStage {
+    fn default() -> Self {
+        GameStage::Setup("start".to_string())
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct GameConfig {
     pub field: Field,
@@ -210,6 +221,7 @@ pub struct GameConfig {
 #[derive(Debug, Clone)]
 pub struct GameState {
     pub elapsed_time: f32,
+    pub stage: GameStage,
     pub player_states: Vec<PlayerState>,
     pub ball_state: BallState,
     pub referee_states: Vec<RefereeState>,
@@ -257,6 +269,7 @@ impl Game {
         Self {
             state: GameState {
                 elapsed_time: 0.0,
+                stage: GameStage::default(),
                 player_states,
                 ball_state: BallState {
                     position: config.ball.initial_position.clone(),
@@ -321,9 +334,42 @@ mod tests {
         GameConfig {
             field,
             players: vec![
-                PlayerDef::new(Team::A, 1, "Player A1".to_string(), 50, 50, 50, 50, 50, "function make_decision() return {} end".to_string(), start_region_a1),
-                PlayerDef::new(Team::A, 2, "Player A2".to_string(), 50, 50, 50, 50, 50, "function make_decision() return {} end".to_string(), start_region_a2),
-                PlayerDef::new(Team::B, 1, "Player B1".to_string(), 50, 50, 50, 50, 50, "function make_decision() return {} end".to_string(), start_region_b),
+                PlayerDef::new(
+                    Team::A,
+                    1,
+                    "Player A1".to_string(),
+                    50,
+                    50,
+                    50,
+                    50,
+                    50,
+                    "function make_decision() return {} end".to_string(),
+                    start_region_a1,
+                ),
+                PlayerDef::new(
+                    Team::A,
+                    2,
+                    "Player A2".to_string(),
+                    50,
+                    50,
+                    50,
+                    50,
+                    50,
+                    "function make_decision() return {} end".to_string(),
+                    start_region_a2,
+                ),
+                PlayerDef::new(
+                    Team::B,
+                    1,
+                    "Player B1".to_string(),
+                    50,
+                    50,
+                    50,
+                    50,
+                    50,
+                    "function make_decision() return {} end".to_string(),
+                    start_region_b,
+                ),
             ],
             ball: BallDef::default(),
             referees: vec![RefereeDef::default()],
@@ -435,7 +481,7 @@ mod tests {
             field_height,
             grid_dims,
         );
-        
+
         match converted {
             Decision::Run(DecisionTarget::Region(r)) => {
                 assert_eq!(r.team, region.team);
@@ -484,7 +530,7 @@ mod tests {
         match converted {
             Decision::Run(DecisionTarget::Region(r)) => {
                 assert_eq!(r.team, Team::A); // Team flipped
-                // A1 for Team B = R44 for Team A (column 26, row 44 in 26x44 grid)
+                                             // A1 for Team B = R44 for Team A (column 26, row 44 in 26x44 grid)
                 assert_eq!(r.top_left, GridCell::new(26, 44).unwrap());
                 assert_eq!(r.bottom_right, GridCell::new(26, 44).unwrap());
             }
@@ -558,7 +604,7 @@ mod tests {
             field_height,
             grid_dims,
         );
-        
+
         assert!(matches!(converted, Decision::Stop));
     }
 }

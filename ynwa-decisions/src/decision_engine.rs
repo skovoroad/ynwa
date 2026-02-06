@@ -129,39 +129,30 @@ impl DecisionEngine {
                     ))
                 })?;
 
-            let team_key = player
-                .get("team")
-                .and_then(|t| t.as_str())
-                .ok_or_else(|| {
-                    DecisionEngineError::InvalidConfig(format!(
-                        "Player {} missing 'team' field",
-                        player_index
-                    ))
-                })?;
+            let team_key = player.get("team").and_then(|t| t.as_str()).ok_or_else(|| {
+                DecisionEngineError::InvalidConfig(format!(
+                    "Player {} missing 'team' field",
+                    player_index
+                ))
+            })?;
 
             let team_preamble = team_preambles
                 .get(team_key)
                 .and_then(|tp| tp.as_str())
                 .unwrap_or("");
 
-            let combined_preamble = format!(
-                "{}\n{}\n{}",
-                core_preamble,
-                stdlib_preamble,
-                team_preamble
-            );
+            let combined_preamble =
+                format!("{}\n{}\n{}", core_preamble, stdlib_preamble, team_preamble);
 
             // Create executor with combined preamble and 100ms timeout
-            let executor = LuaExecutor::new(
-                Some(combined_preamble),
-                Some(Duration::from_millis(100))
-            )
-                .map_err(|e| {
-                    DecisionEngineError::RuntimeError(format!(
-                        "Failed to create executor for player {}: {}",
-                        player_index, e
-                    ))
-                })?;
+            let executor =
+                LuaExecutor::new(Some(combined_preamble), Some(Duration::from_millis(100)))
+                    .map_err(|e| {
+                        DecisionEngineError::RuntimeError(format!(
+                            "Failed to create executor for player {}: {}",
+                            player_index, e
+                        ))
+                    })?;
 
             executors.push(executor);
             scripts.push(script.to_string());
@@ -184,9 +175,10 @@ impl DecisionEngine {
         context: &JsonValue,
     ) -> Result<JsonValue, DecisionEngineError> {
         // Validate player index
-        let executor = self.executors.get(player_index).ok_or_else(|| {
-            DecisionEngineError::InvalidPlayerIndex(player_index)
-        })?;
+        let executor = self
+            .executors
+            .get(player_index)
+            .ok_or_else(|| DecisionEngineError::InvalidPlayerIndex(player_index))?;
 
         let script = &self.scripts[player_index];
 
@@ -491,16 +483,34 @@ mod tests {
 
         // Test team_a player
         let decision_a = engine.make_decision(0, &context).unwrap();
-        assert_eq!(decision_a.get("action").and_then(|a| a.as_str()), Some("run"));
-        
+        assert_eq!(
+            decision_a.get("action").and_then(|a| a.as_str()),
+            Some("run")
+        );
+
         let debug_info = decision_a.get("debug_info").unwrap();
-        assert_eq!(debug_info.get("core").and_then(|v| v.as_str()), Some("core"));
-        assert_eq!(debug_info.get("stdlib").and_then(|v| v.as_str()), Some("stdlib"));
-        assert_eq!(debug_info.get("team").and_then(|v| v.as_str()), Some("team_a"));
+        assert_eq!(
+            debug_info.get("core").and_then(|v| v.as_str()),
+            Some("core")
+        );
+        assert_eq!(
+            debug_info.get("stdlib").and_then(|v| v.as_str()),
+            Some("stdlib")
+        );
+        assert_eq!(
+            debug_info.get("team").and_then(|v| v.as_str()),
+            Some("team_a")
+        );
 
         // Test team_b player - should have access to team_b preamble
         let decision_b = engine.make_decision(1, &context).unwrap();
-        assert_eq!(decision_b.get("action").and_then(|a| a.as_str()), Some("stop"));
-        assert_eq!(decision_b.get("debug_team").and_then(|v| v.as_str()), Some("team_b"));
+        assert_eq!(
+            decision_b.get("action").and_then(|a| a.as_str()),
+            Some("stop")
+        );
+        assert_eq!(
+            decision_b.get("debug_team").and_then(|v| v.as_str()),
+            Some("team_b")
+        );
     }
 }

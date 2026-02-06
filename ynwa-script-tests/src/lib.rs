@@ -43,9 +43,9 @@ pub fn create_test_game_with_script(script: &str) -> Game {
 
 /// Load a test script from ynwa-scripts/test-scripts/
 pub fn load_test_script(name: &str) -> String {
-    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR")
-        .expect("CARGO_MANIFEST_DIR not set");
-    let workspace_root = std::path::Path::new(&manifest_dir).parent()
+    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set");
+    let workspace_root = std::path::Path::new(&manifest_dir)
+        .parent()
         .expect("Failed to get workspace root");
     let script_path = workspace_root.join(format!("ynwa-scripts/test-scripts/{}", name));
     std::fs::read_to_string(&script_path)
@@ -66,17 +66,21 @@ pub fn create_test_game_with_preambles(script: &str) -> Game {
     .unwrap();
 
     // Load preambles from files (CARGO_MANIFEST_DIR points to ynwa-script-tests)
-    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR")
-        .expect("CARGO_MANIFEST_DIR not set");
-    let workspace_root = std::path::Path::new(&manifest_dir).parent()
+    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set");
+    let workspace_root = std::path::Path::new(&manifest_dir)
+        .parent()
         .expect("Failed to get workspace root");
     let core_path = workspace_root.join("ynwa-scripts/preambles/core.lua");
     let stdlib_path = workspace_root.join("ynwa-scripts/preambles/stdlib.lua");
-    
+
     let core_preamble = std::fs::read_to_string(&core_path)
         .unwrap_or_else(|e| panic!("Failed to load core preamble from {:?}: {}", core_path, e));
-    let stdlib_preamble = std::fs::read_to_string(&stdlib_path)
-        .unwrap_or_else(|e| panic!("Failed to load stdlib preamble from {:?}: {}", stdlib_path, e));
+    let stdlib_preamble = std::fs::read_to_string(&stdlib_path).unwrap_or_else(|e| {
+        panic!(
+            "Failed to load stdlib preamble from {:?}: {}",
+            stdlib_path, e
+        )
+    });
 
     let config = GameConfig {
         field,

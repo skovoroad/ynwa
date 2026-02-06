@@ -15,14 +15,16 @@ pub mod world;
 pub use config::{PlayerConfig, SerializableGameConfig};
 pub use field::zones::{Point3D, Velocity3D};
 pub use game::{
-    BallDef, BallState, Decision, DecisionTarget, Game, GameConfig, GameEvent, GameState,
-    PlayerDef, PlayerState, RefereeDef, RefereeState,
+    BallDef, BallState, Decision, DecisionTarget, Game, GameConfig, GameEvent, GameStage,
+    GameState, PlayerDef, PlayerState, RefereeDef, RefereeState,
 };
 
 pub use football::{
     create_football_world, create_football_world_from_file, create_football_world_from_toml,
 };
-pub use orientation::{flip_grid_cell_orientation, flip_point_orientation, flip_region_orientation};
+pub use orientation::{
+    flip_grid_cell_orientation, flip_point_orientation, flip_region_orientation,
+};
 pub use physics_util::{distance, distance_length};
 pub use region::{GridCell, GridDimensions, Region, RegionError};
 pub use system::System;

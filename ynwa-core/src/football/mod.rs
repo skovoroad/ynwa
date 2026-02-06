@@ -4,8 +4,10 @@ use crate::config::SerializableGameConfig;
 use crate::field::zones::ZoneGeometry;
 use crate::game::{BallDef, Game, GameConfig, PlayerDef, RefereeDef};
 use crate::region::{GridCell, Region};
-use crate::systems::{ActionSystem, BallPossessionSystem, DecisionSystem, PhysicsSystem, PlayerReactionSystem};
 use crate::systems::decision::ScriptedDecisionMaker;
+use crate::systems::{
+    ActionSystem, BallPossessionSystem, DecisionSystem, PhysicsSystem, PlayerReactionSystem,
+};
 use crate::team::Team;
 use crate::world::World;
 
@@ -16,7 +18,7 @@ fn get_ball_initial_position(field: &crate::field::Field) -> crate::field::zones
     let center_spot_zone = field
         .get_zone("center_spot", None)
         .expect("Football field must have center_spot zone");
-    
+
     match &center_spot_zone.geometry {
         ZoneGeometry::Point(point) => point.position.clone(),
         _ => panic!("center_spot must be a Point zone"),
@@ -91,13 +93,13 @@ fn create_football_game_config_from_file(path: &std::path::Path) -> Result<GameC
     let config = SerializableGameConfig::from_file(path)?;
     let field = create_football_field();
     let game_config = config.to_game_config(field)?;
-    
+
     // Set ball initial position to center_spot (football rule)
     let mut game_config = game_config;
     game_config.ball = BallDef {
         initial_position: get_ball_initial_position(&game_config.field),
     };
-    
+
     Ok(game_config)
 }
 
@@ -105,31 +107,37 @@ fn create_football_game_config_from_toml(toml_str: &str) -> Result<GameConfig, S
     let config = SerializableGameConfig::from_toml(toml_str)?;
     let field = create_football_field();
     let mut game_config = config.to_game_config(field)?;
-    
+
     // Set ball initial position to center_spot (football rule)
     game_config.ball = BallDef {
         initial_position: get_ball_initial_position(&game_config.field),
     };
-    
+
     Ok(game_config)
 }
 
 fn add_football_systems(world: &mut World) {
     world.add_system(Box::new(PlayerReactionSystem));
     world.add_system(Box::new(BallPossessionSystem::new()));
-    
+
     // Try to create scripted decision maker, fall back to placeholder if it fails
     let decision_system = match ScriptedDecisionMaker::new(world.game()) {
         Ok(scripted_maker) => {
-            println!("Successfully initialized ScriptedDecisionMaker for {} players", world.game().config().players.len());
+            println!(
+                "Successfully initialized ScriptedDecisionMaker for {} players",
+                world.game().config().players.len()
+            );
             DecisionSystem::new().with_decision_maker(Box::new(scripted_maker))
         }
         Err(e) => {
-            eprintln!("Warning: Failed to create ScriptedDecisionMaker: {}. Using placeholder.", e);
+            eprintln!(
+                "Warning: Failed to create ScriptedDecisionMaker: {}. Using placeholder.",
+                e
+            );
             DecisionSystem::new()
         }
     };
-    
+
     world.add_system(Box::new(decision_system));
     world.add_system(Box::new(ActionSystem::new()));
     world.add_system(Box::new(PhysicsSystem::new()));
@@ -176,22 +184,33 @@ mod tests {
     fn test_ball_initial_position_at_center_spot() {
         let world = create_football_world();
         let game = world.game();
-        
+
         // Get center_spot position from field
-        let center_spot = game.config().field
+        let center_spot = game
+            .config()
+            .field
             .get_zone("center_spot", None)
             .expect("Football field must have center_spot");
-        
+
         let expected_position = match &center_spot.geometry {
             crate::field::zones::ZoneGeometry::Point(point) => &point.position,
             _ => panic!("center_spot must be a Point zone"),
         };
-        
+
         // Ball should start at center_spot
         let ball_position = &game.state().ball_state.position;
-        assert_eq!(ball_position.x.get::<meter>(), expected_position.x.get::<meter>());
-        assert_eq!(ball_position.y.get::<meter>(), expected_position.y.get::<meter>());
-        assert_eq!(ball_position.z.get::<meter>(), expected_position.z.get::<meter>());
+        assert_eq!(
+            ball_position.x.get::<meter>(),
+            expected_position.x.get::<meter>()
+        );
+        assert_eq!(
+            ball_position.y.get::<meter>(),
+            expected_position.y.get::<meter>()
+        );
+        assert_eq!(
+            ball_position.z.get::<meter>(),
+            expected_position.z.get::<meter>()
+        );
     }
 
     #[test]

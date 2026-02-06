@@ -21,7 +21,7 @@ impl PlayerReactionSystem {
 impl System for PlayerReactionSystem {
     fn update(&mut self, game: &mut Game, timestamp: f32) {
         let player_count = game.config().players.len();
-        
+
         for i in 0..player_count {
             let reaction_rate = game.config().players[i].reaction_rate;
             let interval = Self::reaction_interval(reaction_rate);
@@ -43,8 +43,8 @@ impl Default for PlayerReactionSystem {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::game::{BallDef, GameConfig, PlayerDef, RefereeDef};
     use crate::field::Field;
+    use crate::game::{BallDef, GameConfig, PlayerDef, RefereeDef};
     use crate::region::{GridCell, Region};
     use crate::team::Team;
 
@@ -61,9 +61,42 @@ mod tests {
         .unwrap();
 
         let players = vec![
-            PlayerDef::new(Team::A, 1, "Player 1".to_string(), 100, 50, 50, 50, 50, "function make_decision() return {} end".to_string(), start_region.clone()),
-            PlayerDef::new(Team::A, 2, "Player 2".to_string(), 55, 50, 50, 50, 50, "function make_decision() return {} end".to_string(), start_region.clone()),
-            PlayerDef::new(Team::A, 3, "Player 3".to_string(), 10, 50, 50, 50, 50, "function make_decision() return {} end".to_string(), start_region.clone()),
+            PlayerDef::new(
+                Team::A,
+                1,
+                "Player 1".to_string(),
+                100,
+                50,
+                50,
+                50,
+                50,
+                "function make_decision() return {} end".to_string(),
+                start_region.clone(),
+            ),
+            PlayerDef::new(
+                Team::A,
+                2,
+                "Player 2".to_string(),
+                55,
+                50,
+                50,
+                50,
+                50,
+                "function make_decision() return {} end".to_string(),
+                start_region.clone(),
+            ),
+            PlayerDef::new(
+                Team::A,
+                3,
+                "Player 3".to_string(),
+                10,
+                50,
+                50,
+                50,
+                50,
+                "function make_decision() return {} end".to_string(),
+                start_region.clone(),
+            ),
         ];
 
         let config = GameConfig {
@@ -127,7 +160,7 @@ mod tests {
         // Player 2 (rate=55, interval=1.75s): should need decision once
         // Player 3 (rate=10, interval=3.0s): should NOT need decision yet
         system.update(&mut game, 2.0);
-        
+
         assert!(game.state.player_states[0].needs_decision);
         assert!(game.state.player_states[1].needs_decision);
         assert!(!game.state.player_states[2].needs_decision);

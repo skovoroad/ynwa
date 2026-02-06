@@ -52,21 +52,20 @@ end
 
 test_core_functions()
 "#;
-    
+
     let script = format!("{}{}", test_script, MAKE_DECISION_STUB);
     let mut game = create_test_game_with_preambles(&script);
-    
+
     let mut reaction_system = PlayerReactionSystem::new();
     reaction_system.update(&mut game, 1.0);
-    
-    let decision_maker = ScriptedDecisionMaker::new(&game)
-        .expect("Failed to create ScriptedDecisionMaker");
-    
-    let mut decision_system = DecisionSystem::new()
-        .with_decision_maker(Box::new(decision_maker));
-    
+
+    let decision_maker =
+        ScriptedDecisionMaker::new(&game).expect("Failed to create ScriptedDecisionMaker");
+
+    let mut decision_system = DecisionSystem::new().with_decision_maker(Box::new(decision_maker));
+
     decision_system.update(&mut game, 1.0);
-    
+
     let player_state = &game.state().player_states[0];
     assert!(
         player_state.last_error.is_none(),
@@ -92,21 +91,20 @@ end
 
 test_distance()
 "#;
-    
+
     let script = format!("{}{}", test_script, MAKE_DECISION_STUB);
     let mut game = create_test_game_with_preambles(&script);
-    
+
     let mut reaction_system = PlayerReactionSystem::new();
     reaction_system.update(&mut game, 1.0);
-    
-    let decision_maker = ScriptedDecisionMaker::new(&game)
-        .expect("Failed to create ScriptedDecisionMaker");
-    
-    let mut decision_system = DecisionSystem::new()
-        .with_decision_maker(Box::new(decision_maker));
-    
+
+    let decision_maker =
+        ScriptedDecisionMaker::new(&game).expect("Failed to create ScriptedDecisionMaker");
+
+    let mut decision_system = DecisionSystem::new().with_decision_maker(Box::new(decision_maker));
+
     decision_system.update(&mut game, 1.0);
-    
+
     let player_state = &game.state().player_states[0];
     assert!(
         player_state.last_error.is_none(),
@@ -134,21 +132,20 @@ end
 
 test_ball_ownership()
 "#;
-    
+
     let script = format!("{}{}", test_script, MAKE_DECISION_STUB);
     let mut game = create_test_game_with_preambles(&script);
-    
+
     let mut reaction_system = PlayerReactionSystem::new();
     reaction_system.update(&mut game, 1.0);
-    
-    let decision_maker = ScriptedDecisionMaker::new(&game)
-        .expect("Failed to create ScriptedDecisionMaker");
-    
-    let mut decision_system = DecisionSystem::new()
-        .with_decision_maker(Box::new(decision_maker));
-    
+
+    let decision_maker =
+        ScriptedDecisionMaker::new(&game).expect("Failed to create ScriptedDecisionMaker");
+
+    let mut decision_system = DecisionSystem::new().with_decision_maker(Box::new(decision_maker));
+
     decision_system.update(&mut game, 1.0);
-    
+
     let player_state = &game.state().player_states[0];
     assert!(
         player_state.last_error.is_none(),
@@ -180,21 +177,20 @@ end
 
 test_find_nearest_opponent()
 "#;
-    
+
     let script = format!("{}{}", test_script, MAKE_DECISION_STUB);
     let mut game = create_test_game_with_preambles(&script);
-    
+
     let mut reaction_system = PlayerReactionSystem::new();
     reaction_system.update(&mut game, 1.0);
-    
-    let decision_maker = ScriptedDecisionMaker::new(&game)
-        .expect("Failed to create ScriptedDecisionMaker");
-    
-    let mut decision_system = DecisionSystem::new()
-        .with_decision_maker(Box::new(decision_maker));
-    
+
+    let decision_maker =
+        ScriptedDecisionMaker::new(&game).expect("Failed to create ScriptedDecisionMaker");
+
+    let mut decision_system = DecisionSystem::new().with_decision_maker(Box::new(decision_maker));
+
     decision_system.update(&mut game, 1.0);
-    
+
     let player_state = &game.state().player_states[0];
     assert!(
         player_state.last_error.is_none(),
@@ -218,21 +214,20 @@ end
 
 test_closest_to_ball()
 "#;
-    
+
     let script = format!("{}{}", test_script, MAKE_DECISION_STUB);
     let mut game = create_test_game_with_preambles(&script);
-    
+
     let mut reaction_system = PlayerReactionSystem::new();
     reaction_system.update(&mut game, 1.0);
-    
-    let decision_maker = ScriptedDecisionMaker::new(&game)
-        .expect("Failed to create ScriptedDecisionMaker");
-    
-    let mut decision_system = DecisionSystem::new()
-        .with_decision_maker(Box::new(decision_maker));
-    
+
+    let decision_maker =
+        ScriptedDecisionMaker::new(&game).expect("Failed to create ScriptedDecisionMaker");
+
+    let mut decision_system = DecisionSystem::new().with_decision_maker(Box::new(decision_maker));
+
     decision_system.update(&mut game, 1.0);
-    
+
     let player_state = &game.state().player_states[0];
     assert!(
         player_state.last_error.is_none(),

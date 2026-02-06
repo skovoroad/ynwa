@@ -9,7 +9,7 @@ use uom::si::length::meter;
 use uom::si::velocity::meter_per_second;
 
 #[cfg(test)]
-use crate::physics_util::{KICK_POWER_DIVISOR, KICK_POWER_VARIATION_MIN, KICK_POWER_VARIATION_MAX};
+use crate::physics_util::{KICK_POWER_DIVISOR, KICK_POWER_VARIATION_MAX, KICK_POWER_VARIATION_MIN};
 
 // Maximum player speed when speed_rate = 100 (roughly 36 km/h, realistic for professional football)
 const MAX_SPEED_METERS_PER_SECOND: f32 = 10.0;
@@ -117,8 +117,7 @@ impl System for ActionSystem {
                         }
                         Decision::Run(target) => {
                             let player_def = &game.config().players[player_index];
-                            let player_position =
-                                game.state.player_states[player_index].position;
+                            let player_position = game.state.player_states[player_index].position;
 
                             let target_point = calculate_target_point(&target, game);
 
@@ -135,14 +134,15 @@ impl System for ActionSystem {
                             if game.state.ball_state.possessed_by == Some(player_index) {
                                 let player_def = &game.config().players[player_index];
                                 let ball_position = game.state.ball_state.position;
-                                
+
                                 // Get two random values for power and accuracy
                                 let rng_power = self.get_random();
                                 let rng_accuracy = self.get_random();
-                                
+
                                 // Calculate kick speed with variation
-                                let kick_speed = calculate_kick_velocity(player_def.shot_power, rng_power);
-                                
+                                let kick_speed =
+                                    calculate_kick_velocity(player_def.shot_power, rng_power);
+
                                 // Calculate direction with accuracy-based deviation
                                 let (dx, dz) = calculate_kick_direction_with_accuracy(
                                     &target_point,
@@ -150,14 +150,14 @@ impl System for ActionSystem {
                                     player_def.shot_accuracy,
                                     rng_accuracy,
                                 );
-                                
+
                                 // Set ball velocity (kick along ground, y=0)
                                 game.state.ball_state.velocity = Velocity3D::from_meters_per_second(
                                     dx * kick_speed,
                                     0.0,
                                     dz * kick_speed,
                                 );
-                                
+
                                 // Release possession
                                 game.state.ball_state.possessed_by = None;
                             }
@@ -293,9 +293,27 @@ mod tests {
 
         system.update(&mut game, 0.0);
 
-        assert_eq!(game.state.player_states[0].velocity.x.get::<meter_per_second>(), 0.0);
-        assert_eq!(game.state.player_states[0].velocity.y.get::<meter_per_second>(), 0.0);
-        assert_eq!(game.state.player_states[0].velocity.z.get::<meter_per_second>(), 0.0);
+        assert_eq!(
+            game.state.player_states[0]
+                .velocity
+                .x
+                .get::<meter_per_second>(),
+            0.0
+        );
+        assert_eq!(
+            game.state.player_states[0]
+                .velocity
+                .y
+                .get::<meter_per_second>(),
+            0.0
+        );
+        assert_eq!(
+            game.state.player_states[0]
+                .velocity
+                .z
+                .get::<meter_per_second>(),
+            0.0
+        );
         assert!(game.state.player_states[0].decision_processed);
     }
 
@@ -312,9 +330,27 @@ mod tests {
 
         system.update(&mut game, 0.0);
 
-        assert!(game.state.player_states[0].velocity.x.get::<meter_per_second>() > 0.0);
-        assert_eq!(game.state.player_states[0].velocity.y.get::<meter_per_second>(), 0.0);
-        assert_eq!(game.state.player_states[0].velocity.z.get::<meter_per_second>(), 0.0);
+        assert!(
+            game.state.player_states[0]
+                .velocity
+                .x
+                .get::<meter_per_second>()
+                > 0.0
+        );
+        assert_eq!(
+            game.state.player_states[0]
+                .velocity
+                .y
+                .get::<meter_per_second>(),
+            0.0
+        );
+        assert_eq!(
+            game.state.player_states[0]
+                .velocity
+                .z
+                .get::<meter_per_second>(),
+            0.0
+        );
         assert!(game.state.player_states[0].decision_processed);
     }
 
@@ -351,8 +387,20 @@ mod tests {
 
         system.update(&mut game, 0.0);
 
-        assert_eq!(game.state.player_states[0].velocity.x.get::<meter_per_second>(), 5.0);
-        assert_eq!(game.state.player_states[0].velocity.y.get::<meter_per_second>(), 3.0);
+        assert_eq!(
+            game.state.player_states[0]
+                .velocity
+                .x
+                .get::<meter_per_second>(),
+            5.0
+        );
+        assert_eq!(
+            game.state.player_states[0]
+                .velocity
+                .y
+                .get::<meter_per_second>(),
+            3.0
+        );
     }
 
     #[test]
@@ -365,8 +413,20 @@ mod tests {
 
         system.update(&mut game, 0.0);
 
-        assert_eq!(game.state.player_states[0].velocity.x.get::<meter_per_second>(), 2.0);
-        assert_eq!(game.state.player_states[0].velocity.y.get::<meter_per_second>(), 1.0);
+        assert_eq!(
+            game.state.player_states[0]
+                .velocity
+                .x
+                .get::<meter_per_second>(),
+            2.0
+        );
+        assert_eq!(
+            game.state.player_states[0]
+                .velocity
+                .y
+                .get::<meter_per_second>(),
+            1.0
+        );
     }
 
     #[test]
@@ -385,34 +445,34 @@ mod tests {
     #[test]
     fn test_kick_with_perfect_accuracy_no_variation() {
         let mut game = create_test_game_with_player_stats(100, 50, 50, 100, 100);
-        
+
         // Set player as ball owner
         game.state.ball_state.possessed_by = Some(0);
         game.state.ball_state.position = Point3D::from_meters(50.0, 30.0, 0.0);
-        
+
         // Kick straight along X axis
         let target = Point3D::from_meters(60.0, 30.0, 0.0);
         game.state.player_states[0].current_decision = Some(Decision::Kick(target));
         game.state.player_states[0].decision_processed = false;
-        
+
         // Use RNG with no variation (0.5)
         let mut system = ActionSystem::with_rng(|| 0.5);
         system.update(&mut game, 0.0);
-        
+
         // Check ball velocity
         let ball_vel = &game.state.ball_state.velocity;
         let vx = ball_vel.x.get::<meter_per_second>();
         let vz = ball_vel.z.get::<meter_per_second>();
-        
+
         // shot_power=100, rng=0.5 → base velocity (no variation)
         // shot_accuracy=100, rng=0.5 → no deviation, straight along X
         let expected_velocity = 100.0 / KICK_POWER_DIVISOR;
         assert!((vx - expected_velocity).abs() < 0.01);
         assert!(vz.abs() < 0.01);
-        
+
         // Possession should be released
         assert_eq!(game.state.ball_state.possessed_by, None);
-        
+
         // Decision should be processed
         assert!(game.state.player_states[0].decision_processed);
     }
@@ -420,27 +480,31 @@ mod tests {
     #[test]
     fn test_kick_with_min_power_variation() {
         let mut game = create_test_game_with_player_stats(100, 50, 50, 100, 100);
-        
+
         game.state.ball_state.possessed_by = Some(0);
         game.state.ball_state.position = Point3D::from_meters(50.0, 30.0, 0.0);
-        
+
         let target = Point3D::from_meters(60.0, 30.0, 0.0);
         game.state.player_states[0].current_decision = Some(Decision::Kick(target));
         game.state.player_states[0].decision_processed = false;
-        
+
         // First call for power (0.0 = min), second for accuracy (0.5 = no deviation)
         use std::cell::Cell;
         let call_count = Cell::new(0);
         let mut system = ActionSystem::with_rng(move || {
             let count = call_count.get();
             call_count.set(count + 1);
-            if count == 0 { 0.0 } else { 0.5 }
+            if count == 0 {
+                0.0
+            } else {
+                0.5
+            }
         });
         system.update(&mut game, 0.0);
-        
+
         let ball_vel = &game.state.ball_state.velocity;
         let vx = ball_vel.x.get::<meter_per_second>();
-        
+
         // shot_power=100, rng=0.0 → min variation
         let expected_velocity = (100.0 / KICK_POWER_DIVISOR) * KICK_POWER_VARIATION_MIN;
         assert!((vx - expected_velocity).abs() < 0.01);
@@ -450,27 +514,31 @@ mod tests {
     #[test]
     fn test_kick_with_max_power_variation() {
         let mut game = create_test_game_with_player_stats(100, 50, 50, 100, 100);
-        
+
         game.state.ball_state.possessed_by = Some(0);
         game.state.ball_state.position = Point3D::from_meters(50.0, 30.0, 0.0);
-        
+
         let target = Point3D::from_meters(60.0, 30.0, 0.0);
         game.state.player_states[0].current_decision = Some(Decision::Kick(target));
         game.state.player_states[0].decision_processed = false;
-        
+
         // First call for power (1.0 = max), second for accuracy (0.5 = no deviation)
         use std::cell::Cell;
         let call_count = Cell::new(0);
         let mut system = ActionSystem::with_rng(move || {
             let count = call_count.get();
             call_count.set(count + 1);
-            if count == 0 { 1.0 } else { 0.5 }
+            if count == 0 {
+                1.0
+            } else {
+                0.5
+            }
         });
         system.update(&mut game, 0.0);
-        
+
         let ball_vel = &game.state.ball_state.velocity;
         let vx = ball_vel.x.get::<meter_per_second>();
-        
+
         // shot_power=100, rng=1.0 → max variation
         let expected_velocity = (100.0 / KICK_POWER_DIVISOR) * KICK_POWER_VARIATION_MAX;
         assert!((vx - expected_velocity).abs() < 0.01);
@@ -480,28 +548,32 @@ mod tests {
     #[test]
     fn test_kick_with_poor_accuracy_max_deviation() {
         let mut game = create_test_game_with_player_stats(100, 50, 50, 100, 10);
-        
+
         game.state.ball_state.possessed_by = Some(0);
         game.state.ball_state.position = Point3D::from_meters(50.0, 30.0, 0.0);
-        
+
         let target = Point3D::from_meters(60.0, 30.0, 0.0); // Kick along X
         game.state.player_states[0].current_decision = Some(Decision::Kick(target));
         game.state.player_states[0].decision_processed = false;
-        
+
         // First call for power (0.5), second for accuracy (1.0 = max positive deviation)
         use std::cell::Cell;
         let call_count = Cell::new(0);
         let mut system = ActionSystem::with_rng(move || {
             let count = call_count.get();
             call_count.set(count + 1);
-            if count == 0 { 0.5 } else { 1.0 }
+            if count == 0 {
+                0.5
+            } else {
+                1.0
+            }
         });
         system.update(&mut game, 0.0);
-        
+
         let ball_vel = &game.state.ball_state.velocity;
         let vx = ball_vel.x.get::<meter_per_second>();
         let vz = ball_vel.z.get::<meter_per_second>();
-        
+
         // shot_accuracy=10, rng=1.0 → +45 degrees deviation
         // 45° rotation: cos(45°)≈0.707, sin(45°)≈0.707
         let base_velocity = 100.0 / KICK_POWER_DIVISOR;
@@ -515,24 +587,24 @@ mod tests {
     #[test]
     fn test_kick_without_possession_ignored() {
         let mut game = create_test_game_with_player_stats(100, 50, 50, 100, 100);
-        
+
         // Player does NOT own the ball
         game.state.ball_state.possessed_by = None;
         game.state.ball_state.position = Point3D::from_meters(50.0, 30.0, 0.0);
         game.state.ball_state.velocity = Velocity3D::from_meters_per_second(1.0, 0.0, 2.0);
-        
+
         let target = Point3D::from_meters(60.0, 30.0, 0.0);
         game.state.player_states[0].current_decision = Some(Decision::Kick(target));
         game.state.player_states[0].decision_processed = false;
-        
+
         let mut system = ActionSystem::with_rng(|| 0.5);
         system.update(&mut game, 0.0);
-        
+
         // Ball velocity should not change (kick ignored)
         let ball_vel = &game.state.ball_state.velocity;
         assert_eq!(ball_vel.x.get::<meter_per_second>(), 1.0);
         assert_eq!(ball_vel.z.get::<meter_per_second>(), 2.0);
-        
+
         // Decision should still be marked as processed
         assert!(game.state.player_states[0].decision_processed);
     }
@@ -540,28 +612,28 @@ mod tests {
     #[test]
     fn test_kick_by_different_player_ignored() {
         let mut game = create_test_game_with_two_players();
-        
+
         // Ball owned by player 0
         game.state.ball_state.possessed_by = Some(0);
         game.state.ball_state.position = Point3D::from_meters(50.0, 30.0, 0.0);
         game.state.ball_state.velocity = Velocity3D::default();
-        
+
         // Player 1 tries to kick
         let target = Point3D::from_meters(60.0, 30.0, 0.0);
         game.state.player_states[1].current_decision = Some(Decision::Kick(target));
         game.state.player_states[1].decision_processed = false;
-        
+
         let mut system = ActionSystem::with_rng(|| 0.5);
         system.update(&mut game, 0.0);
-        
+
         // Ball velocity should not change (player 1 doesn't own ball)
         let ball_vel = &game.state.ball_state.velocity;
         assert_eq!(ball_vel.x.get::<meter_per_second>(), 0.0);
         assert_eq!(ball_vel.z.get::<meter_per_second>(), 0.0);
-        
+
         // Possession should remain with player 0
         assert_eq!(game.state.ball_state.possessed_by, Some(0));
-        
+
         // Decision should still be marked as processed
         assert!(game.state.player_states[1].decision_processed);
     }
@@ -569,35 +641,53 @@ mod tests {
     #[test]
     fn test_kick_preserves_player_velocity() {
         let mut game = create_test_game_with_player_stats(100, 50, 50, 100, 100);
-        
+
         // Set player as ball owner
         game.state.ball_state.possessed_by = Some(0);
         game.state.ball_state.position = Point3D::from_meters(50.0, 30.0, 0.0);
-        
+
         // Give player some velocity (running)
         let player_velocity = Velocity3D::from_meters_per_second(3.0, 0.0, 2.0);
         game.state.player_states[0].velocity = player_velocity;
-        
+
         // Player kicks while running
         let target = Point3D::from_meters(60.0, 30.0, 0.0);
         game.state.player_states[0].current_decision = Some(Decision::Kick(target));
         game.state.player_states[0].decision_processed = false;
-        
+
         let mut system = ActionSystem::with_rng(|| 0.5);
         system.update(&mut game, 0.0);
-        
+
         // Ball should move
         let ball_vel = &game.state.ball_state.velocity;
         assert!(ball_vel.x.get::<meter_per_second>() > 0.0);
-        
+
         // Possession should be released
         assert_eq!(game.state.ball_state.possessed_by, None);
-        
+
         // Player velocity should be UNCHANGED (continues running)
-        assert_eq!(game.state.player_states[0].velocity.x.get::<meter_per_second>(), 3.0);
-        assert_eq!(game.state.player_states[0].velocity.y.get::<meter_per_second>(), 0.0);
-        assert_eq!(game.state.player_states[0].velocity.z.get::<meter_per_second>(), 2.0);
-        
+        assert_eq!(
+            game.state.player_states[0]
+                .velocity
+                .x
+                .get::<meter_per_second>(),
+            3.0
+        );
+        assert_eq!(
+            game.state.player_states[0]
+                .velocity
+                .y
+                .get::<meter_per_second>(),
+            0.0
+        );
+        assert_eq!(
+            game.state.player_states[0]
+                .velocity
+                .z
+                .get::<meter_per_second>(),
+            2.0
+        );
+
         assert!(game.state.player_states[0].decision_processed);
     }
 }

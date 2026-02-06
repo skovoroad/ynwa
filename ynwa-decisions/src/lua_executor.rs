@@ -159,20 +159,14 @@ impl LuaExecutor {
             .exec()
             .map_err(|e| self.map_lua_error(e))?;
 
-        let function: mlua::Function = self
-            .lua
-            .globals()
-            .get(function_name)
-            .map_err(|_| {
-                ScriptError::FunctionNotFound(format!(
-                    "Script must define {}() function",
-                    function_name
-                ))
-            })?;
+        let function: mlua::Function = self.lua.globals().get(function_name).map_err(|_| {
+            ScriptError::FunctionNotFound(format!(
+                "Script must define {}() function",
+                function_name
+            ))
+        })?;
 
-        let result: Value = function
-            .call(())
-            .map_err(|e| self.map_lua_error(e))?;
+        let result: Value = function.call(()).map_err(|e| self.map_lua_error(e))?;
 
         if self.timeout.is_some() {
             self.lua.remove_hook();
@@ -195,9 +189,7 @@ impl LuaExecutor {
                 ScriptError::Timeout(format!("Script exceeded {}ms timeout", timeout_ms))
             }
             // Syntax errors: type-based detection via SyntaxError variant
-            mlua::Error::SyntaxError { message, .. } => {
-                ScriptError::SyntaxError(message)
-            }
+            mlua::Error::SyntaxError { message, .. } => ScriptError::SyntaxError(message),
             // Other errors: check if mlua wrapped our timeout in RuntimeError
             ref other => {
                 let err_msg = other.to_string();
@@ -213,7 +205,7 @@ impl LuaExecutor {
 
     fn setup_timeout_hook(&self, timeout: Duration) -> Result<(), ScriptError> {
         use mlua::HookTriggers;
-        
+
         let start_time = Arc::new(Mutex::new(Instant::now()));
         let start_time_clone = Arc::clone(&start_time);
 
@@ -439,7 +431,9 @@ mod tests {
         };
 
         // Call first function
-        let result1 = executor.execute(script, "calculate_score", &context).unwrap();
+        let result1 = executor
+            .execute(script, "calculate_score", &context)
+            .unwrap();
         assert_eq!(result1.data["score"], 50);
 
         // Call second function with same executor and script
@@ -502,15 +496,21 @@ mod tests {
         };
 
         // First call: shared_counter goes from 0 to 1
-        let result1 = executor.execute(script, "increment_shared", &context).unwrap();
+        let result1 = executor
+            .execute(script, "increment_shared", &context)
+            .unwrap();
         assert_eq!(result1.data["value"], 1);
 
         // Second call: shared_counter persists and goes from 1 to 2
-        let result2 = executor.execute(script, "increment_shared", &context).unwrap();
+        let result2 = executor
+            .execute(script, "increment_shared", &context)
+            .unwrap();
         assert_eq!(result2.data["value"], 2);
 
         // Third call: shared_counter goes from 2 to 3
-        let result3 = executor.execute(script, "increment_shared", &context).unwrap();
+        let result3 = executor
+            .execute(script, "increment_shared", &context)
+            .unwrap();
         assert_eq!(result3.data["value"], 3);
     }
 
@@ -666,7 +666,7 @@ mod tests {
 
         let result = LuaExecutor::new(Some(bad_preamble.to_string()), None);
         assert!(matches!(result, Err(ScriptError::SyntaxError(_))));
-        
+
         if let Err(ScriptError::SyntaxError(msg)) = result {
             assert!(msg.contains("Preamble error"));
         }
@@ -854,7 +854,9 @@ mod tests {
         };
 
         // Lua returns nil for missing fields, which becomes null in JSON
-        let result = executor.execute(script, "access_missing", &context).unwrap();
+        let result = executor
+            .execute(script, "access_missing", &context)
+            .unwrap();
         assert!(result.data["missing"].is_null());
     }
 
@@ -875,7 +877,9 @@ mod tests {
         };
 
         // Lua allows division by zero (returns inf), not a runtime error
-        let result = executor.execute(script, "divide_by_zero", &context).unwrap();
+        let result = executor
+            .execute(script, "divide_by_zero", &context)
+            .unwrap();
         // JSON represents infinity as null
         assert!(result.data["result"].is_null() || result.data["result"].is_number());
     }
@@ -928,11 +932,9 @@ mod tests {
                 });
 
             assert_eq!(
-                result.data["exists"],
-                false,
+                result.data["exists"], false,
                 "Sandbox should block '{}' ({}), but it's accessible",
-                global_name,
-                description
+                global_name, description
             );
         }
     }
@@ -948,21 +950,56 @@ mod tests {
         // Test cases: (global_name, test_expression, expected_type, description)
         let test_cases = [
             ("math", "math.sqrt(16)", "number", "math library"),
-            ("string", "string.upper('hello')", "string", "string library"),
-            ("table", "table.concat({1,2,3}, ',')", "string", "table library"),
+            (
+                "string",
+                "string.upper('hello')",
+                "string",
+                "string library",
+            ),
+            (
+                "table",
+                "table.concat({1,2,3}, ',')",
+                "string",
+                "table library",
+            ),
             ("type", "type(42)", "string", "type function"),
             ("tostring", "tostring(123)", "string", "tostring function"),
             ("tonumber", "tonumber('456')", "number", "tonumber function"),
             ("pairs", "pairs({a=1})", "function", "pairs function"),
             ("ipairs", "ipairs({1,2,3})", "function", "ipairs function"),
             ("next", "next({a=1}, nil)", "string", "next function"),
-            ("pcall", "pcall(function() return 1 end)", "boolean", "pcall function"),
-            ("xpcall", "xpcall(function() return 1 end, function() end)", "boolean", "xpcall function"),
+            (
+                "pcall",
+                "pcall(function() return 1 end)",
+                "boolean",
+                "pcall function",
+            ),
+            (
+                "xpcall",
+                "xpcall(function() return 1 end, function() end)",
+                "boolean",
+                "xpcall function",
+            ),
             ("assert", "assert(true, 'ok')", "boolean", "assert function"),
             ("error", "error", "function", "error function (exists)"),
-            ("select", "select(2, 'a', 'b', 'c')", "string", "select function"),
-            ("getmetatable", "getmetatable", "function", "getmetatable function"),
-            ("setmetatable", "setmetatable({}, {})", "table", "setmetatable function"),
+            (
+                "select",
+                "select(2, 'a', 'b', 'c')",
+                "string",
+                "select function",
+            ),
+            (
+                "getmetatable",
+                "getmetatable",
+                "function",
+                "getmetatable function",
+            ),
+            (
+                "setmetatable",
+                "setmetatable({}, {})",
+                "table",
+                "setmetatable function",
+            ),
             ("rawget", "rawget({a=1}, 'a')", "number", "rawget function"),
             ("rawset", "rawset({}, 'k', 'v')", "table", "rawset function"),
             ("rawequal", "rawequal(1, 1)", "boolean", "rawequal function"),
@@ -998,7 +1035,11 @@ mod tests {
             );
 
             let result = executor
-                .execute(&script, &format!("check_{}", global_name.replace(".", "_")), &context)
+                .execute(
+                    &script,
+                    &format!("check_{}", global_name.replace(".", "_")),
+                    &context,
+                )
                 .unwrap_or_else(|e| {
                     panic!(
                         "Failed to execute test for '{}' ({}): {:?}",

@@ -2,7 +2,12 @@ use macroquad::prelude::*;
 use uom::si::length::meter;
 use ynwa_core::field::zones::ZoneGeometry;
 
-pub fn render_field(game_config: &ynwa_core::game::GameConfig, game_state: &ynwa_core::game::GameState, field_area_width: f32, screen_h: f32) {
+pub fn render_field(
+    game_config: &ynwa_core::game::GameConfig,
+    game_state: &ynwa_core::game::GameState,
+    field_area_width: f32,
+    screen_h: f32,
+) {
     let field = &game_config.field;
     let field_length = field.length().get::<meter>();
     let field_width = field.width().get::<meter>();
@@ -22,7 +27,14 @@ pub fn render_field(game_config: &ynwa_core::game::GameConfig, game_state: &ynwa
 
     let white = Color::new(1.0, 1.0, 1.0, 1.0);
 
-    draw_field_boundary(&to_screen_x, &to_screen_y, field_width, field_length, scale, white);
+    draw_field_boundary(
+        &to_screen_x,
+        &to_screen_y,
+        field_width,
+        field_length,
+        scale,
+        white,
+    );
     draw_grid_cells(&to_screen_x, &to_screen_y, field, scale);
     draw_grid_labels(&to_screen_x, &to_screen_y, field);
     draw_center_line(&to_screen_x, &to_screen_y, field_width, field_length, white);
@@ -234,6 +246,11 @@ fn draw_ball(
     let ball_outline_color = BLACK;
 
     // Draw ball with black outline
-    draw_circle(to_screen_x(bz), to_screen_y(bx), ball_radius + 1.0, ball_outline_color);
+    draw_circle(
+        to_screen_x(bz),
+        to_screen_y(bx),
+        ball_radius + 1.0,
+        ball_outline_color,
+    );
     draw_circle(to_screen_x(bz), to_screen_y(bx), ball_radius, ball_color);
 }

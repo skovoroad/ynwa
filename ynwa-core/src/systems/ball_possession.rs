@@ -44,7 +44,10 @@ impl BallPossessionSystem {
         let radius = Length::new::<meter>(POSSESSION_RADIUS);
 
         // Determine if we should filter by team
-        let owner_team = game.state.ball_state.possessed_by
+        let owner_team = game
+            .state
+            .ball_state
+            .possessed_by
             .map(|owner_idx| game.config().players[owner_idx].team);
 
         game.state
@@ -125,7 +128,7 @@ impl System for BallPossessionSystem {
         if new_possession != game.state.ball_state.possessed_by {
             game.state.ball_state.possessed_by = new_possession;
             game.state.ball_state.last_possession_change_time = timestamp;
-            
+
             // Set needs_decision flag for all players when possession changes
             for player_state in &mut game.state.player_states {
                 player_state.needs_decision = true;
@@ -144,8 +147,8 @@ impl Default for BallPossessionSystem {
 mod tests {
     use super::*;
     use crate::field::zones::{Point3D, Velocity3D};
-    use crate::game::{BallDef, GameConfig, PlayerDef, PlayerState, RefereeDef};
     use crate::field::Field;
+    use crate::game::{BallDef, GameConfig, PlayerDef, PlayerState, RefereeDef};
     use crate::region::{GridCell, Region};
     use crate::team::Team;
 
@@ -153,7 +156,12 @@ mod tests {
         Field::from_meters(100.0, 60.0, 20, 40)
     }
 
-    fn create_test_player(team: Team, number: u32, tackle_rate: u32, position: Point3D) -> (PlayerDef, PlayerState) {
+    fn create_test_player(
+        team: Team,
+        number: u32,
+        tackle_rate: u32,
+        position: Point3D,
+    ) -> (PlayerDef, PlayerState) {
         let grid_dims = create_test_field().grid_dimensions();
         let start_region = Region::new(
             team,
@@ -170,7 +178,9 @@ mod tests {
             50,
             50,
             tackle_rate,
-            50, 50, "function make_decision() return {} end".to_string(),
+            50,
+            50,
+            "function make_decision() return {} end".to_string(),
             start_region,
         );
 
@@ -190,17 +200,13 @@ mod tests {
     #[test]
     fn test_no_players_nearby() {
         let field = create_test_field();
-        
+
         // Ball at center
         let ball_pos = Point3D::from_meters(50.0, 30.0, 0.0);
-        
+
         // Player far away (10m)
-        let (player_def, player_state) = create_test_player(
-            Team::A,
-            1,
-            50,
-            Point3D::from_meters(60.0, 30.0, 0.0),
-        );
+        let (player_def, player_state) =
+            create_test_player(Team::A, 1, 50, Point3D::from_meters(60.0, 30.0, 0.0));
 
         let config = GameConfig {
             field,
@@ -225,17 +231,13 @@ mod tests {
     #[test]
     fn test_single_player_nearby() {
         let field = create_test_field();
-        
+
         // Ball at center
         let ball_pos = Point3D::from_meters(50.0, 30.0, 0.0);
-        
+
         // Player within 1m
-        let (player_def, player_state) = create_test_player(
-            Team::A,
-            1,
-            50,
-            Point3D::from_meters(50.5, 30.0, 0.0),
-        );
+        let (player_def, player_state) =
+            create_test_player(Team::A, 1, 50, Point3D::from_meters(50.5, 30.0, 0.0));
 
         let config = GameConfig {
             field,
@@ -260,10 +262,10 @@ mod tests {
     #[test]
     fn test_two_players_deterministic_selection() {
         let field = create_test_field();
-        
+
         // Ball at center
         let ball_pos = Point3D::from_meters(50.0, 30.0, 0.0);
-        
+
         // Two players within 1m, different tackle rates
         let (player1_def, player1_state) = create_test_player(
             Team::A,
@@ -271,7 +273,7 @@ mod tests {
             80, // High tackle rate
             Point3D::from_meters(50.5, 30.0, 0.0),
         );
-        
+
         let (player2_def, player2_state) = create_test_player(
             Team::A,
             2,
@@ -305,10 +307,10 @@ mod tests {
     #[test]
     fn test_two_players_probabilistic_upset() {
         let field = create_test_field();
-        
+
         // Ball at center
         let ball_pos = Point3D::from_meters(50.0, 30.0, 0.0);
-        
+
         // Two players within 1m, different tackle rates
         let (player1_def, player1_state) = create_test_player(
             Team::A,
@@ -316,7 +318,7 @@ mod tests {
             80, // High tackle rate
             Point3D::from_meters(50.5, 30.0, 0.0),
         );
-        
+
         let (player2_def, player2_state) = create_test_player(
             Team::A,
             2,
@@ -345,7 +347,11 @@ mod tests {
         let mut system = BallPossessionSystem::with_rng(move || {
             let count = call_count.get();
             call_count.set(count + 1);
-            if count == 0 { 0.0 } else { 1.0 } // First gets min (0.5x), second gets max (1.5x)
+            if count == 0 {
+                0.0
+            } else {
+                1.0
+            } // First gets min (0.5x), second gets max (1.5x)
         });
         system.update(&mut game, 0.0);
 
@@ -356,10 +362,10 @@ mod tests {
     #[test]
     fn test_extreme_difference_weak_can_still_win() {
         let field = create_test_field();
-        
+
         // Ball at center
         let ball_pos = Point3D::from_meters(50.0, 30.0, 0.0);
-        
+
         // Extreme difference: 100 vs 10
         let (player1_def, player1_state) = create_test_player(
             Team::A,
@@ -367,7 +373,7 @@ mod tests {
             100, // Maximum tackle rate
             Point3D::from_meters(50.5, 30.0, 0.0),
         );
-        
+
         let (player2_def, player2_state) = create_test_player(
             Team::A,
             2,
@@ -396,7 +402,11 @@ mod tests {
         let mut system = BallPossessionSystem::with_rng(move || {
             let count = call_count.get();
             call_count.set(count + 1);
-            if count == 0 { 0.0 } else { 1.0 }
+            if count == 0 {
+                0.0
+            } else {
+                1.0
+            }
         });
         system.update(&mut game, 0.0);
 
@@ -407,10 +417,10 @@ mod tests {
     #[test]
     fn test_moderate_difference_upset_possible() {
         let field = create_test_field();
-        
+
         // Ball at center
         let ball_pos = Point3D::from_meters(50.0, 30.0, 0.0);
-        
+
         // Moderate difference where upset is theoretically possible
         let (player1_def, player1_state) = create_test_player(
             Team::A,
@@ -418,7 +428,7 @@ mod tests {
             60, // Good tackle rate
             Point3D::from_meters(50.5, 30.0, 0.0),
         );
-        
+
         let (player2_def, player2_state) = create_test_player(
             Team::A,
             2,
@@ -446,7 +456,11 @@ mod tests {
         let mut system = BallPossessionSystem::with_rng(move || {
             let count = call_count.get();
             call_count.set(count + 1);
-            if count == 0 { 0.0 } else { 1.0 }
+            if count == 0 {
+                0.0
+            } else {
+                1.0
+            }
         });
         system.update(&mut game, 0.0);
 
@@ -457,24 +471,16 @@ mod tests {
     #[test]
     fn test_possession_cooldown_prevents_immediate_change() {
         let field = create_test_field();
-        
+
         // Ball at center
         let ball_pos = Point3D::from_meters(50.0, 30.0, 0.0);
-        
+
         // Two players within 1m
-        let (player1_def, player1_state) = create_test_player(
-            Team::A,
-            1,
-            80,
-            Point3D::from_meters(50.5, 30.0, 0.0),
-        );
-        
-        let (player2_def, player2_state) = create_test_player(
-            Team::A,
-            2,
-            70,
-            Point3D::from_meters(49.5, 30.0, 0.0),
-        );
+        let (player1_def, player1_state) =
+            create_test_player(Team::A, 1, 80, Point3D::from_meters(50.5, 30.0, 0.0));
+
+        let (player2_def, player2_state) =
+            create_test_player(Team::A, 2, 70, Point3D::from_meters(49.5, 30.0, 0.0));
 
         let config = GameConfig {
             field,
@@ -490,7 +496,7 @@ mod tests {
         game.state.ball_state.possessed_by = None;
 
         let mut system = BallPossessionSystem::with_rng(|| 0.5);
-        
+
         // First update at t=0.0 - should assign possession
         system.update(&mut game, 0.0);
         let first_owner = game.state.ball_state.possessed_by;
@@ -511,18 +517,14 @@ mod tests {
     #[test]
     fn test_possession_cooldown_allows_change_after_timeout() {
         let field = create_test_field();
-        
+
         // Ball at center
         let ball_pos = Point3D::from_meters(50.0, 30.0, 0.0);
-        
+
         // Two players within 1m - DIFFERENT TEAMS
-        let (player1_def, player1_state) = create_test_player(
-            Team::A,
-            1,
-            80,
-            Point3D::from_meters(50.5, 30.0, 0.0),
-        );
-        
+        let (player1_def, player1_state) =
+            create_test_player(Team::A, 1, 80, Point3D::from_meters(50.5, 30.0, 0.0));
+
         let (player2_def, player2_state) = create_test_player(
             Team::B, // Different team!
             7,
@@ -551,9 +553,15 @@ mod tests {
             call_count.set(count + 1);
             // First determination: player 0 wins (both get 0.5)
             // Second determination: player 1 wins (0 gets 0.0, 1 gets 1.0)
-            if count < 2 { 0.5 } else if count == 2 { 0.0 } else { 1.0 }
+            if count < 2 {
+                0.5
+            } else if count == 2 {
+                0.0
+            } else {
+                1.0
+            }
         });
-        
+
         // First update at t=0.0 - assign to player 0
         system.update(&mut game, 0.0);
         assert_eq!(game.state.ball_state.possessed_by, Some(0));
@@ -569,17 +577,13 @@ mod tests {
     #[test]
     fn test_no_possession_change_updates_timestamp() {
         let field = create_test_field();
-        
+
         // Ball at center
         let ball_pos = Point3D::from_meters(50.0, 30.0, 0.0);
-        
+
         // Single player
-        let (player_def, player_state) = create_test_player(
-            Team::A,
-            1,
-            50,
-            Point3D::from_meters(50.5, 30.0, 0.0),
-        );
+        let (player_def, player_state) =
+            create_test_player(Team::A, 1, 50, Point3D::from_meters(50.5, 30.0, 0.0));
 
         let config = GameConfig {
             field,
@@ -595,7 +599,7 @@ mod tests {
         game.state.ball_state.possessed_by = None;
 
         let mut system = BallPossessionSystem::new();
-        
+
         // First update - gets possession
         system.update(&mut game, 0.0);
         assert_eq!(game.state.ball_state.possessed_by, Some(0));
@@ -611,10 +615,10 @@ mod tests {
     #[test]
     fn test_possession_change_triggers_all_players_decision() {
         let field = create_test_field();
-        
+
         // Ball at center
         let ball_pos = Point3D::from_meters(50.0, 30.0, 0.0);
-        
+
         // Three players: 2 near ball, 1 far away
         let (player1_def, mut player1_state) = create_test_player(
             Team::A,
@@ -622,7 +626,7 @@ mod tests {
             80,
             Point3D::from_meters(50.5, 30.0, 0.0), // Near ball
         );
-        
+
         let (player2_def, mut player2_state) = create_test_player(
             Team::A,
             2,
@@ -656,31 +660,36 @@ mod tests {
         game.state.ball_state.possessed_by = None;
 
         let mut system = BallPossessionSystem::with_rng(|| 0.5);
-        
+
         // First update - possession changes from None to Some
         system.update(&mut game, 0.0);
-        
+
         // All players should have needs_decision set to true
-        assert!(game.state.player_states[0].needs_decision, "Player 0 should need decision");
-        assert!(game.state.player_states[1].needs_decision, "Player 1 should need decision");
-        assert!(game.state.player_states[2].needs_decision, "Player 2 (far away) should need decision");
+        assert!(
+            game.state.player_states[0].needs_decision,
+            "Player 0 should need decision"
+        );
+        assert!(
+            game.state.player_states[1].needs_decision,
+            "Player 1 should need decision"
+        );
+        assert!(
+            game.state.player_states[2].needs_decision,
+            "Player 2 (far away) should need decision"
+        );
     }
 
     #[test]
     fn test_no_possession_change_no_decision_trigger() {
         let field = create_test_field();
-        
+
         // Ball at center
         let ball_pos = Point3D::from_meters(50.0, 30.0, 0.0);
-        
+
         // Two players near ball
-        let (player1_def, player1_state) = create_test_player(
-            Team::A,
-            1,
-            80,
-            Point3D::from_meters(50.5, 30.0, 0.0),
-        );
-        
+        let (player1_def, player1_state) =
+            create_test_player(Team::A, 1, 80, Point3D::from_meters(50.5, 30.0, 0.0));
+
         let (player2_def, player2_state) = create_test_player(
             Team::A,
             2,
@@ -702,11 +711,11 @@ mod tests {
         game.state.ball_state.possessed_by = None;
 
         let mut system = BallPossessionSystem::with_rng(|| 0.5);
-        
+
         // First update - player 0 gets possession
         system.update(&mut game, 0.0);
         assert_eq!(game.state.ball_state.possessed_by, Some(0));
-        
+
         // Reset needs_decision flags
         game.state.player_states[0].needs_decision = false;
         game.state.player_states[1].needs_decision = false;
@@ -714,27 +723,29 @@ mod tests {
         // Second update after cooldown - same player still near ball, no change
         system.update(&mut game, 2.0);
         assert_eq!(game.state.ball_state.possessed_by, Some(0));
-        
+
         // needs_decision should NOT be set because possession didn't change
-        assert!(!game.state.player_states[0].needs_decision, "Player 0 should NOT need decision");
-        assert!(!game.state.player_states[1].needs_decision, "Player 1 should NOT need decision");
+        assert!(
+            !game.state.player_states[0].needs_decision,
+            "Player 0 should NOT need decision"
+        );
+        assert!(
+            !game.state.player_states[1].needs_decision,
+            "Player 1 should NOT need decision"
+        );
     }
 
     #[test]
     fn test_possession_transfer_triggers_decision() {
         let field = create_test_field();
-        
+
         // Ball at center
         let ball_pos = Point3D::from_meters(50.0, 30.0, 0.0);
-        
+
         // Two players near ball
-        let (player1_def, player1_state) = create_test_player(
-            Team::A,
-            1,
-            80,
-            Point3D::from_meters(50.5, 30.0, 0.0),
-        );
-        
+        let (player1_def, player1_state) =
+            create_test_player(Team::A, 1, 80, Point3D::from_meters(50.5, 30.0, 0.0));
+
         let (player2_def, player2_state) = create_test_player(
             Team::B, // Different team!
             2,
@@ -762,13 +773,19 @@ mod tests {
             let count = call_count.get();
             call_count.set(count + 1);
             // First: player 0 wins, Second: player 1 wins
-            if count < 2 { 0.5 } else if count == 2 { 0.0 } else { 1.0 }
+            if count < 2 {
+                0.5
+            } else if count == 2 {
+                0.0
+            } else {
+                1.0
+            }
         });
-        
+
         // First update - player 0 gets possession
         system.update(&mut game, 0.0);
         assert_eq!(game.state.ball_state.possessed_by, Some(0));
-        
+
         // Reset flags
         game.state.player_states[0].needs_decision = false;
         game.state.player_states[1].needs_decision = false;
@@ -776,19 +793,25 @@ mod tests {
         // Second update after cooldown - possession transfers to player 1
         system.update(&mut game, 1.5);
         assert_eq!(game.state.ball_state.possessed_by, Some(1));
-        
+
         // Both players should need decision after transfer
-        assert!(game.state.player_states[0].needs_decision, "Player 0 should need decision after losing ball");
-        assert!(game.state.player_states[1].needs_decision, "Player 1 should need decision after getting ball");
+        assert!(
+            game.state.player_states[0].needs_decision,
+            "Player 0 should need decision after losing ball"
+        );
+        assert!(
+            game.state.player_states[1].needs_decision,
+            "Player 1 should need decision after getting ball"
+        );
     }
 
     #[test]
     fn test_teammates_dont_steal_from_each_other() {
         let field = create_test_field();
-        
+
         // Ball at center
         let ball_pos = Point3D::from_meters(50.0, 30.0, 0.0);
-        
+
         // Three players from Team A, all near ball
         let (player1_def, player1_state) = create_test_player(
             Team::A,
@@ -796,7 +819,7 @@ mod tests {
             80, // High tackle rate
             Point3D::from_meters(50.5, 30.0, 0.0),
         );
-        
+
         let (player2_def, player2_state) = create_test_player(
             Team::A,
             2,
@@ -804,12 +827,8 @@ mod tests {
             Point3D::from_meters(49.5, 30.0, 0.0),
         );
 
-        let (player3_def, player3_state) = create_test_player(
-            Team::A,
-            3,
-            70,
-            Point3D::from_meters(50.0, 30.5, 0.0),
-        );
+        let (player3_def, player3_state) =
+            create_test_player(Team::A, 3, 70, Point3D::from_meters(50.0, 30.5, 0.0));
 
         let config = GameConfig {
             field,
@@ -822,16 +841,16 @@ mod tests {
         let mut game = Game::new(config);
         game.state.ball_state.position = ball_pos;
         game.state.player_states = vec![player1_state, player2_state, player3_state];
-        
+
         // Player 0 already has possession
         game.state.ball_state.possessed_by = Some(0);
         game.state.ball_state.last_possession_change_time = 0.0;
 
         let mut system = BallPossessionSystem::with_rng(|| 0.5);
-        
+
         // Update after cooldown - should NOT change (all teammates)
         system.update(&mut game, 2.0);
-        
+
         // Player 0 should still have possession
         assert_eq!(game.state.ball_state.possessed_by, Some(0));
     }
@@ -839,18 +858,14 @@ mod tests {
     #[test]
     fn test_opponents_can_steal_from_owner() {
         let field = create_test_field();
-        
+
         // Ball at center
         let ball_pos = Point3D::from_meters(50.0, 30.0, 0.0);
-        
+
         // Two players near ball - different teams
-        let (player1_def, player1_state) = create_test_player(
-            Team::A,
-            1,
-            70,
-            Point3D::from_meters(50.5, 30.0, 0.0),
-        );
-        
+        let (player1_def, player1_state) =
+            create_test_player(Team::A, 1, 70, Point3D::from_meters(50.5, 30.0, 0.0));
+
         let (player2_def, player2_state) = create_test_player(
             Team::B,
             7,
@@ -869,17 +884,17 @@ mod tests {
         let mut game = Game::new(config);
         game.state.ball_state.position = ball_pos;
         game.state.player_states = vec![player1_state, player2_state];
-        
+
         // Player 0 (Team A) has possession
         game.state.ball_state.possessed_by = Some(0);
         game.state.ball_state.last_possession_change_time = 0.0;
 
         // Use RNG that favors player 1
         let mut system = BallPossessionSystem::with_rng(|| 1.0);
-        
+
         // Update after cooldown - opponent can steal
         system.update(&mut game, 2.0);
-        
+
         // Player 1 should steal the ball
         assert_eq!(game.state.ball_state.possessed_by, Some(1));
     }
@@ -887,24 +902,16 @@ mod tests {
     #[test]
     fn test_teammates_nearby_opponent_far_keeps_possession() {
         let field = create_test_field();
-        
+
         // Ball at center
         let ball_pos = Point3D::from_meters(50.0, 30.0, 0.0);
-        
+
         // Two teammates near ball
-        let (player1_def, player1_state) = create_test_player(
-            Team::A,
-            1,
-            70,
-            Point3D::from_meters(50.5, 30.0, 0.0),
-        );
-        
-        let (player2_def, player2_state) = create_test_player(
-            Team::A,
-            2,
-            60,
-            Point3D::from_meters(49.5, 30.0, 0.0),
-        );
+        let (player1_def, player1_state) =
+            create_test_player(Team::A, 1, 70, Point3D::from_meters(50.5, 30.0, 0.0));
+
+        let (player2_def, player2_state) =
+            create_test_player(Team::A, 2, 60, Point3D::from_meters(49.5, 30.0, 0.0));
 
         // Opponent far away
         let (player3_def, player3_state) = create_test_player(
@@ -925,16 +932,16 @@ mod tests {
         let mut game = Game::new(config);
         game.state.ball_state.position = ball_pos;
         game.state.player_states = vec![player1_state, player2_state, player3_state];
-        
+
         // Player 0 has possession
         game.state.ball_state.possessed_by = Some(0);
         game.state.ball_state.last_possession_change_time = 0.0;
 
         let mut system = BallPossessionSystem::with_rng(|| 0.5);
-        
+
         // Update after cooldown
         system.update(&mut game, 2.0);
-        
+
         // Should keep possession (only teammates nearby)
         assert_eq!(game.state.ball_state.possessed_by, Some(0));
     }

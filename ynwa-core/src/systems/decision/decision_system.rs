@@ -29,8 +29,11 @@ impl fmt::Display for DecisionError {
 impl std::error::Error for DecisionError {}
 
 pub trait DecisionMaker {
-    fn make_decision(&mut self, game: &Game, player_index: usize) 
-        -> Result<Decision, DecisionError>;
+    fn make_decision(
+        &mut self,
+        game: &Game,
+        player_index: usize,
+    ) -> Result<Decision, DecisionError>;
 }
 
 /// Temporary stub - generates random run decisions until real AI is implemented
@@ -43,17 +46,19 @@ impl PlaceholderDecisionMaker {
 }
 
 impl DecisionMaker for PlaceholderDecisionMaker {
-    fn make_decision(&mut self, game: &Game, _player_index: usize) 
-        -> Result<Decision, DecisionError> 
-    {
+    fn make_decision(
+        &mut self,
+        game: &Game,
+        _player_index: usize,
+    ) -> Result<Decision, DecisionError> {
         let grid_dims = game.config().field.grid_dimensions();
         let mut rng = rand::rng();
-        
+
         let col = rng.random_range(1..=grid_dims.columns);
         let row = rng.random_range(1..=grid_dims.rows);
-        let cell = GridCell::new(col, row)
-            .map_err(|e| DecisionError::RuntimeError(e.to_string()))?;
-        
+        let cell =
+            GridCell::new(col, row).map_err(|e| DecisionError::RuntimeError(e.to_string()))?;
+
         Ok(Decision::Run(DecisionTarget::GridCell(cell)))
     }
 }
@@ -82,14 +87,17 @@ impl DecisionSystem {
         self
     }
 
-    pub fn with_error_handler(mut self, handler: fn(&DecisionError, usize) -> Option<Decision>) -> Self {
+    pub fn with_error_handler(
+        mut self,
+        handler: fn(&DecisionError, usize) -> Option<Decision>,
+    ) -> Self {
         self.on_error = handler;
         self
     }
 
     fn default_error_handler(error: &DecisionError, player_index: usize) -> Option<Decision> {
         eprintln!("Player {} decision error: {}", player_index, error);
-        None  // No decision on error by default
+        None // No decision on error by default
     }
 }
 
@@ -102,22 +110,22 @@ impl Default for DecisionSystem {
 impl System for DecisionSystem {
     fn update(&mut self, game: &mut Game, timestamp: f32) {
         let player_count = game.state.player_states.len();
-        
+
         for player_index in 0..player_count {
             if game.state.player_states[player_index].needs_decision {
                 // Get decision or handle error
                 let decision_result = self.decision_maker.make_decision(game, player_index);
-                
+
                 // Get player's team for coordinate conversion
                 let player_team = game.config().players[player_index].team;
-                
+
                 // Get field dimensions for coordinate conversion
                 let field_width = game.config().field.width().get::<meter>();
                 let field_length = game.config().field.length().get::<meter>();
                 let grid_dims = game.config().field.grid_dimensions();
-                
+
                 let player_state = &mut game.state.player_states[player_index];
-                
+
                 match decision_result {
                     Ok(decision) => {
                         // Convert decision from team's orientation to display orientation
@@ -128,7 +136,7 @@ impl System for DecisionSystem {
                             field_length,
                             grid_dims,
                         );
-                        
+
                         // Success: set the decision
                         player_state.current_decision = Some(display_decision);
                         player_state.decision_processed = false;
@@ -140,7 +148,7 @@ impl System for DecisionSystem {
                         // Error: call error handler and save error message for UI
                         let error_message = error.to_string();
                         let error_decision = (self.on_error)(&error, player_index);
-                        
+
                         // If error handler provides a decision, convert it too
                         let converted_error_decision = error_decision.map(|d| {
                             convert_decision_to_display_orientation(
@@ -151,7 +159,7 @@ impl System for DecisionSystem {
                                 grid_dims,
                             )
                         });
-                        
+
                         // Always treat error as "completed attempt" to prevent storm
                         // This ensures rate-limiting via PlayerReactionSystem's reaction_rate
                         player_state.current_decision = converted_error_decision;
@@ -195,7 +203,9 @@ mod tests {
                 50,
                 50,
                 50,
-                50, 50, "function make_decision() return {} end".to_string(),
+                50,
+                50,
+                "function make_decision() return {} end".to_string(),
                 start_region,
             )],
             ball: BallDef::default(),
@@ -260,7 +270,7 @@ mod tests {
 
         game.state.player_states[0].needs_decision = true;
         system.update(&mut game, 1.0);
-        
+
         let first_decision = game.state.player_states[0].current_decision.clone();
         assert!(first_decision.is_some());
 
@@ -295,11 +305,13 @@ mod tests {
 
     // Test error handling
     struct ErrorDecisionMaker;
-    
+
     impl DecisionMaker for ErrorDecisionMaker {
-        fn make_decision(&mut self, _game: &Game, _player_index: usize) 
-            -> Result<Decision, DecisionError> 
-        {
+        fn make_decision(
+            &mut self,
+            _game: &Game,
+            _player_index: usize,
+        ) -> Result<Decision, DecisionError> {
             Err(DecisionError::ScriptError("Test error".to_string()))
         }
     }
@@ -307,8 +319,7 @@ mod tests {
     #[test]
     fn test_decision_system_handles_error_with_default_handler() {
         let mut game = create_test_game();
-        let mut system = DecisionSystem::new()
-            .with_decision_maker(Box::new(ErrorDecisionMaker));
+        let mut system = DecisionSystem::new().with_decision_maker(Box::new(ErrorDecisionMaker));
 
         game.state.player_states[0].needs_decision = true;
 
@@ -325,12 +336,14 @@ mod tests {
     #[test]
     fn test_decision_system_with_custom_error_handler() {
         let mut game = create_test_game();
-        
+
         // Custom handler that returns a specific cell on error
         let mut system = DecisionSystem::new()
             .with_decision_maker(Box::new(ErrorDecisionMaker))
             .with_error_handler(|_error, _idx| {
-                Some(Decision::Run(DecisionTarget::GridCell(GridCell::new(13, 22).unwrap())))
+                Some(Decision::Run(DecisionTarget::GridCell(
+                    GridCell::new(13, 22).unwrap(),
+                )))
             });
 
         game.state.player_states[0].needs_decision = true;
@@ -352,8 +365,7 @@ mod tests {
     #[test]
     fn test_decision_system_updates_timestamp_on_error() {
         let mut game = create_test_game();
-        let mut system = DecisionSystem::new()
-            .with_decision_maker(Box::new(ErrorDecisionMaker));
+        let mut system = DecisionSystem::new().with_decision_maker(Box::new(ErrorDecisionMaker));
 
         game.state.player_states[0].needs_decision = true;
         game.state.player_states[0].last_decision_time = 5.0;
@@ -369,30 +381,37 @@ mod tests {
     #[test]
     fn test_decision_system_rate_limits_errors() {
         use std::sync::{Arc, Mutex};
-        
+
         struct FlakeyDecisionMaker {
             attempts: Arc<Mutex<i32>>,
         }
-        
+
         impl DecisionMaker for FlakeyDecisionMaker {
-            fn make_decision(&mut self, _game: &Game, _idx: usize) -> Result<Decision, DecisionError> {
+            fn make_decision(
+                &mut self,
+                _game: &Game,
+                _idx: usize,
+            ) -> Result<Decision, DecisionError> {
                 let mut count = self.attempts.lock().unwrap();
                 *count += 1;
-                
+
                 if *count == 1 {
-                    Err(DecisionError::ScriptError("First attempt fails".to_string()))
+                    Err(DecisionError::ScriptError(
+                        "First attempt fails".to_string(),
+                    ))
                 } else {
-                    Ok(Decision::Run(DecisionTarget::GridCell(GridCell::new(13, 22).unwrap())))
+                    Ok(Decision::Run(DecisionTarget::GridCell(
+                        GridCell::new(13, 22).unwrap(),
+                    )))
                 }
             }
         }
-        
+
         let attempts = Arc::new(Mutex::new(0));
         let mut game = create_test_game();
-        let mut system = DecisionSystem::new()
-            .with_decision_maker(Box::new(FlakeyDecisionMaker { 
-                attempts: attempts.clone() 
-            }));
+        let mut system = DecisionSystem::new().with_decision_maker(Box::new(FlakeyDecisionMaker {
+            attempts: attempts.clone(),
+        }));
 
         game.state.player_states[0].needs_decision = true;
 
@@ -406,7 +425,7 @@ mod tests {
         system.update(&mut game, 2.0);
         assert!(!game.state.player_states[0].needs_decision);
         assert_eq!(*attempts.lock().unwrap(), 1); // No second call!
-        
+
         // Player must be marked as needs_decision by PlayerReactionSystem
         // to try again based on reaction_rate
     }
@@ -414,16 +433,21 @@ mod tests {
     #[test]
     fn test_decision_error_timeout_variant() {
         struct TimeoutDecisionMaker;
-        
+
         impl DecisionMaker for TimeoutDecisionMaker {
-            fn make_decision(&mut self, _game: &Game, _idx: usize) -> Result<Decision, DecisionError> {
-                Err(DecisionError::Timeout("Execution took too long".to_string()))
+            fn make_decision(
+                &mut self,
+                _game: &Game,
+                _idx: usize,
+            ) -> Result<Decision, DecisionError> {
+                Err(DecisionError::Timeout(
+                    "Execution took too long".to_string(),
+                ))
             }
         }
-        
+
         let mut game = create_test_game();
-        let mut system = DecisionSystem::new()
-            .with_decision_maker(Box::new(TimeoutDecisionMaker));
+        let mut system = DecisionSystem::new().with_decision_maker(Box::new(TimeoutDecisionMaker));
 
         game.state.player_states[0].needs_decision = true;
 
@@ -438,16 +462,20 @@ mod tests {
     #[test]
     fn test_decision_error_runtime_variant() {
         struct RuntimeErrorDecisionMaker;
-        
+
         impl DecisionMaker for RuntimeErrorDecisionMaker {
-            fn make_decision(&mut self, _game: &Game, _idx: usize) -> Result<Decision, DecisionError> {
+            fn make_decision(
+                &mut self,
+                _game: &Game,
+                _idx: usize,
+            ) -> Result<Decision, DecisionError> {
                 Err(DecisionError::RuntimeError("Internal error".to_string()))
             }
         }
-        
+
         let mut game = create_test_game();
-        let mut system = DecisionSystem::new()
-            .with_decision_maker(Box::new(RuntimeErrorDecisionMaker));
+        let mut system =
+            DecisionSystem::new().with_decision_maker(Box::new(RuntimeErrorDecisionMaker));
 
         game.state.player_states[0].needs_decision = true;
 
@@ -463,17 +491,17 @@ mod tests {
     fn test_error_handler_receives_correct_player_index() {
         // Test that error handler is called with correct player_index
         // We can't capture in fn pointer, so we test indirectly through decisions
-        
+
         let mut game = create_test_game();
-        
+
         // Handler that returns different decisions based on player_index
         fn indexed_handler(_error: &DecisionError, idx: usize) -> Option<Decision> {
             // Return decision with row = player_index + 1 for verification
             Some(Decision::Run(DecisionTarget::GridCell(
-                GridCell::new(13, (idx as u32) + 1).unwrap()
+                GridCell::new(13, (idx as u32) + 1).unwrap(),
             )))
         }
-        
+
         let mut system = DecisionSystem::new()
             .with_decision_maker(Box::new(ErrorDecisionMaker))
             .with_error_handler(indexed_handler);
@@ -494,7 +522,7 @@ mod tests {
     #[test]
     fn test_custom_handler_returning_none_explicitly() {
         let mut game = create_test_game();
-        
+
         // Custom handler that explicitly returns None (same as default)
         let mut system = DecisionSystem::new()
             .with_decision_maker(Box::new(ErrorDecisionMaker))
@@ -514,8 +542,7 @@ mod tests {
     #[test]
     fn test_error_message_saved_to_player_state() {
         let mut game = create_test_game();
-        let mut system = DecisionSystem::new()
-            .with_decision_maker(Box::new(ErrorDecisionMaker));
+        let mut system = DecisionSystem::new().with_decision_maker(Box::new(ErrorDecisionMaker));
 
         game.state.player_states[0].needs_decision = true;
 
@@ -530,22 +557,21 @@ mod tests {
     #[test]
     fn test_error_cleared_on_successful_decision() {
         let mut game = create_test_game();
-        
+
         // First: cause an error
-        let mut system = DecisionSystem::new()
-            .with_decision_maker(Box::new(ErrorDecisionMaker));
-        
+        let mut system = DecisionSystem::new().with_decision_maker(Box::new(ErrorDecisionMaker));
+
         game.state.player_states[0].needs_decision = true;
         system.update(&mut game, 1.0);
-        
+
         assert!(game.state.player_states[0].last_error.is_some());
-        
+
         // Now: switch to working decision maker
         let mut system = DecisionSystem::new();
         game.state.player_states[0].needs_decision = true;
-        
+
         system.update(&mut game, 2.0);
-        
+
         // Error should be cleared
         assert!(game.state.player_states[0].last_error.is_none());
         assert!(game.state.player_states[0].current_decision.is_some());

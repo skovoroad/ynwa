@@ -1,39 +1,44 @@
 // Integration test: verify that Lua scripts produce decisions in the decision system
 
+use uom::si::length::meter;
 use ynwa_core::game::{Decision, DecisionTarget};
 use ynwa_core::systems::decision::{DecisionSystem, ScriptedDecisionMaker};
 use ynwa_core::systems::player_reaction::PlayerReactionSystem;
 use ynwa_core::System;
-use ynwa_script_tests::{create_test_game_with_script, create_test_game_with_preambles, load_test_script};
-use uom::si::length::meter;
+use ynwa_script_tests::{
+    create_test_game_with_preambles, create_test_game_with_script, load_test_script,
+};
 
 /// Helper function to test that a Lua script produces expected decision type
-fn test_script_produces_decision(script: &str, expected_decision_check: impl Fn(&Decision) -> bool, test_name: &str) {
+fn test_script_produces_decision(
+    script: &str,
+    expected_decision_check: impl Fn(&Decision) -> bool,
+    test_name: &str,
+) {
     // Create game with inline script
     let mut game = create_test_game_with_script(script);
-    
+
     // Use PlayerReactionSystem to set needs_decision flag
     let mut reaction_system = PlayerReactionSystem::new();
     reaction_system.update(&mut game, 1.0); // 1 second should trigger reaction
-    
+
     // Create decision system with ScriptedDecisionMaker
-    let decision_maker = ScriptedDecisionMaker::new(&game)
-        .expect("Failed to create ScriptedDecisionMaker");
-    
-    let mut decision_system = DecisionSystem::new()
-        .with_decision_maker(Box::new(decision_maker));
-    
+    let decision_maker =
+        ScriptedDecisionMaker::new(&game).expect("Failed to create ScriptedDecisionMaker");
+
+    let mut decision_system = DecisionSystem::new().with_decision_maker(Box::new(decision_maker));
+
     // Execute decision system
     decision_system.update(&mut game, 1.0);
-    
+
     // Verify that player has expected decision
     let player_state = &game.state().player_states[0];
     assert!(
-        player_state.current_decision.is_some(), 
-        "{}: Player should have a decision", 
+        player_state.current_decision.is_some(),
+        "{}: Player should have a decision",
         test_name
     );
-    
+
     let decision = player_state.current_decision.as_ref().unwrap();
     assert!(
         expected_decision_check(decision),
@@ -52,7 +57,7 @@ fn test_stop_decision() {
         end
         "#,
         |d| matches!(d, Decision::Stop),
-        "test_stop_decision"
+        "test_stop_decision",
     );
 }
 
@@ -76,7 +81,7 @@ fn test_run_to_cell_decision() {
                 false
             }
         },
-        "test_run_to_cell_decision"
+        "test_run_to_cell_decision",
     );
 }
 
@@ -95,13 +100,15 @@ fn test_run_to_region_decision() {
         |d| {
             if let Decision::Run(DecisionTarget::Region(region)) = d {
                 // A=1, C=3 (1-based columns)
-                region.top_left.col == 1 && region.top_left.row == 1
-                    && region.bottom_right.col == 3 && region.bottom_right.row == 3
+                region.top_left.col == 1
+                    && region.top_left.row == 1
+                    && region.bottom_right.col == 3
+                    && region.bottom_right.row == 3
             } else {
                 false
             }
         },
-        "test_run_to_region_decision"
+        "test_run_to_region_decision",
     );
 }
 
@@ -126,7 +133,7 @@ fn test_run_to_point_decision() {
                 false
             }
         },
-        "test_run_to_point_decision"
+        "test_run_to_point_decision",
     );
 }
 
@@ -150,7 +157,7 @@ fn test_kick_decision() {
                 false
             }
         },
-        "test_kick_decision"
+        "test_kick_decision",
     );
 }
 
@@ -231,19 +238,18 @@ fn test_context_structure() {
 
     // Create game with test script
     let mut game = create_test_game_with_script(script);
-    
+
     // Trigger decision
     let mut reaction_system = PlayerReactionSystem::new();
     reaction_system.update(&mut game, 1.0);
-    
-    let decision_maker = ScriptedDecisionMaker::new(&game)
-        .expect("Failed to create ScriptedDecisionMaker");
-    
-    let mut decision_system = DecisionSystem::new()
-        .with_decision_maker(Box::new(decision_maker));
-    
+
+    let decision_maker =
+        ScriptedDecisionMaker::new(&game).expect("Failed to create ScriptedDecisionMaker");
+
+    let mut decision_system = DecisionSystem::new().with_decision_maker(Box::new(decision_maker));
+
     decision_system.update(&mut game, 1.0);
-    
+
     // If script executed successfully, all required fields exist
     let player_state = &game.state().player_states[0];
     assert!(
@@ -251,7 +257,7 @@ fn test_context_structure() {
         "Context validation failed: {:?}",
         player_state.last_error
     );
-    
+
     assert!(
         player_state.current_decision.is_some(),
         "Expected a decision to be created"
@@ -268,19 +274,18 @@ fn test_kick_if_ball_owner() {
 
     // Create game with test script
     let mut game = create_test_game_with_preambles(&script);
-    
+
     // Trigger decision
     let mut reaction_system = PlayerReactionSystem::new();
     reaction_system.update(&mut game, 1.0);
-    
-    let decision_maker = ScriptedDecisionMaker::new(&game)
-        .expect("Failed to create ScriptedDecisionMaker");
-    
-    let mut decision_system = DecisionSystem::new()
-        .with_decision_maker(Box::new(decision_maker));
-    
+
+    let decision_maker =
+        ScriptedDecisionMaker::new(&game).expect("Failed to create ScriptedDecisionMaker");
+
+    let mut decision_system = DecisionSystem::new().with_decision_maker(Box::new(decision_maker));
+
     decision_system.update(&mut game, 1.0);
-    
+
     // Verify that script executed without errors
     let player_state = &game.state().player_states[0];
     assert!(
@@ -288,18 +293,21 @@ fn test_kick_if_ball_owner() {
         "Script error: {:?}",
         player_state.last_error
     );
-    
+
     assert!(
         player_state.current_decision.is_some(),
         "Expected a decision"
     );
-    
+
     // Since ball is free by default (owner_index is nil),
     // am_i_ball_owner() should return false, so decision should be Stop
     match &player_state.current_decision {
         Some(Decision::Stop) => {
             // Expected: ball is free, so stop
         }
-        other => panic!("Expected Stop decision since ball is free, got: {:?}", other),
+        other => panic!(
+            "Expected Stop decision since ball is free, got: {:?}",
+            other
+        ),
     }
 }

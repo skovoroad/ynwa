@@ -10,7 +10,7 @@ pub fn draw_control_panel(
     let panel_x = panel_x + 20.0;
     let mut y_offset = 40.0;
     let line_height = 30.0;
-    
+
     draw_text(
         &format!("Time: {:.1}s", game_state.elapsed_time),
         panel_x,
@@ -19,7 +19,7 @@ pub fn draw_control_panel(
         WHITE,
     );
     y_offset += line_height;
-    
+
     let status = if is_paused { "PAUSED" } else { "Running" };
     let status_color = if is_paused { YELLOW } else { GREEN };
     draw_text(
@@ -30,14 +30,8 @@ pub fn draw_control_panel(
         status_color,
     );
     y_offset += line_height * 1.5;
-    
-    draw_text(
-        "Space - pause/resume",
-        panel_x,
-        y_offset,
-        20.0,
-        LIGHTGRAY,
-    );
+
+    draw_text("Space - pause/resume", panel_x, y_offset, 20.0, LIGHTGRAY);
     y_offset += line_height * 2.0;
 
     draw_player_decisions_table(panel_x, y_offset, game_config, game_state);
@@ -54,13 +48,7 @@ fn draw_player_decisions_table(
     let header_color = Color::new(0.9, 0.9, 0.9, 1.0);
     let text_color = Color::new(0.8, 0.8, 0.8, 1.0);
 
-    draw_text(
-        "Player Decisions:",
-        x,
-        y,
-        20.0,
-        header_color,
-    );
+    draw_text("Player Decisions:", x, y, 20.0, header_color);
     y += line_height * 1.5;
 
     draw_text("#", x, y, 16.0, header_color);
@@ -70,7 +58,7 @@ fn draw_player_decisions_table(
 
     for (i, player_def) in game_config.players.iter().enumerate() {
         let player_state = &game_state.player_states[i];
-        
+
         let number_text = format!("{}", player_def.number);
         draw_text(&number_text, x, y, 14.0, text_color);
 
@@ -83,9 +71,7 @@ fn draw_player_decisions_table(
                     let col_label = ynwa_core::GridCell::column_to_label(cell.col);
                     format!("Run to {}{}", col_label, cell.row)
                 }
-                DecisionTarget::Point(_) => {
-                    "Run to point".to_string()
-                }
+                DecisionTarget::Point(_) => "Run to point".to_string(),
             },
             Some(Decision::Stop) => "Stop".to_string(),
             Some(Decision::Kick(_)) => "Kick".to_string(),

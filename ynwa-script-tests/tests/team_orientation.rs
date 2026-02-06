@@ -1,7 +1,6 @@
 /// Integration tests for team orientation coordinate conversion.
 /// Tests that Team B decisions are correctly converted from Team B's perspective
 /// (right-to-left) to display orientation (Team A's left-to-right perspective).
-
 use ynwa_core::field::Field;
 use ynwa_core::game::{BallDef, Decision, DecisionTarget, Game, GameConfig, PlayerDef, RefereeDef};
 use ynwa_core::region::{GridCell, Region};
@@ -19,10 +18,22 @@ fn create_game_with_team_script(team: Team, script: String) -> Game {
     // For Team A, start near their goal (left side)
     // For Team B, start near their goal (right side, but in Team B coordinates = left in their view)
     let start_region = if team == Team::A {
-        Region::new(Team::A, GridCell::new(1, 20).unwrap(), GridCell::new(1, 20).unwrap(), grid_dims).unwrap()
+        Region::new(
+            Team::A,
+            GridCell::new(1, 20).unwrap(),
+            GridCell::new(1, 20).unwrap(),
+            grid_dims,
+        )
+        .unwrap()
     } else {
         // Team B starts at A20 in Team B coordinates (which is their left side)
-        Region::new(Team::B, GridCell::new(1, 20).unwrap(), GridCell::new(1, 20).unwrap(), grid_dims).unwrap()
+        Region::new(
+            Team::B,
+            GridCell::new(1, 20).unwrap(),
+            GridCell::new(1, 20).unwrap(),
+            grid_dims,
+        )
+        .unwrap()
     };
 
     let player = PlayerDef::new(
@@ -60,7 +71,8 @@ fn test_team_a_cell_unchanged() {
                 target = "A1"
             }
         end
-    "#.to_string();
+    "#
+    .to_string();
 
     let mut game = create_game_with_team_script(Team::A, script);
     let mut reaction_system = PlayerReactionSystem::new();
@@ -77,7 +89,11 @@ fn test_team_a_cell_unchanged() {
 
     match decision.as_ref().unwrap() {
         Decision::Run(DecisionTarget::GridCell(cell)) => {
-            assert_eq!(cell, &GridCell::new(1, 1).unwrap(), "Team A: A1 should remain A1");
+            assert_eq!(
+                cell,
+                &GridCell::new(1, 1).unwrap(),
+                "Team A: A1 should remain A1"
+            );
         }
         _ => panic!("Expected Run(GridCell)"),
     }
@@ -94,7 +110,8 @@ fn test_team_b_cell_flipped() {
                 target = "A1"
             }
         end
-    "#.to_string();
+    "#
+    .to_string();
 
     let mut game = create_game_with_team_script(Team::B, script);
     let mut reaction_system = PlayerReactionSystem::new();
@@ -112,8 +129,11 @@ fn test_team_b_cell_flipped() {
     match decision.as_ref().unwrap() {
         Decision::Run(DecisionTarget::GridCell(cell)) => {
             // Team B's A1 should flip to Team A's R44 (column 18, row 44 in 18x44 grid)
-            assert_eq!(cell, &GridCell::new(18, 44).unwrap(), 
-                "Team B: A1 in Team B coords should become R44 in display coords");
+            assert_eq!(
+                cell,
+                &GridCell::new(18, 44).unwrap(),
+                "Team B: A1 in Team B coords should become R44 in display coords"
+            );
         }
         _ => panic!("Expected Run(GridCell)"),
     }
@@ -133,7 +153,8 @@ fn test_team_a_region_unchanged() {
                 }
             }
         end
-    "#.to_string();
+    "#
+    .to_string();
 
     let mut game = create_game_with_team_script(Team::A, script);
     let mut reaction_system = PlayerReactionSystem::new();
@@ -173,7 +194,8 @@ fn test_team_b_region_flipped() {
                 }
             }
         end
-    "#.to_string();
+    "#
+    .to_string();
 
     let mut game = create_game_with_team_script(Team::B, script);
     let mut reaction_system = PlayerReactionSystem::new();
@@ -194,10 +216,16 @@ fn test_team_b_region_flipped() {
             // but coordinates flip
             // A1 -> R44, B2 -> Q43 (in 18x44 grid)
             assert_eq!(region.team, Team::A);
-            assert_eq!(region.top_left, GridCell::new(17, 43).unwrap(), 
-                "Team B: B2 in Team B coords should become Q43 (17,43) in display coords");
-            assert_eq!(region.bottom_right, GridCell::new(18, 44).unwrap(),
-                "Team B: A1 in Team B coords should become R44 (18,44) in display coords");
+            assert_eq!(
+                region.top_left,
+                GridCell::new(17, 43).unwrap(),
+                "Team B: B2 in Team B coords should become Q43 (17,43) in display coords"
+            );
+            assert_eq!(
+                region.bottom_right,
+                GridCell::new(18, 44).unwrap(),
+                "Team B: A1 in Team B coords should become R44 (18,44) in display coords"
+            );
         }
         _ => panic!("Expected Run(Region)"),
     }
@@ -219,7 +247,8 @@ fn test_team_b_point_flipped() {
                 }
             }
         end
-    "#.to_string();
+    "#
+    .to_string();
 
     let mut game = create_game_with_team_script(Team::B, script);
     let mut reaction_system = PlayerReactionSystem::new();
@@ -237,19 +266,28 @@ fn test_team_b_point_flipped() {
     match decision.as_ref().unwrap() {
         Decision::Run(DecisionTarget::Point(point)) => {
             use uom::si::length::meter;
-            
+
             // Football field is 105m x 68m
             // Point (20, 0, 15) for Team B should flip to:
             // x: 105 - 20 = 85
             // y: unchanged = 0
             // z: 68 - 15 = 53
             let tolerance = 0.01;
-            assert!((point.x.get::<meter>() - 85.0).abs() < tolerance, 
-                "Expected x=85.0, got {}", point.x.get::<meter>());
-            assert!((point.y.get::<meter>() - 0.0).abs() < tolerance,
-                "Expected y=0.0, got {}", point.y.get::<meter>());
-            assert!((point.z.get::<meter>() - 53.0).abs() < tolerance,
-                "Expected z=53.0, got {}", point.z.get::<meter>());
+            assert!(
+                (point.x.get::<meter>() - 85.0).abs() < tolerance,
+                "Expected x=85.0, got {}",
+                point.x.get::<meter>()
+            );
+            assert!(
+                (point.y.get::<meter>() - 0.0).abs() < tolerance,
+                "Expected y=0.0, got {}",
+                point.y.get::<meter>()
+            );
+            assert!(
+                (point.z.get::<meter>() - 53.0).abs() < tolerance,
+                "Expected z=53.0, got {}",
+                point.z.get::<meter>()
+            );
         }
         _ => panic!("Expected Run(Point)"),
     }
@@ -264,7 +302,8 @@ fn test_team_b_stop_unchanged() {
                 action = "stop"
             }
         end
-    "#.to_string();
+    "#
+    .to_string();
 
     let mut game = create_game_with_team_script(Team::B, script);
     let mut reaction_system = PlayerReactionSystem::new();

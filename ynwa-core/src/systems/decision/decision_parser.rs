@@ -3,7 +3,6 @@
 /// This module uses intermediate serde structures to deserialize JSON,
 /// then converts them to domain types (Decision, DecisionTarget, etc.).
 /// This approach is consistent with how config.rs handles deserialization.
-
 use crate::field::zones::Point3D;
 use crate::game::{Decision, DecisionTarget};
 use crate::region::{GridCell, Region};
@@ -47,9 +46,9 @@ pub fn parse_decision(value: &serde_json::Value) -> Result<Decision, DecisionErr
                     DecisionError::RuntimeError("Missing 'target_type' field".to_string())
                 })?;
 
-            let target = value.get("target").ok_or_else(|| {
-                DecisionError::RuntimeError("Missing 'target' field".to_string())
-            })?;
+            let target = value
+                .get("target")
+                .ok_or_else(|| DecisionError::RuntimeError("Missing 'target' field".to_string()))?;
 
             let decision_target = match target_type {
                 "cell" => parse_cell_target(target)?,
