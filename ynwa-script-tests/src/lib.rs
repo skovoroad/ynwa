@@ -2,12 +2,17 @@
 // This module is used by integration tests
 
 use ynwa_core::field::Field;
-use ynwa_core::game::{BallDef, Game, GameConfig, PlayerDef, RefereeDef};
+use ynwa_core::game::{BallDef, Game, GameConfig, GameStage, PlayerDef, RefereeDef};
 use ynwa_core::region::{GridCell, Region};
 use ynwa_core::team::Team;
 
 /// Create a simple test game with one player using the given script
 pub fn create_test_game_with_script(script: &str) -> Game {
+    create_test_game_with_script_and_stage(script, GameStage::default())
+}
+
+/// Create a simple test game with one player using the given script and specific stage
+pub fn create_test_game_with_script_and_stage(script: &str, stage: GameStage) -> Game {
     let field = Field::from_meters(100.0, 60.0, 26, 44);
     let grid_dims = field.grid_dimensions();
 
@@ -38,7 +43,7 @@ pub fn create_test_game_with_script(script: &str) -> Game {
         scripting: ynwa_core::game::ScriptingConfig::empty(),
     };
 
-    Game::new(config)
+    Game::with_stage(config, stage)
 }
 
 /// Load a test script from ynwa-scripts/test-scripts/
@@ -54,6 +59,11 @@ pub fn load_test_script(name: &str) -> String {
 
 /// Create a test game with preambles loaded
 pub fn create_test_game_with_preambles(script: &str) -> Game {
+    create_test_game_with_preambles_and_stage(script, GameStage::default())
+}
+
+/// Create a test game with preambles loaded and specific stage
+pub fn create_test_game_with_preambles_and_stage(script: &str, stage: GameStage) -> Game {
     let field = Field::from_meters(100.0, 60.0, 26, 44);
     let grid_dims = field.grid_dimensions();
 
@@ -106,5 +116,5 @@ pub fn create_test_game_with_preambles(script: &str) -> Game {
         },
     };
 
-    Game::new(config)
+    Game::with_stage(config, stage)
 }

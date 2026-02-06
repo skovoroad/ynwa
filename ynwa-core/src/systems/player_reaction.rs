@@ -21,9 +21,16 @@ impl PlayerReactionSystem {
 impl System for PlayerReactionSystem {
     fn update(&mut self, game: &mut Game, timestamp: f32) {
         let player_count = game.config().players.len();
+        let is_setup = matches!(game.state().stage, crate::game::GameStage::Setup(_));
 
         for i in 0..player_count {
-            let reaction_rate = game.config().players[i].reaction_rate;
+            let reaction_rate = if is_setup {
+                // Use maximum frequency during setup stage
+                100
+            } else {
+                game.config().players[i].reaction_rate
+            };
+
             let interval = Self::reaction_interval(reaction_rate);
             let player_state = &mut game.state.player_states[i];
 
@@ -196,5 +203,50 @@ mod tests {
         // Run update - flag should remain true
         system.update(&mut game, 0.6);
         assert!(game.state.player_states[0].needs_decision);
+    }
+
+    #[test]
+    fn test_setup_stage_uses_max_frequency() {
+        let mut game = create_test_game();
+        let mut system = PlayerReactionSystem::new();
+
+        // Set game to setup stage
+        game.state.stage = crate::game::GameStage::Setup("kickoff".to_string());
+
+        // Clear all flags
+        for player_state in &mut game.state.player_states {
+            player_state.needs_decision = false;
+            player_state.last_decision_time = 0.0;
+        }
+
+        // At 0.5s, all players should need decision regardless of their reaction_rate
+        // because in Setup stage we use max frequency (reaction_rate=100 -> 0.5s interval)
+        system.update(&mut game, 0.5);
+
+        assert!(game.state.player_states[0].needs_decision); // rate=100
+        assert!(game.state.player_states[1].needs_decision); // rate=55
+        assert!(game.state.player_states[2].needs_decision); // rate=10
+    }
+
+    #[test]
+    fn test_play_stage_respects_individual_rates() {
+        let mut game = create_test_game();
+        let mut system = PlayerReactionSystem::new();
+
+        // Explicitly set game to Play stage
+        game.state.stage = crate::game::GameStage::Play;
+
+        // Clear all flags
+        for player_state in &mut game.state.player_states {
+            player_state.needs_decision = false;
+            player_state.last_decision_time = 0.0;
+        }
+
+        // At 0.5s, only player with rate=100 should need decision
+        system.update(&mut game, 0.5);
+
+        assert!(game.state.player_states[0].needs_decision); // rate=100, interval=0.5s
+        assert!(!game.state.player_states[1].needs_decision); // rate=55, interval=1.75s
+        assert!(!game.state.player_states[2].needs_decision); // rate=10, interval=3.0s
     }
 }

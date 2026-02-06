@@ -174,17 +174,43 @@ impl DecisionEngine {
         player_index: usize,
         context: &JsonValue,
     ) -> Result<JsonValue, DecisionEngineError> {
+        self.execute_function(player_index, "make_decision", context)
+    }
+
+    /// Execute prepare function for a player (setup stage)
+    ///
+    /// # Arguments
+    /// * `player_index` - Index of player (0-based)
+    /// * `context` - Game state as JSON
+    ///
+    /// # Returns
+    /// JSON decision
+    pub fn prepare(
+        &self,
+        player_index: usize,
+        context: &JsonValue,
+    ) -> Result<JsonValue, DecisionEngineError> {
+        self.execute_function(player_index, "prepare", context)
+    }
+
+    /// Execute a function for a player
+    fn execute_function(
+        &self,
+        player_index: usize,
+        function_name: &str,
+        context: &JsonValue,
+    ) -> Result<JsonValue, DecisionEngineError> {
         // Validate player index
         let executor = self
             .executors
             .get(player_index)
-            .ok_or_else(|| DecisionEngineError::InvalidPlayerIndex(player_index))?;
+            .ok_or(DecisionEngineError::InvalidPlayerIndex(player_index))?;
 
         let script = &self.scripts[player_index];
 
         // Execute script with context
         let result = executor
-            .execute(script, "make_decision", context)
+            .execute(script, function_name, context)
             .map_err(Self::convert_script_error)?;
 
         // Validate that result is a valid LuaDecision (but return raw JSON)
@@ -512,5 +538,51 @@ mod tests {
             decision_b.get("debug_team").and_then(|v| v.as_str()),
             Some("team_b")
         );
+    }
+
+    #[test]
+    fn test_decision_engine_prepare_function() {
+        let config = create_test_config(
+            r#"
+            function prepare(reason)
+                return {action = "stop"}
+            end
+            "#,
+        );
+
+        let engine = DecisionEngine::new(&config, "", "").unwrap();
+        let context = json!({"me": {"number": 1}});
+        let decision = engine.prepare(0, &context);
+
+        assert!(decision.is_ok());
+        let dec = decision.unwrap();
+        assert_eq!(dec.get("action").and_then(|a| a.as_str()), Some("stop"));
+    }
+
+    #[test]
+    fn test_decision_engine_prepare_with_default_from_stdlib() {
+        // Test that default prepare from stdlib works
+        let stdlib_preamble = r#"
+            function prepare(reason)
+                return {action = "stop"}
+            end
+        "#;
+
+        let config = create_test_config(
+            r#"
+            function make_decision()
+                return {action = "run", target_type = "point", target = {x = 10.0, z = 20.0}}
+            end
+            "#,
+        );
+
+        let engine = DecisionEngine::new(&config, "", stdlib_preamble).unwrap();
+        let context = json!({"me": {"number": 1}});
+
+        // Should be able to call prepare even though user script doesn't define it
+        let decision = engine.prepare(0, &context);
+        assert!(decision.is_ok());
+        let dec = decision.unwrap();
+        assert_eq!(dec.get("action").and_then(|a| a.as_str()), Some("stop"));
     }
 }

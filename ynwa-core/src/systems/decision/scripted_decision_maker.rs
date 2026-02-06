@@ -166,11 +166,18 @@ impl DecisionMaker for ScriptedDecisionMaker {
         // Build context
         let context = Self::build_context(game, player_index)?;
 
-        // Get decision from engine
-        let decision_json = self
-            .engine
-            .make_decision(player_index, &context)
-            .map_err(|e| DecisionError::RuntimeError(format!("Engine error: {}", e)))?;
+        // Choose function based on game stage
+        let decision_json = match &game.state().stage {
+            crate::game::GameStage::Play => self
+                .engine
+                .make_decision(player_index, &context)
+                .map_err(|e| DecisionError::RuntimeError(format!("Engine error: {}", e)))?,
+            crate::game::GameStage::Setup(_reason) => {
+                self.engine
+                    .prepare(player_index, &context)
+                    .map_err(|e| DecisionError::RuntimeError(format!("Engine error: {}", e)))?
+            }
+        };
 
         // Parse JSON decision to Decision type using decision_parser
         decision_parser::parse_decision(&decision_json)
@@ -285,6 +292,115 @@ mod tests {
         let decision = maker.make_decision(&game, 0);
 
         assert!(decision.is_ok());
+        assert!(matches!(decision.unwrap(), Decision::Stop));
+    }
+
+    #[test]
+    fn test_prepare_function_in_play_stage() {
+        let mut game = create_test_game_with_script(
+            r#"
+            function make_decision()
+                return {action = "stop"}
+            end
+            
+            function prepare(reason)
+                return {action = "run", target_type = "cell", target = "B2"}
+            end
+            "#,
+        );
+
+        game.state.stage = crate::game::GameStage::Play;
+        let mut maker = ScriptedDecisionMaker::new(&game).unwrap();
+        let decision = maker.make_decision(&game, 0);
+
+        assert!(decision.is_ok());
+        // In Play stage, should call make_decision, not prepare
+        assert!(matches!(decision.unwrap(), Decision::Stop));
+    }
+
+    #[test]
+    fn test_prepare_function_in_setup_stage() {
+        let mut game = create_test_game_with_script(
+            r#"
+            function make_decision()
+                return {action = "stop"}
+            end
+            
+            function prepare(reason)
+                return {action = "run", target_type = "cell", target = "B2"}
+            end
+            "#,
+        );
+
+        game.state.stage = crate::game::GameStage::Setup("kickoff".to_string());
+        let mut maker = ScriptedDecisionMaker::new(&game).unwrap();
+        let decision = maker.make_decision(&game, 0);
+
+        assert!(decision.is_ok());
+        // In Setup stage, should call prepare
+        match decision.unwrap() {
+            Decision::Run(target) => match target {
+                crate::game::DecisionTarget::GridCell(cell) => {
+                    assert_eq!(cell.col, 2);
+                    assert_eq!(cell.row, 2);
+                }
+                _ => panic!("Expected GridCell target"),
+            },
+            _ => panic!("Expected Run decision"),
+        }
+    }
+
+    #[test]
+    fn test_prepare_function_default_from_stdlib() {
+        let field = Field::from_meters(100.0, 60.0, 26, 44);
+        let grid_dims = field.grid_dimensions();
+
+        let start_region = Region::new(
+            Team::A,
+            GridCell::new(10, 10).unwrap(),
+            GridCell::new(11, 11).unwrap(),
+            grid_dims,
+        )
+        .unwrap();
+
+        let stdlib_preamble = r#"
+            function prepare(reason)
+                return {action = "stop"}
+            end
+        "#;
+
+        let config = GameConfig {
+            field,
+            players: vec![PlayerDef::new(
+                Team::A,
+                1,
+                "Test Player".to_string(),
+                50,
+                50,
+                50,
+                50,
+                50,
+                "function make_decision() return {action = 'run', target_type = 'cell', target = 'A1'} end".to_string(),
+                start_region,
+            )],
+            ball: BallDef::default(),
+            referees: vec![RefereeDef::default()],
+            scripting: crate::game::ScriptingConfig {
+                core_preamble: String::new(),
+                stdlib_preamble: stdlib_preamble.to_string(),
+                team_a_preamble: String::new(),
+                team_b_preamble: String::new(),
+            },
+        };
+
+        let mut game = Game::new(config);
+        game.state.stage = crate::game::GameStage::Setup("kickoff".to_string());
+
+        let mut maker = ScriptedDecisionMaker::new(&game).unwrap();
+        let decision = maker.make_decision(&game, 0);
+
+        assert!(decision.is_ok());
+        // Should use default prepare from stdlib
         assert!(matches!(decision.unwrap(), Decision::Stop));
     }
 }

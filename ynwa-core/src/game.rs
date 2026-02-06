@@ -205,7 +205,8 @@ pub enum GameStage {
 
 impl Default for GameStage {
     fn default() -> Self {
-        GameStage::Setup("start".to_string())
+        GameStage::Play // temporary
+                        // GameStage::Setup("start".to_string())
     }
 }
 
@@ -232,11 +233,15 @@ pub enum GameEvent {}
 
 pub struct Game {
     config: GameConfig,
-    pub(crate) state: GameState,
+    pub state: GameState,
 }
 
 impl Game {
     pub fn new(config: GameConfig) -> Self {
+        Self::with_stage(config, GameStage::default())
+    }
+
+    pub fn with_stage(config: GameConfig, stage: GameStage) -> Self {
         let player_states = config
             .players
             .iter()
@@ -269,7 +274,7 @@ impl Game {
         Self {
             state: GameState {
                 elapsed_time: 0.0,
-                stage: GameStage::default(),
+                stage,
                 player_states,
                 ball_state: BallState {
                     position: config.ball.initial_position.clone(),

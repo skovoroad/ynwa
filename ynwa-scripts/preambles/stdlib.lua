@@ -74,3 +74,10 @@ function am_i_closest_teammate_to_ball()
     
     return true
 end
+
+-- Default prepare function for setup stage
+-- Always returns stop, indicating player is ready
+function prepare(reason)
+    return {action = "stop"}
+end
+

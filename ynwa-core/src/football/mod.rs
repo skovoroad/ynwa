@@ -1,7 +1,9 @@
 pub mod field_builder;
+pub mod game_manager;
 
 use crate::config::SerializableGameConfig;
 use crate::field::zones::ZoneGeometry;
+use crate::football::game_manager::FootballGameManager;
 use crate::game::{BallDef, Game, GameConfig, PlayerDef, RefereeDef};
 use crate::region::{GridCell, Region};
 use crate::systems::decision::ScriptedDecisionMaker;
@@ -122,6 +124,7 @@ fn create_football_game_config_from_toml(toml_str: &str) -> Result<GameConfig, S
 }
 
 fn add_football_systems(world: &mut World) {
+    world.add_system(Box::new(FootballGameManager::new()));
     world.add_system(Box::new(PlayerReactionSystem));
     world.add_system(Box::new(BallPossessionSystem::new()));
 
