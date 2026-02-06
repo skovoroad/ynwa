@@ -406,7 +406,7 @@ mod tests {
         world.add_system(Box::new(
             DecisionSystem::new().with_decision_maker(Box::new(scripted_maker)),
         ));
-        world.add_system(Box::new(ActionSystem));
+        world.add_system(Box::new(ActionSystem::new()));
         world.add_system(Box::new(PhysicsSystem::new()));
 
         let initial_pos = world.game().state.player_states[0].position.clone();
