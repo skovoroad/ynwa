@@ -17,7 +17,7 @@ pub enum FootballEvent {
 }
 
 const BALL_RADIUS: f32 = 0.11; // meters (standard football radius ~11cm)
-const GAME_DURATION: f32 = 60.0; // seconds (1 minute for testing)
+pub const GAME_DURATION: f32 = 60.0; // seconds (1 minute for testing)
 
 /// Check if a goal was scored
 /// Ball must be completely inside the goal zone
@@ -169,7 +169,13 @@ mod tests {
                 String::new(),
                 start_region,
             )],
-            ball: BallDef::default(),
+            ball: BallDef {
+                initial_position: Point3D::new(
+                    Length::new::<meter>(50.0), // Center of field length
+                    Length::new::<meter>(0.0),
+                    Length::new::<meter>(30.0), // Center of field width
+                ),
+            },
             referees: vec![RefereeDef::default()],
             scripting: crate::game::ScriptingConfig::empty(),
         };
@@ -306,7 +312,7 @@ mod tests {
     #[test]
     fn test_game_end() {
         let mut game = create_test_game();
-        game.state.elapsed_time = 60.0;
+        game.state.elapsed_time = GAME_DURATION;
 
         let event = check_game_end(&game);
         assert_eq!(event, Some(FootballEvent::GameEnd));
@@ -330,7 +336,7 @@ mod tests {
             Length::new::<meter>(0.0),
             Length::new::<meter>(30.0),
         );
-        game.state.elapsed_time = 60.0;
+        game.state.elapsed_time = GAME_DURATION;
 
         let event = check_events(&game);
         assert_eq!(event, Some(FootballEvent::Goal(Team::A)));
@@ -345,7 +351,7 @@ mod tests {
             Length::new::<meter>(0.0),
             Length::new::<meter>(-0.12),
         );
-        game.state.elapsed_time = 60.0;
+        game.state.elapsed_time = GAME_DURATION;
 
         let event = check_events(&game);
         assert_eq!(event, Some(FootballEvent::GameEnd));

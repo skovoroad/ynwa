@@ -203,6 +203,7 @@ impl ScriptingConfig {
 pub enum GameStage {
     Play,
     Setup(String),
+    GameOver,
 }
 
 impl Default for GameStage {
@@ -258,8 +259,8 @@ impl Game {
                             -5.0,              // 5 meters behind the field (Z axis)
                         )
                     }
-                    GameStage::Play => {
-                        // In Play stage, players start at their start_position
+                    GameStage::Play | GameStage::GameOver => {
+                        // In Play/GameOver stage, players start at their start_position
                         let start_region = config.players[idx]
                             .regions
                             .get("start position")

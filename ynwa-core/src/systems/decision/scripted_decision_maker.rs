@@ -287,6 +287,10 @@ impl DecisionMaker for ScriptedDecisionMaker {
                     .prepare(player_index, &context)
                     .map_err(|e| DecisionError::RuntimeError(format!("Engine error: {}", e)))?
             }
+            crate::game::GameStage::GameOver => {
+                // During game over, return Stop decision
+                return Ok(Decision::Stop);
+            }
         };
 
         // Parse JSON decision to Decision type using decision_parser
