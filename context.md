@@ -87,11 +87,12 @@ The following aspects are considered in the design but implementation is postpon
 
 **Game Systems:**
 System execution order (important for correct operation):
-1. **PlayerReactionSystem** - determines when player is ready to accept new decision based on reaction_rate
-2. **BallPossessionSystem** - determines which player possesses the ball (see Ball Possession System section)
-3. **DecisionSystem** - creates decisions (Decision) for players using DecisionMaker trait
-4. **ActionSystem** - transforms decisions into velocity (applies speed_rate)
-5. **PhysicsSystem** - applies velocity to position using kinematics: position += velocity × delta_time
+1. **FootballGameManager** - manages game stage transitions (Setup → Play)
+2. **PlayerReactionSystem** - determines when player is ready to accept new decision based on reaction_rate
+3. **BallPossessionSystem** - determines which player possesses the ball (see Ball Possession System section)
+4. **DecisionSystem** - creates decisions (Decision) for players using DecisionMaker trait
+5. **ActionSystem** - transforms decisions into velocity (applies speed_rate)
+6. **PhysicsSystem** - applies velocity to position using kinematics: position += velocity × delta_time
 
 **Player Decisions (Decision):**
 - `Decision::Run(DecisionTarget)` - run to target
@@ -99,6 +100,7 @@ System execution order (important for correct operation):
   - `DecisionTarget::GridCell(GridCell)` - center of grid cell
   - `DecisionTarget::Region(Region)` - center of region
 - `Decision::Stop` - stop
+- `Decision::Kick(Point3D)` - kick ball towards target point (only if player possesses ball)
 - Each decision is processed exactly once (decision_processed flag)
 
 **DecisionMaker trait:**
@@ -115,11 +117,13 @@ System execution order (important for correct operation):
   - Uses DecisionEngine from ynwa-decisions crate (one isolated Lua VM per player)
   - 100ms timeout per script execution
   - Scripts loaded from GameConfig
+  - Supports two decision functions: `make_decision()` (Play stage) and `prepare()` (Setup stage)
 - **JSON Contract:** ynwa-core ↔ ynwa-decisions communication via JSON
   - `build_config()`: extracts player scripts from Game → JSON config
   - `build_context()`: Game state → JSON context (~500 bytes)
     - Team B sees flipped coordinates (mirror across field center)
     - Includes: player position, teammates, opponents, ball (position + owner_index), elapsed time
+    - Player regions with exact boundaries (min_x, max_x, min_z, max_z) calculated from GridCell coordinates
   - `parse_json_decision()`: JSON decision → domain Decision type
     - Uses serde intermediate structures (LuaRegionTarget, LuaPointTarget)
     - Type-safe deserialization with automatic validation
@@ -127,7 +131,7 @@ System execution order (important for correct operation):
   - Team B input: context has flipped coordinates (scripts see field as if playing from same side)
   - Team B output: DecisionSystem flips decision targets back to global coordinates
   - Parser does NOT flip - conversion happens at system boundaries
-- Lua script contract: function `make_decision()` returns table:
+- Lua script contract: function `make_decision()` or `prepare()` returns table:
   - `{action = "stop"}` or
   - `{action = "run", target_type = "cell", target = "A5"}` or
   - `{action = "run", target_type = "region", target = {from = "A5", to = "C7"}}` or
@@ -141,6 +145,7 @@ System execution order (important for correct operation):
 - **DecisionEngine** - main API, JSON in/out, no domain types
   - `new(config_json)` - loads player scripts from JSON config
   - `make_decision(player_index, context_json)` - executes script, returns JSON decision
+  - `prepare(player_index, context_json)` - executes prepare function for setup stage
   - Maintains HashMap of LuaExecutors (one per player)
 - **LuaExecutor** - executes Lua scripts with context data
   - Uses mlua with vendored Lua 5.4
@@ -353,4 +358,35 @@ System execution order (important for correct operation):
 - Teammate filtering in `find_nearby_players()` for clean separation of concerns
 - Cooldown prevents unrealistic rapid possession changes (drebezg)
 - Custom RNG support via `with_rng()` for deterministic testing
+
+## Game Stages System
+
+**Purpose:** Manages different phases of the game with stage-specific behavior.
+
+**GameStage enum:**
+- `GameStage::Play` - normal gameplay
+- `GameStage::Setup(String)` - preparation phase (e.g., "Prepare", "start")
+  - Default: `Setup("start")`
+
+**Stage-specific behavior:**
+- **Setup stage:**
+  - Players start behind field at (width/2, 0, -5) - 5m behind field edge
+  - High reaction frequency (20 Hz) for fast movement to positions
+  - Scripts use `prepare()` function instead of `make_decision()`
+  - Players marked ready (`is_ready = true`) when in their start_position region
+- **Play stage:**
+  - Players start at their start_position region centers
+  - Normal reaction frequencies based on player reaction_rate
+  - Scripts use `make_decision()` function
+
+**FootballGameManager system:**
+- Runs first in system pipeline
+- Monitors player readiness in Setup stage
+- Automatically transitions Setup → Play when all players are ready
+- No updates during Play stage (stage remains unchanged)
+
+**Design decisions:**
+- Tests explicitly specify stage via `Game::with_stage()` for clarity
+- Default `Game::new()` uses `GameStage::default()` = Setup("start")
+- Stage transitions are one-way (no Play → Setup reversal)
 
