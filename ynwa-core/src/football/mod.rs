@@ -4,7 +4,7 @@ pub mod game_manager;
 use crate::config::SerializableGameConfig;
 use crate::field::zones::ZoneGeometry;
 use crate::football::game_manager::FootballGameManager;
-use crate::game::{BallDef, Game, GameConfig, PlayerDef, RefereeDef};
+use crate::game::{BallDef, Game, GameConfig, GameStage, PlayerDef, RefereeDef};
 use crate::region::{GridCell, Region};
 use crate::systems::decision::ScriptedDecisionMaker;
 use crate::systems::{
@@ -153,7 +153,7 @@ fn add_football_systems(world: &mut World) {
 
 pub fn create_football_world() -> World {
     let game_config = create_football_game_config();
-    let game = Game::new(game_config);
+    let game = Game::with_stage(game_config, GameStage::Setup("Prepare".to_string()));
     let mut world = World::new(game);
     add_football_systems(&mut world);
     world
@@ -161,7 +161,7 @@ pub fn create_football_world() -> World {
 
 pub fn create_football_world_from_file(path: &std::path::Path) -> Result<World, String> {
     let game_config = create_football_game_config_from_file(path)?;
-    let game = Game::new(game_config);
+    let game = Game::with_stage(game_config, GameStage::Setup("Prepare".to_string()));
     let mut world = World::new(game);
     add_football_systems(&mut world);
     Ok(world)
@@ -169,7 +169,7 @@ pub fn create_football_world_from_file(path: &std::path::Path) -> Result<World, 
 
 pub fn create_football_world_from_toml(toml_str: &str) -> Result<World, String> {
     let game_config = create_football_game_config_from_toml(toml_str)?;
-    let game = Game::new(game_config);
+    let game = Game::with_stage(game_config, GameStage::Setup("Prepare".to_string()));
     let mut world = World::new(game);
     add_football_systems(&mut world);
     Ok(world)

@@ -31,7 +31,12 @@ impl System for PlayerReactionSystem {
                 game.config().players[i].reaction_rate
             };
 
-            let interval = Self::reaction_interval(reaction_rate);
+            let mut interval = Self::reaction_interval(reaction_rate);
+            if is_setup {
+                // Player must't leave cell before check
+                // TODO: revise this hack
+                interval = interval / 3.; 
+            }
             let player_state = &mut game.state.player_states[i];
 
             if timestamp - player_state.last_decision_time >= interval {
@@ -114,7 +119,7 @@ mod tests {
             scripting: crate::game::ScriptingConfig::empty(),
         };
 
-        Game::new(config)
+        Game::with_stage(config, crate::game::GameStage::Play)
     }
 
     #[test]

@@ -116,7 +116,7 @@ mod tests {
             scripting: crate::game::ScriptingConfig::empty(),
         };
 
-        Game::new(config)
+        Game::with_stage(config, crate::game::GameStage::Play)
     }
 
     #[test]
@@ -408,7 +408,7 @@ mod tests {
             scripting: crate::game::ScriptingConfig::empty(),
         };
 
-        let game = Game::new(config);
+        let game = Game::with_stage(config, crate::game::GameStage::Play);
 
         // Create ScriptedDecisionMaker
         let scripted_maker =
@@ -483,7 +483,7 @@ mod tests {
             scripting: crate::game::ScriptingConfig::empty(),
         };
 
-        let game = Game::new(config);
+        let game = Game::with_stage(config, crate::game::GameStage::Play);
 
         let scripted_maker =
             ScriptedDecisionMaker::new(&game).expect("Failed to create ScriptedDecisionMaker");

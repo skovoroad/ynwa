@@ -192,6 +192,7 @@ mod tests {
             current_decision: None,
             decision_processed: false,
             last_error: None,
+            is_ready: false,
         };
 
         (player_def, player_state)

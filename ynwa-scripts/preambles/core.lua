@@ -21,6 +21,11 @@ function my_position()
     return context.me.position
 end
 
+-- Returns my regions as a table {region_name = {min_x, max_x, min_z, max_z}}
+function my_regions()
+    return context.me.regions
+end
+
 -- Returns ball position as a table {x, y, z}
 function ball_position()
     return context.ball.position

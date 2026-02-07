@@ -2,7 +2,9 @@
 /// Tests that Team B decisions are correctly converted from Team B's perspective
 /// (right-to-left) to display orientation (Team A's left-to-right perspective).
 use ynwa_core::field::Field;
-use ynwa_core::game::{BallDef, Decision, DecisionTarget, Game, GameConfig, PlayerDef, RefereeDef};
+use ynwa_core::game::{
+    BallDef, Decision, DecisionTarget, Game, GameConfig, PlayerDef, RefereeDef,
+};
 use ynwa_core::region::{GridCell, Region};
 use ynwa_core::system::System;
 use ynwa_core::systems::decision::{DecisionSystem, ScriptedDecisionMaker};
@@ -57,7 +59,7 @@ fn create_game_with_team_script(team: Team, script: String) -> Game {
         scripting: ynwa_core::game::ScriptingConfig::empty(),
     };
 
-    Game::new(config)
+    Game::with_stage(config, ynwa_core::game::GameStage::Play)
 }
 
 #[test]

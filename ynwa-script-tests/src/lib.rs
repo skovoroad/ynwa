@@ -8,7 +8,7 @@ use ynwa_core::team::Team;
 
 /// Create a simple test game with one player using the given script
 pub fn create_test_game_with_script(script: &str) -> Game {
-    create_test_game_with_script_and_stage(script, GameStage::default())
+    create_test_game_with_script_and_stage(script, GameStage::Play)
 }
 
 /// Create a simple test game with one player using the given script and specific stage
@@ -59,7 +59,7 @@ pub fn load_test_script(name: &str) -> String {
 
 /// Create a test game with preambles loaded
 pub fn create_test_game_with_preambles(script: &str) -> Game {
-    create_test_game_with_preambles_and_stage(script, GameStage::default())
+    create_test_game_with_preambles_and_stage(script, GameStage::Play)
 }
 
 /// Create a test game with preambles loaded and specific stage

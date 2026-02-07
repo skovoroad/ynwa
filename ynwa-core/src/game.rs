@@ -139,6 +139,7 @@ pub struct PlayerState {
     pub current_decision: Option<Decision>,
     pub decision_processed: bool,
     pub last_error: Option<String>,
+    pub is_ready: bool, // True when player is in start position (for Setup stage)
 }
 
 impl Default for PlayerState {
@@ -151,6 +152,7 @@ impl Default for PlayerState {
             current_decision: None,
             decision_processed: false,
             last_error: None,
+            is_ready: false,
         }
     }
 }
@@ -205,8 +207,7 @@ pub enum GameStage {
 
 impl Default for GameStage {
     fn default() -> Self {
-        GameStage::Play // temporary
-                        // GameStage::Setup("start".to_string())
+        GameStage::Setup("start".to_string())
     }
 }
 
@@ -245,15 +246,31 @@ impl Game {
         let player_states = config
             .players
             .iter()
-            .map(|player_def| {
-                let start_region = player_def
-                    .regions
-                    .get("start position")
-                    .expect("Player must have 'start position' region");
-                let position = start_region.center(
-                    config.field.grid_dimensions(),
-                    config.field.width().get::<meter>(),
-                );
+            .enumerate()
+            .map(|(idx, _player_def)| {
+                let position = match &stage {
+                    GameStage::Setup(_) => {
+                        // In Setup stage, players start behind the field (z = -5)
+                        let field_width = config.field.width().get::<meter>();
+                        Point3D::from_meters(
+                            field_width / 2.0, // Center of field width (X axis)
+                            0.0,               // Ground level
+                            -5.0,              // 5 meters behind the field (Z axis)
+                        )
+                    }
+                    GameStage::Play => {
+                        // In Play stage, players start at their start_position
+                        let start_region = config.players[idx]
+                            .regions
+                            .get("start position")
+                            .expect("Player must have 'start position' region");
+                        start_region.center(
+                            config.field.grid_dimensions(),
+                            config.field.width().get::<meter>(),
+                        )
+                    }
+                };
+                
                 PlayerState {
                     position,
                     velocity: Velocity3D::default(),
@@ -262,6 +279,7 @@ impl Game {
                     current_decision: None,
                     decision_processed: false,
                     last_error: None,
+                    is_ready: false,
                 }
             })
             .collect();
@@ -404,7 +422,7 @@ mod tests {
     #[test]
     fn test_player_initial_position_from_start_region() {
         let config = create_test_config();
-        let game = Game::new(config);
+        let game = Game::with_stage(config, GameStage::Play);
 
         // Calculate expected positions from regions
         let cell_width =

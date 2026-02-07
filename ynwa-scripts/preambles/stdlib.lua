@@ -76,8 +76,32 @@ function am_i_closest_teammate_to_ball()
 end
 
 -- Default prepare function for setup stage
--- Always returns stop, indicating player is ready
+-- Runs to start position if not there yet, stops when arrived
 function prepare(reason)
-    return {action = "stop"}
+    local my_pos = my_position()
+    local start_pos = my_regions()["start position"]
+    
+    if start_pos == nil then
+        -- No start position defined, just stop
+        return {action = "stop"}
+    end
+    
+    -- Check if we're already in start position (roughly)
+    local center_x = (start_pos.min_x + start_pos.max_x) / 2
+    local center_z = (start_pos.min_z + start_pos.max_z) / 2
+    local dist = math.sqrt((my_pos.x - center_x)^2 + (my_pos.z - center_z)^2)
+    
+    -- If we're close to start position (within 1 meter), stop
+    if dist < 1.0 then
+        return {action = "stop"}
+    end
+    
+    -- Otherwise, run to start position center
+    return {
+        action = "run",
+        target_type = "point",
+        target = {x = center_x, z = center_z, y = 0}
+    }
 end
+
 
