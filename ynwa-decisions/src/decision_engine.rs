@@ -93,7 +93,10 @@ impl DecisionEngine {
     ///       "script": "function make_decision() return {action = 'stop'} end",
     ///       "team": "team_a"
     ///     }
-    ///   ]
+    ///   ],
+    ///   "static_data": {
+    ///     "zones": { ... }
+    ///   }
     /// }
     /// ```
     pub fn new(
@@ -117,6 +120,8 @@ impl DecisionEngine {
 
         let mut executors = Vec::with_capacity(players.len());
         let mut scripts = Vec::with_capacity(players.len());
+
+        let static_data = config.get("static_data");
 
         for (player_index, player) in players.iter().enumerate() {
             let script = player
@@ -153,6 +158,15 @@ impl DecisionEngine {
                             player_index, e
                         ))
                     })?;
+
+            if let Some(data) = static_data {
+                executor.set_global("GAME_DATA", data).map_err(|e| {
+                    DecisionEngineError::RuntimeError(format!(
+                        "Failed to set GAME_DATA for player {}: {}",
+                        player_index, e
+                    ))
+                })?;
+            }
 
             executors.push(executor);
             scripts.push(script.to_string());
@@ -584,5 +598,52 @@ mod tests {
         assert!(decision.is_ok());
         let dec = decision.unwrap();
         assert_eq!(dec.get("action").and_then(|a| a.as_str()), Some("stop"));
+    }
+
+    #[test]
+    fn test_decision_engine_static_data_available() {
+        let config = json!({
+            "team_preambles": {
+                "team_a": "",
+                "team_b": ""
+            },
+            "players": [
+                {
+                    "script": r#"
+                        function make_decision()
+                            local zone_name = GAME_DATA.zones.test_zone.name
+                            local zone_value = GAME_DATA.zones.test_zone.value
+                            return {
+                                action = "stop",
+                                debug_zone_name = zone_name,
+                                debug_zone_value = zone_value
+                            }
+                        end
+                    "#,
+                    "team": "team_a"
+                }
+            ],
+            "static_data": {
+                "zones": {
+                    "test_zone": {
+                        "name": "TestZone",
+                        "value": 42
+                    }
+                }
+            }
+        });
+
+        let engine = DecisionEngine::new(&config, "", "").unwrap();
+        let context = json!({"me": {"number": 1}});
+        let decision = engine.make_decision(0, &context).unwrap();
+
+        assert_eq!(
+            decision.get("debug_zone_name").and_then(|v| v.as_str()),
+            Some("TestZone")
+        );
+        assert_eq!(
+            decision.get("debug_zone_value").and_then(|v| v.as_i64()),
+            Some(42)
+        );
     }
 }

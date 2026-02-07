@@ -231,6 +231,21 @@ impl LuaExecutor {
     pub fn preamble(&self) -> &str {
         &self.preamble
     }
+
+    /// Set a global variable in Lua VM from JSON value
+    pub fn set_global(&self, name: &str, value: &serde_json::Value) -> Result<(), ScriptError> {
+        let lua_value = self
+            .lua
+            .to_value(value)
+            .map_err(|e| ScriptError::SerializationError(e.to_string()))?;
+
+        self.lua
+            .globals()
+            .set(name, lua_value)
+            .map_err(|e| ScriptError::RuntimeError(format!("Failed to set global: {}", e)))?;
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]

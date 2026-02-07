@@ -38,6 +38,8 @@ impl ScriptedDecisionMaker {
         let config = game.config();
         let scripting = &config.scripting;
 
+        let zones_json = Self::zones_to_json(&config.field);
+
         json!({
             "team_preambles": {
                 "team_a": scripting.team_a_preamble,
@@ -52,8 +54,70 @@ impl ScriptedDecisionMaker {
                     "script": p.script,
                     "team": team_key
                 })
-            }).collect::<Vec<_>>()
+            }).collect::<Vec<_>>(),
+            "static_data": {
+                "zones": zones_json
+            }
         })
+    }
+
+    fn zones_to_json(field: &crate::field::Field) -> serde_json::Value {
+        use crate::field::zones::ZoneGeometry;
+        use serde_json::json;
+
+        let mut zones_map = serde_json::Map::new();
+
+        for ((name, team), zone) in field.zones() {
+            let team_suffix = match team {
+                Some(Team::A) => "_a",
+                Some(Team::B) => "_b",
+                None => "",
+            };
+            let key = format!("{}{}", name, team_suffix);
+
+            let geometry_json = match &zone.geometry {
+                ZoneGeometry::Rectangle(rect) => {
+                    json!({
+                        "type": "rectangle",
+                        "min_x": rect.min.x.get::<meter>(),
+                        "max_x": rect.max.x.get::<meter>(),
+                        "min_z": rect.min.z.get::<meter>(),
+                        "max_z": rect.max.z.get::<meter>()
+                    })
+                }
+                ZoneGeometry::Circle(circle) => {
+                    json!({
+                        "type": "circle",
+                        "center_x": circle.center.x.get::<meter>(),
+                        "center_z": circle.center.z.get::<meter>(),
+                        "radius": circle.radius.get::<meter>()
+                    })
+                }
+                ZoneGeometry::Arc(arc) => {
+                    use uom::si::angle::degree;
+                    json!({
+                        "type": "arc",
+                        "center_x": arc.center.x.get::<meter>(),
+                        "center_z": arc.center.z.get::<meter>(),
+                        "radius": arc.radius.get::<meter>(),
+                        "start_angle": arc.start_angle.get::<degree>(),
+                        "end_angle": arc.end_angle.get::<degree>()
+                    })
+                }
+                ZoneGeometry::Point(point) => {
+                    json!({
+                        "type": "point",
+                        "x": point.position.x.get::<meter>(),
+                        "z": point.position.z.get::<meter>(),
+                        "tolerance": 0.5
+                    })
+                }
+            };
+
+            zones_map.insert(key, geometry_json);
+        }
+
+        serde_json::Value::Object(zones_map)
     }
 
     fn build_context(game: &Game, player_index: usize) -> Result<serde_json::Value, DecisionError> {
@@ -594,5 +658,89 @@ mod tests {
             "Team B min_z: expected {}, got {}", expected_min_z, start_pos["min_z"]);
         assert!((start_pos["max_z"].as_f64().unwrap() - expected_max_z as f64).abs() < 0.01,
             "Team B max_z: expected {}, got {}", expected_max_z, start_pos["max_z"]);
+    }
+
+    #[test]
+    fn test_zones_available_in_lua() {
+        use crate::field::{FieldBuilder, Zone};
+        use crate::field::zones::{Rectangle, ZoneGeometry};
+
+        let field = FieldBuilder::from_meters(100.0, 60.0, 26, 44)
+            .with_zone(Zone::new(
+                "test_zone",
+                Some(Team::A),
+                ZoneGeometry::Rectangle(Rectangle::from_meters(0.0, 0.0, 20.0, 30.0)),
+            ))
+            .build();
+        
+        let grid_dims = field.grid_dimensions();
+        let start_region = Region::new(
+            Team::A,
+            GridCell::new(1, 1).unwrap(),
+            GridCell::new(2, 2).unwrap(),
+            grid_dims,
+        )
+        .unwrap();
+
+        let test_logic = r#"
+            local zone = GAME_DATA.zones.test_zone_a
+            if zone and zone.type == "rectangle" then
+                return {
+                    action = "stop",
+                    has_zone = true,
+                    zone_type = zone.type,
+                    zone_min_x = zone.min_x,
+                    zone_max_x = zone.max_x,
+                    zone_min_z = zone.min_z,
+                    zone_max_z = zone.max_z
+                }
+            end
+            return {action = "stop", has_zone = false}
+        "#;
+
+        let script = format!("function make_decision() {} end", test_logic);
+
+        let config = GameConfig {
+            field,
+            players: vec![PlayerDef::new(
+                Team::A,
+                1,
+                "Test Player".to_string(),
+                50,
+                50,
+                50,
+                50,
+                50,
+                script,
+                start_region,
+            )],
+            ball: BallDef::default(),
+            referees: vec![RefereeDef::default()],
+            scripting: crate::game::ScriptingConfig::empty(),
+        };
+
+        let game = Game::with_stage(config, crate::game::GameStage::Play);
+        let mut maker = ScriptedDecisionMaker::new(&game).unwrap();
+        let decision = maker.make_decision(&game, 0);
+
+        assert!(decision.is_ok());
+        
+        let config_json = ScriptedDecisionMaker::build_config(&game);
+        let engine = ynwa_decisions::DecisionEngine::new(
+            &config_json,
+            &game.config().scripting.core_preamble,
+            &game.config().scripting.stdlib_preamble,
+        )
+        .unwrap();
+        
+        let context = ScriptedDecisionMaker::build_context(&game, 0).unwrap();
+        let decision_json = engine.make_decision(0, &context).unwrap();
+
+        assert_eq!(decision_json.get("has_zone").and_then(|v| v.as_bool()), Some(true));
+        assert_eq!(decision_json.get("zone_type").and_then(|v| v.as_str()), Some("rectangle"));
+        assert_eq!(decision_json.get("zone_min_x").and_then(|v| v.as_f64()), Some(0.0));
+        assert_eq!(decision_json.get("zone_max_x").and_then(|v| v.as_f64()), Some(20.0));
+        assert_eq!(decision_json.get("zone_min_z").and_then(|v| v.as_f64()), Some(0.0));
+        assert_eq!(decision_json.get("zone_max_z").and_then(|v| v.as_f64()), Some(30.0));
     }
 }
