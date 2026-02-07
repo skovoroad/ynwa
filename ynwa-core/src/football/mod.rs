@@ -1,3 +1,4 @@
+pub mod events;
 pub mod field_builder;
 pub mod game_manager;
 
