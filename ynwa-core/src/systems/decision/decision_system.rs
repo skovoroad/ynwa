@@ -33,7 +33,7 @@ pub trait DecisionMaker {
         &mut self,
         game: &Game,
         player_index: usize,
-    ) -> Result<Decision, DecisionError>;
+    ) -> Result<(Decision, Option<String>), DecisionError>;
 }
 
 /// Temporary stub - generates random run decisions until real AI is implemented
@@ -50,7 +50,7 @@ impl DecisionMaker for PlaceholderDecisionMaker {
         &mut self,
         game: &Game,
         _player_index: usize,
-    ) -> Result<Decision, DecisionError> {
+    ) -> Result<(Decision, Option<String>), DecisionError> {
         let grid_dims = game.config().field.grid_dimensions();
         let mut rng = rand::rng();
 
@@ -59,7 +59,7 @@ impl DecisionMaker for PlaceholderDecisionMaker {
         let cell =
             GridCell::new(col, row).map_err(|e| DecisionError::RuntimeError(e.to_string()))?;
 
-        Ok(Decision::Run(DecisionTarget::GridCell(cell)))
+        Ok((Decision::Run(DecisionTarget::GridCell(cell)), None))
     }
 }
 
@@ -127,7 +127,7 @@ impl System for DecisionSystem {
                 let player_state = &mut game.state.player_states[player_index];
 
                 match decision_result {
-                    Ok(decision) => {
+                    Ok((decision, reason)) => {
                         // Convert decision from team's orientation to display orientation
                         let display_decision = convert_decision_to_display_orientation(
                             &decision,
@@ -137,8 +137,9 @@ impl System for DecisionSystem {
                             grid_dims,
                         );
 
-                        // Success: set the decision
+                        // Success: set the decision and reason
                         player_state.current_decision = Some(display_decision);
+                        player_state.decision_reason = reason;
                         player_state.decision_processed = false;
                         player_state.needs_decision = false;
                         player_state.last_decision_time = timestamp;
@@ -163,6 +164,7 @@ impl System for DecisionSystem {
                         // Always treat error as "completed attempt" to prevent storm
                         // This ensures rate-limiting via PlayerReactionSystem's reaction_rate
                         player_state.current_decision = converted_error_decision;
+                        player_state.decision_reason = None; // No reason on error
                         player_state.decision_processed = false;
                         player_state.needs_decision = false;
                         player_state.last_decision_time = timestamp;
@@ -281,7 +283,7 @@ mod tests {
         let game = create_test_game();
         let mut maker = PlaceholderDecisionMaker::new();
 
-        let decision = maker.make_decision(&game, 0).expect("Should not error");
+        let (decision, reason) = maker.make_decision(&game, 0).expect("Should not error");
 
         match decision {
             Decision::Run(DecisionTarget::GridCell(cell)) => {
@@ -291,6 +293,7 @@ mod tests {
             }
             _ => panic!("Expected Run decision with GridCell target"),
         }
+        assert_eq!(reason, None); // Placeholder doesn't provide reasons
     }
 
     // Test error handling
@@ -301,7 +304,7 @@ mod tests {
             &mut self,
             _game: &Game,
             _player_index: usize,
-        ) -> Result<Decision, DecisionError> {
+        ) -> Result<(Decision, Option<String>), DecisionError> {
             Err(DecisionError::ScriptError("Test error".to_string()))
         }
     }
@@ -381,7 +384,7 @@ mod tests {
                 &mut self,
                 _game: &Game,
                 _idx: usize,
-            ) -> Result<Decision, DecisionError> {
+            ) -> Result<(Decision, Option<String>), DecisionError> {
                 let mut count = self.attempts.lock().unwrap();
                 *count += 1;
 
@@ -390,9 +393,12 @@ mod tests {
                         "First attempt fails".to_string(),
                     ))
                 } else {
-                    Ok(Decision::Run(DecisionTarget::GridCell(
-                        GridCell::new(13, 22).unwrap(),
-                    )))
+                    Ok((
+                        Decision::Run(DecisionTarget::GridCell(
+                            GridCell::new(13, 22).unwrap(),
+                        )),
+                        None,
+                    ))
                 }
             }
         }
@@ -429,7 +435,7 @@ mod tests {
                 &mut self,
                 _game: &Game,
                 _idx: usize,
-            ) -> Result<Decision, DecisionError> {
+            ) -> Result<(Decision, Option<String>), DecisionError> {
                 Err(DecisionError::Timeout(
                     "Execution took too long".to_string(),
                 ))
@@ -458,7 +464,7 @@ mod tests {
                 &mut self,
                 _game: &Game,
                 _idx: usize,
-            ) -> Result<Decision, DecisionError> {
+            ) -> Result<(Decision, Option<String>), DecisionError> {
                 Err(DecisionError::RuntimeError("Internal error".to_string()))
             }
         }

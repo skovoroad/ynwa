@@ -29,15 +29,23 @@ struct LuaPointTarget {
     y: f32,
 }
 
-/// Parse JSON decision value into domain Decision type
-pub fn parse_decision(value: &serde_json::Value, team: Team) -> Result<Decision, DecisionError> {
+/// Parse JSON decision value into domain Decision type and optional reason
+/// Returns a tuple of (Decision, Option<String>) where the second element is
+/// the short explanation of why this decision was made
+pub fn parse_decision(value: &serde_json::Value, team: Team) -> Result<(Decision, Option<String>), DecisionError> {
     let action = value
         .get("action")
         .and_then(|a| a.as_str())
         .ok_or_else(|| DecisionError::RuntimeError("Missing 'action' field".to_string()))?;
 
+    // Extract optional reason field
+    let reason = value
+        .get("reason")
+        .and_then(|r| r.as_str())
+        .map(|s| s.to_string());
+
     match action {
-        "stop" => Ok(Decision::Stop),
+        "stop" => Ok((Decision::Stop, reason)),
         "run" => {
             let target_type = value
                 .get("target_type")
@@ -62,7 +70,7 @@ pub fn parse_decision(value: &serde_json::Value, team: Team) -> Result<Decision,
                 }
             };
 
-            Ok(Decision::Run(decision_target))
+            Ok((Decision::Run(decision_target), reason))
         }
         "kick" => {
             let target = value.get("target").ok_or_else(|| {
@@ -70,7 +78,7 @@ pub fn parse_decision(value: &serde_json::Value, team: Team) -> Result<Decision,
             })?;
 
             let kick_target = parse_point(target)?;
-            Ok(Decision::Kick(kick_target))
+            Ok((Decision::Kick(kick_target), reason))
         }
         _ => Err(DecisionError::RuntimeError(format!(
             "Unknown action: {}",
@@ -162,8 +170,9 @@ mod tests {
     #[test]
     fn test_parse_stop_decision() {
         let json = json!({"action": "stop"});
-        let decision = parse_decision(&json, Team::A).unwrap();
+        let (decision, reason) = parse_decision(&json, Team::A).unwrap();
         assert!(matches!(decision, Decision::Stop));
+        assert_eq!(reason, None);
     }
 
     #[test]
@@ -173,7 +182,7 @@ mod tests {
             "target_type": "cell",
             "target": "B5"
         });
-        let decision = parse_decision(&json, Team::A).unwrap();
+        let (decision, _) = parse_decision(&json, Team::A).unwrap();
         match decision {
             Decision::Run(DecisionTarget::GridCell(cell)) => {
                 assert_eq!(cell.row, 5);
@@ -190,7 +199,7 @@ mod tests {
             "target_type": "point",
             "target": {"x": 50.0, "z": 30.0}
         });
-        let decision = parse_decision(&json, Team::A).unwrap();
+        let (decision, _) = parse_decision(&json, Team::A).unwrap();
         match decision {
             Decision::Run(DecisionTarget::Point(point)) => {
                 assert!((point.x.get::<meter>() - 50.0).abs() < 0.01);
@@ -206,7 +215,7 @@ mod tests {
             "action": "kick",
             "target": {"x": 50.0, "z": 30.0}
         });
-        let decision = parse_decision(&json, Team::A).unwrap();
+        let (decision, _) = parse_decision(&json, Team::A).unwrap();
         match decision {
             Decision::Kick(point) => {
                 assert!((point.x.get::<meter>() - 50.0).abs() < 0.01);
@@ -223,12 +232,23 @@ mod tests {
             "target_type": "region",
             "target": {"from": "A5", "to": "C7"}
         });
-        let decision = parse_decision(&json, Team::A).unwrap();
+        let (decision, _) = parse_decision(&json, Team::A).unwrap();
         match decision {
             Decision::Run(DecisionTarget::Region(_region)) => {
                 // Success
             }
             _ => panic!("Expected Run with Region"),
         }
+    }
+
+    #[test]
+    fn test_parse_decision_with_reason() {
+        let json = json!({
+            "action": "stop",
+            "reason": "waiting"
+        });
+        let (decision, reason) = parse_decision(&json, Team::A).unwrap();
+        assert!(matches!(decision, Decision::Stop));
+        assert_eq!(reason, Some("waiting".to_string()));
     }
 }

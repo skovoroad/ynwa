@@ -276,7 +276,7 @@ impl DecisionMaker for ScriptedDecisionMaker {
         &mut self,
         game: &Game,
         player_index: usize,
-    ) -> Result<Decision, DecisionError> {
+    ) -> Result<(Decision, Option<String>), DecisionError> {
         // Build context
         let context = Self::build_context(game, player_index)?;
 
@@ -292,12 +292,12 @@ impl DecisionMaker for ScriptedDecisionMaker {
                     .map_err(|e| DecisionError::RuntimeError(format!("Engine error: {}", e)))?
             }
             crate::game::GameStage::GameOver => {
-                // During game over, return Stop decision
-                return Ok(Decision::Stop);
+                // During game over, return Stop decision with no reason
+                return Ok((Decision::Stop, None));
             }
         };
 
-        // Parse JSON decision to Decision type using decision_parser
+        // Parse JSON decision to Decision type using decision_parser (returns tuple)
         let player_team = game.config().players[player_index].team;
         decision_parser::parse_decision(&decision_json, player_team)
     }
@@ -348,7 +348,8 @@ mod tests {
         let decision = maker.make_decision(&game, 0);
 
         assert!(decision.is_ok());
-        assert!(matches!(decision.unwrap(), Decision::Stop));
+        let (decision_value, _) = decision.unwrap();
+        assert!(matches!(decision_value, Decision::Stop));
     }
 
     #[test]
@@ -368,7 +369,8 @@ mod tests {
         let decision = maker.make_decision(&game, 0);
 
         assert!(decision.is_ok());
-        match decision.unwrap() {
+        let (decision_value, _) = decision.unwrap();
+        match decision_value {
             Decision::Kick(point) => {
                 use uom::si::length::meter;
                 assert!((point.x.get::<meter>() - 50.0).abs() < 0.01);
@@ -401,7 +403,8 @@ mod tests {
         let decision = maker.make_decision(&game, 0);
 
         assert!(decision.is_ok());
-        assert!(matches!(decision.unwrap(), Decision::Stop));
+        let (decision_value, _) = decision.unwrap();
+        assert!(matches!(decision_value, Decision::Stop));
     }
 
     #[test]
@@ -424,7 +427,8 @@ mod tests {
 
         assert!(decision.is_ok());
         // In Play stage, should call make_decision, not prepare
-        assert!(matches!(decision.unwrap(), Decision::Stop));
+        let (decision_value, _) = decision.unwrap();
+        assert!(matches!(decision_value, Decision::Stop));
     }
 
     #[test]
@@ -447,7 +451,8 @@ mod tests {
 
         assert!(decision.is_ok());
         // In Setup stage, should call prepare
-        match decision.unwrap() {
+        let (decision_value, _) = decision.unwrap();
+        match decision_value {
             Decision::Run(target) => match target {
                 crate::game::DecisionTarget::GridCell(cell) => {
                     assert_eq!(cell.col, 2);
@@ -501,7 +506,8 @@ mod tests {
 
         assert!(decision.is_ok());
         // Should use default prepare from stdlib
-        assert!(matches!(decision.unwrap(), Decision::Stop));
+        let (decision_value, _reason) = decision.unwrap();
+        assert!(matches!(decision_value, Decision::Stop));
     }
 
     #[test]

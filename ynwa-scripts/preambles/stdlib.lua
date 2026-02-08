@@ -255,7 +255,8 @@ function common_behavior_v3()
             return {
                 action = "run",
                 target_type = "point",
-                target = {x = ball_pos.x, z = ball_pos.z, y = 0}
+                target = {x = ball_pos.x, z = ball_pos.z, y = 0},
+                reason = "chase ball"
             }
         else
             -- Far from ball -> run to defence position
@@ -266,7 +267,8 @@ function common_behavior_v3()
                 return {
                     action = "run",
                     target_type = "point",
-                    target = {x = center_x, z = center_z, y = 0}
+                    target = {x = center_x, z = center_z, y = 0},
+                    reason = "defend"
                 }
             end
         end
@@ -281,7 +283,8 @@ function common_behavior_v3()
             if target then
                 return {
                     action = "kick",
-                    target = {x = target.x, z = target.z}
+                    target = {x = target.x, z = target.z},
+                    reason = "shoot"
                 }
             end
         end
@@ -292,7 +295,8 @@ function common_behavior_v3()
             -- Pass to free teammate
             return {
                 action = "kick",
-                target = {x = free_teammate.position.x, z = free_teammate.position.z}
+                target = {x = free_teammate.position.x, z = free_teammate.position.z},
+                reason = "pass"
             }
         else
             -- No free teammate -> dribble forward
@@ -305,7 +309,8 @@ function common_behavior_v3()
             return {
                 action = "run",
                 target_type = "point",
-                target = {x = my_pos.x, z = target_z, y = 0}
+                target = {x = my_pos.x, z = target_z, y = 0},
+                reason = "dribble"
             }
         end
     end
@@ -319,7 +324,8 @@ function common_behavior_v3()
             return {
                 action = "run",
                 target_type = "point",
-                target = {x = center_x, z = center_z, y = 0}
+                target = {x = center_x, z = center_z, y = 0},
+                reason = "support"
             }
         end
     end
@@ -328,7 +334,8 @@ function common_behavior_v3()
     return {
         action = "run",
         target_type = "point",
-        target = {x = ball_pos.x, z = ball_pos.z, y = 0}
+        target = {x = ball_pos.x, z = ball_pos.z, y = 0},
+        reason = "get ball"
     }
 end
 
@@ -346,7 +353,8 @@ function goalkeeper_behavior()
         return {
             action = "run",
             target_type = "point",
-            target = {x = ball_pos.x, z = ball_pos.z, y = 0}
+            target = {x = ball_pos.x, z = ball_pos.z, y = 0},
+            reason = "save"
         }
     end
     
@@ -366,12 +374,13 @@ function goalkeeper_behavior()
         return {
             action = "run",
             target_type = "point",
-            target = {x = target_x, z = target_z, y = 0}
+            target = {x = target_x, z = target_z, y = 0},
+            reason = "position"
         }
     end
     
     -- Fallback: stop
-    return {action = "stop"}
+    return {action = "stop", reason = "ready"}
 end
 
 

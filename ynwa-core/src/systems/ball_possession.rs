@@ -193,6 +193,7 @@ mod tests {
             last_decision_time: 0.0,
             needs_decision: false,
             current_decision: None,
+            decision_reason: None,
             decision_processed: false,
             last_error: None,
             is_ready: false,

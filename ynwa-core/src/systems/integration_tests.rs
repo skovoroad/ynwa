@@ -44,18 +44,18 @@ mod tests {
             &mut self,
             _game: &Game,
             player_index: usize,
-        ) -> Result<Decision, DecisionError> {
+        ) -> Result<(Decision, Option<String>), DecisionError> {
             if let Some(decisions) = self.decisions.get(&player_index) {
                 if let Some(counter) = self.decision_counters.get_mut(&player_index) {
                     let decision_index = *counter;
                     if decision_index < decisions.len() {
                         *counter += 1;
-                        return Ok(decisions[decision_index].clone());
+                        return Ok((decisions[decision_index].clone(), None));
                     }
                 }
             }
             // Return Stop if no more decisions available
-            Ok(Decision::Stop)
+            Ok((Decision::Stop, None))
         }
     }
 

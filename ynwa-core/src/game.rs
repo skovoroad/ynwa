@@ -176,6 +176,7 @@ pub struct PlayerState {
     pub last_decision_time: f32,
     pub needs_decision: bool,
     pub current_decision: Option<Decision>,
+    pub decision_reason: Option<String>, // Short explanation of why this decision was made
     pub decision_processed: bool,
     pub last_error: Option<String>,
     pub is_ready: bool, // True when player is in start position (for Setup stage)
@@ -189,6 +190,7 @@ impl Default for PlayerState {
             last_decision_time: 0.0,
             needs_decision: true,
             current_decision: None,
+            decision_reason: None,
             decision_processed: false,
             last_error: None,
             is_ready: false,
@@ -331,6 +333,7 @@ impl Game {
                     last_decision_time: 0.0,
                     needs_decision: true,
                     current_decision: None,
+                    decision_reason: None,
                     decision_processed: false,
                     last_error: None,
                     is_ready: false,
