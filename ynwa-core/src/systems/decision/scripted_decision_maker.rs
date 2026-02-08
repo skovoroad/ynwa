@@ -209,7 +209,11 @@ impl ScriptedDecisionMaker {
             ),
             "ball": {
                 "position": Self::position_to_json(&state.ball_state.position, player_team, field_width, field_length),
-                "owner_index": state.ball_state.possessed_by
+                "owner_index": state.ball_state.possessed_by,
+                "owner_team": match state.ball_state.last_possessing_team {
+                    Some(team) => format!("{:?}", team),
+                    None => "None".to_string(),
+                }
             },
             "game": {
                 "elapsed_time": state.elapsed_time
@@ -746,5 +750,93 @@ mod tests {
         assert_eq!(decision_json.get("zone_max_x").and_then(|v| v.as_f64()), Some(20.0));
         assert_eq!(decision_json.get("zone_min_z").and_then(|v| v.as_f64()), Some(0.0));
         assert_eq!(decision_json.get("zone_max_z").and_then(|v| v.as_f64()), Some(30.0));
+    }
+
+    #[test]
+    fn test_ball_owner_team_in_context() {
+        use crate::team::Team;
+        
+        let field = Field::from_meters(100.0, 60.0, 26, 44);
+        let grid_dims = field.grid_dimensions();
+
+        let start_region = Region::new(
+            Team::A,
+            GridCell::new(13, 22).unwrap(),
+            GridCell::new(13, 22).unwrap(),
+            grid_dims,
+        )
+        .unwrap();
+
+        // Script that returns ball owner_team
+        let script = r#"
+            function make_decision()
+                return {
+                    action = "stop",
+                    owner_team = context.ball.owner_team
+                }
+            end
+        "#.to_string();
+
+        let config = GameConfig {
+            field,
+            players: vec![PlayerDef::new(
+                Team::A,
+                1,
+                "Test Player".to_string(),
+                50,
+                50,
+                50,
+                50,
+                50,
+                script,
+                start_region,
+            )],
+            ball: BallDef::default(),
+            referees: vec![RefereeDef::default()],
+            scripting: crate::game::ScriptingConfig::empty(),
+        };
+
+        let mut game = Game::with_stage(config, crate::game::GameStage::Play);
+
+        // Test 1: Neutral ball (None)
+        game.state.ball_state.last_possessing_team = None;
+        
+        let context = ScriptedDecisionMaker::build_context(&game, 0).unwrap();
+        let owner_team_value = context
+            .get("ball")
+            .and_then(|b| b.get("owner_team"))
+            .and_then(|v| v.as_str());
+        
+        assert_eq!(owner_team_value, Some("None"), "Neutral ball should have owner_team='None'");
+
+        // Test 2: Team A owns ball
+        game.state.ball_state.last_possessing_team = Some(Team::A);
+        
+        let context = ScriptedDecisionMaker::build_context(&game, 0).unwrap();
+        let owner_team_value = context
+            .get("ball")
+            .and_then(|b| b.get("owner_team"))
+            .and_then(|v| v.as_str());
+        
+        assert_eq!(owner_team_value, Some("A"), "Team A ball should have owner_team='A'");
+
+        // Test 3: Team B owns ball
+        game.state.ball_state.last_possessing_team = Some(Team::B);
+        
+        let context = ScriptedDecisionMaker::build_context(&game, 0).unwrap();
+        let owner_team_value = context
+            .get("ball")
+            .and_then(|b| b.get("owner_team"))
+            .and_then(|v| v.as_str());
+        
+        assert_eq!(owner_team_value, Some("B"), "Team B ball should have owner_team='B'");
+
+        // Test 4: Verify Lua script can access owner_team
+        game.state.ball_state.last_possessing_team = Some(Team::A);
+        
+        let mut maker = ScriptedDecisionMaker::new(&game).unwrap();
+        let decision = maker.make_decision(&game, 0);
+        
+        assert!(decision.is_ok(), "Decision should succeed");
     }
 }

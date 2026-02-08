@@ -157,7 +157,7 @@ impl Default for PlayerState {
     }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct BallState {
     pub position: Point3D,
     pub velocity: Velocity3D,
@@ -165,6 +165,20 @@ pub struct BallState {
     pub possessed_by: Option<usize>,
     /// Timestamp of last possession change (for anti-bounce)
     pub last_possession_change_time: f32,
+    /// Team that last possessed the ball, or None if ball was never possessed
+    pub last_possessing_team: Option<Team>,
+}
+
+impl Default for BallState {
+    fn default() -> Self {
+        Self {
+            position: Point3D::default(),
+            velocity: Velocity3D::default(),
+            possessed_by: None,
+            last_possession_change_time: 0.0,
+            last_possessing_team: None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Default)]
@@ -300,6 +314,7 @@ impl Game {
                     velocity: Velocity3D::default(),
                     possessed_by: None,
                     last_possession_change_time: -1.0, // Set to negative so first change is allowed
+                    last_possessing_team: None, // Neutral at game start
                 },
                 referee_states,
             },

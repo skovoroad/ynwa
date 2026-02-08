@@ -122,7 +122,7 @@ System execution order (important for correct operation):
   - `build_config()`: extracts player scripts from Game → JSON config
   - `build_context()`: Game state → JSON context (~500 bytes)
     - Team B sees flipped coordinates (mirror across field center)
-    - Includes: player position, teammates, opponents, ball (position + owner_index), elapsed time
+    - Includes: player position, teammates, opponents, ball (position + owner_index + owner_team), elapsed time
     - Player regions with exact boundaries (min_x, max_x, min_z, max_z) calculated from GridCell coordinates
   - `parse_json_decision()`: JSON decision → domain Decision type
     - Uses serde intermediate structures (LuaRegionTarget, LuaPointTarget)
@@ -353,6 +353,12 @@ System execution order (important for correct operation):
 **Ball state:**
 - `possessed_by: Option<usize>` - current owner's player index or None
 - `last_possession_change_time: f32` - timestamp of last change (for cooldown)
+- `last_possessing_team: Option<Team>` - team that last possessed the ball
+  - `Some(Team::A)` or `Some(Team::B)` when a team has/had the ball
+  - `None` when ball has never been possessed (game start, after Setup stage)
+  - Persists during passes (when `possessed_by = None`) to track ball ownership
+  - Reset to `None` on transition to Setup stage (neutral ball for restarts)
+  - Available to Lua scripts via `context.ball.owner_team` field
 
 **Design decisions:**
 - Teammate filtering in `find_nearby_players()` for clean separation of concerns

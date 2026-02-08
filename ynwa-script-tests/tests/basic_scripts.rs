@@ -311,3 +311,114 @@ fn test_kick_if_ball_owner() {
         ),
     }
 }
+
+#[test]
+fn test_ball_owner_team_context() {
+    use ynwa_core::team::Team;
+
+    // Script that checks ball.owner_team
+    let script = r#"
+        function make_decision()
+            local owner_team = context.ball.owner_team
+            
+            -- Check that owner_team exists and is a string
+            if owner_team == nil then
+                error("owner_team is nil")
+            end
+            
+            if type(owner_team) ~= "string" then
+                error("owner_team is not a string, got: " .. type(owner_team))
+            end
+            
+            -- Return different decisions based on owner_team
+            if owner_team == "A" then
+                return {action = "run", target_type = "cell", target = "A1"}
+            elseif owner_team == "B" then
+                return {action = "run", target_type = "cell", target = "B1"}
+            elseif owner_team == "None" then
+                return {action = "stop"}
+            else
+                error("Unknown owner_team: " .. owner_team)
+            end
+        end
+    "#;
+
+    // Test 1: Neutral ball (owner_team = "None")
+    let mut game = create_test_game_with_script(script);
+    game.state.ball_state.last_possessing_team = None;
+
+    let mut reaction_system = PlayerReactionSystem::new();
+    reaction_system.update(&mut game, 1.0);
+
+    let decision_maker =
+        ScriptedDecisionMaker::new(&game).expect("Failed to create ScriptedDecisionMaker");
+    let mut decision_system = DecisionSystem::new().with_decision_maker(Box::new(decision_maker));
+    decision_system.update(&mut game, 1.0);
+
+    let player_state = &game.state().player_states[0];
+    assert!(
+        player_state.last_error.is_none(),
+        "Script error with neutral ball: {:?}",
+        player_state.last_error
+    );
+    assert!(
+        matches!(player_state.current_decision, Some(Decision::Stop)),
+        "Expected Stop for neutral ball, got: {:?}",
+        player_state.current_decision
+    );
+
+    // Test 2: Team A owns ball (owner_team = "A")
+    let mut game = create_test_game_with_script(script);
+    game.state.ball_state.last_possessing_team = Some(Team::A);
+
+    let mut reaction_system = PlayerReactionSystem::new();
+    reaction_system.update(&mut game, 1.0);
+
+    let decision_maker =
+        ScriptedDecisionMaker::new(&game).expect("Failed to create ScriptedDecisionMaker");
+    let mut decision_system = DecisionSystem::new().with_decision_maker(Box::new(decision_maker));
+    decision_system.update(&mut game, 1.0);
+
+    let player_state = &game.state().player_states[0];
+    assert!(
+        player_state.last_error.is_none(),
+        "Script error with Team A ball: {:?}",
+        player_state.last_error
+    );
+    assert!(
+        matches!(
+            player_state.current_decision,
+            Some(Decision::Run(DecisionTarget::GridCell(_)))
+        ),
+        "Expected Run decision for Team A ball, got: {:?}",
+        player_state.current_decision
+    );
+
+    // Test 3: Team B owns ball (owner_team = "B")
+    let mut game = create_test_game_with_script(script);
+    game.state.ball_state.last_possessing_team = Some(Team::B);
+
+    let mut reaction_system = PlayerReactionSystem::new();
+    reaction_system.update(&mut game, 1.0);
+
+    let decision_maker =
+        ScriptedDecisionMaker::new(&game).expect("Failed to create ScriptedDecisionMaker");
+    let mut decision_system = DecisionSystem::new().with_decision_maker(Box::new(decision_maker));
+    decision_system.update(&mut game, 1.0);
+
+    let player_state = &game.state().player_states[0];
+    assert!(
+        player_state.last_error.is_none(),
+        "Script error with Team B ball: {:?}",
+        player_state.last_error
+    );
+    assert!(
+        matches!(
+            player_state.current_decision,
+            Some(Decision::Run(DecisionTarget::GridCell(_)))
+        ),
+        "Expected Run decision for Team B ball, got: {:?}",
+        player_state.current_decision
+    );
+}
+

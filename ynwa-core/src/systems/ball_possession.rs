@@ -129,6 +129,13 @@ impl System for BallPossessionSystem {
             game.state.ball_state.possessed_by = new_possession;
             game.state.ball_state.last_possession_change_time = timestamp;
 
+            // Update last possessing team
+            if let Some(player_idx) = new_possession {
+                let team = game.config().players[player_idx].team;
+                game.state.ball_state.last_possessing_team = Some(team);
+            }
+            // Note: If new_possession is None (ball is free), last_possessing_team keeps previous value
+
             // Set needs_decision flag for all players when possession changes
             for player_state in &mut game.state.player_states {
                 player_state.needs_decision = true;
@@ -950,5 +957,101 @@ mod tests {
     #[test]
     fn test_ball_possession_system_exists() {
         let _system = BallPossessionSystem::new();
+    }
+
+    #[test]
+    fn test_last_possessing_team_tracks_during_pass() {
+        let field = create_test_field();
+        let ball_pos = Point3D::from_meters(50.0, 30.0, 0.0);
+
+        // Team A player near ball
+        let (player1_def, player1_state) =
+            create_test_player(Team::A, 1, 70, Point3D::from_meters(50.5, 30.0, 0.0));
+
+        // Team B player far away
+        let (player2_def, player2_state) =
+            create_test_player(Team::B, 2, 60, Point3D::from_meters(60.0, 30.0, 0.0));
+
+        let config = GameConfig {
+            field,
+            players: vec![player1_def, player2_def],
+            ball: BallDef::default(),
+            referees: vec![RefereeDef::default()],
+            scripting: crate::game::ScriptingConfig::empty(),
+        };
+
+        let mut game = Game::new(config);
+        game.state.ball_state.position = ball_pos;
+        game.state.player_states = vec![player1_state, player2_state];
+
+        // Initial state: ball is neutral, no owner
+        game.state.ball_state.possessed_by = None;
+        game.state.ball_state.last_possession_change_time = -2.0;
+        assert_eq!(game.state.ball_state.last_possessing_team, None);
+
+        let mut system = BallPossessionSystem::new();
+        
+        // Player 0 (Team A) gains possession (nearby, ball is free)
+        system.update(&mut game, 0.0);
+
+        // Team A should be recorded
+        assert_eq!(game.state.ball_state.possessed_by, Some(0));
+        assert_eq!(
+            game.state.ball_state.last_possessing_team,
+            Some(Team::A)
+        );
+
+        // Simulate pass: ball is free (possessed_by = None)
+        game.state.ball_state.possessed_by = None;
+
+        // last_possessing_team should still be Team A during the pass
+        assert_eq!(
+            game.state.ball_state.last_possessing_team,
+            Some(Team::A)
+        );
+    }
+
+    #[test]
+    fn test_last_possessing_team_changes_on_interception() {
+        let field = create_test_field();
+        let ball_pos = Point3D::from_meters(50.0, 30.0, 0.0);
+
+        // Team A player
+        let (player1_def, mut player1_state) =
+            create_test_player(Team::A, 1, 70, Point3D::from_meters(50.5, 30.0, 0.0));
+
+        // Team B player nearby to intercept
+        let (player2_def, player2_state) =
+            create_test_player(Team::B, 2, 80, Point3D::from_meters(50.3, 30.0, 0.0));
+
+        let config = GameConfig {
+            field,
+            players: vec![player1_def, player2_def],
+            ball: BallDef::default(),
+            referees: vec![RefereeDef::default()],
+            scripting: crate::game::ScriptingConfig::empty(),
+        };
+
+        let mut game = Game::new(config);
+        game.state.ball_state.position = ball_pos;
+        
+        // Team A has the ball
+        player1_state.needs_decision = false;
+        game.state.player_states = vec![player1_state, player2_state];
+        game.state.ball_state.possessed_by = Some(0);
+        game.state.ball_state.last_possession_change_time = 0.0;
+        game.state.ball_state.last_possessing_team = Some(Team::A);
+
+        let mut system = BallPossessionSystem::with_rng(|| 1.0);
+        
+        // Update after cooldown - Team B can intercept
+        system.update(&mut game, 2.0);
+
+        // Team B should now have possession
+        assert_eq!(game.state.ball_state.possessed_by, Some(1));
+        assert_eq!(
+            game.state.ball_state.last_possessing_team,
+            Some(Team::B)
+        );
     }
 }

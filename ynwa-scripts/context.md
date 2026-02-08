@@ -108,7 +108,10 @@ context = {
             y = 0.0,
             z = 34.0
         },
-        owner_index = 5       -- Global player index possessing the ball, or null if ball is free
+        owner_index = 5,      -- Global player index possessing the ball, or null if ball is free
+        owner_team = "A"      -- Team that last possessed the ball: "A", "B", or "None"
+                              -- Persists during passes (when owner_index is null)
+                              -- "None" at game start and after Setup stages
     },
     
     -- Game time
@@ -159,6 +162,23 @@ There are two ways to identify players in the game:
 - For internal comparisons (ball ownership, finding specific player) → use `index`
 - For display and configuration → use `team` + `number`
 - `context.ball.owner_index` contains global index, not number
+- To check team ownership during passes, use `context.ball.owner_team`:
+  ```lua
+  -- Check if my team has the ball (including during passes)
+  if context.ball.owner_team == context.me.team then
+      -- My team has possession
+  end
+  
+  -- Check if opponent has the ball
+  if context.ball.owner_team ~= "None" and context.ball.owner_team ~= context.me.team then
+      -- Opponent team has possession
+  end
+  
+  -- Check if ball is neutral (game start, after restarts)
+  if context.ball.owner_team == "None" then
+      -- Ball is neutral, can be contested
+  end
+  ```
 
 #### 2.2.1 Player Regions (`context.me.regions`)
 

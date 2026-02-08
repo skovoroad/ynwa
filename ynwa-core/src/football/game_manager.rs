@@ -22,6 +22,10 @@ impl System for FootballGameManager {
                 game.state.ball_state.position = game.config().ball.initial_position.clone();
                 game.state.ball_state.velocity = crate::field::zones::Velocity3D::default();
                 
+                // Reset ball possession tracking
+                game.state.ball_state.possessed_by = None;
+                game.state.ball_state.last_possessing_team = None;
+                
                 // Any Setup stage: check if players are ready to resume
                 self.check_player_readiness(game);
 
@@ -521,6 +525,40 @@ mod tests {
             game.state.ball_state.velocity.z.get::<meter_per_second>(),
             0.0,
             "Ball Z velocity should be zero"
+        );
+    }
+
+    #[test]
+    fn test_ball_ownership_resets_in_setup_stage() {
+        use crate::team::Team;
+        
+        let mut game = create_test_game_setup();
+
+        // Set ball ownership to Team A during Play stage
+        game.state.stage = GameStage::Play;
+        game.state.ball_state.possessed_by = Some(0);
+        game.state.ball_state.last_possessing_team = Some(Team::A);
+
+        // Verify ownership is set
+        assert_eq!(game.state.ball_state.possessed_by, Some(0));
+        assert_eq!(game.state.ball_state.last_possessing_team, Some(Team::A));
+
+        // Transition to Setup stage
+        game.state.stage = GameStage::Setup("after_goal".to_string());
+        
+        let mut manager = FootballGameManager::new();
+        manager.update(&mut game, 0.0);
+
+        // Ball ownership should be reset to neutral
+        assert_eq!(
+            game.state.ball_state.possessed_by,
+            None,
+            "Ball should have no owner in Setup stage"
+        );
+        assert_eq!(
+            game.state.ball_state.last_possessing_team,
+            None,
+            "Ball ownership team should be reset to None in Setup stage"
         );
     }
 }
