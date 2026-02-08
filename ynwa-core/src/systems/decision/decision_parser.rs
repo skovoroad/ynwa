@@ -30,7 +30,7 @@ struct LuaPointTarget {
 }
 
 /// Parse JSON decision value into domain Decision type
-pub fn parse_decision(value: &serde_json::Value) -> Result<Decision, DecisionError> {
+pub fn parse_decision(value: &serde_json::Value, team: Team) -> Result<Decision, DecisionError> {
     let action = value
         .get("action")
         .and_then(|a| a.as_str())
@@ -52,7 +52,7 @@ pub fn parse_decision(value: &serde_json::Value) -> Result<Decision, DecisionErr
 
             let decision_target = match target_type {
                 "cell" => parse_cell_target(target)?,
-                "region" => parse_region_target(target)?,
+                "region" => parse_region_target(target, team)?,
                 "point" => parse_point_as_target(target)?,
                 _ => {
                     return Err(DecisionError::RuntimeError(format!(
@@ -99,7 +99,7 @@ fn parse_cell_target(value: &serde_json::Value) -> Result<DecisionTarget, Decisi
 ///
 /// Note: Creates region without bounds validation using `new_unchecked`.
 /// Validation will happen later in the decision system when the region is used.
-fn parse_region_target(value: &serde_json::Value) -> Result<DecisionTarget, DecisionError> {
+fn parse_region_target(value: &serde_json::Value, team: Team) -> Result<DecisionTarget, DecisionError> {
     // Deserialize using serde
     let region_target: LuaRegionTarget = serde_json::from_value(value.clone()).map_err(|e| {
         DecisionError::RuntimeError(format!(
@@ -119,9 +119,10 @@ fn parse_region_target(value: &serde_json::Value) -> Result<DecisionTarget, Deci
         DecisionError::RuntimeError(format!("Invalid 'to' cell '{}': {}", region_target.to, e))
     })?;
 
+    // Use the player's team so the region is in their coordinate system
     // Use new_unchecked since we don't have grid dimensions here.
     // Validation will occur later when the region is actually used in the game.
-    let region = Region::new_unchecked(Team::A, from_cell, to_cell);
+    let region = Region::new_unchecked(team, from_cell, to_cell);
 
     Ok(DecisionTarget::Region(region))
 }
@@ -161,7 +162,7 @@ mod tests {
     #[test]
     fn test_parse_stop_decision() {
         let json = json!({"action": "stop"});
-        let decision = parse_decision(&json).unwrap();
+        let decision = parse_decision(&json, Team::A).unwrap();
         assert!(matches!(decision, Decision::Stop));
     }
 
@@ -172,7 +173,7 @@ mod tests {
             "target_type": "cell",
             "target": "B5"
         });
-        let decision = parse_decision(&json).unwrap();
+        let decision = parse_decision(&json, Team::A).unwrap();
         match decision {
             Decision::Run(DecisionTarget::GridCell(cell)) => {
                 assert_eq!(cell.row, 5);
@@ -189,7 +190,7 @@ mod tests {
             "target_type": "point",
             "target": {"x": 50.0, "z": 30.0}
         });
-        let decision = parse_decision(&json).unwrap();
+        let decision = parse_decision(&json, Team::A).unwrap();
         match decision {
             Decision::Run(DecisionTarget::Point(point)) => {
                 assert!((point.x.get::<meter>() - 50.0).abs() < 0.01);
@@ -205,7 +206,7 @@ mod tests {
             "action": "kick",
             "target": {"x": 50.0, "z": 30.0}
         });
-        let decision = parse_decision(&json).unwrap();
+        let decision = parse_decision(&json, Team::A).unwrap();
         match decision {
             Decision::Kick(point) => {
                 assert!((point.x.get::<meter>() - 50.0).abs() < 0.01);
@@ -222,7 +223,7 @@ mod tests {
             "target_type": "region",
             "target": {"from": "A5", "to": "C7"}
         });
-        let decision = parse_decision(&json).unwrap();
+        let decision = parse_decision(&json, Team::A).unwrap();
         match decision {
             Decision::Run(DecisionTarget::Region(_region)) => {
                 // Success

@@ -134,8 +134,8 @@ function calculate_away_position(from_pos, away_distance)
     
     -- Clamp to field boundaries (with small margin)
     local margin = 2.0
-    target_x = math.max(margin, math.min(FIELD_LENGTH - margin, target_x))
-    target_z = math.max(margin, math.min(FIELD_WIDTH - margin, target_z))
+    target_x = math.max(margin, math.min(FIELD_WIDTH - margin, target_x))
+    target_z = math.max(margin, math.min(FIELD_LENGTH - margin, target_z))
     
     return {x = target_x, z = target_z}
 end
@@ -188,8 +188,8 @@ function calculate_away_position_near_ball(from_pos, away_distance, max_ball_dis
     
     -- Clamp to field boundaries (with small margin)
     local margin = 2.0
-    target_x = math.max(margin, math.min(FIELD_LENGTH - margin, target_x))
-    target_z = math.max(margin, math.min(FIELD_WIDTH - margin, target_z))
+    target_x = math.max(margin, math.min(FIELD_WIDTH - margin, target_x))
+    target_z = math.max(margin, math.min(FIELD_LENGTH - margin, target_z))
     
     return {x = target_x, z = target_z}
 end
@@ -198,8 +198,8 @@ end
 function common_behavior()
     if am_i_ball_owner() then
         -- I have the ball, kick it in random direction
-        local target_x = math.random() * FIELD_LENGTH
-        local target_z = math.random() * FIELD_WIDTH
+        local target_x = math.random() * FIELD_WIDTH
+        local target_z = math.random() * FIELD_LENGTH
         return {
             action = "kick",
             target = {x = target_x, z = target_z}
@@ -208,7 +208,7 @@ function common_behavior()
         return {
             action = "run",
             target_type = "region",
-            target = {from = "K19", to = "R27"}
+            target = {from = "J19", to = "Q26"}
         }
     else
         local ball_pos = ball_position()

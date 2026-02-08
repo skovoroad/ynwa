@@ -298,7 +298,8 @@ impl DecisionMaker for ScriptedDecisionMaker {
         };
 
         // Parse JSON decision to Decision type using decision_parser
-        decision_parser::parse_decision(&decision_json)
+        let player_team = game.config().players[player_index].team;
+        decision_parser::parse_decision(&decision_json, player_team)
     }
 }
 
