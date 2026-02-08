@@ -39,6 +39,41 @@ function is_ball_owned_by_my_team()
     return false
 end
 
+-- Returns opponent team name ("A" or "B")
+function opponent_team()
+    return my_team_name() == "A" and "B" or "A"
+end
+
+-- Check if a point is in a specific zone
+-- zone_name: name of the zone (e.g., "penalty_area_a", "goal_area_b")
+-- x, z: coordinates to check (optional, defaults to my position)
+function is_in_zone(zone_name, x, z)
+    local pos_x = x or my_position().x
+    local pos_z = z or my_position().z
+    
+    local zone = GAME_DATA.zones[zone_name]
+    if not zone then
+        return false
+    end
+    
+    if zone.type == "rectangle" then
+        return is_point_in_rectangle(pos_x, pos_z, zone)
+    elseif zone.type == "circle" then
+        return is_point_in_circle(pos_x, pos_z, zone)
+    elseif zone.type == "arc" then
+        return is_point_in_arc(pos_x, pos_z, zone)
+    end
+    
+    return false
+end
+
+-- Check if I am in opponent's penalty area
+function am_i_in_opponent_penalty_area()
+    local opponent = opponent_team()
+    local zone_name = "penalty_area_" .. string.lower(opponent)
+    return is_in_zone(zone_name)
+end
+
 -- Returns a random point on the goal line for shooting
 -- The point is on the front line of the goal (not deep inside)
 -- opponent_team: "A" or "B" (case-insensitive)
@@ -193,6 +228,146 @@ function common_behavior_v2()
                 target = {x = center_x, z = center_z, y = 0}
             }
         end
+    end
+    
+    -- Fallback: stop
+    return {action = "stop"}
+end
+
+-- Common behavior v3: advanced tactical logic for field players
+-- 1. If opponent has ball and I'm close (within 10m) -> run to ball
+-- 2. If opponent has ball and I'm far -> run to defence position
+-- 3. If I have ball and I'm in opponent penalty area -> shoot at goal
+-- 4. If I have ball and far from goal -> find free teammate ahead, or dribble forward
+-- 5. If my team has ball (but not me) -> run to attack position
+function common_behavior_v3()
+    local ball_pos = ball_position()
+    local my_pos = my_position()
+    local owner_team = get_ball_owner_team()
+    local my_team = my_team_name()
+    
+    -- Scenario 1 & 2: Opponent has the ball
+    if owner_team ~= "None" and owner_team ~= my_team then
+        local dist_to_ball = distance(my_pos, ball_pos)
+        
+        if dist_to_ball <= 10.0 then
+            -- Close to ball -> chase it
+            return {
+                action = "run",
+                target_type = "point",
+                target = {x = ball_pos.x, z = ball_pos.z, y = 0}
+            }
+        else
+            -- Far from ball -> run to defence position
+            local defence_pos = my_regions()["defence position"]
+            if defence_pos then
+                local center_x = (defence_pos.min_x + defence_pos.max_x) / 2
+                local center_z = (defence_pos.min_z + defence_pos.max_z) / 2
+                return {
+                    action = "run",
+                    target_type = "point",
+                    target = {x = center_x, z = center_z, y = 0}
+                }
+            end
+        end
+    end
+    
+    -- Scenario 3 & 4: I have the ball
+    if am_i_ball_owner() then
+        -- Check if I'm in opponent's penalty area
+        if am_i_in_opponent_penalty_area() then
+            -- Shoot at goal
+            local target = get_random_shot_target_to_goal(opponent_team())
+            if target then
+                return {
+                    action = "kick",
+                    target = {x = target.x, z = target.z}
+                }
+            end
+        end
+        
+        -- Not in penalty area -> look for free teammate ahead
+        local free_teammate = find_teammate_ahead_in_free_space()
+        if free_teammate then
+            -- Pass to free teammate
+            return {
+                action = "kick",
+                target = {x = free_teammate.position.x, z = free_teammate.position.z}
+            }
+        else
+            -- No free teammate -> dribble forward
+            local forward_direction = (my_team == "A") and 1 or -1
+            local target_z = my_pos.z + forward_direction * 10.0
+            
+            -- Clamp to field boundaries
+            target_z = math.max(2.0, math.min(FIELD_LENGTH - 2.0, target_z))
+            
+            return {
+                action = "run",
+                target_type = "point",
+                target = {x = my_pos.x, z = target_z, y = 0}
+            }
+        end
+    end
+    
+    -- Scenario 5: My team has ball (but not me)
+    if owner_team == my_team then
+        local attack_pos = my_regions()["attack position"]
+        if attack_pos then
+            local center_x = (attack_pos.min_x + attack_pos.max_x) / 2
+            local center_z = (attack_pos.min_z + attack_pos.max_z) / 2
+            return {
+                action = "run",
+                target_type = "point",
+                target = {x = center_x, z = center_z, y = 0}
+            }
+        end
+    end
+    
+    -- Fallback: run to ball
+    return {
+        action = "run",
+        target_type = "point",
+        target = {x = ball_pos.x, z = ball_pos.z, y = 0}
+    }
+end
+
+-- Goalkeeper behavior: stay in goal area, move to ball if close
+-- 1. If ball is close (< 10m) -> run to ball
+-- 2. Otherwise -> position opposite to ball, stay in goal area
+function goalkeeper_behavior()
+    local ball_pos = ball_position()
+    local my_pos = my_position()
+    local my_team = my_team_name()
+    local dist_to_ball = distance(my_pos, ball_pos)
+    
+    -- If ball is very close, go get it
+    if dist_to_ball < 10.0 then
+        return {
+            action = "run",
+            target_type = "point",
+            target = {x = ball_pos.x, z = ball_pos.z, y = 0}
+        }
+    end
+    
+    -- Otherwise, stay in goal area and position opposite to ball
+    local goal_area_name = "goal_area_" .. string.lower(my_team)
+    local goal_area = GAME_DATA.zones[goal_area_name]
+    
+    if goal_area then
+        -- Position in center X of goal area, but adjust Z based on ball position
+        local target_x = (goal_area.min_x + goal_area.max_x) / 2
+        local target_z = (goal_area.min_z + goal_area.max_z) / 2
+        
+        -- Adjust Z position to be opposite to ball (within goal area)
+        local ball_z_clamped = math.max(goal_area.min_z, math.min(goal_area.max_z, ball_pos.z))
+        target_z = ball_z_clamped
+        
+        return {
+            action = "run",
+            target_type = "point",
+            target = {x = target_x, z = target_z, y = 0}
+        }
     end
     
     -- Fallback: stop
