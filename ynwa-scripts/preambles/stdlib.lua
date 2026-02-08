@@ -75,6 +75,37 @@ function am_i_closest_teammate_to_ball()
     return true
 end
 
+-- Returns a random point on the goal line for shooting
+-- The point is on the front line of the goal (not deep inside)
+-- opponent_team: "A" or "B" (case-insensitive)
+function get_random_shot_target_to_goal(opponent_team)
+    local team_lower = string.lower(opponent_team)
+    
+    local goal_zone
+    local goal_x
+    
+    if team_lower == "a" then
+        goal_zone = GAME_DATA.zones["goal_a"]
+        if not goal_zone or goal_zone.type ~= "rectangle" then
+            return nil
+        end
+        goal_x = goal_zone.max_x  -- Front of Team A goal (toward field)
+    else
+        goal_zone = GAME_DATA.zones["goal_b"]
+        if not goal_zone or goal_zone.type ~= "rectangle" then
+            return nil
+        end
+        goal_x = goal_zone.min_x  -- Front of Team B goal (toward field)
+    end
+    
+    -- Random point along the width of the goal (z-axis)
+    local goal_width = goal_zone.max_z - goal_zone.min_z
+    local random_offset = math.random() * goal_width
+    local goal_z = goal_zone.min_z + random_offset
+    
+    return {x = goal_x, z = goal_z, y = 0}
+end
+
 -- Default prepare function for setup stage
 -- Runs to start position if not there yet, stops when arrived
 function prepare(reason)
