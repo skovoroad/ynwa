@@ -105,7 +105,7 @@ function prepare(reason)
 end
 
 -- Common behavior v2: improved tactical logic
--- 1. If I own the ball -> kick to random zone
+-- 1. If I own the ball -> pass to nearest teammate (not closer than 15m)
 -- 2. If I don't own the ball:
 --    a) If I'm in top 3 closest teammates to ball -> run to ball
 --    b) Otherwise:
@@ -116,13 +116,35 @@ function common_behavior_v2()
     local my_pos = my_position()
     
     if am_i_ball_owner() then
-        -- I have the ball, kick it in random direction
-        local target_x = math.random() * FIELD_WIDTH
-        local target_z = math.random() * FIELD_LENGTH
-        return {
-            action = "kick",
-            target = {x = target_x, z = target_z}
-        }
+        -- Find nearest teammate that is at least 15 meters away
+        local teammates = get_teammates()
+        local best_teammate = nil
+        local best_distance = math.huge
+        local MIN_PASS_DISTANCE = 15.0  -- minimum 15 meters
+        
+        for _, tm in ipairs(teammates) do
+            local dist = distance(my_pos, tm.position)
+            if dist >= MIN_PASS_DISTANCE and dist < best_distance then
+                best_distance = dist
+                best_teammate = tm
+            end
+        end
+        
+        if best_teammate then
+            -- Pass to the teammate
+            return {
+                action = "kick",
+                target = {x = best_teammate.position.x, z = best_teammate.position.z}
+            }
+        else
+            -- No suitable teammate found, kick in random direction as fallback
+            local target_x = math.random() * FIELD_WIDTH
+            local target_z = math.random() * FIELD_LENGTH
+            return {
+                action = "kick",
+                target = {x = target_x, z = target_z}
+            }
+        end
     end
     
     -- I don't own the ball
