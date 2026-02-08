@@ -26,17 +26,7 @@ pub fn create_test_game_with_script_and_stage(script: &str, stage: GameStage) ->
 
     let config = GameConfig {
         field,
-        players: vec![PlayerDef::new(
-            Team::A,
-            1,
-            "Test Player".to_string(),
-            50,
-            50,
-            50,
-            50,
-            50,
-            script.to_string(),
-            start_region,
+        players: vec![PlayerDef::new(Team::A, 1, "Test Player".to_string(), script.to_string(), start_region,
         )],
         ball: BallDef::default(),
         referees: vec![RefereeDef::default()],
@@ -94,17 +84,7 @@ pub fn create_test_game_with_preambles_and_stage(script: &str, stage: GameStage)
 
     let config = GameConfig {
         field,
-        players: vec![PlayerDef::new(
-            Team::A,
-            1,
-            "Test Player".to_string(),
-            50,
-            50,
-            50,
-            50,
-            50,
-            script.to_string(),
-            start_region,
+        players: vec![PlayerDef::new(Team::A, 1, "Test Player".to_string(), script.to_string(), start_region,
         )],
         ball: BallDef::default(),
         referees: vec![RefereeDef::default()],
@@ -154,17 +134,7 @@ pub fn create_test_game_with_preambles_and_zones(script: &str, zones: Vec<Zone>)
 
     let config = GameConfig {
         field,
-        players: vec![PlayerDef::new(
-            Team::A,
-            1,
-            "Test Player".to_string(),
-            50,
-            50,
-            50,
-            50,
-            50,
-            script.to_string(),
-            start_region,
+        players: vec![PlayerDef::new(Team::A, 1, "Test Player".to_string(), script.to_string(), start_region,
         )],
         ball: BallDef::default(),
         referees: vec![RefereeDef::default()],

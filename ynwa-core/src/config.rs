@@ -18,6 +18,8 @@ pub struct PlayerConfig {
     #[serde(default = "default_shot_accuracy")]
     pub shot_accuracy: u32, // 10-100: player's shot accuracy
     pub start_position: String, // Grid notation like "A1:B2"
+    pub attack_position: String, // Grid notation for attacking position
+    pub defence_position: String, // Grid notation for defensive position
     pub script: String,     // Lua script for decision making (mandatory)
 }
 
@@ -50,6 +52,12 @@ impl PlayerConfig {
         // Parse region in team's own orientation
         let start_region = Region::from_grid_notation(&self.start_position, team, grid_dims)
             .map_err(|e| format!("Invalid start position '{}': {}", self.start_position, e))?;
+        
+        let attack_region = Region::from_grid_notation(&self.attack_position, team, grid_dims)
+            .map_err(|e| format!("Invalid attack position '{}': {}", self.attack_position, e))?;
+        
+        let defence_region = Region::from_grid_notation(&self.defence_position, team, grid_dims)
+            .map_err(|e| format!("Invalid defence position '{}': {}", self.defence_position, e))?;
 
         // Convert to absolute field coordinates (Team A orientation)
         let start_region_absolute = if team == Team::B {
@@ -60,18 +68,36 @@ impl PlayerConfig {
             start_region
         };
 
+        let attack_region_absolute = if team == Team::B {
+            attack_region
+                .flip_orientation(grid_dims)
+                .map_err(|e| format!("Failed to flip region orientation: {}", e))?
+        } else {
+            attack_region
+        };
+
+        let defence_region_absolute = if team == Team::B {
+            defence_region
+                .flip_orientation(grid_dims)
+                .map_err(|e| format!("Failed to flip region orientation: {}", e))?
+        } else {
+            defence_region
+        };
+
         Ok(PlayerDef::new(
             team,
             self.number,
             self.name.clone(),
-            self.reaction_rate,
-            self.speed_rate,
-            self.tackle_rate,
-            self.shot_power,
-            self.shot_accuracy,
             self.script.clone(),
             start_region_absolute,
-        ))
+        )
+        .with_reaction_rate(self.reaction_rate)
+        .with_speed_rate(self.speed_rate)
+        .with_tackle_rate(self.tackle_rate)
+        .with_shot_power(self.shot_power)
+        .with_shot_accuracy(self.shot_accuracy)
+        .with_attack_position(attack_region_absolute)
+        .with_defence_position(defence_region_absolute))
     }
 
     /// Create from PlayerDef.
@@ -87,6 +113,16 @@ impl PlayerConfig {
             .get("start position")
             .ok_or("Player must have 'start position' region")?;
 
+        let attack_region = player_def
+            .regions
+            .get("attack position")
+            .ok_or("Player must have 'attack position' region")?;
+
+        let defence_region = player_def
+            .regions
+            .get("defence position")
+            .ok_or("Player must have 'defence position' region")?;
+
         // Convert from absolute coordinates to team's own orientation
         let start_region_own = if player_def.team == Team::B {
             start_region
@@ -94,6 +130,22 @@ impl PlayerConfig {
                 .map_err(|e| format!("Failed to flip region orientation: {}", e))?
         } else {
             start_region.clone()
+        };
+
+        let attack_region_own = if player_def.team == Team::B {
+            attack_region
+                .flip_orientation(crate::region::GridDimensions::new(26, 44))
+                .map_err(|e| format!("Failed to flip region orientation: {}", e))?
+        } else {
+            attack_region.clone()
+        };
+
+        let defence_region_own = if player_def.team == Team::B {
+            defence_region
+                .flip_orientation(crate::region::GridDimensions::new(26, 44))
+                .map_err(|e| format!("Failed to flip region orientation: {}", e))?
+        } else {
+            defence_region.clone()
         };
 
         Ok(Self {
@@ -106,6 +158,8 @@ impl PlayerConfig {
             shot_power: player_def.shot_power,
             shot_accuracy: player_def.shot_accuracy,
             start_position: start_region_own.to_grid_notation(),
+            attack_position: attack_region_own.to_grid_notation(),
+            defence_position: defence_region_own.to_grid_notation(),
             script: player_def.script.clone(),
         })
     }
@@ -282,6 +336,8 @@ mod tests {
             shot_power: 50,
             shot_accuracy: 50,
             start_position: "C3:D4".to_string(),
+            attack_position: "C1:D2".to_string(), // 2 rows forward (towards opponent goal)
+            defence_position: "C5:D6".to_string(), // 2 rows backward (towards own goal)
             script: "function make_decision() return {} end".to_string(),
         };
 
@@ -312,6 +368,8 @@ mod tests {
                     shot_power: 50,
                     shot_accuracy: 50,
                     start_position: "A22:B24".to_string(),
+                    attack_position: "A20:B22".to_string(),
+                    defence_position: "A24:B26".to_string(),
                     script: "function make_decision() return {} end".to_string(),
                 },
                 PlayerConfig {
@@ -324,6 +382,8 @@ mod tests {
                     shot_power: 50,
                     shot_accuracy: 50,
                     start_position: "Y22:Z24".to_string(),
+                    attack_position: "Y20:Z22".to_string(),
+                    defence_position: "Y24:Z26".to_string(),
                     script: "function make_decision() return {} end".to_string(),
                 },
             ],
@@ -358,6 +418,8 @@ mod tests {
             shot_power: 50,
             shot_accuracy: 50,
             start_position: "C3:D4".to_string(),
+            attack_position: "C1:D2".to_string(),
+            defence_position: "C5:D6".to_string(),
             script: "function make_decision() return {} end".to_string(),
         };
 
@@ -381,6 +443,8 @@ mod tests {
             shot_power: 50,
             shot_accuracy: 50,
             start_position: "INVALID".to_string(), // Invalid notation
+            attack_position: "INVALID".to_string(),
+            defence_position: "INVALID".to_string(),
             script: "function make_decision() return {} end".to_string(),
         };
 
@@ -404,6 +468,8 @@ mod tests {
             shot_power: 50,
             shot_accuracy: 50,
             start_position: "A1:AA50".to_string(), // Out of bounds
+            attack_position: "A1:AA50".to_string(),
+            defence_position: "A1:AA50".to_string(),
             script: "function make_decision() return {} end".to_string(),
         };
 
@@ -427,6 +493,8 @@ mod tests {
                     shot_power: 50,
                     shot_accuracy: 50,
                     start_position: "A22:B24".to_string(),
+                    attack_position: "A20:B22".to_string(),
+                    defence_position: "A24:B26".to_string(),
                     script: "function make_decision() return {} end".to_string(),
                 },
                 PlayerConfig {
@@ -439,6 +507,8 @@ mod tests {
                     shot_power: 50,
                     shot_accuracy: 50,
                     start_position: "Y22:Z24".to_string(),
+                    attack_position: "Y20:Z22".to_string(),
+                    defence_position: "Y24:Z26".to_string(),
                     script: "function make_decision() return {} end".to_string(),
                 },
             ],
@@ -482,6 +552,8 @@ mod tests {
                 shot_power: 50,
                 shot_accuracy: 50,
                 start_position: "A1:B2".to_string(),
+                attack_position: "A1:B2".to_string(),
+                defence_position: "A1:B2".to_string(),
                 script: "function make_decision() return {} end".to_string(),
             }],
             core_preamble_path: None,
@@ -511,6 +583,8 @@ mod tests {
             shot_power: 50,
             shot_accuracy: 50,
             start_position: "M42".to_string(), // Own orientation: near their goal
+            attack_position: "M40".to_string(), // 2 rows forward (towards opponent goal)
+            defence_position: "M44".to_string(), // 2 rows backward (towards own goal)
             script: "function make_decision() return {} end".to_string(),
         };
 
@@ -533,6 +607,8 @@ mod tests {
             shot_power: 50,
             shot_accuracy: 50,
             start_position: "M42".to_string(),
+            attack_position: "M40".to_string(),
+            defence_position: "M44".to_string(),
             script: "function make_decision() return {} end".to_string(),
         };
 
@@ -558,6 +634,8 @@ mod tests {
             shot_power: 50,
             shot_accuracy: 50,
             start_position: "M25".to_string(), // Own orientation
+            attack_position: "M23".to_string(),
+            defence_position: "M27".to_string(),
             script: "function make_decision() return {} end".to_string(),
         };
 
@@ -675,6 +753,8 @@ mod tests {
             shot_power: 50,
             shot_accuracy: 50,
             start_position: "M42".to_string(),
+            attack_position: "M40".to_string(),
+            defence_position: "M44".to_string(),
             script: "function make_decision()\n    return { action = \"custom\" }\nend".to_string(),
         };
 
@@ -688,6 +768,8 @@ mod tests {
             shot_power: 50,
             shot_accuracy: 50,
             start_position: "M42".to_string(),
+            attack_position: "M40".to_string(),
+            defence_position: "M44".to_string(),
             script: "function make_decision() return {} end".to_string(),
         };
 
@@ -749,6 +831,8 @@ mod tests {
             shot_power: 85,
             shot_accuracy: 75,
             start_position: "M25".to_string(),
+            attack_position: "M23".to_string(),
+            defence_position: "M27".to_string(),
             script: "function make_decision() return {} end".to_string(),
         };
 
@@ -776,6 +860,8 @@ mod tests {
                 shot_power: 90,
                 shot_accuracy: 80,
                 start_position: "M20".to_string(),
+                attack_position: "M18".to_string(),
+                defence_position: "M22".to_string(),
                 script: "function make_decision() return {} end".to_string(),
             }],
             core_preamble_path: None,
@@ -806,6 +892,8 @@ mod tests {
             reaction_rate = 50
             speed_rate = 50
             start_position = "M42"
+            attack_position = "M40"
+            defence_position = "M44"
             script = "function make_decision() return {} end"
         "#;
 

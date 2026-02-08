@@ -182,14 +182,10 @@ mod tests {
             team,
             number,
             format!("Player {}", number),
-            50,
-            50,
-            tackle_rate,
-            50,
-            50,
             "function make_decision() return {} end".to_string(),
             start_region,
-        );
+        )
+        .with_tackle_rate(tackle_rate);
 
         let player_state = PlayerState {
             position,

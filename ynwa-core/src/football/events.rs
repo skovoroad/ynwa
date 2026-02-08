@@ -157,17 +157,7 @@ mod tests {
 
         let config = GameConfig {
             field,
-            players: vec![PlayerDef::new(
-                Team::A,
-                1,
-                "Test".to_string(),
-                50,
-                50,
-                50,
-                50,
-                50,
-                String::new(),
-                start_region,
+            players: vec![PlayerDef::new(Team::A, 1, "Test".to_string(), String::new(), start_region,
             )],
             ball: BallDef {
                 initial_position: Point3D::new(

@@ -196,17 +196,7 @@ mod tests {
 
         let config = GameConfig {
             field,
-            players: vec![PlayerDef::new(
-                Team::A,
-                1,
-                "Test Player".to_string(),
-                50,
-                50,
-                50,
-                50,
-                50,
-                "function make_decision() return {} end".to_string(),
-                start_region,
+            players: vec![PlayerDef::new(Team::A, 1, "Test Player".to_string(), "function make_decision() return {} end".to_string(), start_region,
             )],
             ball: BallDef::default(),
             referees: vec![RefereeDef::default()],

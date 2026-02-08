@@ -77,14 +77,11 @@ mod tests {
             Team::A,
             1,
             "Fast Player".to_string(),
-            100, // reaction_rate = 100 (1 second interval)
-            100, // speed_rate = 100 (full speed)
-            50,
-            50,
-            50,
             "function make_decision() return {} end".to_string(),
             start_region_0,
-        );
+        )
+        .with_reaction_rate(100) // reaction_rate = 100 (1 second interval)
+        .with_speed_rate(100); // speed_rate = 100 (full speed)
 
         // Player 1: slow and less reactive
         let start_region_1 = Region::new(
@@ -99,14 +96,11 @@ mod tests {
             Team::A,
             2,
             "Slow Player".to_string(),
-            50, // reaction_rate = 50 (2 second interval)
-            50, // speed_rate = 50 (half speed)
-            50,
-            50,
-            50,
             "function make_decision() return {} end".to_string(),
             start_region_1,
-        );
+        )
+        .with_reaction_rate(50) // reaction_rate = 50 (2 second interval)
+        .with_speed_rate(50); // speed_rate = 50 (half speed)
 
         let config = GameConfig {
             field,
@@ -381,11 +375,6 @@ mod tests {
                 Team::A,
                 1,
                 "Lua Player".to_string(),
-                100, // Fast reaction
-                100, // Fast movement
-                50,
-                50,
-                50,
                 r#"
                 function make_decision()
                     -- Check context is available
@@ -402,7 +391,9 @@ mod tests {
                 "#
                 .to_string(),
                 start_region,
-            )],
+            )
+            .with_reaction_rate(100) // Fast reaction
+            .with_speed_rate(100)], // Fast movement
             ball: BallDef::default(),
             referees: vec![],
             scripting: crate::game::ScriptingConfig::empty(),
@@ -461,22 +452,12 @@ mod tests {
         // Player with buggy Lua script
         let config = GameConfig {
             field,
-            players: vec![PlayerDef::new(
-                Team::A,
-                1,
-                "Buggy Player".to_string(),
-                100,
-                100,
-                50,
-                50,
-                50,
-                r#"
+            players: vec![PlayerDef::new(Team::A, 1, "Buggy Player".to_string(), r#"
                 function make_decision()
                     error("Intentional error for testing")
                 end
                 "#
-                .to_string(),
-                start_region,
+                .to_string(), start_region,
             )],
             ball: BallDef::default(),
             referees: vec![],

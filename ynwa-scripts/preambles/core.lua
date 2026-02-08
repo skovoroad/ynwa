@@ -47,6 +47,16 @@ function my_index()
     return context.me.index
 end
 
+-- Returns my team name ("A" or "B")
+function my_team_name()
+    return context.me.team
+end
+
+-- Returns the team that owns the ball ("A", "B", or "None")
+function get_ball_owner_team()
+    return context.ball.owner_team
+end
+
 -- Factory: create "kick" decision
 function kick_to(x, z, y)
     return {

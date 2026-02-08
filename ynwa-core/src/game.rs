@@ -88,29 +88,68 @@ impl PlayerDef {
         team: Team,
         number: u32,
         name: String,
-        reaction_rate: u32,
-        speed_rate: u32,
-        tackle_rate: u32,
-        shot_power: u32,
-        shot_accuracy: u32,
         script: String,
         start_position: Region,
     ) -> Self {
         let mut regions = HashMap::new();
-        regions.insert("start position".to_string(), start_position);
+        regions.insert("start position".to_string(), start_position.clone());
+        regions.insert("attack position".to_string(), start_position.clone());
+        regions.insert("defence position".to_string(), start_position);
 
         Self {
             team,
             number,
             name,
-            reaction_rate,
-            speed_rate,
-            tackle_rate,
-            shot_power,
-            shot_accuracy,
+            reaction_rate: 50, // Default values
+            speed_rate: 50,
+            tackle_rate: 50,
+            shot_power: 50,
+            shot_accuracy: 50,
             script,
             regions,
         }
+    }
+
+    /// Set custom reaction rate (default: 50)
+    pub fn with_reaction_rate(mut self, rate: u32) -> Self {
+        self.reaction_rate = rate;
+        self
+    }
+
+    /// Set custom speed rate (default: 50)
+    pub fn with_speed_rate(mut self, rate: u32) -> Self {
+        self.speed_rate = rate;
+        self
+    }
+
+    /// Set custom tackle rate (default: 50)
+    pub fn with_tackle_rate(mut self, rate: u32) -> Self {
+        self.tackle_rate = rate;
+        self
+    }
+
+    /// Set custom shot power (default: 50)
+    pub fn with_shot_power(mut self, power: u32) -> Self {
+        self.shot_power = power;
+        self
+    }
+
+    /// Set custom shot accuracy (default: 50)
+    pub fn with_shot_accuracy(mut self, accuracy: u32) -> Self {
+        self.shot_accuracy = accuracy;
+        self
+    }
+
+    /// Set attack position (different from start position)
+    pub fn with_attack_position(mut self, attack_position: Region) -> Self {
+        self.regions.insert("attack position".to_string(), attack_position);
+        self
+    }
+
+    /// Set defence position (different from start position)
+    pub fn with_defence_position(mut self, defence_position: Region) -> Self {
+        self.regions.insert("defence position".to_string(), defence_position);
+        self
     }
 }
 
@@ -370,6 +409,56 @@ mod tests {
         )
         .unwrap();
 
+        // Attack positions (forward from start)
+        let attack_region_a1 = Region::new(
+            Team::A,
+            GridCell::new(1, 1).unwrap(), // Same as start for simplicity
+            GridCell::new(2, 2).unwrap(),
+            grid_dims,
+        )
+        .unwrap();
+
+        let attack_region_a2 = Region::new(
+            Team::A,
+            GridCell::new(3, 3).unwrap(),
+            GridCell::new(4, 4).unwrap(),
+            grid_dims,
+        )
+        .unwrap();
+
+        let attack_region_b = Region::new(
+            Team::B,
+            GridCell::new(20, 20).unwrap(),
+            GridCell::new(21, 21).unwrap(),
+            grid_dims,
+        )
+        .unwrap();
+
+        // Defence positions (backward from start)
+        let defence_region_a1 = Region::new(
+            Team::A,
+            GridCell::new(1, 3).unwrap(), // 2 rows back
+            GridCell::new(2, 4).unwrap(),
+            grid_dims,
+        )
+        .unwrap();
+
+        let defence_region_a2 = Region::new(
+            Team::A,
+            GridCell::new(3, 5).unwrap(),
+            GridCell::new(4, 6).unwrap(),
+            grid_dims,
+        )
+        .unwrap();
+
+        let defence_region_b = Region::new(
+            Team::B,
+            GridCell::new(20, 22).unwrap(),
+            GridCell::new(21, 23).unwrap(),
+            grid_dims,
+        )
+        .unwrap();
+
         GameConfig {
             field,
             players: vec![
@@ -377,38 +466,29 @@ mod tests {
                     Team::A,
                     1,
                     "Player A1".to_string(),
-                    50,
-                    50,
-                    50,
-                    50,
-                    50,
                     "function make_decision() return {} end".to_string(),
                     start_region_a1,
-                ),
+                )
+                .with_attack_position(attack_region_a1)
+                .with_defence_position(defence_region_a1),
                 PlayerDef::new(
                     Team::A,
                     2,
                     "Player A2".to_string(),
-                    50,
-                    50,
-                    50,
-                    50,
-                    50,
                     "function make_decision() return {} end".to_string(),
                     start_region_a2,
-                ),
+                )
+                .with_attack_position(attack_region_a2)
+                .with_defence_position(defence_region_a2),
                 PlayerDef::new(
                     Team::B,
                     1,
                     "Player B1".to_string(),
-                    50,
-                    50,
-                    50,
-                    50,
-                    50,
                     "function make_decision() return {} end".to_string(),
                     start_region_b,
-                ),
+                )
+                .with_attack_position(attack_region_b)
+                .with_defence_position(defence_region_b),
             ],
             ball: BallDef::default(),
             referees: vec![RefereeDef::default()],

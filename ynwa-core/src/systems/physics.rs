@@ -112,17 +112,7 @@ mod tests {
         )
         .unwrap();
 
-        let players = vec![PlayerDef::new(
-            Team::A,
-            1,
-            "Test Player".to_string(),
-            100,
-            50,
-            50,
-            50,
-            50,
-            "function make_decision() return {} end".to_string(),
-            start_region,
+        let players = vec![PlayerDef::new(Team::A, 1, "Test Player".to_string(), "function make_decision() return {} end".to_string(), start_region,
         )];
 
         let config = GameConfig {

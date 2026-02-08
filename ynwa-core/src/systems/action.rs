@@ -212,14 +212,14 @@ mod tests {
             Team::A,
             1,
             "Test Player".to_string(),
-            reaction_rate,
-            speed_rate,
-            tackle_rate,
-            shot_power,
-            shot_accuracy,
             "function make_decision() return {} end".to_string(),
             start_region,
-        )];
+        )
+        .with_reaction_rate(reaction_rate)
+        .with_speed_rate(speed_rate)
+        .with_tackle_rate(tackle_rate)
+        .with_shot_power(shot_power)
+        .with_shot_accuracy(shot_accuracy)];
 
         let config = GameConfig {
             field,
@@ -245,29 +245,9 @@ mod tests {
         .unwrap();
 
         let players = vec![
-            PlayerDef::new(
-                Team::A,
-                1,
-                "Player 1".to_string(),
-                100,
-                50,
-                50,
-                100,
-                100,
-                "function make_decision() return {} end".to_string(),
-                start_region.clone(),
+            PlayerDef::new(Team::A, 1, "Player 1".to_string(), "function make_decision() return {} end".to_string(), start_region.clone(),
             ),
-            PlayerDef::new(
-                Team::A,
-                2,
-                "Player 2".to_string(),
-                100,
-                50,
-                50,
-                100,
-                100,
-                "function make_decision() return {} end".to_string(),
-                start_region,
+            PlayerDef::new(Team::A, 2, "Player 2".to_string(), "function make_decision() return {} end".to_string(), start_region,
             ),
         ];
 

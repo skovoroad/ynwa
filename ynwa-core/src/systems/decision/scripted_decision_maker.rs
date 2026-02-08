@@ -324,17 +324,7 @@ mod tests {
 
         let config = GameConfig {
             field,
-            players: vec![PlayerDef::new(
-                Team::A,
-                1,
-                "Test Player".to_string(),
-                50,
-                50,
-                50,
-                50,
-                50,
-                script.to_string(),
-                start_region,
+            players: vec![PlayerDef::new(Team::A, 1, "Test Player".to_string(), script.to_string(), start_region,
             )],
             ball: BallDef::default(),
             referees: vec![RefereeDef::default()],
@@ -490,16 +480,7 @@ mod tests {
 
         let config = GameConfig {
             field,
-            players: vec![PlayerDef::new(
-                Team::A,
-                1,
-                "Test Player".to_string(),
-                50,
-                50,
-                50,
-                50,
-                50,
-                "function make_decision() return {action = 'run', target_type = 'cell', target = 'A1'} end".to_string(),
+            players: vec![PlayerDef::new(Team::A, 1, "Test Player".to_string(), "function make_decision() return {action = 'run', target_type = 'cell', target = 'A1'} end".to_string(),
                 start_region,
             )],
             ball: BallDef::default(),
@@ -547,17 +528,7 @@ mod tests {
 
         let config = GameConfig {
             field,
-            players: vec![PlayerDef::new(
-                Team::A,
-                1,
-                "Test Player A".to_string(),
-                50,
-                50,
-                50,
-                50,
-                50,
-                script.to_string(),
-                start_region,
+            players: vec![PlayerDef::new(Team::A, 1, "Test Player A".to_string(), script.to_string(), start_region,
             )],
             ball: BallDef::default(),
             referees: vec![RefereeDef::default()],
@@ -616,17 +587,7 @@ mod tests {
 
         let config = GameConfig {
             field,
-            players: vec![PlayerDef::new(
-                Team::B,
-                1,
-                "Test Player B".to_string(),
-                50,
-                50,
-                50,
-                50,
-                50,
-                script.to_string(),
-                start_region,
+            players: vec![PlayerDef::new(Team::B, 1, "Test Player B".to_string(), script.to_string(), start_region,
             )],
             ball: BallDef::default(),
             referees: vec![RefereeDef::default()],
@@ -711,17 +672,7 @@ mod tests {
 
         let config = GameConfig {
             field,
-            players: vec![PlayerDef::new(
-                Team::A,
-                1,
-                "Test Player".to_string(),
-                50,
-                50,
-                50,
-                50,
-                50,
-                script,
-                start_region,
+            players: vec![PlayerDef::new(Team::A, 1, "Test Player".to_string(), script, start_region,
             )],
             ball: BallDef::default(),
             referees: vec![RefereeDef::default()],
@@ -780,17 +731,7 @@ mod tests {
 
         let config = GameConfig {
             field,
-            players: vec![PlayerDef::new(
-                Team::A,
-                1,
-                "Test Player".to_string(),
-                50,
-                50,
-                50,
-                50,
-                50,
-                script,
-                start_region,
+            players: vec![PlayerDef::new(Team::A, 1, "Test Player".to_string(), script, start_region,
             )],
             ball: BallDef::default(),
             referees: vec![RefereeDef::default()],

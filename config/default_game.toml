@@ -10,14 +10,16 @@ team = "A"
 number = 1
 name = "Goalkeeper A"
 reaction_rate = 85
-speed_rate = 45
+speed_rate = 85
 tackle_rate = 90
 shot_power = 50
 shot_accuracy = 50
 start_position = "M42"  # Center of goal area
+attack_position = "M35"  # Move up to midfield zone
+defence_position = "M44"  # Stay at goal line
 script = '''
 function make_decision()
-    return common_behavior()
+    return common_behavior_v2()
 end
 '''
 
@@ -31,9 +33,11 @@ tackle_rate = 70
 shot_power = 50
 shot_accuracy = 50
 start_position = "G37"  # Left back
+attack_position = "G25"  # Push to just past center line
+defence_position = "G40"  # Drop back slightly
 script = '''
 function make_decision()
-    return common_behavior()
+    return common_behavior_v2()
 end
 '''
 
@@ -47,9 +51,11 @@ tackle_rate = 72
 shot_power = 50
 shot_accuracy = 50
 start_position = "K37"  # Center back left
+attack_position = "K25"  # Push to just past center line
+defence_position = "K40"  # Drop back slightly
 script = '''
 function make_decision()
-    return common_behavior()
+    return common_behavior_v2()
 end
 '''
 
@@ -63,9 +69,11 @@ tackle_rate = 74
 shot_power = 50
 shot_accuracy = 50
 start_position = "O37"  # Center back right
+attack_position = "O25"  # Push to just past center line
+defence_position = "O40"  # Drop back slightly
 script = '''
 function make_decision()
-    return common_behavior()
+    return common_behavior_v2()
 end
 '''
 
@@ -79,9 +87,11 @@ tackle_rate = 68
 shot_power = 50
 shot_accuracy = 50
 start_position = "S37"  # Right back
+attack_position = "S25"  # Push to just past center line
+defence_position = "S40"  # Drop back slightly
 script = '''
 function make_decision()
-    return common_behavior()
+    return common_behavior_v2()
 end
 '''
 
@@ -95,9 +105,11 @@ tackle_rate = 62
 shot_power = 50
 shot_accuracy = 50
 start_position = "H31"  # Left midfielder
+attack_position = "H18"  # Push well into opponent half
+defence_position = "H35"  # Drop back to support defense
 script = '''
 function make_decision()
-    return common_behavior()
+    return common_behavior_v2()
 end
 '''
 
@@ -111,9 +123,11 @@ tackle_rate = 65
 shot_power = 50
 shot_accuracy = 50
 start_position = "M31"  # Center midfielder
+attack_position = "M18"  # Push well into opponent half
+defence_position = "M35"  # Drop back to support defense
 script = '''
 function make_decision()
-    return common_behavior()
+    return common_behavior_v2()
 end
 '''
 
@@ -127,9 +141,11 @@ tackle_rate = 60
 shot_power = 50
 shot_accuracy = 50
 start_position = "R31"  # Right midfielder
+attack_position = "R18"  # Push well into opponent half
+defence_position = "R35"  # Drop back to support defense
 script = '''
 function make_decision()
-    return common_behavior()
+    return common_behavior_v2()
 end
 '''
 
@@ -143,9 +159,11 @@ tackle_rate = 48
 shot_power = 50
 shot_accuracy = 50
 start_position = "G25"  # Left winger
+attack_position = "G8"  # Push near opponent penalty area
+defence_position = "G29"  # Drop back slightly past start
 script = '''
 function make_decision()
-    return common_behavior()
+    return common_behavior_v2()
 end
 '''
 
@@ -159,9 +177,11 @@ tackle_rate = 52
 shot_power = 50
 shot_accuracy = 50
 start_position = "M25"  # Striker
+attack_position = "M7"  # Push near opponent penalty area
+defence_position = "M29"  # Drop back slightly past start
 script = '''
 function make_decision()
-    return common_behavior()
+    return common_behavior_v2()
 end
 '''
 
@@ -175,9 +195,11 @@ tackle_rate = 45
 shot_power = 50
 shot_accuracy = 50
 start_position = "S25"  # Right winger
+attack_position = "S8"  # Push near opponent penalty area
+defence_position = "S29"  # Drop back slightly past start
 script = '''
 function make_decision()
-    return common_behavior()
+    return common_behavior_v2()
 end
 '''
 
@@ -192,9 +214,11 @@ tackle_rate = 92
 shot_power = 50
 shot_accuracy = 50
 start_position = "M42"  # Center of goal area (own orientation)
+attack_position = "M35"  # Move up to midfield zone
+defence_position = "M44"  # Stay at goal line
 script = '''
 function make_decision()
-    return common_behavior()
+    return common_behavior_v2()
 end
 '''
 
@@ -208,9 +232,11 @@ tackle_rate = 71
 shot_power = 50
 shot_accuracy = 50
 start_position = "G37"  # Left back
+attack_position = "G25"  # Push to just past center line
+defence_position = "G40"  # Drop back slightly
 script = '''
 function make_decision()
-    return common_behavior()
+    return common_behavior_v2()
 end
 '''
 
@@ -224,9 +250,11 @@ tackle_rate = 75
 shot_power = 50
 shot_accuracy = 50
 start_position = "K37"  # Center back left
+attack_position = "K25"  # Push to just past center line
+defence_position = "K40"  # Drop back slightly
 script = '''
 function make_decision()
-    return common_behavior()
+    return common_behavior_v2()
 end
 '''
 
@@ -240,9 +268,11 @@ tackle_rate = 73
 shot_power = 50
 shot_accuracy = 50
 start_position = "O37"  # Center back right
+attack_position = "O25"  # Push to just past center line
+defence_position = "O40"  # Drop back slightly
 script = '''
 function make_decision()
-    return common_behavior()
+    return common_behavior_v2()
 end
 '''
 
@@ -256,9 +286,11 @@ tackle_rate = 69
 shot_power = 50
 shot_accuracy = 50
 start_position = "S37"  # Right back
+attack_position = "S25"  # Push to just past center line
+defence_position = "S40"  # Drop back slightly
 script = '''
 function make_decision()
-    return common_behavior()
+    return common_behavior_v2()
 end
 '''
 
@@ -272,9 +304,11 @@ tackle_rate = 63
 shot_power = 50
 shot_accuracy = 50
 start_position = "H31"  # Left midfielder
+attack_position = "H18"  # Push well into opponent half
+defence_position = "H35"  # Drop back to support defense
 script = '''
 function make_decision()
-    return common_behavior()
+    return common_behavior_v2()
 end
 '''
 
@@ -288,9 +322,11 @@ tackle_rate = 66
 shot_power = 50
 shot_accuracy = 50
 start_position = "M31"  # Center midfielder
+attack_position = "M18"  # Push well into opponent half
+defence_position = "M35"  # Drop back to support defense
 script = '''
 function make_decision()
-    return common_behavior()
+    return common_behavior_v2()
 end
 '''
 
@@ -304,9 +340,11 @@ tackle_rate = 61
 shot_power = 50
 shot_accuracy = 50
 start_position = "R31"  # Right midfielder
+attack_position = "R18"  # Push well into opponent half
+defence_position = "R35"  # Drop back to support defense
 script = '''
 function make_decision()
-    return common_behavior()
+    return common_behavior_v2()
 end
 '''
 
@@ -320,9 +358,11 @@ tackle_rate = 49
 shot_power = 50
 shot_accuracy = 50
 start_position = "G25"  # Left winger
+attack_position = "G8"  # Push near opponent penalty area
+defence_position = "G29"  # Drop back slightly past start
 script = '''
 function make_decision()
-    return common_behavior()
+    return common_behavior_v2()
 end
 '''
 
@@ -336,9 +376,11 @@ tackle_rate = 54
 shot_power = 50
 shot_accuracy = 50
 start_position = "M25"  # Striker
+attack_position = "M7"  # Push near opponent penalty area
+defence_position = "M29"  # Drop back slightly past start
 script = '''
 function make_decision()
-    return common_behavior()
+    return common_behavior_v2()
 end
 '''
 
@@ -352,8 +394,10 @@ tackle_rate = 46
 shot_power = 50
 shot_accuracy = 50
 start_position = "S25"  # Right winger
+attack_position = "S8"  # Push near opponent penalty area
+defence_position = "S29"  # Drop back slightly past start
 script = '''
 function make_decision()
-    return common_behavior()
+    return common_behavior_v2()
 end
 '''

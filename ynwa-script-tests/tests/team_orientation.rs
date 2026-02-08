@@ -42,14 +42,10 @@ fn create_game_with_team_script(team: Team, script: String) -> Game {
         team,
         1,
         format!("Player {:?}1", team),
-        100, // Fast reaction rate
-        50,
-        50,
-        50,
-        50,
         script,
         start_region,
-    );
+    )
+    .with_reaction_rate(100); // Fast reaction rate
 
     let config = GameConfig {
         field,
