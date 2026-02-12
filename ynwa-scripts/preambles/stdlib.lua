@@ -51,7 +51,7 @@ function is_in_zone(zone_name, x, z)
     local pos_x = x or my_position().x
     local pos_z = z or my_position().z
     
-    local zone = GAME_DATA.zones[zone_name]
+    local zone = context.zones[zone_name]
     if not zone then
         return false
     end
@@ -84,13 +84,13 @@ function get_random_shot_target_to_goal(opponent_team)
     local goal_x
     
     if team_lower == "a" then
-        goal_zone = GAME_DATA.zones["goal_a"]
+        goal_zone = context.zones["goal_a"]
         if not goal_zone or goal_zone.type ~= "rectangle" then
             return nil
         end
         goal_x = goal_zone.max_x  -- Front of Team A goal (toward field)
     else
-        goal_zone = GAME_DATA.zones["goal_b"]
+        goal_zone = context.zones["goal_b"]
         if not goal_zone or goal_zone.type ~= "rectangle" then
             return nil
         end
@@ -341,7 +341,7 @@ end
 
 -- Goalkeeper behavior: stay in goal area, move to ball if close
 -- 1. If ball is close (< 10m) -> run to ball
--- 2. Otherwise -> position opposite to ball, stay in goal area
+-- 2. Otherwise -> position on goal line, track ball laterally
 function goalkeeper_behavior()
     local ball_pos = ball_position()
     local my_pos = my_position()
@@ -360,16 +360,30 @@ function goalkeeper_behavior()
     
     -- Otherwise, stay in goal area and position opposite to ball
     local goal_area_name = "goal_area_" .. string.lower(my_team)
-    local goal_area = GAME_DATA.zones[goal_area_name]
+    local goal_area = context.zones[goal_area_name]
     
     if goal_area then
-        -- Position in center X of goal area, but adjust Z based on ball position
-        local target_x = (goal_area.min_x + goal_area.max_x) / 2
-        local target_z = (goal_area.min_z + goal_area.max_z) / 2
+        -- Position on goal line (deepest X in goal area), adjust Z based on ball position (lateral)
+        local target_x
+        local target_z
         
-        -- Adjust Z position to be opposite to ball (within goal area)
-        local ball_z_clamped = math.max(goal_area.min_z, math.min(goal_area.max_z, ball_pos.z))
-        target_z = ball_z_clamped
+        -- Determine goal line position based on team
+        -- Zones are already transformed for Team B, so we can use them directly
+        if my_team == "A" then
+            target_x = goal_area.min_x  -- Closest to Team A goal
+        else
+            target_x = goal_area.max_x  -- Closest to Team B goal
+        end
+        
+        -- Adjust Z position to be opposite to ball, but stay in center if ball is far
+        -- Only track ball laterally if it's within goal width range
+        if ball_pos.z >= goal_area.min_z and ball_pos.z <= goal_area.max_z then
+            -- Ball is aligned with goal -> track it
+            target_z = ball_pos.z
+        else
+            -- Ball is outside goal width -> stay in center
+            target_z = (goal_area.min_z + goal_area.max_z) / 2
+        end
         
         return {
             action = "run",

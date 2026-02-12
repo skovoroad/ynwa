@@ -120,6 +120,105 @@ impl ScriptedDecisionMaker {
         serde_json::Value::Object(zones_map)
     }
 
+    fn zones_to_json_for_team(field: &crate::field::Field, viewer_team: Team, field_width: f32, field_length: f32) -> serde_json::Value {
+        use crate::field::zones::ZoneGeometry;
+        use serde_json::json;
+
+        let mut zones_map = serde_json::Map::new();
+
+        for ((name, team), zone) in field.zones() {
+            let team_suffix = match team {
+                Some(Team::A) => "_a",
+                Some(Team::B) => "_b",
+                None => "",
+            };
+            let key = format!("{}{}", name, team_suffix);
+
+            let geometry_json = match &zone.geometry {
+                ZoneGeometry::Rectangle(rect) => {
+                    // Transform coordinates for Team B
+                    let (min_x, max_x, min_z, max_z) = if viewer_team == Team::B {
+                        let flipped_min_x = field_width - rect.max.x.get::<meter>();
+                        let flipped_max_x = field_width - rect.min.x.get::<meter>();
+                        let flipped_min_z = field_length - rect.max.z.get::<meter>();
+                        let flipped_max_z = field_length - rect.min.z.get::<meter>();
+                        (flipped_min_x, flipped_max_x, flipped_min_z, flipped_max_z)
+                    } else {
+                        (rect.min.x.get::<meter>(), rect.max.x.get::<meter>(), 
+                         rect.min.z.get::<meter>(), rect.max.z.get::<meter>())
+                    };
+                    
+                    json!({
+                        "type": "rectangle",
+                        "min_x": min_x,
+                        "max_x": max_x,
+                        "min_z": min_z,
+                        "max_z": max_z
+                    })
+                }
+                ZoneGeometry::Circle(circle) => {
+                    let (center_x, center_z) = if viewer_team == Team::B {
+                        (field_width - circle.center.x.get::<meter>(),
+                         field_length - circle.center.z.get::<meter>())
+                    } else {
+                        (circle.center.x.get::<meter>(), circle.center.z.get::<meter>())
+                    };
+                    
+                    json!({
+                        "type": "circle",
+                        "center_x": center_x,
+                        "center_z": center_z,
+                        "radius": circle.radius.get::<meter>()
+                    })
+                }
+                ZoneGeometry::Arc(arc) => {
+                    use uom::si::angle::degree;
+                    let (center_x, center_z) = if viewer_team == Team::B {
+                        (field_width - arc.center.x.get::<meter>(),
+                         field_length - arc.center.z.get::<meter>())
+                    } else {
+                        (arc.center.x.get::<meter>(), arc.center.z.get::<meter>())
+                    };
+                    
+                    // For Team B, angles need to be flipped too (reversed)
+                    let (start_angle, end_angle) = if viewer_team == Team::B {
+                        (180.0 - arc.end_angle.get::<degree>(), 180.0 - arc.start_angle.get::<degree>())
+                    } else {
+                        (arc.start_angle.get::<degree>(), arc.end_angle.get::<degree>())
+                    };
+                    
+                    json!({
+                        "type": "arc",
+                        "center_x": center_x,
+                        "center_z": center_z,
+                        "radius": arc.radius.get::<meter>(),
+                        "start_angle": start_angle,
+                        "end_angle": end_angle
+                    })
+                }
+                ZoneGeometry::Point(point) => {
+                    let (x, z) = if viewer_team == Team::B {
+                        (field_width - point.position.x.get::<meter>(),
+                         field_length - point.position.z.get::<meter>())
+                    } else {
+                        (point.position.x.get::<meter>(), point.position.z.get::<meter>())
+                    };
+                    
+                    json!({
+                        "type": "point",
+                        "x": x,
+                        "z": z,
+                        "tolerance": 0.5
+                    })
+                }
+            };
+
+            zones_map.insert(key, geometry_json);
+        }
+
+        serde_json::Value::Object(zones_map)
+    }
+
     fn build_context(game: &Game, player_index: usize) -> Result<serde_json::Value, DecisionError> {
         let config = game.config();
         let state = game.state();
@@ -182,6 +281,9 @@ impl ScriptedDecisionMaker {
             })
             .collect();
 
+        // Build zones with coordinate transformation for Team B
+        let zones_json = Self::zones_to_json_for_team(&config.field, player_team, field_width, field_length);
+        
         // Build context (same as ContextBuilder, but inline)
         let context = json!({
             "me": {
@@ -217,7 +319,8 @@ impl ScriptedDecisionMaker {
             },
             "game": {
                 "elapsed_time": state.elapsed_time
-            }
+            },
+            "zones": zones_json
         });
 
         Ok(context)

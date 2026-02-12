@@ -129,27 +129,27 @@ end
 
 function is_point_in_penalty_area(x, z, team)
     local suffix = team == "a" and "_a" or "_b"
-    local zone = GAME_DATA.zones["penalty_area" .. suffix]
+    local zone = context.zones["penalty_area" .. suffix]
     if not zone then return false end
     return is_point_in_rectangle(x, z, zone)
 end
 
 function is_point_in_goal_area(x, z, team)
     local suffix = team == "a" and "_a" or "_b"
-    local zone = GAME_DATA.zones["goal_area" .. suffix]
+    local zone = context.zones["goal_area" .. suffix]
     if not zone then return false end
     return is_point_in_rectangle(x, z, zone)
 end
 
 function is_point_in_half(x, z, team)
     local suffix = team == "a" and "_a" or "_b"
-    local zone = GAME_DATA.zones["half" .. suffix]
+    local zone = context.zones["half" .. suffix]
     if not zone then return false end
     return is_point_in_rectangle(x, z, zone)
 end
 
 function is_point_in_center_circle(x, z)
-    local zone = GAME_DATA.zones["center_circle"]
+    local zone = context.zones["center_circle"]
     if not zone then return false end
     return is_point_in_circle(x, z, zone)
 end
