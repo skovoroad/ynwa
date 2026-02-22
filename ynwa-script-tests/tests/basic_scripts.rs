@@ -421,4 +421,3 @@ fn test_ball_owner_team_context() {
         player_state.current_decision
     );
 }
-

@@ -170,7 +170,6 @@ impl Default for BallPossessionSystem {
     }
 }
 
-
 #[cfg(test)]
 #[path = "../tests/ball_possession_tests.rs"]
 mod tests;

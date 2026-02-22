@@ -96,28 +96,22 @@ impl PlayerDef {
 
     /// Set attack position (different from start position)
     pub fn with_attack_position(mut self, attack_position: Region) -> Self {
-        self.regions.insert("attack position".to_string(), attack_position);
+        self.regions
+            .insert("attack position".to_string(), attack_position);
         self
     }
 
     /// Set defence position (different from start position)
     pub fn with_defence_position(mut self, defence_position: Region) -> Self {
-        self.regions.insert("defence position".to_string(), defence_position);
+        self.regions
+            .insert("defence position".to_string(), defence_position);
         self
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct BallDef {
     pub initial_position: Point3D,
-}
-
-impl Default for BallDef {
-    fn default() -> Self {
-        Self {
-            initial_position: Point3D::default(),
-        }
-    }
 }
 
 #[derive(Debug, Clone, Default)]
@@ -277,7 +271,7 @@ impl Game {
                         )
                     }
                 };
-                
+
                 PlayerState {
                     position,
                     velocity: Velocity3D::default(),
@@ -303,11 +297,11 @@ impl Game {
                 stage,
                 player_states,
                 ball_state: BallState {
-                    position: config.ball.initial_position.clone(),
+                    position: config.ball.initial_position,
                     velocity: Velocity3D::default(),
                     possessed_by: None,
                     last_possession_change_time: -1.0, // Set to negative so first change is allowed
-                    last_possessing_team: None, // Neutral at game start
+                    last_possessing_team: None,        // Neutral at game start
                 },
                 referee_states,
             },
@@ -331,4 +325,3 @@ impl Game {
 #[cfg(test)]
 #[path = "tests/game_tests.rs"]
 mod tests;
-

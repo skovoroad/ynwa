@@ -252,13 +252,22 @@ fn test_game_resumes_after_event_triggered_setup() {
     manager.update(&mut game, 0.0);
     match &game.state.stage {
         GameStage::Setup(reason) => {
-            assert_eq!(reason, "after_goal", "Should transition to after_goal setup");
+            assert_eq!(
+                reason, "after_goal",
+                "Should transition to after_goal setup"
+            );
         }
-        _ => panic!("Expected Setup stage after goal, got {:?}", game.state.stage),
+        _ => panic!(
+            "Expected Setup stage after goal, got {:?}",
+            game.state.stage
+        ),
     }
 
     // Step 4: Players not ready yet
-    assert!(!game.state.player_states[0].is_ready, "Player should not be ready initially");
+    assert!(
+        !game.state.player_states[0].is_ready,
+        "Player should not be ready initially"
+    );
 
     // Step 5: Move player to start region
     let center = start_region.center(
@@ -269,8 +278,11 @@ fn test_game_resumes_after_event_triggered_setup() {
 
     // Step 6: Update → player becomes ready
     manager.update(&mut game, 0.0);
-    assert!(game.state.player_states[0].is_ready, "Player should be marked ready");
-    
+    assert!(
+        game.state.player_states[0].is_ready,
+        "Player should be marked ready"
+    );
+
     // After step 6, should already transition to Play because all players are ready
     assert_eq!(
         game.state.stage,
@@ -314,14 +326,14 @@ fn test_ball_resets_to_initial_position_in_setup() {
     };
 
     let mut game = Game::with_stage(config, GameStage::Play);
-    
+
     // Move ball to a different position during play
     game.state.ball_state.position = Point3D::new(
         Length::new::<meter>(10.0),
         Length::new::<meter>(0.0),
         Length::new::<meter>(5.0),
     );
-    game.state.ball_state.velocity = 
+    game.state.ball_state.velocity =
         crate::field::zones::Velocity3D::from_meters_per_second(2.0, 1.0, 3.0);
 
     // Verify ball is not at initial position
@@ -332,7 +344,7 @@ fn test_ball_resets_to_initial_position_in_setup() {
 
     // Transition to Setup stage
     game.state.stage = GameStage::Setup("after_goal".to_string());
-    
+
     let mut manager = FootballGameManager::new();
     manager.update(&mut game, 0.0);
 
@@ -375,7 +387,7 @@ fn test_ball_resets_to_initial_position_in_setup() {
 #[test]
 fn test_ball_ownership_resets_in_setup_stage() {
     use crate::team::Team;
-    
+
     let mut game = create_test_game_setup();
 
     // Set ball ownership to Team A during Play stage
@@ -389,19 +401,17 @@ fn test_ball_ownership_resets_in_setup_stage() {
 
     // Transition to Setup stage
     game.state.stage = GameStage::Setup("after_goal".to_string());
-    
+
     let mut manager = FootballGameManager::new();
     manager.update(&mut game, 0.0);
 
     // Ball ownership should be reset to neutral
     assert_eq!(
-        game.state.ball_state.possessed_by,
-        None,
+        game.state.ball_state.possessed_by, None,
         "Ball should have no owner in Setup stage"
     );
     assert_eq!(
-        game.state.ball_state.last_possessing_team,
-        None,
+        game.state.ball_state.last_possessing_team, None,
         "Ball ownership team should be reset to None in Setup stage"
     );
 }

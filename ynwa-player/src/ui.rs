@@ -84,14 +84,14 @@ fn draw_player_decisions_table(
                 }
             }
         };
-        
+
         // Add decision reason if available
         let full_decision_text = if let Some(reason) = &player_state.decision_reason {
             format!("{} ({})", decision_text, reason)
         } else {
             decision_text
         };
-        
+
         draw_text(&full_decision_text, x + 30.0, y, 14.0, text_color);
 
         let time_text = if player_state.current_decision.is_some() {

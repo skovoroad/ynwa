@@ -1,5 +1,7 @@
 use crate::field::zones::Point3D;
-use crate::orientation::{flip_grid_cell_orientation, flip_point_orientation, flip_region_orientation};
+use crate::orientation::{
+    flip_grid_cell_orientation, flip_point_orientation, flip_region_orientation,
+};
 use crate::region::{GridCell, GridDimensions, Region};
 use crate::team::Team;
 use uom::si::length::meter;

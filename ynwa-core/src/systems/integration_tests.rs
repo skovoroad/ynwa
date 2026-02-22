@@ -452,12 +452,17 @@ mod tests {
         // Player with buggy Lua script
         let config = GameConfig {
             field,
-            players: vec![PlayerDef::new(Team::A, 1, "Buggy Player".to_string(), r#"
+            players: vec![PlayerDef::new(
+                Team::A,
+                1,
+                "Buggy Player".to_string(),
+                r#"
                 function make_decision()
                     error("Intentional error for testing")
                 end
                 "#
-                .to_string(), start_region,
+                .to_string(),
+                start_region,
             )],
             ball: BallDef::default(),
             referees: vec![],

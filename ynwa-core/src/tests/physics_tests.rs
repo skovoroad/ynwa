@@ -17,7 +17,12 @@ fn create_test_game() -> Game {
     )
     .unwrap();
 
-    let players = vec![PlayerDef::new(Team::A, 1, "Test Player".to_string(), "function make_decision() return {} end".to_string(), start_region,
+    let players = vec![PlayerDef::new(
+        Team::A,
+        1,
+        "Test Player".to_string(),
+        "function make_decision() return {} end".to_string(),
+        start_region,
     )];
 
     let config = GameConfig {

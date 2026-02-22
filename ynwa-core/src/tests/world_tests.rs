@@ -18,7 +18,12 @@ fn create_test_game() -> Game {
 
     let config = GameConfig {
         field,
-        players: vec![PlayerDef::new(Team::A, 1, "Test Player".to_string(), "function make_decision() return {} end".to_string(), start_region,
+        players: vec![PlayerDef::new(
+            Team::A,
+            1,
+            "Test Player".to_string(),
+            "function make_decision() return {} end".to_string(),
+            start_region,
         )],
         ball: BallDef::default(),
         referees: vec![RefereeDef::default()],

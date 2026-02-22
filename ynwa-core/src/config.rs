@@ -52,12 +52,17 @@ impl PlayerConfig {
         // Parse region in team's own orientation
         let start_region = Region::from_grid_notation(&self.start_position, team, grid_dims)
             .map_err(|e| format!("Invalid start position '{}': {}", self.start_position, e))?;
-        
+
         let attack_region = Region::from_grid_notation(&self.attack_position, team, grid_dims)
             .map_err(|e| format!("Invalid attack position '{}': {}", self.attack_position, e))?;
-        
+
         let defence_region = Region::from_grid_notation(&self.defence_position, team, grid_dims)
-            .map_err(|e| format!("Invalid defence position '{}': {}", self.defence_position, e))?;
+            .map_err(|e| {
+                format!(
+                    "Invalid defence position '{}': {}",
+                    self.defence_position, e
+                )
+            })?;
 
         // Convert to absolute field coordinates (Team A orientation)
         let start_region_absolute = if team == Team::B {
@@ -315,7 +320,6 @@ impl SerializableGameConfig {
         })
     }
 }
-
 
 #[cfg(test)]
 #[path = "tests/config_tests.rs"]

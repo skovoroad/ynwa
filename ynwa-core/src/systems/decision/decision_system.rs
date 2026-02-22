@@ -179,7 +179,6 @@ impl System for DecisionSystem {
     }
 }
 
-
 #[cfg(test)]
 #[path = "../../tests/decision_system_tests.rs"]
 mod tests;

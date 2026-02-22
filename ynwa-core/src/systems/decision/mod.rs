@@ -135,8 +135,7 @@ mod tests {
     #[test]
     fn test_convert_decision_team_b_point_flipped() {
         let grid_dims = GridDimensions::new(26, 44);
-        let decision =
-            Decision::Run(DecisionTarget::Point(Point3D::from_meters(20.0, 1.0, 15.0)));
+        let decision = Decision::Run(DecisionTarget::Point(Point3D::from_meters(20.0, 1.0, 15.0)));
         let converted =
             convert_decision_to_display_orientation(&decision, Team::B, 100.0, 60.0, grid_dims);
 

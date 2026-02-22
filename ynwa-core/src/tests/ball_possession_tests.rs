@@ -833,25 +833,19 @@ fn test_last_possessing_team_tracks_during_pass() {
     assert_eq!(game.state.ball_state.last_possessing_team, None);
 
     let mut system = BallPossessionSystem::new();
-    
+
     // Player 0 (Team A) gains possession (nearby, ball is free)
     system.update(&mut game, 0.0);
 
     // Team A should be recorded
     assert_eq!(game.state.ball_state.possessed_by, Some(0));
-    assert_eq!(
-        game.state.ball_state.last_possessing_team,
-        Some(Team::A)
-    );
+    assert_eq!(game.state.ball_state.last_possessing_team, Some(Team::A));
 
     // Simulate pass: ball is free (possessed_by = None)
     game.state.ball_state.possessed_by = None;
 
     // last_possessing_team should still be Team A during the pass
-    assert_eq!(
-        game.state.ball_state.last_possessing_team,
-        Some(Team::A)
-    );
+    assert_eq!(game.state.ball_state.last_possessing_team, Some(Team::A));
 }
 
 #[test]
@@ -877,7 +871,7 @@ fn test_last_possessing_team_changes_on_interception() {
 
     let mut game = Game::new(config);
     game.state.ball_state.position = ball_pos;
-    
+
     // Team A has the ball
     player1_state.needs_decision = false;
     game.state.player_states = vec![player1_state, player2_state];
@@ -886,14 +880,11 @@ fn test_last_possessing_team_changes_on_interception() {
     game.state.ball_state.last_possessing_team = Some(Team::A);
 
     let mut system = BallPossessionSystem::with_rng(|| 1.0);
-    
+
     // Update after cooldown - Team B can intercept
     system.update(&mut game, 2.0);
 
     // Team B should now have possession
     assert_eq!(game.state.ball_state.possessed_by, Some(1));
-    assert_eq!(
-        game.state.ball_state.last_possessing_team,
-        Some(Team::B)
-    );
+    assert_eq!(game.state.ball_state.last_possessing_team, Some(Team::B));
 }

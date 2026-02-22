@@ -178,7 +178,6 @@ impl Default for ActionSystem {
     }
 }
 
-
 #[cfg(test)]
 #[path = "../tests/action_tests.rs"]
 mod tests;

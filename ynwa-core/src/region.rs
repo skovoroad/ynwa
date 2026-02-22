@@ -97,8 +97,6 @@ impl GridCell {
 
     /// Creates a grid cell from string notation (A, B, ..., Z, AA, AB, ...).
     /// Case-insensitive.
-    ///
-
     pub fn from_literal(label: &str, row: u32) -> Result<Self, RegionError> {
         if label.is_empty() {
             return Err(RegionError::EmptyColumnLabel);
@@ -123,8 +121,6 @@ impl GridCell {
 
     /// Parse cell notation like "A1", "B2", "AA10" into GridCell.
     /// Letters must come before digits.
-    ///
-
     pub fn from_notation(notation: &str) -> Result<Self, RegionError> {
         let mut col_str = String::new();
         let mut row_str = String::new();

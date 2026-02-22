@@ -24,16 +24,14 @@ pub const GAME_DURATION: f32 = 60.0; // seconds (1 minute for testing)
 pub fn check_goal(game: &Game) -> Option<FootballEvent> {
     let ball_pos = &game.state.ball_state.position;
     let field = &game.config().field;
-    
+
     // Check both goals
     for ((name, team), zone) in field.zones() {
-        if name == "goal" && team.is_some() {
-            if is_ball_completely_in_zone(ball_pos, zone, BALL_RADIUS) {
-                return Some(FootballEvent::Goal(team.unwrap()));
-            }
+        if name == "goal" && team.is_some() && is_ball_completely_in_zone(ball_pos, zone, BALL_RADIUS) {
+            return Some(FootballEvent::Goal(team.unwrap()));
         }
     }
-    
+
     None
 }
 
@@ -41,13 +39,14 @@ pub fn check_goal(game: &Game) -> Option<FootballEvent> {
 pub fn check_touchline(game: &Game) -> Option<FootballEvent> {
     let ball_pos = &game.state.ball_state.position;
     let field_width = game.config().field.width().get::<meter>();
-    
+
     // Ball completely over left or right sideline
-    if ball_pos.z.get::<meter>() - BALL_RADIUS < 0.0 
-        || ball_pos.z.get::<meter>() + BALL_RADIUS > field_width {
-        return Some(FootballEvent::Touchline(ball_pos.clone()));
+    if ball_pos.z.get::<meter>() - BALL_RADIUS < 0.0
+        || ball_pos.z.get::<meter>() + BALL_RADIUS > field_width
+    {
+        return Some(FootballEvent::Touchline(*ball_pos));
     }
-    
+
     None
 }
 
@@ -55,13 +54,14 @@ pub fn check_touchline(game: &Game) -> Option<FootballEvent> {
 pub fn check_goal_line(game: &Game) -> Option<FootballEvent> {
     let ball_pos = &game.state.ball_state.position;
     let field_length = game.config().field.length().get::<meter>();
-    
+
     // Ball completely over near or far goal line
-    if ball_pos.x.get::<meter>() - BALL_RADIUS < 0.0 
-        || ball_pos.x.get::<meter>() + BALL_RADIUS > field_length {
-        return Some(FootballEvent::GoalLine(ball_pos.clone()));
+    if ball_pos.x.get::<meter>() - BALL_RADIUS < 0.0
+        || ball_pos.x.get::<meter>() + BALL_RADIUS > field_length
+    {
+        return Some(FootballEvent::GoalLine(*ball_pos));
     }
-    
+
     None
 }
 
@@ -70,7 +70,7 @@ pub fn check_game_end(game: &Game) -> Option<FootballEvent> {
     if game.state.elapsed_time >= GAME_DURATION {
         return Some(FootballEvent::GameEnd);
     }
-    
+
     None
 }
 
@@ -81,21 +81,21 @@ pub fn check_events(game: &Game) -> Option<FootballEvent> {
     if let Some(event) = check_goal(game) {
         return Some(event);
     }
-    
+
     // Check game end
     if let Some(event) = check_game_end(game) {
         return Some(event);
     }
-    
+
     // Check out of bounds
     if let Some(event) = check_touchline(game) {
         return Some(event);
     }
-    
+
     if let Some(event) = check_goal_line(game) {
         return Some(event);
     }
-    
+
     None
 }
 
@@ -106,12 +106,12 @@ fn is_ball_completely_in_zone(
     ball_radius: f32,
 ) -> bool {
     use crate::field::zones::ZoneGeometry;
-    
+
     match &zone.geometry {
         ZoneGeometry::Rectangle(rect) => {
             let x = ball_pos.x.get::<meter>();
             let z = ball_pos.z.get::<meter>();
-            
+
             x - ball_radius >= rect.min.x.get::<meter>()
                 && x + ball_radius <= rect.max.x.get::<meter>()
                 && z - ball_radius >= rect.min.z.get::<meter>()
@@ -120,7 +120,6 @@ fn is_ball_completely_in_zone(
         _ => false, // Goals should be rectangles
     }
 }
-
 
 #[cfg(test)]
 #[path = "../tests/events_tests.rs"]

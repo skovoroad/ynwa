@@ -78,7 +78,6 @@ pub fn calculate_kick_direction_with_accuracy(
     (dx_rotated, dz_rotated)
 }
 
-
 #[cfg(test)]
 #[path = "tests/physics_util_tests.rs"]
 mod tests;

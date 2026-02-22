@@ -63,9 +63,19 @@ fn create_test_game_with_two_players() -> Game {
     .unwrap();
 
     let players = vec![
-        PlayerDef::new(Team::A, 1, "Player 1".to_string(), "function make_decision() return {} end".to_string(), start_region.clone(),
+        PlayerDef::new(
+            Team::A,
+            1,
+            "Player 1".to_string(),
+            "function make_decision() return {} end".to_string(),
+            start_region.clone(),
         ),
-        PlayerDef::new(Team::A, 2, "Player 2".to_string(), "function make_decision() return {} end".to_string(), start_region,
+        PlayerDef::new(
+            Team::A,
+            2,
+            "Player 2".to_string(),
+            "function make_decision() return {} end".to_string(),
+            start_region,
         ),
     ];
 

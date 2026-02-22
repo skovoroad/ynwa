@@ -15,8 +15,8 @@ pub mod world;
 pub use config::{PlayerConfig, SerializableGameConfig};
 pub use field::zones::{Point3D, Velocity3D};
 pub use game::{
-    BallDef, BallState, Decision, DecisionTarget, Game, GameConfig, GameStage,
-    GameState, PlayerDef, PlayerState, RefereeDef, RefereeState,
+    BallDef, BallState, Decision, DecisionTarget, Game, GameConfig, GameStage, GameState,
+    PlayerDef, PlayerState, RefereeDef, RefereeState,
 };
 
 pub use football::create_football_world_from_file;

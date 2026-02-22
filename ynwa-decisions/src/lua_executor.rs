@@ -133,6 +133,7 @@ impl LuaExecutor {
     /// * `script` - The user's Lua code
     /// * `function_name` - Name of the function to call
     /// * `context` - Any serializable context data
+    ///
     /// Execute a Lua script with context. Returns `ScriptError::Timeout` if exceeds timeout.
     pub fn execute<T: Serialize>(
         &self,

@@ -208,13 +208,11 @@ test_case_insensitive()
 
 #[test]
 fn test_get_random_shot_target_randomness() {
-    let zones = vec![
-        Zone::new(
-            "goal",
-            Some(Team::A),
-            ZoneGeometry::Rectangle(Rectangle::from_meters(-2.0, 27.0, 0.0, 33.0)),
-        ),
-    ];
+    let zones = vec![Zone::new(
+        "goal",
+        Some(Team::A),
+        ZoneGeometry::Rectangle(Rectangle::from_meters(-2.0, 27.0, 0.0, 33.0)),
+    )];
 
     let test_script = r#"
 function test_randomness()

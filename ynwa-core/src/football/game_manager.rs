@@ -35,11 +35,11 @@ impl System for FootballGameManager {
     fn update(&mut self, game: &mut Game, _timestamp: f32) {
         match &game.state.stage {
             GameStage::Setup(_stage_name) => {
-                game.state.ball_state.position = game.config().ball.initial_position.clone();
+                game.state.ball_state.position = game.config().ball.initial_position;
                 game.state.ball_state.velocity = crate::field::zones::Velocity3D::default();
                 game.state.ball_state.possessed_by = None;
                 game.state.ball_state.last_possessing_team = None;
-                
+
                 self.check_player_readiness(game);
 
                 if game.state.player_states.iter().all(|p| p.is_ready) {
@@ -137,7 +137,6 @@ impl Default for FootballGameManager {
         Self::new()
     }
 }
-
 
 #[cfg(test)]
 #[path = "../tests/game_manager_tests.rs"]

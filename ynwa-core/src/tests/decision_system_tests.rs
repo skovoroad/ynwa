@@ -18,7 +18,12 @@ fn create_test_game() -> Game {
 
     let config = GameConfig {
         field,
-        players: vec![PlayerDef::new(Team::A, 1, "Test Player".to_string(), "function make_decision() return {} end".to_string(), start_region,
+        players: vec![PlayerDef::new(
+            Team::A,
+            1,
+            "Test Player".to_string(),
+            "function make_decision() return {} end".to_string(),
+            start_region,
         )],
         ball: BallDef::default(),
         referees: vec![RefereeDef::default()],
@@ -214,9 +219,7 @@ fn test_decision_system_rate_limits_errors() {
                 ))
             } else {
                 Ok((
-                    Decision::Run(DecisionTarget::GridCell(
-                        GridCell::new(13, 22).unwrap(),
-                    )),
+                    Decision::Run(DecisionTarget::GridCell(GridCell::new(13, 22).unwrap())),
                     None,
                 ))
             }
@@ -290,8 +293,7 @@ fn test_decision_error_runtime_variant() {
     }
 
     let mut game = create_test_game();
-    let mut system =
-        DecisionSystem::new().with_decision_maker(Box::new(RuntimeErrorDecisionMaker));
+    let mut system = DecisionSystem::new().with_decision_maker(Box::new(RuntimeErrorDecisionMaker));
 
     game.state.player_states[0].needs_decision = true;
 

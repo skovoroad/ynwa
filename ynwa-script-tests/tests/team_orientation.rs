@@ -2,9 +2,7 @@
 /// Tests that Team B decisions are correctly converted from Team B's perspective
 /// (right-to-left) to display orientation (Team A's left-to-right perspective).
 use ynwa_core::field::Field;
-use ynwa_core::game::{
-    BallDef, Decision, DecisionTarget, Game, GameConfig, PlayerDef, RefereeDef,
-};
+use ynwa_core::game::{BallDef, Decision, DecisionTarget, Game, GameConfig, PlayerDef, RefereeDef};
 use ynwa_core::region::{GridCell, Region};
 use ynwa_core::system::System;
 use ynwa_core::systems::decision::{DecisionSystem, ScriptedDecisionMaker};
@@ -38,14 +36,8 @@ fn create_game_with_team_script(team: Team, script: String) -> Game {
         .unwrap()
     };
 
-    let player = PlayerDef::new(
-        team,
-        1,
-        format!("Player {:?}1", team),
-        script,
-        start_region,
-    )
-    .with_reaction_rate(100); // Fast reaction rate
+    let player = PlayerDef::new(team, 1, format!("Player {:?}1", team), script, start_region)
+        .with_reaction_rate(100); // Fast reaction rate
 
     let config = GameConfig {
         field,

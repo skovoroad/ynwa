@@ -32,7 +32,10 @@ struct LuaPointTarget {
 /// Parse JSON decision value into domain Decision type and optional reason
 /// Returns a tuple of (Decision, Option<String>) where the second element is
 /// the short explanation of why this decision was made
-pub fn parse_decision(value: &serde_json::Value, team: Team) -> Result<(Decision, Option<String>), DecisionError> {
+pub fn parse_decision(
+    value: &serde_json::Value,
+    team: Team,
+) -> Result<(Decision, Option<String>), DecisionError> {
     let action = value
         .get("action")
         .and_then(|a| a.as_str())
@@ -107,7 +110,10 @@ fn parse_cell_target(value: &serde_json::Value) -> Result<DecisionTarget, Decisi
 ///
 /// Note: Creates region without bounds validation using `new_unchecked`.
 /// Validation will happen later in the decision system when the region is used.
-fn parse_region_target(value: &serde_json::Value, team: Team) -> Result<DecisionTarget, DecisionError> {
+fn parse_region_target(
+    value: &serde_json::Value,
+    team: Team,
+) -> Result<DecisionTarget, DecisionError> {
     // Deserialize using serde
     let region_target: LuaRegionTarget = serde_json::from_value(value.clone()).map_err(|e| {
         DecisionError::RuntimeError(format!(

@@ -35,7 +35,7 @@ impl System for PlayerReactionSystem {
             if is_setup {
                 // Player must't leave cell before check
                 // TODO: revise this hack
-                interval = interval / 3.; 
+                interval /= 3.;
             }
             let player_state = &mut game.state.player_states[i];
 
@@ -55,4 +55,3 @@ impl Default for PlayerReactionSystem {
 #[cfg(test)]
 #[path = "../tests/player_reaction_tests.rs"]
 mod tests;
-

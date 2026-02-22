@@ -36,14 +36,15 @@ test_rectangle_geometry()
 
     let script = format!("{}{}", test_script, MAKE_DECISION_STUB);
     let mut game = create_test_game_with_preambles_and_zones(&script, vec![]);
-    
+
     let mut reaction_system = PlayerReactionSystem::new();
     reaction_system.update(&mut game, 1.0);
-    
-    let decision_maker = ScriptedDecisionMaker::new(&game).expect("Failed to create decision maker");
+
+    let decision_maker =
+        ScriptedDecisionMaker::new(&game).expect("Failed to create decision maker");
     let mut decision_system = DecisionSystem::new().with_decision_maker(Box::new(decision_maker));
     decision_system.update(&mut game, 1.0);
-    
+
     let player_state = &game.state().player_states[0];
     assert!(
         player_state.last_error.is_none(),
@@ -80,14 +81,15 @@ test_circle_geometry()
 
     let script = format!("{}{}", test_script, MAKE_DECISION_STUB);
     let mut game = create_test_game_with_preambles_and_zones(&script, vec![]);
-    
+
     let mut reaction_system = PlayerReactionSystem::new();
     reaction_system.update(&mut game, 1.0);
-    
-    let decision_maker = ScriptedDecisionMaker::new(&game).expect("Failed to create decision maker");
+
+    let decision_maker =
+        ScriptedDecisionMaker::new(&game).expect("Failed to create decision maker");
     let mut decision_system = DecisionSystem::new().with_decision_maker(Box::new(decision_maker));
     decision_system.update(&mut game, 1.0);
-    
+
     let player_state = &game.state().player_states[0];
     assert!(
         player_state.last_error.is_none(),
@@ -120,14 +122,15 @@ test_arc_geometry()
 
     let script = format!("{}{}", test_script, MAKE_DECISION_STUB);
     let mut game = create_test_game_with_preambles_and_zones(&script, vec![]);
-    
+
     let mut reaction_system = PlayerReactionSystem::new();
     reaction_system.update(&mut game, 1.0);
-    
-    let decision_maker = ScriptedDecisionMaker::new(&game).expect("Failed to create decision maker");
+
+    let decision_maker =
+        ScriptedDecisionMaker::new(&game).expect("Failed to create decision maker");
     let mut decision_system = DecisionSystem::new().with_decision_maker(Box::new(decision_maker));
     decision_system.update(&mut game, 1.0);
-    
+
     let player_state = &game.state().player_states[0];
     assert!(
         player_state.last_error.is_none(),
@@ -150,7 +153,7 @@ fn test_is_point_in_penalty_area() {
             ZoneGeometry::Rectangle(Rectangle::from_meters(83.5, 20.0, 100.0, 40.0)),
         ),
     ];
-    
+
     let test_script = r#"
 function test_penalty_area()
     if not is_point_in_penalty_area(10, 30, "a") then
@@ -171,14 +174,15 @@ test_penalty_area()
 
     let script = format!("{}{}", test_script, MAKE_DECISION_STUB);
     let mut game = create_test_game_with_preambles_and_zones(&script, zones);
-    
+
     let mut reaction_system = PlayerReactionSystem::new();
     reaction_system.update(&mut game, 1.0);
-    
-    let decision_maker = ScriptedDecisionMaker::new(&game).expect("Failed to create decision maker");
+
+    let decision_maker =
+        ScriptedDecisionMaker::new(&game).expect("Failed to create decision maker");
     let mut decision_system = DecisionSystem::new().with_decision_maker(Box::new(decision_maker));
     decision_system.update(&mut game, 1.0);
-    
+
     let player_state = &game.state().player_states[0];
     assert!(
         player_state.last_error.is_none(),
@@ -201,7 +205,7 @@ fn test_is_point_in_goal_area() {
             ZoneGeometry::Rectangle(Rectangle::from_meters(94.5, 28.0, 100.0, 32.0)),
         ),
     ];
-    
+
     let test_script = r#"
 function test_goal_area()
     if not is_point_in_goal_area(3, 30, "a") then
@@ -222,14 +226,15 @@ test_goal_area()
 
     let script = format!("{}{}", test_script, MAKE_DECISION_STUB);
     let mut game = create_test_game_with_preambles_and_zones(&script, zones);
-    
+
     let mut reaction_system = PlayerReactionSystem::new();
     reaction_system.update(&mut game, 1.0);
-    
-    let decision_maker = ScriptedDecisionMaker::new(&game).expect("Failed to create decision maker");
+
+    let decision_maker =
+        ScriptedDecisionMaker::new(&game).expect("Failed to create decision maker");
     let mut decision_system = DecisionSystem::new().with_decision_maker(Box::new(decision_maker));
     decision_system.update(&mut game, 1.0);
-    
+
     let player_state = &game.state().player_states[0];
     assert!(
         player_state.last_error.is_none(),
@@ -252,7 +257,7 @@ fn test_is_point_in_half() {
             ZoneGeometry::Rectangle(Rectangle::from_meters(50.0, 0.0, 100.0, 60.0)),
         ),
     ];
-    
+
     let test_script = r#"
 function test_half_field()
     if not is_point_in_half(25, 30, "a") then
@@ -273,14 +278,15 @@ test_half_field()
 
     let script = format!("{}{}", test_script, MAKE_DECISION_STUB);
     let mut game = create_test_game_with_preambles_and_zones(&script, zones);
-    
+
     let mut reaction_system = PlayerReactionSystem::new();
     reaction_system.update(&mut game, 1.0);
-    
-    let decision_maker = ScriptedDecisionMaker::new(&game).expect("Failed to create decision maker");
+
+    let decision_maker =
+        ScriptedDecisionMaker::new(&game).expect("Failed to create decision maker");
     let mut decision_system = DecisionSystem::new().with_decision_maker(Box::new(decision_maker));
     decision_system.update(&mut game, 1.0);
-    
+
     let player_state = &game.state().player_states[0];
     assert!(
         player_state.last_error.is_none(),
@@ -296,7 +302,7 @@ fn test_is_point_in_center_circle() {
         None,
         ZoneGeometry::Circle(Circle::from_meters(50.0, 30.0, 9.15)),
     )];
-    
+
     let test_script = r#"
 function test_center_circle()
     if not is_point_in_center_circle(50, 30) then
@@ -317,14 +323,15 @@ test_center_circle()
 
     let script = format!("{}{}", test_script, MAKE_DECISION_STUB);
     let mut game = create_test_game_with_preambles_and_zones(&script, zones);
-    
+
     let mut reaction_system = PlayerReactionSystem::new();
     reaction_system.update(&mut game, 1.0);
-    
-    let decision_maker = ScriptedDecisionMaker::new(&game).expect("Failed to create decision maker");
+
+    let decision_maker =
+        ScriptedDecisionMaker::new(&game).expect("Failed to create decision maker");
     let mut decision_system = DecisionSystem::new().with_decision_maker(Box::new(decision_maker));
     decision_system.update(&mut game, 1.0);
-    
+
     let player_state = &game.state().player_states[0];
     assert!(
         player_state.last_error.is_none(),

@@ -350,8 +350,8 @@ fn test_load_from_default_config_file() {
         .find(|p| p.exists())
         .expect("Could not find config/default_game.toml");
 
-    let config = SerializableGameConfig::from_file(config_path)
-        .expect("Failed to load default config file");
+    let config =
+        SerializableGameConfig::from_file(config_path).expect("Failed to load default config file");
 
     // Verify we have 22 players (11 per team)
     assert_eq!(config.players.len(), 22, "Should have 22 players");

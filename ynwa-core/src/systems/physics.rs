@@ -55,7 +55,7 @@ impl System for PhysicsSystem {
         if let Some(player_index) = ball_state.possessed_by {
             // Ball moves with player
             if player_index < game.state.player_states.len() {
-                ball_state.position = game.state.player_states[player_index].position.clone();
+                ball_state.position = game.state.player_states[player_index].position;
                 ball_state.velocity = crate::field::zones::Velocity3D::default();
             }
         } else {
@@ -90,7 +90,6 @@ impl System for PhysicsSystem {
         }
     }
 }
-
 
 #[cfg(test)]
 #[path = "../tests/physics_tests.rs"]

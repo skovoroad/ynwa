@@ -21,7 +21,7 @@ fn get_ball_initial_position(field: &crate::field::Field) -> crate::field::zones
         .expect("Football field must have center_spot zone");
 
     match &center_spot_zone.geometry {
-        ZoneGeometry::Point(point) => point.position.clone(),
+        ZoneGeometry::Point(point) => point.position,
         _ => panic!("center_spot must be a Point zone"),
     }
 }
@@ -86,62 +86,61 @@ mod tests {
 
     use crate::game::*;
     use crate::region::*;
-use crate::team::Team;
+    use crate::team::Team;
 
-fn create_football_game_config() -> GameConfig {
-    let field = create_football_field();
-    let grid_dims = field.grid_dimensions();
-    let ball_initial_position = get_ball_initial_position(&field);
+    fn create_football_game_config() -> GameConfig {
+        let field = create_football_field();
+        let grid_dims = field.grid_dimensions();
+        let ball_initial_position = get_ball_initial_position(&field);
 
-    let mut players = Vec::new();
-    for i in 0..11 {
-        let row = i + 1;
-        let start_region = Region::new(
-            Team::A,
-            GridCell::new(1, row).unwrap(),
-            GridCell::new(2, row).unwrap(),
-            grid_dims,
-        )
-        .unwrap();
+        let mut players = Vec::new();
+        for i in 0..11 {
+            let row = i + 1;
+            let start_region = Region::new(
+                Team::A,
+                GridCell::new(1, row).unwrap(),
+                GridCell::new(2, row).unwrap(),
+                grid_dims,
+            )
+            .unwrap();
 
-        players.push(PlayerDef::new(
-            Team::A,
-            i + 1,
-            format!("Player A{}", i + 1),
-            "function make_decision() return {} end".to_string(),
-            start_region,
-        ));
+            players.push(PlayerDef::new(
+                Team::A,
+                i + 1,
+                format!("Player A{}", i + 1),
+                "function make_decision() return {} end".to_string(),
+                start_region,
+            ));
+        }
+        for i in 0..11 {
+            let row = i + 1;
+            let start_region = Region::new(
+                Team::B,
+                GridCell::new(25, row).unwrap(),
+                GridCell::new(26, row).unwrap(),
+                grid_dims,
+            )
+            .unwrap();
+
+            players.push(PlayerDef::new(
+                Team::B,
+                i + 1,
+                format!("Player B{}", i + 1),
+                "function make_decision() return {} end".to_string(),
+                start_region,
+            ));
+        }
+
+        GameConfig {
+            field,
+            players,
+            ball: BallDef {
+                initial_position: ball_initial_position,
+            },
+            referees: vec![RefereeDef::default()],
+            scripting: crate::game::ScriptingConfig::empty(),
+        }
     }
-    for i in 0..11 {
-        let row = i + 1;
-        let start_region = Region::new(
-            Team::B,
-            GridCell::new(25, row).unwrap(),
-            GridCell::new(26, row).unwrap(),
-            grid_dims,
-        )
-        .unwrap();
-
-        players.push(PlayerDef::new(
-            Team::B,
-            i + 1,
-            format!("Player B{}", i + 1),
-            "function make_decision() return {} end".to_string(),
-            start_region,
-        ));
-    }
-
-    GameConfig {
-        field,
-        players,
-        ball: BallDef {
-            initial_position: ball_initial_position,
-        },
-        referees: vec![RefereeDef::default()],
-        scripting: crate::game::ScriptingConfig::empty(),
-    }
-}
-
 
     pub fn create_football_world() -> World {
         let game_config = create_football_game_config();

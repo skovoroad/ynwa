@@ -153,28 +153,22 @@ fn test_player_initial_position_from_start_region() {
     let tolerance = 0.01;
 
     assert!(
-        (game.state().player_states[0].position.x.get::<meter>() - expected_a1_x).abs()
-            < tolerance
+        (game.state().player_states[0].position.x.get::<meter>() - expected_a1_x).abs() < tolerance
     );
     assert!(
-        (game.state().player_states[0].position.z.get::<meter>() - expected_a1_z).abs()
-            < tolerance
+        (game.state().player_states[0].position.z.get::<meter>() - expected_a1_z).abs() < tolerance
     );
     assert!(
-        (game.state().player_states[1].position.x.get::<meter>() - expected_a2_x).abs()
-            < tolerance
+        (game.state().player_states[1].position.x.get::<meter>() - expected_a2_x).abs() < tolerance
     );
     assert!(
-        (game.state().player_states[1].position.z.get::<meter>() - expected_a2_z).abs()
-            < tolerance
+        (game.state().player_states[1].position.z.get::<meter>() - expected_a2_z).abs() < tolerance
     );
     assert!(
-        (game.state().player_states[2].position.x.get::<meter>() - expected_b1_x).abs()
-            < tolerance
+        (game.state().player_states[2].position.x.get::<meter>() - expected_b1_x).abs() < tolerance
     );
     assert!(
-        (game.state().player_states[2].position.z.get::<meter>() - expected_b1_z).abs()
-            < tolerance
+        (game.state().player_states[2].position.z.get::<meter>() - expected_b1_z).abs() < tolerance
     );
 
     for player_state in &game.state().player_states {

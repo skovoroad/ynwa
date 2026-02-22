@@ -26,7 +26,12 @@ pub fn create_test_game_with_script_and_stage(script: &str, stage: GameStage) ->
 
     let config = GameConfig {
         field,
-        players: vec![PlayerDef::new(Team::A, 1, "Test Player".to_string(), script.to_string(), start_region,
+        players: vec![PlayerDef::new(
+            Team::A,
+            1,
+            "Test Player".to_string(),
+            script.to_string(),
+            start_region,
         )],
         ball: BallDef::default(),
         referees: vec![RefereeDef::default()],
@@ -84,7 +89,12 @@ pub fn create_test_game_with_preambles_and_stage(script: &str, stage: GameStage)
 
     let config = GameConfig {
         field,
-        players: vec![PlayerDef::new(Team::A, 1, "Test Player".to_string(), script.to_string(), start_region,
+        players: vec![PlayerDef::new(
+            Team::A,
+            1,
+            "Test Player".to_string(),
+            script.to_string(),
+            start_region,
         )],
         ball: BallDef::default(),
         referees: vec![RefereeDef::default()],
@@ -106,7 +116,7 @@ pub fn create_test_game_with_preambles_and_zones(script: &str, zones: Vec<Zone>)
         builder = builder.with_zone(zone);
     }
     let field = builder.build();
-    
+
     let grid_dims = field.grid_dimensions();
     let start_region = Region::new(
         Team::A,
@@ -134,7 +144,12 @@ pub fn create_test_game_with_preambles_and_zones(script: &str, zones: Vec<Zone>)
 
     let config = GameConfig {
         field,
-        players: vec![PlayerDef::new(Team::A, 1, "Test Player".to_string(), script.to_string(), start_region,
+        players: vec![PlayerDef::new(
+            Team::A,
+            1,
+            "Test Player".to_string(),
+            script.to_string(),
+            start_region,
         )],
         ball: BallDef::default(),
         referees: vec![RefereeDef::default()],

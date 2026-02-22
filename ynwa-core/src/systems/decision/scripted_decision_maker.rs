@@ -135,7 +135,12 @@ impl ScriptedDecisionMaker {
         serde_json::Value::Object(zones_map)
     }
 
-    fn zones_to_json_for_team(field: &crate::field::Field, viewer_team: Team, field_width: f32, field_length: f32) -> serde_json::Value {
+    fn zones_to_json_for_team(
+        field: &crate::field::Field,
+        viewer_team: Team,
+        field_width: f32,
+        field_length: f32,
+    ) -> serde_json::Value {
         use crate::field::zones::ZoneGeometry;
         use serde_json::json;
 
@@ -159,10 +164,14 @@ impl ScriptedDecisionMaker {
                         let flipped_max_z = field_length - rect.min.z.get::<meter>();
                         (flipped_min_x, flipped_max_x, flipped_min_z, flipped_max_z)
                     } else {
-                        (rect.min.x.get::<meter>(), rect.max.x.get::<meter>(), 
-                         rect.min.z.get::<meter>(), rect.max.z.get::<meter>())
+                        (
+                            rect.min.x.get::<meter>(),
+                            rect.max.x.get::<meter>(),
+                            rect.min.z.get::<meter>(),
+                            rect.max.z.get::<meter>(),
+                        )
                     };
-                    
+
                     json!({
                         "type": "rectangle",
                         "min_x": min_x,
@@ -173,12 +182,17 @@ impl ScriptedDecisionMaker {
                 }
                 ZoneGeometry::Circle(circle) => {
                     let (center_x, center_z) = if viewer_team == Team::B {
-                        (field_width - circle.center.x.get::<meter>(),
-                         field_length - circle.center.z.get::<meter>())
+                        (
+                            field_width - circle.center.x.get::<meter>(),
+                            field_length - circle.center.z.get::<meter>(),
+                        )
                     } else {
-                        (circle.center.x.get::<meter>(), circle.center.z.get::<meter>())
+                        (
+                            circle.center.x.get::<meter>(),
+                            circle.center.z.get::<meter>(),
+                        )
                     };
-                    
+
                     json!({
                         "type": "circle",
                         "center_x": center_x,
@@ -189,19 +203,27 @@ impl ScriptedDecisionMaker {
                 ZoneGeometry::Arc(arc) => {
                     use uom::si::angle::degree;
                     let (center_x, center_z) = if viewer_team == Team::B {
-                        (field_width - arc.center.x.get::<meter>(),
-                         field_length - arc.center.z.get::<meter>())
+                        (
+                            field_width - arc.center.x.get::<meter>(),
+                            field_length - arc.center.z.get::<meter>(),
+                        )
                     } else {
                         (arc.center.x.get::<meter>(), arc.center.z.get::<meter>())
                     };
-                    
+
                     // For Team B, angles need to be flipped too (reversed)
                     let (start_angle, end_angle) = if viewer_team == Team::B {
-                        (180.0 - arc.end_angle.get::<degree>(), 180.0 - arc.start_angle.get::<degree>())
+                        (
+                            180.0 - arc.end_angle.get::<degree>(),
+                            180.0 - arc.start_angle.get::<degree>(),
+                        )
                     } else {
-                        (arc.start_angle.get::<degree>(), arc.end_angle.get::<degree>())
+                        (
+                            arc.start_angle.get::<degree>(),
+                            arc.end_angle.get::<degree>(),
+                        )
                     };
-                    
+
                     json!({
                         "type": "arc",
                         "center_x": center_x,
@@ -213,12 +235,17 @@ impl ScriptedDecisionMaker {
                 }
                 ZoneGeometry::Point(point) => {
                     let (x, z) = if viewer_team == Team::B {
-                        (field_width - point.position.x.get::<meter>(),
-                         field_length - point.position.z.get::<meter>())
+                        (
+                            field_width - point.position.x.get::<meter>(),
+                            field_length - point.position.z.get::<meter>(),
+                        )
                     } else {
-                        (point.position.x.get::<meter>(), point.position.z.get::<meter>())
+                        (
+                            point.position.x.get::<meter>(),
+                            point.position.z.get::<meter>(),
+                        )
                     };
-                    
+
                     json!({
                         "type": "point",
                         "x": x,
@@ -261,18 +288,19 @@ impl ScriptedDecisionMaker {
                 // Get exact region boundaries from grid cells
                 let (min_col, max_col) = (region.top_left.col, region.bottom_right.col);
                 let (min_row, max_row) = (region.top_left.row, region.bottom_right.row);
-                
+
                 // Convert grid coordinates to meters
                 // Note: Both X and Z use cell_width (square cells) as per Region::center() logic
                 let cell_width = field_width / grid_dims.columns as f32;
-                
+
                 let min_z = (min_col - 1) as f32 * cell_width;
                 let max_z = max_col as f32 * cell_width;
                 let min_x = (min_row - 1) as f32 * cell_width;
                 let max_x = max_row as f32 * cell_width;
-                
+
                 // Apply coordinate transformation if viewer is Team B
-                let (final_min_x, final_max_x, final_min_z, final_max_z) = if player_team == Team::B {
+                let (final_min_x, final_max_x, final_min_z, final_max_z) = if player_team == Team::B
+                {
                     // Use same transformation as flip_point_orientation: x' = width - x, z' = length - z
                     // (This matches the parameter order used throughout the codebase)
                     // When we flip, min and max swap positions
@@ -284,21 +312,22 @@ impl ScriptedDecisionMaker {
                 } else {
                     (min_x, max_x, min_z, max_z)
                 };
-                
+
                 let region_json = json!({
                     "min_x": final_min_x,
                     "max_x": final_max_x,
                     "min_z": final_min_z,
                     "max_z": final_max_z
                 });
-                
+
                 (name.clone(), region_json)
             })
             .collect();
 
         // Build zones with coordinate transformation for Team B
-        let zones_json = Self::zones_to_json_for_team(&config.field, player_team, field_width, field_length);
-        
+        let zones_json =
+            Self::zones_to_json_for_team(&config.field, player_team, field_width, field_length);
+
         // Build context (same as ContextBuilder, but inline)
         let context = json!({
             "me": {
@@ -442,7 +471,12 @@ mod tests {
 
         let config = GameConfig {
             field,
-            players: vec![PlayerDef::new(Team::A, 1, "Test Player".to_string(), script.to_string(), start_region,
+            players: vec![PlayerDef::new(
+                Team::A,
+                1,
+                "Test Player".to_string(),
+                script.to_string(),
+                start_region,
             )],
             ball: BallDef::default(),
             referees: vec![RefereeDef::default()],
@@ -652,7 +686,12 @@ mod tests {
 
         let config = GameConfig {
             field,
-            players: vec![PlayerDef::new(Team::A, 1, "Test Player A".to_string(), script.to_string(), start_region,
+            players: vec![PlayerDef::new(
+                Team::A,
+                1,
+                "Test Player A".to_string(),
+                script.to_string(),
+                start_region,
             )],
             ball: BallDef::default(),
             referees: vec![RefereeDef::default()],
@@ -660,31 +699,47 @@ mod tests {
         };
 
         let game = Game::new(config);
-        
+
         // Build context and check region boundaries
         let context = ScriptedDecisionMaker::build_context(&game, 0).unwrap();
         let regions = context["me"]["regions"].as_object().unwrap();
         let start_pos = regions.get("start position").unwrap();
-        
+
         // Expected boundaries for Team A (no transformation):
         // cell_width = 60 / 26 = 2.307...
         // columns 10-12: Z from (10-1)*2.307 to 12*2.307
         // rows 20-22: X from (20-1)*2.307 to 22*2.307
         let cell_width = 60.0 / 26.0;
-        
+
         let expected_min_z = 9.0 * cell_width;
         let expected_max_z = 12.0 * cell_width;
         let expected_min_x = 19.0 * cell_width;
         let expected_max_x = 22.0 * cell_width;
-        
-        assert!((start_pos["min_z"].as_f64().unwrap() - expected_min_z as f64).abs() < 0.01,
-            "Team A min_z: expected {}, got {}", expected_min_z, start_pos["min_z"]);
-        assert!((start_pos["max_z"].as_f64().unwrap() - expected_max_z as f64).abs() < 0.01,
-            "Team A max_z: expected {}, got {}", expected_max_z, start_pos["max_z"]);
-        assert!((start_pos["min_x"].as_f64().unwrap() - expected_min_x as f64).abs() < 0.01,
-            "Team A min_x: expected {}, got {}", expected_min_x, start_pos["min_x"]);
-        assert!((start_pos["max_x"].as_f64().unwrap() - expected_max_x as f64).abs() < 0.01,
-            "Team A max_x: expected {}, got {}", expected_max_x, start_pos["max_x"]);
+
+        assert!(
+            (start_pos["min_z"].as_f64().unwrap() - expected_min_z as f64).abs() < 0.01,
+            "Team A min_z: expected {}, got {}",
+            expected_min_z,
+            start_pos["min_z"]
+        );
+        assert!(
+            (start_pos["max_z"].as_f64().unwrap() - expected_max_z as f64).abs() < 0.01,
+            "Team A max_z: expected {}, got {}",
+            expected_max_z,
+            start_pos["max_z"]
+        );
+        assert!(
+            (start_pos["min_x"].as_f64().unwrap() - expected_min_x as f64).abs() < 0.01,
+            "Team A min_x: expected {}, got {}",
+            expected_min_x,
+            start_pos["min_x"]
+        );
+        assert!(
+            (start_pos["max_x"].as_f64().unwrap() - expected_max_x as f64).abs() < 0.01,
+            "Team A max_x: expected {}, got {}",
+            expected_max_x,
+            start_pos["max_x"]
+        );
     }
 
     #[test]
@@ -711,7 +766,12 @@ mod tests {
 
         let config = GameConfig {
             field,
-            players: vec![PlayerDef::new(Team::B, 1, "Test Player B".to_string(), script.to_string(), start_region,
+            players: vec![PlayerDef::new(
+                Team::B,
+                1,
+                "Test Player B".to_string(),
+                script.to_string(),
+                start_region,
             )],
             ball: BallDef::default(),
             referees: vec![RefereeDef::default()],
@@ -719,12 +779,12 @@ mod tests {
         };
 
         let game = Game::new(config);
-        
+
         // Build context and check region boundaries
         let context = ScriptedDecisionMaker::build_context(&game, 0).unwrap();
         let regions = context["me"]["regions"].as_object().unwrap();
         let start_pos = regions.get("start position").unwrap();
-        
+
         // Expected boundaries for Team B (with flip transformation):
         // cell_width = 60 / 26 = 2.307...
         // Original: columns 10-12 → Z from 9*2.307 to 12*2.307
@@ -732,32 +792,48 @@ mod tests {
         // Flipped using flip_point_orientation logic: x' = width - x, z' = length - z
         //          min/max swap after flip
         let cell_width = 60.0 / 26.0;
-        
+
         let orig_min_z = 9.0 * cell_width;
         let orig_max_z = 12.0 * cell_width;
         let orig_min_x = 19.0 * cell_width;
         let orig_max_x = 22.0 * cell_width;
-        
+
         // After flip: x' = 60 - x (field_width - x), z' = 100 - z (field_length - z)
         let expected_min_x = 60.0 - orig_max_x;
         let expected_max_x = 60.0 - orig_min_x;
         let expected_min_z = 100.0 - orig_max_z;
         let expected_max_z = 100.0 - orig_min_z;
-        
-        assert!((start_pos["min_x"].as_f64().unwrap() - expected_min_x as f64).abs() < 0.01,
-            "Team B min_x: expected {}, got {}", expected_min_x, start_pos["min_x"]);
-        assert!((start_pos["max_x"].as_f64().unwrap() - expected_max_x as f64).abs() < 0.01,
-            "Team B max_x: expected {}, got {}", expected_max_x, start_pos["max_x"]);
-        assert!((start_pos["min_z"].as_f64().unwrap() - expected_min_z as f64).abs() < 0.01,
-            "Team B min_z: expected {}, got {}", expected_min_z, start_pos["min_z"]);
-        assert!((start_pos["max_z"].as_f64().unwrap() - expected_max_z as f64).abs() < 0.01,
-            "Team B max_z: expected {}, got {}", expected_max_z, start_pos["max_z"]);
+
+        assert!(
+            (start_pos["min_x"].as_f64().unwrap() - expected_min_x as f64).abs() < 0.01,
+            "Team B min_x: expected {}, got {}",
+            expected_min_x,
+            start_pos["min_x"]
+        );
+        assert!(
+            (start_pos["max_x"].as_f64().unwrap() - expected_max_x as f64).abs() < 0.01,
+            "Team B max_x: expected {}, got {}",
+            expected_max_x,
+            start_pos["max_x"]
+        );
+        assert!(
+            (start_pos["min_z"].as_f64().unwrap() - expected_min_z as f64).abs() < 0.01,
+            "Team B min_z: expected {}, got {}",
+            expected_min_z,
+            start_pos["min_z"]
+        );
+        assert!(
+            (start_pos["max_z"].as_f64().unwrap() - expected_max_z as f64).abs() < 0.01,
+            "Team B max_z: expected {}, got {}",
+            expected_max_z,
+            start_pos["max_z"]
+        );
     }
 
     #[test]
     fn test_zones_available_in_lua() {
-        use crate::field::{FieldBuilder, Zone};
         use crate::field::zones::{Rectangle, ZoneGeometry};
+        use crate::field::{FieldBuilder, Zone};
 
         let field = FieldBuilder::from_meters(100.0, 60.0, 26, 44)
             .with_zone(Zone::new(
@@ -766,7 +842,7 @@ mod tests {
                 ZoneGeometry::Rectangle(Rectangle::from_meters(0.0, 0.0, 20.0, 30.0)),
             ))
             .build();
-        
+
         let grid_dims = field.grid_dimensions();
         let start_region = Region::new(
             Team::A,
@@ -796,7 +872,12 @@ mod tests {
 
         let config = GameConfig {
             field,
-            players: vec![PlayerDef::new(Team::A, 1, "Test Player".to_string(), script, start_region,
+            players: vec![PlayerDef::new(
+                Team::A,
+                1,
+                "Test Player".to_string(),
+                script,
+                start_region,
             )],
             ball: BallDef::default(),
             referees: vec![RefereeDef::default()],
@@ -808,7 +889,7 @@ mod tests {
         let decision = maker.make_decision(&game, 0);
 
         assert!(decision.is_ok());
-        
+
         let config_json = ScriptedDecisionMaker::build_config(&game);
         let engine = ynwa_decisions::DecisionEngine::new(
             &config_json,
@@ -816,22 +897,40 @@ mod tests {
             &game.config().scripting.stdlib_preamble,
         )
         .unwrap();
-        
+
         let context = ScriptedDecisionMaker::build_context(&game, 0).unwrap();
         let decision_json = engine.make_decision(0, &context).unwrap();
 
-        assert_eq!(decision_json.get("has_zone").and_then(|v| v.as_bool()), Some(true));
-        assert_eq!(decision_json.get("zone_type").and_then(|v| v.as_str()), Some("rectangle"));
-        assert_eq!(decision_json.get("zone_min_x").and_then(|v| v.as_f64()), Some(0.0));
-        assert_eq!(decision_json.get("zone_max_x").and_then(|v| v.as_f64()), Some(20.0));
-        assert_eq!(decision_json.get("zone_min_z").and_then(|v| v.as_f64()), Some(0.0));
-        assert_eq!(decision_json.get("zone_max_z").and_then(|v| v.as_f64()), Some(30.0));
+        assert_eq!(
+            decision_json.get("has_zone").and_then(|v| v.as_bool()),
+            Some(true)
+        );
+        assert_eq!(
+            decision_json.get("zone_type").and_then(|v| v.as_str()),
+            Some("rectangle")
+        );
+        assert_eq!(
+            decision_json.get("zone_min_x").and_then(|v| v.as_f64()),
+            Some(0.0)
+        );
+        assert_eq!(
+            decision_json.get("zone_max_x").and_then(|v| v.as_f64()),
+            Some(20.0)
+        );
+        assert_eq!(
+            decision_json.get("zone_min_z").and_then(|v| v.as_f64()),
+            Some(0.0)
+        );
+        assert_eq!(
+            decision_json.get("zone_max_z").and_then(|v| v.as_f64()),
+            Some(30.0)
+        );
     }
 
     #[test]
     fn test_ball_owner_team_in_context() {
         use crate::team::Team;
-        
+
         let field = Field::from_meters(100.0, 60.0, 26, 44);
         let grid_dims = field.grid_dimensions();
 
@@ -851,11 +950,17 @@ mod tests {
                     owner_team = context.ball.owner_team
                 }
             end
-        "#.to_string();
+        "#
+        .to_string();
 
         let config = GameConfig {
             field,
-            players: vec![PlayerDef::new(Team::A, 1, "Test Player".to_string(), script, start_region,
+            players: vec![PlayerDef::new(
+                Team::A,
+                1,
+                "Test Player".to_string(),
+                script,
+                start_region,
             )],
             ball: BallDef::default(),
             referees: vec![RefereeDef::default()],
@@ -866,43 +971,55 @@ mod tests {
 
         // Test 1: Neutral ball (None)
         game.state.ball_state.last_possessing_team = None;
-        
+
         let context = ScriptedDecisionMaker::build_context(&game, 0).unwrap();
         let owner_team_value = context
             .get("ball")
             .and_then(|b| b.get("owner_team"))
             .and_then(|v| v.as_str());
-        
-        assert_eq!(owner_team_value, Some("None"), "Neutral ball should have owner_team='None'");
+
+        assert_eq!(
+            owner_team_value,
+            Some("None"),
+            "Neutral ball should have owner_team='None'"
+        );
 
         // Test 2: Team A owns ball
         game.state.ball_state.last_possessing_team = Some(Team::A);
-        
+
         let context = ScriptedDecisionMaker::build_context(&game, 0).unwrap();
         let owner_team_value = context
             .get("ball")
             .and_then(|b| b.get("owner_team"))
             .and_then(|v| v.as_str());
-        
-        assert_eq!(owner_team_value, Some("A"), "Team A ball should have owner_team='A'");
+
+        assert_eq!(
+            owner_team_value,
+            Some("A"),
+            "Team A ball should have owner_team='A'"
+        );
 
         // Test 3: Team B owns ball
         game.state.ball_state.last_possessing_team = Some(Team::B);
-        
+
         let context = ScriptedDecisionMaker::build_context(&game, 0).unwrap();
         let owner_team_value = context
             .get("ball")
             .and_then(|b| b.get("owner_team"))
             .and_then(|v| v.as_str());
-        
-        assert_eq!(owner_team_value, Some("B"), "Team B ball should have owner_team='B'");
+
+        assert_eq!(
+            owner_team_value,
+            Some("B"),
+            "Team B ball should have owner_team='B'"
+        );
 
         // Test 4: Verify Lua script can access owner_team
         game.state.ball_state.last_possessing_team = Some(Team::A);
-        
+
         let mut maker = ScriptedDecisionMaker::new(&game).unwrap();
         let decision = maker.make_decision(&game, 0);
-        
+
         assert!(decision.is_ok(), "Decision should succeed");
     }
 }
