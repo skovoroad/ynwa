@@ -5,67 +5,31 @@ fn create_test_config() -> GameConfig {
     let field = Field::from_meters(100.0, 60.0, 26, 44);
     let grid_dims = field.grid_dimensions();
 
-    let start_region_a1 = Region::new(
-        GridCell::new(1, 1).unwrap(),
-        GridCell::new(2, 2).unwrap(),
-        grid_dims,
-    )
+    let start_region_a1 = grid_dims.create_region(GridCell::new(1, 1).unwrap(), GridCell::new(2, 2).unwrap())
     .unwrap();
 
-    let start_region_a2 = Region::new(
-        GridCell::new(3, 3).unwrap(),
-        GridCell::new(4, 4).unwrap(),
-        grid_dims,
-    )
+    let start_region_a2 = grid_dims.create_region(GridCell::new(3, 3).unwrap(), GridCell::new(4, 4).unwrap())
     .unwrap();
 
-    let start_region_b = Region::new(
-        GridCell::new(20, 20).unwrap(),
-        GridCell::new(21, 21).unwrap(),
-        grid_dims,
-    )
+    let start_region_b = grid_dims.create_region(GridCell::new(20, 20).unwrap(), GridCell::new(21, 21).unwrap())
     .unwrap();
 
-    let attack_region_a1 = Region::new(
-        GridCell::new(1, 1).unwrap(),
-        GridCell::new(2, 2).unwrap(),
-        grid_dims,
-    )
+    let attack_region_a1 = grid_dims.create_region(GridCell::new(1, 1).unwrap(), GridCell::new(2, 2).unwrap())
     .unwrap();
 
-    let attack_region_a2 = Region::new(
-        GridCell::new(3, 3).unwrap(),
-        GridCell::new(4, 4).unwrap(),
-        grid_dims,
-    )
+    let attack_region_a2 = grid_dims.create_region(GridCell::new(3, 3).unwrap(), GridCell::new(4, 4).unwrap())
     .unwrap();
 
-    let attack_region_b = Region::new(
-        GridCell::new(20, 20).unwrap(),
-        GridCell::new(21, 21).unwrap(),
-        grid_dims,
-    )
+    let attack_region_b = grid_dims.create_region(GridCell::new(20, 20).unwrap(), GridCell::new(21, 21).unwrap())
     .unwrap();
 
-    let defence_region_a1 = Region::new(
-        GridCell::new(1, 3).unwrap(),
-        GridCell::new(2, 4).unwrap(),
-        grid_dims,
-    )
+    let defence_region_a1 = grid_dims.create_region(GridCell::new(1, 3).unwrap(), GridCell::new(2, 4).unwrap())
     .unwrap();
 
-    let defence_region_a2 = Region::new(
-        GridCell::new(3, 5).unwrap(),
-        GridCell::new(4, 6).unwrap(),
-        grid_dims,
-    )
+    let defence_region_a2 = grid_dims.create_region(GridCell::new(3, 5).unwrap(), GridCell::new(4, 6).unwrap())
     .unwrap();
 
-    let defence_region_b = Region::new(
-        GridCell::new(20, 22).unwrap(),
-        GridCell::new(21, 23).unwrap(),
-        grid_dims,
-    )
+    let defence_region_b = grid_dims.create_region(GridCell::new(20, 22).unwrap(), GridCell::new(21, 23).unwrap())
     .unwrap();
 
     GameConfig {

@@ -21,12 +21,7 @@ fn calculate_target_point(target: &DecisionTarget, game: &Game) -> Point3D {
     match target {
         DecisionTarget::Point(point) => *point,
         DecisionTarget::GridCell(cell) => {
-            let region = Region::new(
-                *cell,
-                *cell,
-                game.config().field.grid_dimensions(),
-            )
-            .expect("Cell should form valid region");
+            let region = Region::new(*cell, *cell);
 
             region.center(
                 game.config().field.grid_dimensions(),

@@ -139,11 +139,7 @@ fn test_region_flip_orientation() {
     let field = Field::from_meters(60.0, 100.0, 26, 44);
 
     // Region for Team A: B3 to D5 (cols 2-4, rows 3-5)
-    let region_a = Region::new(
-        GridCell::from_literal("B", 3).unwrap(),
-        GridCell::from_literal("D", 5).unwrap(),
-        field.grid_dimensions(),
-    )
+    let region_a = field.grid_dimensions().create_region(GridCell::from_literal("B", 3).unwrap(), GridCell::from_literal("D", 5).unwrap())
     .unwrap();
 
     let flipped = region_a.flip_orientation(field.grid_dimensions()).unwrap();
@@ -162,11 +158,7 @@ fn test_region_flip_orientation() {
 #[test]
 fn test_region_valid() {
     let field = Field::from_meters(60.0, 100.0, 26, 44);
-    let region = Region::new(
-        GridCell::from_literal("B", 3).unwrap(),
-        GridCell::from_literal("G", 4).unwrap(),
-        field.grid_dimensions(),
-    )
+    let region = field.grid_dimensions().create_region(GridCell::from_literal("B", 3).unwrap(), GridCell::from_literal("G", 4).unwrap())
     .unwrap();
     assert_eq!(region.top_left.col, 2); // B = 2
     assert_eq!(region.bottom_right.col, 7); // G = 7
@@ -175,33 +167,21 @@ fn test_region_valid() {
 #[test]
 fn test_region_inverted_columns() {
     let field = Field::from_meters(60.0, 100.0, 26, 44);
-    let result = Region::new(
-        GridCell::from_literal("G", 3).unwrap(),
-        GridCell::from_literal("B", 4).unwrap(),
-        field.grid_dimensions(),
-    );
+    let result = field.grid_dimensions().create_region(GridCell::from_literal("G", 3).unwrap(), GridCell::from_literal("B", 4).unwrap());
     assert!(matches!(result, Err(RegionError::InvalidRegion(_))));
 }
 
 #[test]
 fn test_region_inverted_rows() {
     let field = Field::from_meters(60.0, 100.0, 26, 44);
-    let result = Region::new(
-        GridCell::from_literal("B", 4).unwrap(),
-        GridCell::from_literal("G", 3).unwrap(),
-        field.grid_dimensions(),
-    );
+    let result = field.grid_dimensions().create_region(GridCell::from_literal("B", 4).unwrap(), GridCell::from_literal("G", 3).unwrap());
     assert!(matches!(result, Err(RegionError::InvalidRegion(_))));
 }
 
 #[test]
 fn test_region_single_cell() {
     let field = Field::from_meters(60.0, 100.0, 26, 44);
-    let region = Region::new(
-        GridCell::from_literal("C", 5).unwrap(),
-        GridCell::from_literal("C", 5).unwrap(),
-        field.grid_dimensions(),
-    )
+    let region = field.grid_dimensions().create_region(GridCell::from_literal("C", 5).unwrap(), GridCell::from_literal("C", 5).unwrap())
     .unwrap();
     assert_eq!(region.top_left, region.bottom_right);
 }
@@ -209,10 +189,9 @@ fn test_region_single_cell() {
 #[test]
 fn test_region_column_out_of_bounds() {
     let field = Field::from_meters(60.0, 100.0, 26, 44);
-    let result = Region::new(
+    let result = field.grid_dimensions().create_region(
         GridCell::new(1, 1).unwrap(),
         GridCell::new(27, 5).unwrap(), // Column 27 > 26 (max for 26 columns)
-        field.grid_dimensions(),
     );
     assert!(matches!(result, Err(RegionError::ColumnOutOfBounds { .. })));
 }
@@ -220,10 +199,9 @@ fn test_region_column_out_of_bounds() {
 #[test]
 fn test_region_row_out_of_bounds() {
     let field = Field::from_meters(60.0, 100.0, 26, 44);
-    let result = Region::new(
+    let result = field.grid_dimensions().create_region(
         GridCell::new(1, 1).unwrap(),
         GridCell::new(5, 50).unwrap(), // Row 50 > 44 (field has 44 rows)
-        field.grid_dimensions(),
     );
     assert!(matches!(result, Err(RegionError::RowOutOfBounds { .. })));
 }
@@ -233,11 +211,7 @@ fn test_region_contains_point() {
     let field = Field::from_meters(60.0, 100.0, 26, 44);
 
     // Region B3:D5 (B=2, D=4, so cols 2-4; rows 3-5)
-    let region = Region::new(
-        GridCell::from_literal("B", 3).unwrap(),
-        GridCell::from_literal("D", 5).unwrap(),
-        field.grid_dimensions(),
-    )
+    let region = field.grid_dimensions().create_region(GridCell::from_literal("B", 3).unwrap(), GridCell::from_literal("D", 5).unwrap())
     .unwrap();
 
     // Point in the middle of cell C4 should be inside
@@ -265,11 +239,7 @@ fn test_region_contains_point() {
 #[test]
 fn test_region_contains_point_boundaries() {
     let field = Field::from_meters(60.0, 100.0, 26, 44);
-    let region = Region::new(
-        GridCell::from_literal("B", 3).unwrap(),
-        GridCell::from_literal("D", 5).unwrap(),
-        field.grid_dimensions(),
-    )
+    let region = field.grid_dimensions().create_region(GridCell::from_literal("B", 3).unwrap(), GridCell::from_literal("D", 5).unwrap())
     .unwrap();
 
     let cell_width = 60.0 / 26.0;
@@ -329,11 +299,7 @@ fn test_region_center() {
 
     // Region B3:D5 (B=2, D=4, so cols 2-4; rows 3-5)
     // Center: col 3 (C), row 4
-    let region = Region::new(
-        GridCell::from_literal("B", 3).unwrap(),
-        GridCell::from_literal("D", 5).unwrap(),
-        field.grid_dimensions(),
-    )
+    let region = field.grid_dimensions().create_region(GridCell::from_literal("B", 3).unwrap(), GridCell::from_literal("D", 5).unwrap())
     .unwrap();
 
     let center = region.center(field.grid_dimensions(), field.width().get::<meter>());
@@ -351,11 +317,7 @@ fn test_region_center() {
 fn test_region_center_single_cell() {
     let field = Field::from_meters(60.0, 100.0, 26, 44);
 
-    let region = Region::new(
-        GridCell::from_literal("A", 1).unwrap(),
-        GridCell::from_literal("A", 1).unwrap(),
-        field.grid_dimensions(),
-    )
+    let region = field.grid_dimensions().create_region(GridCell::from_literal("A", 1).unwrap(), GridCell::from_literal("A", 1).unwrap())
     .unwrap();
 
     let center = region.center(field.grid_dimensions(), field.width().get::<meter>());
@@ -371,21 +333,13 @@ fn test_region_center_single_cell() {
 #[test]
 fn test_region_to_grid_notation() {
     let field = Field::from_meters(60.0, 100.0, 26, 44);
-    let region = Region::new(
-        GridCell::new(1, 1).unwrap(),
-        GridCell::new(2, 2).unwrap(),
-        field.grid_dimensions(),
-    )
+    let region = field.grid_dimensions().create_region(GridCell::new(1, 1).unwrap(), GridCell::new(2, 2).unwrap())
     .unwrap();
 
     assert_eq!(region.to_grid_notation(), "A1:B2");
 
     // Test with multi-letter columns
-    let region2 = Region::new(
-        GridCell::new(25, 22).unwrap(),
-        GridCell::new(26, 24).unwrap(),
-        field.grid_dimensions(),
-    )
+    let region2 = field.grid_dimensions().create_region(GridCell::new(25, 22).unwrap(), GridCell::new(26, 24).unwrap())
     .unwrap();
 
     assert_eq!(region2.to_grid_notation(), "Y22:Z24");
@@ -421,11 +375,7 @@ fn test_region_from_grid_notation() {
 fn test_region_grid_notation_roundtrip() {
     let grid_dims = GridDimensions::new(26, 44);
 
-    let original = Region::new(
-        GridCell::new(3, 5).unwrap(),
-        GridCell::new(7, 10).unwrap(),
-        grid_dims,
-    )
+    let original = grid_dims.create_region(GridCell::new(3, 5).unwrap(), GridCell::new(7, 10).unwrap())
     .unwrap();
 
     let notation = original.to_grid_notation();

@@ -9,12 +9,7 @@ fn create_test_game() -> Game {
     let field = Field::from_meters(100.0, 60.0, 26, 11);
     let grid_dims = field.grid_dimensions();
 
-    let start_region = crate::region::Region::new(
-        GridCell::new(1, 1).unwrap(),
-        GridCell::new(1, 1).unwrap(),
-        grid_dims,
-    )
-    .unwrap();
+    let start_region = grid_dims.create_region(GridCell::new(1, 1).unwrap(), GridCell::new(1, 1).unwrap()).unwrap();
 
     let players = vec![PlayerDef::new(
         Team::A,

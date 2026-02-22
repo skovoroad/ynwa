@@ -209,6 +209,10 @@ See `orientation.rs` `//!` doc for concept, functions, and usage.
 Grid-based field area addressing. Format: `"A1:B2"` (TopLeft:BottomRight), 1-based columns (A=1...).
 See `region.rs` `//!` doc for types and indexing details.
 
+Construction API:
+- `GridDimensions::create_region(top_left, bottom_right)` — validated factory; use for user-supplied coordinates
+- `Region::new(top_left, bottom_right)` — no validation; use when coordinates are internally generated (flip results, single-cell from `GridCell` target)
+
 ## Game Configuration (`config.rs`)
 
 TOML-based configuration for initial game parameters.

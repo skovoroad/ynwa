@@ -3,7 +3,7 @@
 /// (right-to-left) to display orientation (Team A's left-to-right perspective).
 use ynwa_core::field::Field;
 use ynwa_core::game::{BallDef, Decision, DecisionTarget, Game, GameConfig, PlayerDef, RefereeDef};
-use ynwa_core::region::{GridCell, Region};
+use ynwa_core::region::{GridCell};
 use ynwa_core::system::System;
 use ynwa_core::systems::decision::{DecisionSystem, ScriptedDecisionMaker};
 use ynwa_core::systems::player_reaction::PlayerReactionSystem;
@@ -18,19 +18,11 @@ fn create_game_with_team_script(team: Team, script: String) -> Game {
     // For Team A, start near their goal (left side)
     // For Team B, start near their goal (right side, but in Team B coordinates = left in their view)
     let start_region = if team == Team::A {
-        Region::new(
-            GridCell::new(1, 20).unwrap(),
-            GridCell::new(1, 20).unwrap(),
-            grid_dims,
-        )
+        grid_dims.create_region(GridCell::new(1, 20).unwrap(), GridCell::new(1, 20).unwrap())
         .unwrap()
     } else {
         // Team B starts at A20 in Team B coordinates (which is their left side)
-        Region::new(
-            GridCell::new(1, 20).unwrap(),
-            GridCell::new(1, 20).unwrap(),
-            grid_dims,
-        )
+        grid_dims.create_region(GridCell::new(1, 20).unwrap(), GridCell::new(1, 20).unwrap())
         .unwrap()
     };
 

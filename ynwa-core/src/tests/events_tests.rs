@@ -2,7 +2,7 @@ use super::*;
 use crate::field::zones::{Rectangle, ZoneGeometry};
 use crate::field::{FieldBuilder, Zone};
 use crate::game::{BallDef, GameConfig, GameStage, PlayerDef, RefereeDef};
-use crate::region::{GridCell, Region};
+use crate::region::{GridCell};
 use uom::si::f32::Length;
 use uom::si::length::meter;
 
@@ -22,12 +22,7 @@ fn create_test_game() -> Game {
         .build();
 
     let grid_dims = field.grid_dimensions();
-    let start_region = Region::new(
-        GridCell::new(1, 1).unwrap(),
-        GridCell::new(2, 2).unwrap(),
-        grid_dims,
-    )
-    .unwrap();
+    let start_region = grid_dims.create_region(GridCell::new(1, 1).unwrap(), GridCell::new(2, 2).unwrap()).unwrap();
 
     let config = GameConfig {
         field,

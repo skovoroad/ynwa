@@ -4,7 +4,7 @@ mod tests {
     use crate::field::Field;
     use crate::game::{BallDef, Decision, DecisionTarget, Game, GameConfig, PlayerDef};
     use crate::physics_util::distance;
-    use crate::region::{GridCell, Region};
+    use crate::region::GridCell;
     use crate::systems::decision::DecisionError;
     use crate::systems::{
         ActionSystem, DecisionMaker, DecisionSystem, PhysicsSystem, PlayerReactionSystem,
@@ -65,11 +65,7 @@ mod tests {
         let grid_dims = field.grid_dimensions();
 
         // Player 0: fast and reactive
-        let start_region_0 = Region::new(
-            GridCell::new(1, 1).unwrap(),
-            GridCell::new(1, 1).unwrap(),
-            grid_dims,
-        )
+        let start_region_0 = grid_dims.create_region(GridCell::new(1, 1).unwrap(), GridCell::new(1, 1).unwrap())
         .unwrap();
 
         let player_0 = PlayerDef::new(
@@ -83,11 +79,7 @@ mod tests {
         .with_speed_rate(100); // speed_rate = 100 (full speed)
 
         // Player 1: slow and less reactive
-        let start_region_1 = Region::new(
-            GridCell::new(5, 1).unwrap(),
-            GridCell::new(5, 1).unwrap(),
-            grid_dims,
-        )
+        let start_region_1 = grid_dims.create_region(GridCell::new(5, 1).unwrap(), GridCell::new(5, 1).unwrap())
         .unwrap();
 
         let player_1 = PlayerDef::new(
@@ -138,11 +130,7 @@ mod tests {
         // Player 1 will run to a specific region, then stop
         let grid_dims = game.config().field.grid_dimensions();
 
-        let target_region = Region::new(
-            GridCell::new(15, 15).unwrap(),
-            GridCell::new(20, 20).unwrap(),
-            grid_dims,
-        )
+        let target_region = grid_dims.create_region(GridCell::new(15, 15).unwrap(), GridCell::new(20, 20).unwrap())
         .unwrap();
 
         let decision_maker = ScriptedDecisionMaker::new(vec![
@@ -357,12 +345,12 @@ mod tests {
         let field = Field::from_meters(100.0, 60.0, 26, 44);
         let grid_dims = field.grid_dimensions();
 
-        let start_region = Region::new(
-            GridCell::new(13, 22).unwrap(), // Center of field
-            GridCell::new(13, 22).unwrap(),
-            grid_dims,
-        )
-        .unwrap();
+        let start_region = grid_dims
+            .create_region(
+                GridCell::new(13, 22).unwrap(), // Center of field
+                GridCell::new(13, 22).unwrap(),
+            )
+            .unwrap();
 
         // Player with Lua script that runs to A1
         let config = GameConfig {
@@ -437,11 +425,7 @@ mod tests {
         let field = Field::from_meters(100.0, 60.0, 26, 44);
         let grid_dims = field.grid_dimensions();
 
-        let start_region = Region::new(
-            GridCell::new(13, 22).unwrap(),
-            GridCell::new(13, 22).unwrap(),
-            grid_dims,
-        )
+        let start_region = grid_dims.create_region(GridCell::new(13, 22).unwrap(), GridCell::new(13, 22).unwrap())
         .unwrap();
 
         // Player with buggy Lua script

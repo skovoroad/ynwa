@@ -3,7 +3,7 @@
 
 use ynwa_core::field::{Field, FieldBuilder, Zone};
 use ynwa_core::game::{BallDef, Game, GameConfig, GameStage, PlayerDef, RefereeDef};
-use ynwa_core::region::{GridCell, Region};
+use ynwa_core::region::GridCell;
 use ynwa_core::team::Team;
 
 /// Create a simple test game with one player using the given script
@@ -16,11 +16,7 @@ pub fn create_test_game_with_script_and_stage(script: &str, stage: GameStage) ->
     let field = Field::from_meters(100.0, 60.0, 26, 44);
     let grid_dims = field.grid_dimensions();
 
-    let start_region = Region::new(
-        GridCell::new(10, 10).unwrap(),
-        GridCell::new(11, 11).unwrap(),
-        grid_dims,
-    )
+    let start_region = grid_dims.create_region(GridCell::new(10, 10).unwrap(), GridCell::new(11, 11).unwrap())
     .unwrap();
 
     let config = GameConfig {
@@ -61,11 +57,7 @@ pub fn create_test_game_with_preambles_and_stage(script: &str, stage: GameStage)
     let field = Field::from_meters(100.0, 60.0, 26, 44);
     let grid_dims = field.grid_dimensions();
 
-    let start_region = Region::new(
-        GridCell::new(10, 10).unwrap(),
-        GridCell::new(11, 11).unwrap(),
-        grid_dims,
-    )
+    let start_region = grid_dims.create_region(GridCell::new(10, 10).unwrap(), GridCell::new(11, 11).unwrap())
     .unwrap();
 
     // Load preambles from files (CARGO_MANIFEST_DIR points to ynwa-script-tests)
@@ -116,11 +108,7 @@ pub fn create_test_game_with_preambles_and_zones(script: &str, zones: Vec<Zone>)
     let field = builder.build();
 
     let grid_dims = field.grid_dimensions();
-    let start_region = Region::new(
-        GridCell::new(10, 10).unwrap(),
-        GridCell::new(11, 11).unwrap(),
-        grid_dims,
-    )
+    let start_region = grid_dims.create_region(GridCell::new(10, 10).unwrap(), GridCell::new(11, 11).unwrap())
     .unwrap();
 
     let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set");

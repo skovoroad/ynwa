@@ -36,7 +36,7 @@ pub fn flip_region_orientation(
     let new_bottom_right = flip_grid_cell_orientation(&region.bottom_right, grid_dims)?;
 
     // Swap corners to maintain top_left <= bottom_right after flip
-    Region::new(new_bottom_right, new_top_left, grid_dims)
+    Ok(Region::new(new_bottom_right, new_top_left))
 }
 
 /// Flips a point's orientation for the opposite team.

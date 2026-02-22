@@ -454,18 +454,13 @@ mod tests {
     use super::*;
     use crate::field::Field;
     use crate::game::{BallDef, GameConfig, PlayerDef, RefereeDef};
-    use crate::region::{GridCell, Region};
+    use crate::region::{GridCell};
 
     fn create_test_game_with_script(script: &str) -> Game {
         let field = Field::from_meters(100.0, 60.0, 26, 44);
         let grid_dims = field.grid_dimensions();
 
-        let start_region = Region::new(
-            GridCell::new(10, 10).unwrap(),
-            GridCell::new(11, 11).unwrap(),
-            grid_dims,
-        )
-        .unwrap();
+        let start_region = grid_dims.create_region(GridCell::new(10, 10).unwrap(), GridCell::new(11, 11).unwrap()).unwrap();
 
         let config = GameConfig {
             field,
@@ -619,12 +614,7 @@ mod tests {
         let field = Field::from_meters(100.0, 60.0, 26, 44);
         let grid_dims = field.grid_dimensions();
 
-        let start_region = Region::new(
-            GridCell::new(10, 10).unwrap(),
-            GridCell::new(11, 11).unwrap(),
-            grid_dims,
-        )
-        .unwrap();
+        let start_region = grid_dims.create_region(GridCell::new(10, 10).unwrap(), GridCell::new(11, 11).unwrap()).unwrap();
 
         let stdlib_preamble = r#"
             function prepare(reason)
@@ -667,12 +657,7 @@ mod tests {
         let grid_dims = field.grid_dimensions();
 
         // Create a region: columns 10-12 (Z axis), rows 20-22 (X axis)
-        let start_region = Region::new(
-            GridCell::new(10, 20).unwrap(),
-            GridCell::new(12, 22).unwrap(),
-            grid_dims,
-        )
-        .unwrap();
+        let start_region = grid_dims.create_region(GridCell::new(10, 20).unwrap(), GridCell::new(12, 22).unwrap()).unwrap();
 
         let script = r#"
             function make_decision()
@@ -746,12 +731,7 @@ mod tests {
         let grid_dims = field.grid_dimensions();
 
         // Create a region: columns 10-12 (Z axis), rows 20-22 (X axis)
-        let start_region = Region::new(
-            GridCell::new(10, 20).unwrap(),
-            GridCell::new(12, 22).unwrap(),
-            grid_dims,
-        )
-        .unwrap();
+        let start_region = grid_dims.create_region(GridCell::new(10, 20).unwrap(), GridCell::new(12, 22).unwrap()).unwrap();
 
         let script = r#"
             function make_decision()
@@ -839,12 +819,7 @@ mod tests {
             .build();
 
         let grid_dims = field.grid_dimensions();
-        let start_region = Region::new(
-            GridCell::new(1, 1).unwrap(),
-            GridCell::new(2, 2).unwrap(),
-            grid_dims,
-        )
-        .unwrap();
+        let start_region = grid_dims.create_region(GridCell::new(1, 1).unwrap(), GridCell::new(2, 2).unwrap()).unwrap();
 
         let test_logic = r#"
             local zone = GAME_DATA.zones.test_zone_a
@@ -928,12 +903,7 @@ mod tests {
         let field = Field::from_meters(100.0, 60.0, 26, 44);
         let grid_dims = field.grid_dimensions();
 
-        let start_region = Region::new(
-            GridCell::new(13, 22).unwrap(),
-            GridCell::new(13, 22).unwrap(),
-            grid_dims,
-        )
-        .unwrap();
+        let start_region = grid_dims.create_region(GridCell::new(13, 22).unwrap(), GridCell::new(13, 22).unwrap()).unwrap();
 
         // Script that returns ball owner_team
         let script = r#"

@@ -28,9 +28,7 @@ fn convert_decision_to_display_orientation(
             let flipped_target = match target {
                 DecisionTarget::Region(region) => {
                     let flipped = region.flip_orientation(grid_dimensions).unwrap();
-                    let display_region =
-                        Region::new_unchecked(flipped.top_left, flipped.bottom_right);
-                    DecisionTarget::Region(display_region)
+                    DecisionTarget::Region(Region::new(flipped.top_left, flipped.bottom_right))
                 }
                 DecisionTarget::GridCell(cell) => {
                     DecisionTarget::GridCell(cell.flip_orientation(grid_dimensions).unwrap())
@@ -54,18 +52,15 @@ fn convert_decision_to_display_orientation(
 mod tests {
     use super::*;
     use crate::field::zones::Point3D;
-    use crate::region::{GridCell, GridDimensions, Region};
+    use crate::region::{GridCell, GridDimensions};
     use uom::si::length::meter;
 
     #[test]
     fn test_convert_decision_team_a_unchanged() {
         let grid_dims = GridDimensions::new(26, 44);
-        let region = Region::new(
-            GridCell::new(1, 1).unwrap(),
-            GridCell::new(2, 2).unwrap(),
-            grid_dims,
-        )
-        .unwrap();
+        let region = grid_dims
+            .create_region(GridCell::new(1, 1).unwrap(), GridCell::new(2, 2).unwrap())
+            .unwrap();
         let decision = Decision::Run(DecisionTarget::Region(region.clone()));
         let converted =
             convert_decision_to_display_orientation(&decision, Team::A, 100.0, 60.0, grid_dims);
@@ -91,12 +86,9 @@ mod tests {
     #[test]
     fn test_convert_decision_team_b_region_flipped() {
         let grid_dims = GridDimensions::new(26, 44);
-        let region_b = Region::new(
-            GridCell::new(1, 1).unwrap(),
-            GridCell::new(1, 1).unwrap(),
-            grid_dims,
-        )
-        .unwrap();
+        let region_b = grid_dims
+            .create_region(GridCell::new(1, 1).unwrap(), GridCell::new(1, 1).unwrap())
+            .unwrap();
 
         let decision = Decision::Run(DecisionTarget::Region(region_b));
         let converted =

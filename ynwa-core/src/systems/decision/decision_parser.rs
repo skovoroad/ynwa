@@ -102,10 +102,6 @@ fn parse_cell_target(value: &serde_json::Value) -> Result<DecisionTarget, Decisi
     Ok(DecisionTarget::GridCell(cell))
 }
 
-/// Parse region target from JSON structure
-///
-/// Note: Creates region without bounds validation using `new_unchecked`.
-/// Validation will happen later in the decision system when the region is used.
 fn parse_region_target(value: &serde_json::Value) -> Result<DecisionTarget, DecisionError> {
     // Deserialize using serde
     let region_target: LuaRegionTarget = serde_json::from_value(value.clone()).map_err(|e| {
@@ -126,8 +122,8 @@ fn parse_region_target(value: &serde_json::Value) -> Result<DecisionTarget, Deci
         DecisionError::RuntimeError(format!("Invalid 'to' cell '{}': {}", region_target.to, e))
     })?;
 
-    // new_unchecked: no grid dimensions available here; validation happens later in ActionSystem
-    let region = Region::new_unchecked(from_cell, to_cell);
+    // No grid dimensions here; bounds validation happens later in ActionSystem
+    let region = Region::new(from_cell, to_cell);
 
     Ok(DecisionTarget::Region(region))
 }

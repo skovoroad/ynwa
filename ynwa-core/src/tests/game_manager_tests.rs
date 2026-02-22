@@ -2,7 +2,7 @@ use super::*;
 use crate::field::zones::Point3D;
 use crate::field::Field;
 use crate::game::{BallDef, GameConfig, GameStage, PlayerDef, RefereeDef};
-use crate::region::{GridCell, Region};
+use crate::region::{GridCell};
 use crate::team::Team;
 use uom::si::f32::Length;
 use uom::si::length::meter;
@@ -11,12 +11,7 @@ fn create_test_game_setup() -> Game {
     let field = Field::from_meters(100.0, 60.0, 26, 44);
     let grid_dims = field.grid_dimensions();
 
-    let start_region = Region::new(
-        GridCell::new(10, 10).unwrap(),
-        GridCell::new(11, 11).unwrap(),
-        grid_dims,
-    )
-    .unwrap();
+    let start_region = grid_dims.create_region(GridCell::new(10, 10).unwrap(), GridCell::new(11, 11).unwrap()).unwrap();
 
     let config = GameConfig {
         field,
@@ -146,12 +141,7 @@ fn test_transition_to_play_when_all_ready() {
 fn test_no_updates_in_play_stage() {
     let field = Field::from_meters(100.0, 60.0, 26, 44);
     let grid_dims = field.grid_dimensions();
-    let start_region = Region::new(
-        GridCell::new(10, 10).unwrap(),
-        GridCell::new(11, 11).unwrap(),
-        grid_dims,
-    )
-    .unwrap();
+    let start_region = grid_dims.create_region(GridCell::new(10, 10).unwrap(), GridCell::new(11, 11).unwrap()).unwrap();
 
     let config = GameConfig {
         field,
@@ -203,12 +193,7 @@ fn test_game_resumes_after_event_triggered_setup() {
         .build();
 
     let grid_dims = field.grid_dimensions();
-    let start_region = Region::new(
-        GridCell::new(10, 10).unwrap(),
-        GridCell::new(11, 11).unwrap(),
-        grid_dims,
-    )
-    .unwrap();
+    let start_region = grid_dims.create_region(GridCell::new(10, 10).unwrap(), GridCell::new(11, 11).unwrap()).unwrap();
 
     let config = GameConfig {
         field,
@@ -292,12 +277,7 @@ fn test_game_resumes_after_event_triggered_setup() {
 fn test_ball_resets_to_initial_position_in_setup() {
     let field = Field::from_meters(100.0, 60.0, 26, 44);
     let grid_dims = field.grid_dimensions();
-    let start_region = Region::new(
-        GridCell::new(10, 10).unwrap(),
-        GridCell::new(11, 11).unwrap(),
-        grid_dims,
-    )
-    .unwrap();
+    let start_region = grid_dims.create_region(GridCell::new(10, 10).unwrap(), GridCell::new(11, 11).unwrap()).unwrap();
 
     let initial_ball_position = Point3D::new(
         Length::new::<meter>(50.0), // Center of field length

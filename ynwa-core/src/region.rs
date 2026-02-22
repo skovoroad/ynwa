@@ -21,9 +21,59 @@ pub struct GridDimensions {
 }
 
 impl GridDimensions {
-    /// Creates new grid dimensions
     pub fn new(columns: u32, rows: u32) -> Self {
         Self { columns, rows }
+    }
+
+    /// Creates a region validated against this grid's bounds.
+    pub fn create_region(
+        &self,
+        top_left: GridCell,
+        bottom_right: GridCell,
+    ) -> Result<Region, RegionError> {
+        if top_left.col > bottom_right.col {
+            return Err(RegionError::InvalidRegion(
+                "Top-left column must be <= bottom-right column".to_string(),
+            ));
+        }
+        if top_left.row > bottom_right.row {
+            return Err(RegionError::InvalidRegion(
+                "Top-left row must be <= bottom-right row".to_string(),
+            ));
+        }
+        if top_left.col == 0 || top_left.col > self.columns {
+            return Err(RegionError::ColumnOutOfBounds {
+                col: top_left.col,
+                max: self.columns,
+            });
+        }
+        if bottom_right.col == 0 || bottom_right.col > self.columns {
+            return Err(RegionError::ColumnOutOfBounds {
+                col: bottom_right.col,
+                max: self.columns,
+            });
+        }
+        if top_left.row == 0 || top_left.row > self.rows {
+            return Err(RegionError::RowOutOfBounds {
+                row: top_left.row,
+                max: self.rows,
+            });
+        }
+        if bottom_right.row == 0 || bottom_right.row > self.rows {
+            return Err(RegionError::RowOutOfBounds {
+                row: bottom_right.row,
+                max: self.rows,
+            });
+        }
+        Ok(Region {
+            top_left,
+            bottom_right,
+        })
+    }
+
+    /// Parses a region from grid notation (e.g. "A1:B2") validated against this grid.
+    pub fn parse_region(&self, notation: &str) -> Result<Region, RegionError> {
+        Region::from_grid_notation(notation, *self)
     }
 }
 
@@ -198,58 +248,10 @@ pub struct Region {
 }
 
 impl Region {
-    /// Creates a region with validation that cells are within grid bounds.
-    pub fn new(
-        top_left: GridCell,
-        bottom_right: GridCell,
-        grid_dims: GridDimensions,
-    ) -> Result<Self, RegionError> {
-        if top_left.col > bottom_right.col {
-            return Err(RegionError::InvalidRegion(
-                "Top-left column must be <= bottom-right column".to_string(),
-            ));
-        }
-        if top_left.row > bottom_right.row {
-            return Err(RegionError::InvalidRegion(
-                "Top-left row must be <= bottom-right row".to_string(),
-            ));
-        }
-
-        // Validate cells are within grid bounds (1-based)
-        if top_left.col == 0 || top_left.col > grid_dims.columns {
-            return Err(RegionError::ColumnOutOfBounds {
-                col: top_left.col,
-                max: grid_dims.columns,
-            });
-        }
-        if bottom_right.col == 0 || bottom_right.col > grid_dims.columns {
-            return Err(RegionError::ColumnOutOfBounds {
-                col: bottom_right.col,
-                max: grid_dims.columns,
-            });
-        }
-        if top_left.row == 0 || top_left.row > grid_dims.rows {
-            return Err(RegionError::RowOutOfBounds {
-                row: top_left.row,
-                max: grid_dims.rows,
-            });
-        }
-        if bottom_right.row == 0 || bottom_right.row > grid_dims.rows {
-            return Err(RegionError::RowOutOfBounds {
-                row: bottom_right.row,
-                max: grid_dims.rows,
-            });
-        }
-
-        Ok(Self {
-            top_left,
-            bottom_right,
-        })
-    }
-
-    /// Creates a region without validation. Use with caution.
-    /// This is useful when parsing from user scripts where validation will happen later.
-    pub fn new_unchecked(top_left: GridCell, bottom_right: GridCell) -> Self {
+    /// Creates a region without bounds validation.
+    /// Use when cells are already known to be valid (e.g. produced by flip operations).
+    /// For user-supplied data use `GridDimensions::create_region`.
+    pub fn new(top_left: GridCell, bottom_right: GridCell) -> Self {
         Self {
             top_left,
             bottom_right,
@@ -355,7 +357,7 @@ impl Region {
             }
         };
 
-        Region::new(top_left, bottom_right, grid_dims)
+        grid_dims.create_region(top_left, bottom_right)
     }
 }
 

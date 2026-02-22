@@ -2,7 +2,7 @@ use super::*;
 use crate::field::zones::{Point3D, Velocity3D};
 use crate::field::Field;
 use crate::game::{BallDef, GameConfig, PlayerDef, PlayerState, RefereeDef};
-use crate::region::{GridCell, Region};
+use crate::region::{GridCell};
 use crate::team::Team;
 
 fn create_test_field() -> Field {
@@ -16,12 +16,7 @@ fn create_test_player(
     position: Point3D,
 ) -> (PlayerDef, PlayerState) {
     let grid_dims = create_test_field().grid_dimensions();
-    let start_region = Region::new(
-        GridCell::new(1, 1).unwrap(),
-        GridCell::new(1, 1).unwrap(),
-        grid_dims,
-    )
-    .unwrap();
+    let start_region = grid_dims.create_region(GridCell::new(1, 1).unwrap(), GridCell::new(1, 1).unwrap()).unwrap();
 
     let player_def = PlayerDef::new(
         team,

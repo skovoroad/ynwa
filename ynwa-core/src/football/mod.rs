@@ -96,11 +96,7 @@ mod tests {
         let mut players = Vec::new();
         for i in 0..11 {
             let row = i + 1;
-            let start_region = Region::new(
-                GridCell::new(1, row).unwrap(),
-                GridCell::new(2, row).unwrap(),
-                grid_dims,
-            )
+            let start_region = grid_dims.create_region(GridCell::new(1, row).unwrap(), GridCell::new(2, row).unwrap())
             .unwrap();
 
             players.push(PlayerDef::new(
@@ -113,11 +109,7 @@ mod tests {
         }
         for i in 0..11 {
             let row = i + 1;
-            let start_region = Region::new(
-                GridCell::new(25, row).unwrap(),
-                GridCell::new(26, row).unwrap(),
-                grid_dims,
-            )
+            let start_region = grid_dims.create_region(GridCell::new(25, row).unwrap(), GridCell::new(26, row).unwrap())
             .unwrap();
 
             players.push(PlayerDef::new(
