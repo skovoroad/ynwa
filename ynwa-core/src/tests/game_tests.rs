@@ -1,0 +1,328 @@
+use super::*;
+use crate::region::GridCell;
+
+fn create_test_config() -> GameConfig {
+    let field = Field::from_meters(100.0, 60.0, 26, 44);
+    let grid_dims = field.grid_dimensions();
+
+    let start_region_a1 = Region::new(
+        Team::A,
+        GridCell::new(1, 1).unwrap(),
+        GridCell::new(2, 2).unwrap(),
+        grid_dims,
+    )
+    .unwrap();
+
+    let start_region_a2 = Region::new(
+        Team::A,
+        GridCell::new(3, 3).unwrap(),
+        GridCell::new(4, 4).unwrap(),
+        grid_dims,
+    )
+    .unwrap();
+
+    let start_region_b = Region::new(
+        Team::B,
+        GridCell::new(20, 20).unwrap(),
+        GridCell::new(21, 21).unwrap(),
+        grid_dims,
+    )
+    .unwrap();
+
+    let attack_region_a1 = Region::new(
+        Team::A,
+        GridCell::new(1, 1).unwrap(),
+        GridCell::new(2, 2).unwrap(),
+        grid_dims,
+    )
+    .unwrap();
+
+    let attack_region_a2 = Region::new(
+        Team::A,
+        GridCell::new(3, 3).unwrap(),
+        GridCell::new(4, 4).unwrap(),
+        grid_dims,
+    )
+    .unwrap();
+
+    let attack_region_b = Region::new(
+        Team::B,
+        GridCell::new(20, 20).unwrap(),
+        GridCell::new(21, 21).unwrap(),
+        grid_dims,
+    )
+    .unwrap();
+
+    let defence_region_a1 = Region::new(
+        Team::A,
+        GridCell::new(1, 3).unwrap(),
+        GridCell::new(2, 4).unwrap(),
+        grid_dims,
+    )
+    .unwrap();
+
+    let defence_region_a2 = Region::new(
+        Team::A,
+        GridCell::new(3, 5).unwrap(),
+        GridCell::new(4, 6).unwrap(),
+        grid_dims,
+    )
+    .unwrap();
+
+    let defence_region_b = Region::new(
+        Team::B,
+        GridCell::new(20, 22).unwrap(),
+        GridCell::new(21, 23).unwrap(),
+        grid_dims,
+    )
+    .unwrap();
+
+    GameConfig {
+        field,
+        players: vec![
+            PlayerDef::new(
+                Team::A,
+                1,
+                "Player A1".to_string(),
+                "function make_decision() return {} end".to_string(),
+                start_region_a1,
+            )
+            .with_attack_position(attack_region_a1)
+            .with_defence_position(defence_region_a1),
+            PlayerDef::new(
+                Team::A,
+                2,
+                "Player A2".to_string(),
+                "function make_decision() return {} end".to_string(),
+                start_region_a2,
+            )
+            .with_attack_position(attack_region_a2)
+            .with_defence_position(defence_region_a2),
+            PlayerDef::new(
+                Team::B,
+                1,
+                "Player B1".to_string(),
+                "function make_decision() return {} end".to_string(),
+                start_region_b,
+            )
+            .with_attack_position(attack_region_b)
+            .with_defence_position(defence_region_b),
+        ],
+        ball: BallDef::default(),
+        referees: vec![RefereeDef::default()],
+        scripting: ScriptingConfig::empty(),
+    }
+}
+
+#[test]
+fn test_state_indices_match_config() {
+    let config = create_test_config();
+    let player_count = config.players.len();
+
+    let game = Game::new(config);
+
+    assert_eq!(game.state().player_states.len(), player_count);
+}
+
+#[test]
+fn test_step_updates_time() {
+    let config = create_test_config();
+    let mut game = Game::new(config);
+
+    game.step(0.016);
+    assert!((game.state().elapsed_time - 0.016).abs() < 0.001);
+}
+
+#[test]
+fn test_player_initial_position_from_start_region() {
+    let config = create_test_config();
+    let game = Game::with_stage(config, GameStage::Play);
+
+    let cell_width =
+        game.config().field.width().get::<meter>() / game.config().field.grid_columns() as f32;
+
+    let expected_a1_x = 1.0 * cell_width;
+    let expected_a1_z = 1.0 * cell_width;
+    let expected_a2_x = 3.0 * cell_width;
+    let expected_a2_z = 3.0 * cell_width;
+    let expected_b1_x = 20.0 * cell_width;
+    let expected_b1_z = 20.0 * cell_width;
+
+    assert_eq!(game.state().player_states.len(), 3);
+
+    let tolerance = 0.01;
+
+    assert!(
+        (game.state().player_states[0].position.x.get::<meter>() - expected_a1_x).abs()
+            < tolerance
+    );
+    assert!(
+        (game.state().player_states[0].position.z.get::<meter>() - expected_a1_z).abs()
+            < tolerance
+    );
+    assert!(
+        (game.state().player_states[1].position.x.get::<meter>() - expected_a2_x).abs()
+            < tolerance
+    );
+    assert!(
+        (game.state().player_states[1].position.z.get::<meter>() - expected_a2_z).abs()
+            < tolerance
+    );
+    assert!(
+        (game.state().player_states[2].position.x.get::<meter>() - expected_b1_x).abs()
+            < tolerance
+    );
+    assert!(
+        (game.state().player_states[2].position.z.get::<meter>() - expected_b1_z).abs()
+            < tolerance
+    );
+
+    for player_state in &game.state().player_states {
+        assert_eq!(player_state.position.y.get::<meter>(), 0.0);
+    }
+}
+
+#[test]
+fn test_convert_decision_team_a_unchanged() {
+    let grid_dims = GridDimensions::new(26, 44);
+    let field_width = 100.0;
+    let field_height = 60.0;
+
+    let region = Region::new(
+        Team::A,
+        GridCell::new(1, 1).unwrap(),
+        GridCell::new(2, 2).unwrap(),
+        grid_dims,
+    )
+    .unwrap();
+    let decision = Decision::Run(DecisionTarget::Region(region.clone()));
+    let converted = convert_decision_to_display_orientation(
+        &decision,
+        Team::A,
+        field_width,
+        field_height,
+        grid_dims,
+    );
+
+    match converted {
+        Decision::Run(DecisionTarget::Region(r)) => {
+            assert_eq!(r.team, region.team);
+            assert_eq!(r.top_left, region.top_left);
+            assert_eq!(r.bottom_right, region.bottom_right);
+        }
+        _ => panic!("Expected Run(Region)"),
+    }
+
+    let decision = Decision::Stop;
+    let converted = convert_decision_to_display_orientation(
+        &decision,
+        Team::A,
+        field_width,
+        field_height,
+        grid_dims,
+    );
+    assert!(matches!(converted, Decision::Stop));
+}
+
+#[test]
+fn test_convert_decision_team_b_region_flipped() {
+    let grid_dims = GridDimensions::new(26, 44);
+    let field_width = 100.0;
+    let field_height = 60.0;
+
+    let region_b = Region::new(
+        Team::B,
+        GridCell::new(1, 1).unwrap(),
+        GridCell::new(1, 1).unwrap(),
+        grid_dims,
+    )
+    .unwrap();
+
+    let decision = Decision::Run(DecisionTarget::Region(region_b));
+    let converted = convert_decision_to_display_orientation(
+        &decision,
+        Team::B,
+        field_width,
+        field_height,
+        grid_dims,
+    );
+
+    match converted {
+        Decision::Run(DecisionTarget::Region(r)) => {
+            assert_eq!(r.team, Team::A);
+            // A1 for Team B = R44 for Team A (column 26, row 44 in 26x44 grid)
+            assert_eq!(r.top_left, GridCell::new(26, 44).unwrap());
+            assert_eq!(r.bottom_right, GridCell::new(26, 44).unwrap());
+        }
+        _ => panic!("Expected Run(Region)"),
+    }
+}
+
+#[test]
+fn test_convert_decision_team_b_cell_flipped() {
+    let grid_dims = GridDimensions::new(26, 44);
+    let field_width = 100.0;
+    let field_height = 60.0;
+
+    let cell_b = GridCell::new(1, 1).unwrap();
+    let decision = Decision::Run(DecisionTarget::GridCell(cell_b));
+    let converted = convert_decision_to_display_orientation(
+        &decision,
+        Team::B,
+        field_width,
+        field_height,
+        grid_dims,
+    );
+
+    match converted {
+        Decision::Run(DecisionTarget::GridCell(c)) => {
+            assert_eq!(c, GridCell::new(26, 44).unwrap());
+        }
+        _ => panic!("Expected Run(GridCell)"),
+    }
+}
+
+#[test]
+fn test_convert_decision_team_b_point_flipped() {
+    let grid_dims = GridDimensions::new(26, 44);
+    let field_width = 100.0;
+    let field_height = 60.0;
+
+    // Team B point at (20, 1, 15) should flip to (80, 1, 45)
+    let point_b = Point3D::from_meters(20.0, 1.0, 15.0);
+    let decision = Decision::Run(DecisionTarget::Point(point_b));
+    let converted = convert_decision_to_display_orientation(
+        &decision,
+        Team::B,
+        field_width,
+        field_height,
+        grid_dims,
+    );
+
+    match converted {
+        Decision::Run(DecisionTarget::Point(p)) => {
+            assert_eq!(p.x.get::<meter>(), 80.0);
+            assert_eq!(p.y.get::<meter>(), 1.0);
+            assert_eq!(p.z.get::<meter>(), 45.0);
+        }
+        _ => panic!("Expected Run(Point)"),
+    }
+}
+
+#[test]
+fn test_convert_decision_team_b_stop_unchanged() {
+    let grid_dims = GridDimensions::new(26, 44);
+    let field_width = 100.0;
+    let field_height = 60.0;
+
+    let decision = Decision::Stop;
+    let converted = convert_decision_to_display_orientation(
+        &decision,
+        Team::B,
+        field_width,
+        field_height,
+        grid_dims,
+    );
+
+    assert!(matches!(converted, Decision::Stop));
+}

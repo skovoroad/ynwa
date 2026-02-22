@@ -186,6 +186,7 @@ System execution order (important for correct operation):
 3. **Meaningful tests:** Check real system behavior, not obvious facts
 4. **Unit tests mandatory:** When adding new functionality, always create unit tests verifying correct operation
 5. **No examples and integration tests by default:** Don't add example applications (examples/) and integration tests without explicit user request. Focus on unit tests inside modules
+6. **Separate test files:** Unit tests live in `*_tests.rs` files next to the implementation. Connect via `#[cfg(test)] #[path = "foo_tests.rs"] mod tests;`. This keeps implementation files focused and reduces AI context window usage.
 
 ### Documentation
 
