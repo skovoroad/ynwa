@@ -1,9 +1,8 @@
 // Integration tests: verify stdlib functions
 
 use ynwa_core::systems::decision::{DecisionSystem, ScriptedDecisionMaker};
-use ynwa_core::systems::player_reaction::PlayerReactionSystem;
 use ynwa_core::System;
-use ynwa_script_tests::create_test_game_with_preambles;
+use ynwa_script_tests::{create_test_game_with_preambles, request_decisions_for_all};
 
 // Stub make_decision() that does nothing - required by game engine
 const MAKE_DECISION_STUB: &str = r#"
@@ -56,8 +55,7 @@ test_core_functions()
     let script = format!("{}{}", test_script, MAKE_DECISION_STUB);
     let mut game = create_test_game_with_preambles(&script);
 
-    let mut reaction_system = PlayerReactionSystem::new();
-    reaction_system.update(&mut game, 1.0);
+    request_decisions_for_all(&mut game);
 
     let decision_maker =
         ScriptedDecisionMaker::new(&game).expect("Failed to create ScriptedDecisionMaker");
@@ -95,8 +93,7 @@ test_distance()
     let script = format!("{}{}", test_script, MAKE_DECISION_STUB);
     let mut game = create_test_game_with_preambles(&script);
 
-    let mut reaction_system = PlayerReactionSystem::new();
-    reaction_system.update(&mut game, 1.0);
+    request_decisions_for_all(&mut game);
 
     let decision_maker =
         ScriptedDecisionMaker::new(&game).expect("Failed to create ScriptedDecisionMaker");
@@ -136,8 +133,7 @@ test_ball_ownership()
     let script = format!("{}{}", test_script, MAKE_DECISION_STUB);
     let mut game = create_test_game_with_preambles(&script);
 
-    let mut reaction_system = PlayerReactionSystem::new();
-    reaction_system.update(&mut game, 1.0);
+    request_decisions_for_all(&mut game);
 
     let decision_maker =
         ScriptedDecisionMaker::new(&game).expect("Failed to create ScriptedDecisionMaker");
@@ -188,8 +184,7 @@ test_opponent_team()
     let script = format!("{}{}", test_script, MAKE_DECISION_STUB);
     let mut game = create_test_game_with_preambles(&script);
 
-    let mut reaction_system = PlayerReactionSystem::new();
-    reaction_system.update(&mut game, 1.0);
+    request_decisions_for_all(&mut game);
 
     let decision_maker =
         ScriptedDecisionMaker::new(&game).expect("Failed to create ScriptedDecisionMaker");
@@ -246,8 +241,7 @@ test_is_in_zone()
     let script = format!("{}{}", test_script, MAKE_DECISION_STUB);
     let mut game = create_test_game_with_preambles(&script);
 
-    let mut reaction_system = PlayerReactionSystem::new();
-    reaction_system.update(&mut game, 1.0);
+    request_decisions_for_all(&mut game);
 
     let decision_maker =
         ScriptedDecisionMaker::new(&game).expect("Failed to create ScriptedDecisionMaker");
@@ -283,8 +277,7 @@ test_penalty_area()
     let script = format!("{}{}", test_script, MAKE_DECISION_STUB);
     let mut game = create_test_game_with_preambles(&script);
 
-    let mut reaction_system = PlayerReactionSystem::new();
-    reaction_system.update(&mut game, 1.0);
+    request_decisions_for_all(&mut game);
 
     let decision_maker =
         ScriptedDecisionMaker::new(&game).expect("Failed to create ScriptedDecisionMaker");

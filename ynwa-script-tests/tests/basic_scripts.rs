@@ -3,10 +3,10 @@
 use uom::si::length::meter;
 use ynwa_core::game::{Decision, DecisionTarget};
 use ynwa_core::systems::decision::{DecisionSystem, ScriptedDecisionMaker};
-use ynwa_core::systems::player_reaction::PlayerReactionSystem;
 use ynwa_core::System;
 use ynwa_script_tests::{
     create_test_game_with_preambles, create_test_game_with_script, load_test_script,
+    request_decisions_for_all,
 };
 
 /// Helper function to test that a Lua script produces expected decision type
@@ -18,9 +18,7 @@ fn test_script_produces_decision(
     // Create game with inline script
     let mut game = create_test_game_with_script(script);
 
-    // Use PlayerReactionSystem to set needs_decision flag
-    let mut reaction_system = PlayerReactionSystem::new();
-    reaction_system.update(&mut game, 1.0); // 1 second should trigger reaction
+    request_decisions_for_all(&mut game);
 
     // Create decision system with ScriptedDecisionMaker
     let decision_maker =
@@ -239,9 +237,7 @@ fn test_context_structure() {
     // Create game with test script
     let mut game = create_test_game_with_script(script);
 
-    // Trigger decision
-    let mut reaction_system = PlayerReactionSystem::new();
-    reaction_system.update(&mut game, 1.0);
+    request_decisions_for_all(&mut game);
 
     let decision_maker =
         ScriptedDecisionMaker::new(&game).expect("Failed to create ScriptedDecisionMaker");
@@ -275,9 +271,7 @@ fn test_kick_if_ball_owner() {
     // Create game with test script
     let mut game = create_test_game_with_preambles(&script);
 
-    // Trigger decision
-    let mut reaction_system = PlayerReactionSystem::new();
-    reaction_system.update(&mut game, 1.0);
+    request_decisions_for_all(&mut game);
 
     let decision_maker =
         ScriptedDecisionMaker::new(&game).expect("Failed to create ScriptedDecisionMaker");
@@ -347,8 +341,7 @@ fn test_ball_owner_team_context() {
     let mut game = create_test_game_with_script(script);
     game.state.ball_state.last_possessing_team = None;
 
-    let mut reaction_system = PlayerReactionSystem::new();
-    reaction_system.update(&mut game, 1.0);
+    request_decisions_for_all(&mut game);
 
     let decision_maker =
         ScriptedDecisionMaker::new(&game).expect("Failed to create ScriptedDecisionMaker");
@@ -371,8 +364,7 @@ fn test_ball_owner_team_context() {
     let mut game = create_test_game_with_script(script);
     game.state.ball_state.last_possessing_team = Some(Team::A);
 
-    let mut reaction_system = PlayerReactionSystem::new();
-    reaction_system.update(&mut game, 1.0);
+    request_decisions_for_all(&mut game);
 
     let decision_maker =
         ScriptedDecisionMaker::new(&game).expect("Failed to create ScriptedDecisionMaker");
@@ -398,8 +390,7 @@ fn test_ball_owner_team_context() {
     let mut game = create_test_game_with_script(script);
     game.state.ball_state.last_possessing_team = Some(Team::B);
 
-    let mut reaction_system = PlayerReactionSystem::new();
-    reaction_system.update(&mut game, 1.0);
+    request_decisions_for_all(&mut game);
 
     let decision_maker =
         ScriptedDecisionMaker::new(&game).expect("Failed to create ScriptedDecisionMaker");

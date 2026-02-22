@@ -6,8 +6,8 @@ use ynwa_core::game::{BallDef, Decision, DecisionTarget, Game, GameConfig, Playe
 use ynwa_core::region::{GridCell};
 use ynwa_core::system::System;
 use ynwa_core::systems::decision::{DecisionSystem, ScriptedDecisionMaker};
-use ynwa_core::systems::player_reaction::PlayerReactionSystem;
 use ynwa_core::team::Team;
+use ynwa_script_tests::request_decisions_for_all;
 
 /// Helper function to create a test game with a specific script for a team.
 /// Uses the standard football field from the single source of truth: create_football_field().
@@ -55,12 +55,10 @@ fn test_team_a_cell_unchanged() {
     .to_string();
 
     let mut game = create_game_with_team_script(Team::A, script);
-    let mut reaction_system = PlayerReactionSystem::new();
     let mut decision_system = DecisionSystem::new()
         .with_decision_maker(Box::new(ScriptedDecisionMaker::new(&game).unwrap()));
 
-    // Trigger decision
-    reaction_system.update(&mut game, 0.0);
+    request_decisions_for_all(&mut game);
     decision_system.update(&mut game, 0.0);
 
     // Check decision
@@ -94,12 +92,10 @@ fn test_team_b_cell_flipped() {
     .to_string();
 
     let mut game = create_game_with_team_script(Team::B, script);
-    let mut reaction_system = PlayerReactionSystem::new();
     let mut decision_system = DecisionSystem::new()
         .with_decision_maker(Box::new(ScriptedDecisionMaker::new(&game).unwrap()));
 
-    // Trigger decision
-    reaction_system.update(&mut game, 0.0);
+    request_decisions_for_all(&mut game);
     decision_system.update(&mut game, 0.0);
 
     // Check decision
@@ -137,12 +133,10 @@ fn test_team_a_region_unchanged() {
     .to_string();
 
     let mut game = create_game_with_team_script(Team::A, script);
-    let mut reaction_system = PlayerReactionSystem::new();
     let mut decision_system = DecisionSystem::new()
         .with_decision_maker(Box::new(ScriptedDecisionMaker::new(&game).unwrap()));
 
-    // Trigger decision
-    reaction_system.update(&mut game, 0.0);
+    request_decisions_for_all(&mut game);
     decision_system.update(&mut game, 0.0);
 
     // Check decision
@@ -177,12 +171,10 @@ fn test_team_b_region_flipped() {
     .to_string();
 
     let mut game = create_game_with_team_script(Team::B, script);
-    let mut reaction_system = PlayerReactionSystem::new();
     let mut decision_system = DecisionSystem::new()
         .with_decision_maker(Box::new(ScriptedDecisionMaker::new(&game).unwrap()));
 
-    // Trigger decision
-    reaction_system.update(&mut game, 0.0);
+    request_decisions_for_all(&mut game);
     decision_system.update(&mut game, 0.0);
 
     // Check decision
@@ -228,12 +220,10 @@ fn test_team_b_point_flipped() {
     .to_string();
 
     let mut game = create_game_with_team_script(Team::B, script);
-    let mut reaction_system = PlayerReactionSystem::new();
     let mut decision_system = DecisionSystem::new()
         .with_decision_maker(Box::new(ScriptedDecisionMaker::new(&game).unwrap()));
 
-    // Trigger decision
-    reaction_system.update(&mut game, 0.0);
+    request_decisions_for_all(&mut game);
     decision_system.update(&mut game, 0.0);
 
     // Check decision
@@ -289,12 +279,10 @@ fn test_team_b_stop_unchanged() {
     .to_string();
 
     let mut game = create_game_with_team_script(Team::B, script);
-    let mut reaction_system = PlayerReactionSystem::new();
     let mut decision_system = DecisionSystem::new()
         .with_decision_maker(Box::new(ScriptedDecisionMaker::new(&game).unwrap()));
 
-    // Trigger decision
-    reaction_system.update(&mut game, 0.0);
+    request_decisions_for_all(&mut game);
     decision_system.update(&mut game, 0.0);
 
     // Check decision

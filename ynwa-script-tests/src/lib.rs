@@ -36,6 +36,13 @@ pub fn create_test_game_with_script_and_stage(script: &str, stage: GameStage) ->
     Game::with_stage(config, stage)
 }
 
+/// Sets `needs_decision = true` for all players, bypassing PlayerReactionSystem timing logic.
+pub fn request_decisions_for_all(game: &mut ynwa_core::game::Game) {
+    for state in game.state.player_states.iter_mut() {
+        state.needs_decision = true;
+    }
+}
+
 /// Load a test script from ynwa-scripts/test-scripts/
 pub fn load_test_script(name: &str) -> String {
     let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set");

@@ -2,10 +2,9 @@
 use ynwa_core::field::zones::{Rectangle, ZoneGeometry};
 use ynwa_core::field::Zone;
 use ynwa_core::systems::decision::{DecisionSystem, ScriptedDecisionMaker};
-use ynwa_core::systems::player_reaction::PlayerReactionSystem;
 use ynwa_core::team::Team;
 use ynwa_core::System;
-use ynwa_script_tests::create_test_game_with_preambles_and_zones;
+use ynwa_script_tests::{create_test_game_with_preambles_and_zones, request_decisions_for_all};
 
 const MAKE_DECISION_STUB: &str = r#"
 function make_decision()
@@ -64,8 +63,7 @@ test_shot_target()
     let script = format!("{}{}", test_script, MAKE_DECISION_STUB);
     let mut game = create_test_game_with_preambles_and_zones(&script, zones);
 
-    let mut reaction_system = PlayerReactionSystem::new();
-    reaction_system.update(&mut game, 1.0);
+    request_decisions_for_all(&mut game);
 
     let decision_maker =
         ScriptedDecisionMaker::new(&game).expect("Failed to create decision maker");
@@ -128,8 +126,7 @@ test_shot_target()
     let script = format!("{}{}", test_script, MAKE_DECISION_STUB);
     let mut game = create_test_game_with_preambles_and_zones(&script, zones);
 
-    let mut reaction_system = PlayerReactionSystem::new();
-    reaction_system.update(&mut game, 1.0);
+    request_decisions_for_all(&mut game);
 
     let decision_maker =
         ScriptedDecisionMaker::new(&game).expect("Failed to create decision maker");
@@ -190,8 +187,7 @@ test_case_insensitive()
     let script = format!("{}{}", test_script, MAKE_DECISION_STUB);
     let mut game = create_test_game_with_preambles_and_zones(&script, zones);
 
-    let mut reaction_system = PlayerReactionSystem::new();
-    reaction_system.update(&mut game, 1.0);
+    request_decisions_for_all(&mut game);
 
     let decision_maker =
         ScriptedDecisionMaker::new(&game).expect("Failed to create decision maker");
@@ -242,8 +238,7 @@ test_randomness()
     let script = format!("{}{}", test_script, MAKE_DECISION_STUB);
     let mut game = create_test_game_with_preambles_and_zones(&script, zones);
 
-    let mut reaction_system = PlayerReactionSystem::new();
-    reaction_system.update(&mut game, 1.0);
+    request_decisions_for_all(&mut game);
 
     let decision_maker =
         ScriptedDecisionMaker::new(&game).expect("Failed to create decision maker");
