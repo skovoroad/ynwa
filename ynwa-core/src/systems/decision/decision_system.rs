@@ -87,6 +87,7 @@ impl DecisionSystem {
         self
     }
 
+    // for now just for tests
     pub fn with_error_handler(
         mut self,
         handler: fn(&DecisionError, usize) -> Option<Decision>,

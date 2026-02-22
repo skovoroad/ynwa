@@ -18,24 +18,18 @@ impl System for FootballGameManager {
     fn update(&mut self, game: &mut Game, _timestamp: f32) {
         match &game.state.stage {
             GameStage::Setup(_stage_name) => {
-                // Reset ball to initial position during setup
                 game.state.ball_state.position = game.config().ball.initial_position.clone();
                 game.state.ball_state.velocity = crate::field::zones::Velocity3D::default();
-                
-                // Reset ball possession tracking
                 game.state.ball_state.possessed_by = None;
                 game.state.ball_state.last_possessing_team = None;
                 
-                // Any Setup stage: check if players are ready to resume
                 self.check_player_readiness(game);
 
-                // If all players are ready, transition to Play
                 if game.state.player_states.iter().all(|p| p.is_ready) {
                     game.state.stage = GameStage::Play;
                 }
             }
             GameStage::Play => {
-                // Check for game events
                 if let Some(event) = check_events(game) {
                     self.handle_event(game, event);
                 }

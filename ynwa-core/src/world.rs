@@ -1,41 +1,6 @@
-use crate::game::{Game, GameEvent};
+use crate::game::Game;
 use crate::system::System;
 
-/// World contains the game state and all systems that operate on it.
-///
-/// World is the main entry point for running a game simulation. It coordinates
-/// the game loop by executing all registered systems in sequence.
-///
-/// # Example
-///
-/// ```no_run
-/// use ynwa_core::football::create_football_world;
-/// use uom::si::length::meter;
-///
-/// // Create a football world with default systems
-/// let mut world = create_football_world();
-///
-/// // Game loop
-/// loop {
-///     // Update with fixed timestep (16.67ms ≈ 60 FPS)
-///     world.step(1.0 / 60.0);
-///     
-///     // Access game state
-///     let game = world.game();
-///     println!("Elapsed time: {:.2}s", game.state().elapsed_time);
-///     
-///     // Check player positions
-///     for (i, player) in game.state().player_states.iter().enumerate() {
-///         println!("Player {}: ({:.2}, {:.2})",
-///             i,
-///             player.position.x.get::<meter>(),
-///             player.position.z.get::<meter>());
-///     }
-/// }
-/// ```
-///
-/// Design: World owns Game and systems, coordinating the game loop.
-/// Systems receive &mut Game (not &mut World) to avoid borrow checker issues during iteration.
 pub struct World {
     game: Game,
     systems: Vec<Box<dyn System>>,
@@ -55,7 +20,7 @@ impl World {
     }
 
     /// Updates timestamp, executes all systems, then updates elapsed_time.
-    pub fn step(&mut self, delta_time: f32) -> Vec<GameEvent> {
+    pub fn step(&mut self, delta_time: f32) {
         let new_timestamp = self.game.state().elapsed_time + delta_time;
 
         for system in &mut self.systems {
@@ -63,8 +28,6 @@ impl World {
         }
 
         self.game.state.elapsed_time = new_timestamp;
-
-        Vec::new()
     }
 
     pub fn game(&self) -> &Game {

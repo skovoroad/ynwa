@@ -285,9 +285,6 @@ pub struct GameState {
     pub referee_states: Vec<RefereeState>,
 }
 
-#[derive(Debug, Clone)]
-pub enum GameEvent {}
-
 pub struct Game {
     config: GameConfig,
     pub state: GameState,
@@ -364,9 +361,8 @@ impl Game {
         }
     }
 
-    pub fn step(&mut self, delta_time: f32) -> Vec<GameEvent> {
+    pub fn step(&mut self, delta_time: f32) {
         self.state.elapsed_time += delta_time;
-        Vec::new()
     }
 
     pub fn state(&self) -> &GameState {

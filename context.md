@@ -22,7 +22,6 @@ The project is divided into independent modules using Rust workspace:
   - No dependencies on game domain types (no GridCell, Region, Point3D)
   - JSON-based contract: config → context → decision
   - Can be published separately and reused in other games
-  - 45 unit tests, 1,633 LOC
   
 - **Scripts (`ynwa-scripts`)** - Lua scripts library (data only, no Rust code)
   - `preambles/` - core.lua (elementary functions), stdlib.lua (utilities)
@@ -33,6 +32,7 @@ The project is divided into independent modules using Rust workspace:
 - **Clients** - applications using the core:
   - `ynwa-player` - local client, simulates the game locally and interacts with the player
   - Game server (future) - simulates multiple games, transmits data over network
+  - `ynwa-simulator` - local client, simulates the game locally and write the game to the file
   
 - **Test suites:**
   - `ynwa-script-tests` - integration tests for Lua scripts
@@ -47,7 +47,6 @@ Common traits of target games:
 - Team game on a playing field
 - Game object must be placed into a goal
 
-
 ### Deferred Aspects
 
 The following aspects are considered in the design but implementation is postponed:
@@ -59,7 +58,7 @@ The following aspects are considered in the design but implementation is postpon
 
 **Game API (`game.rs`):**
 - Poll-based model: client owns the game loop
-- API design: `step()` returns events, `state()` provides access to state
+- API design: `state()` provides access to state
 - Determinism through fixed timestep (controlled by client)
 
 **Entity Model:**
@@ -75,19 +74,18 @@ The following aspects are considered in the design but implementation is postpon
   - Calculates new timestamp = elapsed_time + delta_time
   - Calls update() for all systems with new timestamp
   - Updates game.state.elapsed_time
-  - Returns list of GameEvent events
 - Design decision: systems receive &mut Game instead of &mut World to avoid borrow checker issues during iteration over systems
 - Design decision: systems receive absolute timestamp instead of delta_time so they can store last update time and calculate intervals themselves
 
 **Football Module (`football/mod.rs`):**
-- Main API for creating football world: `create_football_world()`, `create_football_world_from_file()`, `create_football_world_from_toml()`
+- Main API for creating football world: `create_football_world_from_file()`
 - GameConfig creation functions are made private - clients work directly with World
 - Design decision: field is created inside the football module, external code has no direct access to field creation
 - Clients use ready-made world creation functions rather than manually constructing Game
 
 **Game Systems:**
 System execution order (important for correct operation):
-1. **FootballGameManager** - manages game stage transitions (Setup → Play)
+1. **FootballGameManager** - manages game stage transitions (Setup → Play), manages football-specific game logic for determining events (future)
 2. **PlayerReactionSystem** - determines when player is ready to accept new decision based on reaction_rate
 3. **BallPossessionSystem** - determines which player possesses the ball (see Ball Possession System section)
 4. **DecisionSystem** - creates decisions (Decision) for players using DecisionMaker trait
@@ -115,7 +113,6 @@ System execution order (important for correct operation):
 **Scripted Decision System (`systems/decision/scripted_decision_maker.rs`):**
 - **ScriptedDecisionMaker** - adapter between ynwa-core domain types and ynwa-decisions JSON API
   - Uses DecisionEngine from ynwa-decisions crate (one isolated Lua VM per player)
-  - 100ms timeout per script execution
   - Scripts loaded from GameConfig
   - Supports two decision functions: `make_decision()` (Play stage) and `prepare()` (Setup stage)
 - **JSON Contract:** ynwa-core ↔ ynwa-decisions communication via JSON
@@ -123,7 +120,7 @@ System execution order (important for correct operation):
   - `build_context()`: Game state → JSON context (~500 bytes)
     - Team B sees flipped coordinates (mirror across field center)
     - Includes: player position, teammates, opponents, ball (position + owner_index + owner_team), elapsed time
-    - Player regions with exact boundaries (min_x, max_x, min_z, max_z) calculated from GridCell coordinates
+    - Player named regions with exact boundaries (min_x, max_x, min_z, max_z) calculated from GridCell coordinates
   - `parse_json_decision()`: JSON decision → domain Decision type
     - Uses serde intermediate structures (LuaRegionTarget, LuaPointTarget)
     - Type-safe deserialization with automatic validation
@@ -167,14 +164,8 @@ System execution order (important for correct operation):
   - Can be published separately and reused in other games
   - ScriptedDecisionMaker adapts between JSON and game types using serde
   - Coordinate flipping for Team B happens at adapter boundaries, not in parser
-- Test coverage: 161 tests in ynwa-core + 47 tests in ynwa-decisions + 13 integration tests in ynwa-script-tests
+- Test coverage
   - Script tests verify preamble functions, context structure, and decision generation
-
-
-## TODO
-
-- [ ] Render game entities: players, ball, referees
-- [ ] Add memory limits for scripts (optional future enhancement)
 
 ## Development Principles
 
@@ -335,7 +326,7 @@ System execution order (important for correct operation):
 
 **Purpose:** Determines which player possesses the ball based on proximity and player characteristics.
 
-**System location:** Executes between PlayerReactionSystem and DecisionSystem in pipeline.
+**System location:** Executes between before DecisionSystem in pipeline.
 
 **Key parameters:**
 - `POSSESSION_RADIUS = 1.0m` - distance for possession contest
@@ -389,10 +380,11 @@ System execution order (important for correct operation):
 - Runs first in system pipeline
 - Monitors player readiness in Setup stage
 - Automatically transitions Setup → Play when all players are ready
-- No updates during Play stage (stage remains unchanged)
+- No updates during Play stage (stage remains unchanged) - temporary, until football-specific logic is handled 
+- manages football-specific game logic to determine stage changes (TBD)
 
 **Design decisions:**
 - Tests explicitly specify stage via `Game::with_stage()` for clarity
 - Default `Game::new()` uses `GameStage::default()` = Setup("start")
-- Stage transitions are one-way (no Play → Setup reversal)
+- Stage transitions are one-way (no Play → Setup reversal) -temporary, until football-specific logic is handled 
 

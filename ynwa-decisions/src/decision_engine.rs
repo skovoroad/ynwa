@@ -30,38 +30,7 @@ impl std::fmt::Display for DecisionEngineError {
 impl std::error::Error for DecisionEngineError {}
 
 /// Decision engine that executes Lua scripts for game AI
-///
-/// # JSON Contract
-///
-/// ## Initialization
-/// Expects JSON config with player scripts:
-/// ```json
-/// {
-///   "players": [
-///     {"script": "function make_decision() ... end"},
-///     ...
-///   ]
-/// }
-/// ```
-///
-/// ## Input Context
-/// Game state as JSON (structure defined by game engine)
-///
-/// ## Output Decision
-/// Returns JSON decision:
-/// ```json
-/// {
-///   "action": "stop"
-/// }
-/// ```
-/// or
-/// ```json
-/// {
-///   "action": "run",
-///   "target_type": "point",
-///   "target": {"x": 10.5, "z": 20.0}
-/// }
-/// ```
+/// JSON Contract - see ynwa-scripts/context.md
 #[derive(Debug)]
 pub struct DecisionEngine {
     /// One Lua executor per player (isolated VMs)
@@ -71,34 +40,6 @@ pub struct DecisionEngine {
 }
 
 impl DecisionEngine {
-    /// Create new DecisionEngine from JSON config with preambles
-    ///
-    /// # Preambles
-    /// * `core_preamble` - Elementary functions (read game state, create decisions)
-    /// * `stdlib_preamble` - Common utilities (geometry, search, etc.)
-    ///
-    /// Team preambles are extracted from top-level `team_preambles` object in config JSON.
-    /// Player definitions reference their team via "team" field ("team_a" or "team_b").
-    /// Preambles are concatenated: `core + stdlib + team_preamble + user_script` for each player.
-    ///
-    /// # Example
-    /// ```json
-    /// {
-    ///   "team_preambles": {
-    ///     "team_a": "function team_strategy() end",
-    ///     "team_b": "function team_strategy() end"
-    ///   },
-    ///   "players": [
-    ///     {
-    ///       "script": "function make_decision() return {action = 'stop'} end",
-    ///       "team": "team_a"
-    ///     }
-    ///   ],
-    ///   "static_data": {
-    ///     "zones": { ... }
-    ///   }
-    /// }
-    /// ```
     pub fn new(
         config: &JsonValue,
         core_preamble: &str,
@@ -175,14 +116,6 @@ impl DecisionEngine {
         Ok(Self { executors, scripts })
     }
 
-    /// Make decision for a player
-    ///
-    /// # Arguments
-    /// * `player_index` - Index of player (0-based)
-    /// * `context` - Game state as JSON
-    ///
-    /// # Returns
-    /// JSON decision
     pub fn make_decision(
         &self,
         player_index: usize,
@@ -191,14 +124,6 @@ impl DecisionEngine {
         self.execute_function(player_index, "make_decision", context)
     }
 
-    /// Execute prepare function for a player (setup stage)
-    ///
-    /// # Arguments
-    /// * `player_index` - Index of player (0-based)
-    /// * `context` - Game state as JSON
-    ///
-    /// # Returns
-    /// JSON decision
     pub fn prepare(
         &self,
         player_index: usize,
