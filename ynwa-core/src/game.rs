@@ -251,12 +251,12 @@ impl Game {
             .map(|(idx, _player_def)| {
                 let position = match &stage {
                     GameStage::Setup(_) => {
-                        // In Setup stage, players start behind the field (z = -5)
-                        let field_width = config.field.width().get::<meter>();
+                        // Players start behind the field (z = -5), centered along field length (X axis)
+                        let field_length = config.field.length().get::<meter>();
                         Point3D::from_meters(
-                            field_width / 2.0, // Center of field width (X axis)
-                            0.0,               // Ground level
-                            -5.0,              // 5 meters behind the field (Z axis)
+                            field_length / 2.0,
+                            0.0,
+                            -5.0,
                         )
                     }
                     GameStage::Play | GameStage::GameOver => {

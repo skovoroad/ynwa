@@ -43,8 +43,8 @@ fn create_test_game_setup() -> Game {
 fn test_players_start_at_edge_in_setup() {
     let game = create_test_game_setup();
 
-    let field_width = game.config().field.width().get::<meter>();
-    let expected_x = field_width / 2.0; // Center along width
+    let field_length = game.config().field.length().get::<meter>();
+    let expected_x = field_length / 2.0; // Center along field length (X axis)
     let expected_z = -5.0; // Behind goal line
 
     for (idx, player_state) in game.state.player_states.iter().enumerate() {

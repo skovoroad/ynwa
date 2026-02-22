@@ -130,3 +130,26 @@ fn test_player_initial_position_from_start_region() {
         assert_eq!(player_state.position.y.get::<meter>(), 0.0);
     }
 }
+
+#[test]
+fn test_player_initial_position_in_setup_stage() {
+    let config = create_test_config();
+    let field_length = config.field.length().get::<meter>();
+    let game = Game::with_stage(config, GameStage::Setup("start".to_string()));
+
+    let expected_x = field_length / 2.0;
+    let expected_z = -5.0;
+
+    for player_state in &game.state().player_states {
+        assert!(
+            (player_state.position.x.get::<meter>() - expected_x).abs() < 0.01,
+            "Setup X should be field_length/2, got {}",
+            player_state.position.x.get::<meter>()
+        );
+        assert!(
+            (player_state.position.z.get::<meter>() - expected_z).abs() < 0.01,
+            "Setup Z should be -5, got {}",
+            player_state.position.z.get::<meter>()
+        );
+    }
+}

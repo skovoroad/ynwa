@@ -169,8 +169,8 @@ function common_behavior_v2()
             }
         else
             -- No suitable teammate found, kick in random direction as fallback
-            local target_x = math.random() * FIELD_WIDTH
-            local target_z = math.random() * FIELD_LENGTH
+            local target_x = math.random() * GAME_DATA.field.width
+            local target_z = math.random() * GAME_DATA.field.length
             return {
                 action = "kick",
                 target = {x = target_x, z = target_z}

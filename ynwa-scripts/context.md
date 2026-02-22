@@ -329,36 +329,25 @@ The global variable `GAME_DATA` contains static information about the field that
 
 ```lua
 GAME_DATA = {
+    field = {
+        width = 60.0,   -- field width in meters (X axis)
+        length = 101.5  -- field length in meters (Z axis)
+    },
     zones = {
-        -- Field zones with geometry
+        -- Field zones with geometry (Team A coordinates)
         field = {
             type = "rectangle",
-            min_x = 0.0, max_x = 105.0,
-            min_z = 0.0, max_z = 68.0
+            min_x = 0.0, max_x = 101.5,
+            min_z = 0.0, max_z = 60.0
         },
-        penalty_area_a = {
-            type = "rectangle",
-            min_x = 0.0, max_x = 16.5,
-            min_z = 13.84, max_z = 54.16
-        },
-        center_circle = {
-            type = "circle",
-            center_x = 52.5,
-            center_z = 34.0,
-            radius = 9.15
-        },
-        corner_arc_a_left = {
-            type = "arc",
-            center_x = 0.0,
-            center_z = 0.0,
-            radius = 1.0,
-            start_angle = 0.0,
-            end_angle = 90.0
-        },
+        penalty_area_a = { ... },
+        center_circle = { ... },
         -- ... other zones
     }
 }
 ```
+
+**`GAME_DATA.field`**: actual field dimensions from the engine.
 
 **Zone Types**:
 - `rectangle`: defined by `min_x`, `max_x`, `min_z`, `max_z`

@@ -71,7 +71,11 @@ impl ScriptedDecisionMaker {
                 })
             }).collect::<Vec<_>>(),
             "static_data": {
-                "zones": zones_json
+                "zones": zones_json,
+                "field": {
+                    "width": config.field.width().get::<meter>(),
+                    "length": config.field.length().get::<meter>()
+                }
             }
         })
     }
@@ -984,5 +988,82 @@ mod tests {
         let decision = maker.make_decision(&game, 0);
 
         assert!(decision.is_ok(), "Decision should succeed");
+    }
+
+    #[test]
+    fn test_game_data_field_dimensions_in_static_data() {
+        // Deliberately unusual dimensions to avoid accidental match with any defaults
+        let field = Field::from_meters(47.0, 83.0, 47, 83);
+        let grid_dims = field.grid_dimensions();
+        let start_region = grid_dims
+            .create_region(GridCell::new(1, 1).unwrap(), GridCell::new(2, 2).unwrap())
+            .unwrap();
+
+        let config = GameConfig {
+            field,
+            players: vec![PlayerDef::new(
+                Team::A,
+                1,
+                "Test Player".to_string(),
+                "function make_decision() return {action='stop'} end".to_string(),
+                start_region,
+            )],
+            ball: BallDef::default(),
+            referees: vec![RefereeDef::default()],
+            scripting: crate::game::ScriptingConfig::empty(),
+        };
+
+        let game = Game::with_stage(config, crate::game::GameStage::Play);
+        let config_json = ScriptedDecisionMaker::build_config(&game);
+
+        let field_data = config_json
+            .get("static_data")
+            .and_then(|sd| sd.get("field"))
+            .expect("static_data.field must exist");
+
+        assert!(
+            (field_data["width"].as_f64().unwrap() - 47.0).abs() < 0.01,
+            "GAME_DATA.field.width should be field width (X axis)"
+        );
+        assert!(
+            (field_data["length"].as_f64().unwrap() - 83.0).abs() < 0.01,
+            "GAME_DATA.field.length should be field length (Z axis)"
+        );
+    }
+
+    #[test]
+    fn test_game_data_field_accessible_from_lua() {
+        let game = create_test_game_with_script(
+            r#"
+            function make_decision()
+                return {
+                    action = "stop",
+                    field_width = GAME_DATA.field.width,
+                    field_length = GAME_DATA.field.length
+                }
+            end
+            "#,
+        );
+
+        let config_json = ScriptedDecisionMaker::build_config(&game);
+        let engine = ynwa_decisions::DecisionEngine::new(
+            &config_json,
+            &game.config().scripting.core_preamble,
+            &game.config().scripting.stdlib_preamble,
+        )
+        .unwrap();
+
+        let context = ScriptedDecisionMaker::build_context(&game, 0).unwrap();
+        let result = engine.make_decision(0, &context).unwrap();
+
+        // Field was created with from_meters(100.0, 60.0, 26, 44) in create_test_game_with_script
+        assert!(
+            (result["field_width"].as_f64().unwrap() - 100.0).abs() < 0.01,
+            "Lua GAME_DATA.field.width should match field width"
+        );
+        assert!(
+            (result["field_length"].as_f64().unwrap() - 60.0).abs() < 0.01,
+            "Lua GAME_DATA.field.length should match field length"
+        );
     }
 }

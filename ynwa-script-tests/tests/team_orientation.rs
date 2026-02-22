@@ -1,7 +1,7 @@
 /// Integration tests for team orientation coordinate conversion.
 /// Tests that Team B decisions are correctly converted from Team B's perspective
 /// (right-to-left) to display orientation (Team A's left-to-right perspective).
-use ynwa_core::field::Field;
+use ynwa_core::football::field_builder::create_football_field;
 use ynwa_core::game::{BallDef, Decision, DecisionTarget, Game, GameConfig, PlayerDef, RefereeDef};
 use ynwa_core::region::{GridCell};
 use ynwa_core::system::System;
@@ -9,10 +9,10 @@ use ynwa_core::systems::decision::{DecisionSystem, ScriptedDecisionMaker};
 use ynwa_core::systems::player_reaction::PlayerReactionSystem;
 use ynwa_core::team::Team;
 
-/// Helper function to create a test game with a specific script for a team
-/// Using football field dimensions: 105m x 68m with 18 columns x 44 rows
+/// Helper function to create a test game with a specific script for a team.
+/// Uses the standard football field from the single source of truth: create_football_field().
 fn create_game_with_team_script(team: Team, script: String) -> Game {
-    let field = Field::from_meters(105.0, 68.0, 18, 44);
+    let field = create_football_field();
     let grid_dims = field.grid_dimensions();
 
     // For Team A, start near their goal (left side)
@@ -108,11 +108,11 @@ fn test_team_b_cell_flipped() {
 
     match decision.as_ref().unwrap() {
         Decision::Run(DecisionTarget::GridCell(cell)) => {
-            // Team B's A1 should flip to Team A's R44 (column 18, row 44 in 18x44 grid)
+            // Team B's A1 should flip to Team A's Z44 (column 26, row 44 in 26x44 grid)
             assert_eq!(
                 cell,
-                &GridCell::new(18, 44).unwrap(),
-                "Team B: A1 in Team B coords should become R44 in display coords"
+                &GridCell::new(26, 44).unwrap(),
+                "Team B: A1 in Team B coords should become Z44 in display coords"
             );
         }
         _ => panic!("Expected Run(GridCell)"),
@@ -193,16 +193,16 @@ fn test_team_b_region_flipped() {
         Decision::Run(DecisionTarget::Region(region)) => {
             // After flip: team remains A (lua_format always creates Team A regions),
             // but coordinates flip
-            // A1 -> R44, B2 -> Q43 (in 18x44 grid)
+            // A1 -> Z44, B2 -> Y43 (in 26x44 grid)
             assert_eq!(
                 region.top_left,
-                GridCell::new(17, 43).unwrap(),
-                "Team B: B2 in Team B coords should become Q43 (17,43) in display coords"
+                GridCell::new(25, 43).unwrap(),
+                "Team B: B2 in Team B coords should become Y43 (25,43) in display coords"
             );
             assert_eq!(
                 region.bottom_right,
-                GridCell::new(18, 44).unwrap(),
-                "Team B: A1 in Team B coords should become R44 (18,44) in display coords"
+                GridCell::new(26, 44).unwrap(),
+                "Team B: A1 in Team B coords should become Z44 (26,44) in display coords"
             );
         }
         _ => panic!("Expected Run(Region)"),
@@ -211,8 +211,7 @@ fn test_team_b_region_flipped() {
 
 #[test]
 fn test_team_b_point_flipped() {
-    // Team B script returns point (20, 0, 15), should flip to (85, 0, 53) in display coords
-    // Football field is 105m x 68m
+    // Team B script returns point (20, 0, 15), should flip using real field dimensions
     let script = r#"
         function make_decision()
             return {
@@ -245,15 +244,20 @@ fn test_team_b_point_flipped() {
         Decision::Run(DecisionTarget::Point(point)) => {
             use uom::si::length::meter;
 
-            // Football field is 105m x 68m
+            let field = create_football_field();
+            let field_width = field.width().get::<meter>();
+            let field_length = field.length().get::<meter>();
+
             // Point (20, 0, 15) for Team B should flip to:
-            // x: 105 - 20 = 85
-            // y: unchanged = 0
-            // z: 68 - 15 = 53
+            // x: field_width - 20, y: unchanged, z: field_length - 15
+            let expected_x = field_width - 20.0;
+            let expected_z = field_length - 15.0;
+
             let tolerance = 0.01;
             assert!(
-                (point.x.get::<meter>() - 85.0).abs() < tolerance,
-                "Expected x=85.0, got {}",
+                (point.x.get::<meter>() - expected_x).abs() < tolerance,
+                "Expected x={}, got {}",
+                expected_x,
                 point.x.get::<meter>()
             );
             assert!(
@@ -262,8 +266,9 @@ fn test_team_b_point_flipped() {
                 point.y.get::<meter>()
             );
             assert!(
-                (point.z.get::<meter>() - 53.0).abs() < tolerance,
-                "Expected z=53.0, got {}",
+                (point.z.get::<meter>() - expected_z).abs() < tolerance,
+                "Expected z={}, got {}",
+                expected_z,
                 point.z.get::<meter>()
             );
         }

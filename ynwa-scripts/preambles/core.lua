@@ -1,11 +1,9 @@
 -- Core preamble: elementary functions for reading game state and creating decisions
 -- These functions provide access to context data without any game logic
 
--- Field dimensions (standard football)
--- NOTE: X-axis is field WIDTH (68m), Z-axis is field LENGTH (105m)
--- This matches the orientation.rs flip_point_orientation function
-FIELD_WIDTH = 68.0    -- meters (X axis)
-FIELD_LENGTH = 105.0  -- meters (Z axis)
+-- Field dimensions are provided by the engine via GAME_DATA.field (not hardcoded here)
+-- GAME_DATA.field.width  -- X axis (meters)
+-- GAME_DATA.field.length -- Z axis (meters)
 
 -- Returns the global index of the ball owner, or nil if ball is free
 function ball_owner()
@@ -81,8 +79,8 @@ end
 
 -- Factory: create "run to random position" decision
 function run_to_random_position()
-    local target_x = math.random() * FIELD_WIDTH   -- X axis: 0-68m
-    local target_z = math.random() * FIELD_LENGTH  -- Z axis: 0-105m
+    local target_x = math.random() * GAME_DATA.field.width
+    local target_z = math.random() * GAME_DATA.field.length
     return {
         action = "run",
         target_type = "point",
