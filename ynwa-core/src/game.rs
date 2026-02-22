@@ -1,7 +1,6 @@
 use crate::field::zones::{Point3D, Velocity3D};
 use crate::field::Field;
-use crate::orientation::flip_point_orientation;
-use crate::region::{GridCell, GridDimensions, Region};
+use crate::region::{GridCell, Region};
 use crate::team::Team;
 use std::collections::HashMap;
 use uom::si::length::meter;
@@ -22,51 +21,6 @@ pub enum Decision {
     Run(DecisionTarget),
     Stop,
     Kick(Point3D), // Kick the ball towards target point
-}
-
-/// Converts Team B coordinates to display orientation (Team A perspective).
-/// Team A decisions pass through unchanged.
-pub fn convert_decision_to_display_orientation(
-    decision: &Decision,
-    team: Team,
-    field_width: f32,
-    field_height: f32,
-    grid_dimensions: GridDimensions,
-) -> Decision {
-    // Team A is already in display orientation, no conversion needed
-    if team == Team::A {
-        return decision.clone();
-    }
-
-    // Team B: flip all coordinates to Team A orientation
-    match decision {
-        Decision::Run(target) => {
-            let flipped_target = match target {
-                DecisionTarget::Region(region) => {
-                    // Flip the coordinates but keep team as A (display orientation)
-                    let flipped = region.flip_orientation(grid_dimensions).unwrap();
-                    // Region::flip_orientation swaps the team, but we want all display coords to be Team A
-                    let display_region =
-                        Region::new_unchecked(Team::A, flipped.top_left, flipped.bottom_right);
-                    DecisionTarget::Region(display_region)
-                }
-                DecisionTarget::GridCell(cell) => {
-                    // flip_orientation returns Result, unwrap is safe for same reason
-                    DecisionTarget::GridCell(cell.flip_orientation(grid_dimensions).unwrap())
-                }
-                DecisionTarget::Point(point) => {
-                    DecisionTarget::Point(flip_point_orientation(point, field_width, field_height))
-                }
-            };
-            Decision::Run(flipped_target)
-        }
-        Decision::Stop => Decision::Stop,
-        Decision::Kick(target_point) => Decision::Kick(flip_point_orientation(
-            &target_point,
-            field_width,
-            field_height,
-        )),
-    }
 }
 
 #[derive(Debug, Clone)]

@@ -146,7 +146,7 @@ pub fn parse_point(value: &serde_json::Value) -> Result<Point3D, DecisionError> 
     })?;
 
     // Point from Lua is in player's orientation - no conversion here
-    // Conversion happens in DecisionSystem via convert_decision_to_display_orientation
+    // Conversion happens in systems::decision via convert_decision_to_display_orientation
     let point = Point3D {
         x: Length::new::<meter>(point_target.x),
         y: Length::new::<meter>(point_target.y),

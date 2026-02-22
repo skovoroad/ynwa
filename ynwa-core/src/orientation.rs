@@ -4,7 +4,7 @@
 //! Team B plays from the opposite side (right-to-left in their perspective).
 //! These functions convert coordinates between team perspectives and display orientation.
 //!
-//! Applied at system boundaries in `ScriptedDecisionMaker`:
+//! Applied at system boundaries in `systems::decision`:
 //! - Input: context for Team B has flipped coordinates (scripts see field from same side as Team A)
 //! - Output: decisions from Team B are flipped back to display orientation
 

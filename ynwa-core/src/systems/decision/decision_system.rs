@@ -1,9 +1,11 @@
-use crate::game::{convert_decision_to_display_orientation, Decision, DecisionTarget, Game};
+use crate::game::{Decision, DecisionTarget, Game};
 use crate::region::GridCell;
 use crate::system::System;
 use rand::Rng;
 use std::fmt;
 use uom::si::length::meter;
+
+use super::convert_decision_to_display_orientation;
 
 // Design: DecisionSystem delegates decision-making to DecisionMaker implementations.
 // This separates coordination (when to decide) from strategy (what to decide).
