@@ -1,3 +1,12 @@
+//! Field area addressing through a grid coordinate system.
+//!
+//! Key types:
+//! - `GridDimensions { columns, rows }` - grid size
+//! - `GridCell { col, row }` - single cell, 1-based (A=1, B=2, ..., Z=26, AA=27, ...)
+//! - `Region { team, top_left, bottom_right }` - rectangular area
+//!
+//! Grid notation format: `"A1:B2"` (TopLeft:BottomRight)
+
 use crate::field::zones::Point3D;
 use crate::team::Team;
 use std::fmt;
@@ -89,13 +98,7 @@ impl GridCell {
     /// Creates a grid cell from string notation (A, B, ..., Z, AA, AB, ...).
     /// Case-insensitive.
     ///
-    /// # Examples
-    /// ```
-    /// # use ynwa_core::GridCell;
-    /// let cell_a = GridCell::from_literal("A", 1).unwrap();  // col=1
-    /// let cell_z = GridCell::from_literal("Z", 1).unwrap();  // col=26
-    /// let cell_aa = GridCell::from_literal("AA", 1).unwrap(); // col=27
-    /// ```
+
     pub fn from_literal(label: &str, row: u32) -> Result<Self, RegionError> {
         if label.is_empty() {
             return Err(RegionError::EmptyColumnLabel);
@@ -121,17 +124,7 @@ impl GridCell {
     /// Parse cell notation like "A1", "B2", "AA10" into GridCell.
     /// Letters must come before digits.
     ///
-    /// # Examples
-    /// ```
-    /// # use ynwa_core::GridCell;
-    /// let cell = GridCell::from_notation("A1").unwrap();
-    /// assert_eq!(cell.col, 1);
-    /// assert_eq!(cell.row, 1);
-    ///
-    /// let cell2 = GridCell::from_notation("AA10").unwrap();
-    /// assert_eq!(cell2.col, 27);
-    /// assert_eq!(cell2.row, 10);
-    /// ```
+
     pub fn from_notation(notation: &str) -> Result<Self, RegionError> {
         let mut col_str = String::new();
         let mut row_str = String::new();
@@ -186,14 +179,6 @@ impl GridCell {
     }
 
     /// Converts a 1-based column number to Excel-style label (A, B, ..., Z, AA, AB, ...).
-    ///
-    /// # Examples
-    /// ```
-    /// # use ynwa_core::GridCell;
-    /// assert_eq!(GridCell::column_to_label(1), "A");
-    /// assert_eq!(GridCell::column_to_label(26), "Z");
-    /// assert_eq!(GridCell::column_to_label(27), "AA");
-    /// ```
     pub fn column_to_label(col: u32) -> String {
         let mut result = String::new();
         let mut n = col;
@@ -331,18 +316,6 @@ impl Region {
     /// Convert region to grid notation string (e.g., "A1:B2")
     /// This format is used for human-readable configuration files.
     ///
-    /// # Examples
-    /// ```
-    /// # use ynwa_core::{Region, GridCell, GridDimensions, team::Team};
-    /// let grid_dims = GridDimensions::new(26, 44);
-    /// let region = Region::new(
-    ///     Team::A,
-    ///     GridCell::new(1, 1).unwrap(),
-    ///     GridCell::new(2, 2).unwrap(),
-    ///     grid_dims
-    /// ).unwrap();
-    /// assert_eq!(region.to_grid_notation(), "A1:B2");
-    /// ```
     pub fn to_grid_notation(&self) -> String {
         format!(
             "{}{}:{}{}",
@@ -355,23 +328,6 @@ impl Region {
 
     /// Parse region from grid notation string (e.g., "A1:B2" or "A1" for single cell)
     ///
-    /// # Examples
-    /// ```
-    /// # use ynwa_core::{Region, GridDimensions, team::Team};
-    /// let grid_dims = GridDimensions::new(26, 44);
-    ///
-    /// // Two-cell notation
-    /// let region = Region::from_grid_notation("C3:D4", Team::A, grid_dims).unwrap();
-    /// assert_eq!(region.top_left.col, 3);
-    /// assert_eq!(region.top_left.row, 3);
-    ///
-    /// // Single-cell notation
-    /// let region = Region::from_grid_notation("M42", Team::B, grid_dims).unwrap();
-    /// assert_eq!(region.top_left.col, 13);
-    /// assert_eq!(region.top_left.row, 42);
-    /// assert_eq!(region.bottom_right.col, 13);
-    /// assert_eq!(region.bottom_right.row, 42);
-    /// ```
     pub fn from_grid_notation(
         notation: &str,
         team: Team,

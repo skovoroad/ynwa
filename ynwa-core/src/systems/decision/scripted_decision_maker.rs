@@ -1,3 +1,18 @@
+//! Adapter between ynwa-core domain types and ynwa-decisions JSON API.
+//!
+//! JSON contract (ynwa-core ↔ ynwa-decisions):
+//! - `build_config()`: player scripts → JSON config
+//! - `build_context()`: Game state → JSON context; Team B sees flipped coordinates
+//! - `parse_json_decision()`: JSON → domain Decision; does NOT flip (flipping at system boundaries)
+//!
+//! Lua script return format:
+//! - `{action="stop"}`
+//! - `{action="run", target_type="point", target={x, z}}`
+//! - `{action="run", target_type="cell", target="A5"}`
+//! - `{action="run", target_type="region", target={from="A1", to="C3"}}`
+//! - `{action="kick", target={x, z}}`
+//! - optional `reason` field (string, logged on error/debug)
+
 use crate::field::zones::Point3D;
 use crate::game::{Decision, Game};
 use crate::team::Team;

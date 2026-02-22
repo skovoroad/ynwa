@@ -1,3 +1,17 @@
+//! Playing field with dimensions, grid, and named zones.
+//!
+//! Key types:
+//! - `Field` - field with width, length, grid, and zones (HashMap keyed by (name, team) for O(1) lookup)
+//! - `FieldBuilder` - builder pattern for constructing fields with zones
+//! - `Zone` / `ZoneGeometry` - named area with optional team; geometry: Rectangle, Circle, Arc, PointZone
+//!
+//! Coordinate system (Y-up right-handed):
+//! - X: field width (left-right)
+//! - Y: height (up)
+//! - Z: field length (Team A → Team B)
+//!
+//! Design: geometric primitives validate inputs at construction via `assert!`.
+
 pub mod zones;
 
 use crate::team::Team;

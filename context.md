@@ -111,61 +111,15 @@ System execution order (important for correct operation):
 - **Design principle:** Decision system is independent - uses ynwa-decisions crate for Lua support
 
 **Scripted Decision System (`systems/decision/scripted_decision_maker.rs`):**
-- **ScriptedDecisionMaker** - adapter between ynwa-core domain types and ynwa-decisions JSON API
-  - Uses DecisionEngine from ynwa-decisions crate (one isolated Lua VM per player)
-  - Scripts loaded from GameConfig
-  - Supports two decision functions: `make_decision()` (Play stage) and `prepare()` (Setup stage)
-- **JSON Contract:** ynwa-core ↔ ynwa-decisions communication via JSON
-  - `build_config()`: extracts player scripts from Game → JSON config
-  - `build_context()`: Game state → JSON context (~500 bytes)
-    - Team B sees flipped coordinates (mirror across field center)
-    - Includes: player position, teammates, opponents, ball (position + owner_index + owner_team), elapsed time
-    - Player named regions with exact boundaries (min_x, max_x, min_z, max_z) calculated from GridCell coordinates
-  - `parse_json_decision()`: JSON decision → domain Decision type
-    - Uses serde intermediate structures (LuaRegionTarget, LuaPointTarget)
-    - Type-safe deserialization with automatic validation
-- **Coordinate Flipping Logic:**
-  - Team B input: context has flipped coordinates (scripts see field as if playing from same side)
-  - Team B output: DecisionSystem flips decision targets back to global coordinates
-  - Parser does NOT flip - conversion happens at system boundaries
-- Lua script contract: function `make_decision()` or `prepare()` returns table:
-  - `{action = "stop"}` or
-  - `{action = "run", target_type = "cell", target = "A5"}` or
-  - `{action = "run", target_type = "region", target = {from = "A5", to = "C7"}}` or
-  - `{action = "run", target_type = "point", target = {x = 10.5, z = 20.0}}` or
-  - `{action = "kick", target = {x = 75.0, z = 30.0}}`
-- Error handling: errors stored in PlayerState.last_error, displayed in UI
-- Integration: football/mod.rs tries ScriptedDecisionMaker, falls back to PlaceholderDecisionMaker on error
+- Adapter between ynwa-core domain types and ynwa-decisions JSON API
+- One isolated Lua VM per player via `DecisionEngine`
+- Team B coordinates flipped on input; decisions flipped back on output (parser does NOT flip)
+- See module `//!` doc for JSON contract and Lua script return format
 
 **Decision Engine Library (`ynwa-decisions` crate):**
-- Game-agnostic Lua-based scripting for decision making
-- **DecisionEngine** - main API, JSON in/out, no domain types
-  - `new(config_json)` - loads player scripts from JSON config
-  - `make_decision(player_index, context_json)` - executes script, returns JSON decision
-  - `prepare(player_index, context_json)` - executes prepare function for setup stage
-  - Maintains HashMap of LuaExecutors (one per player)
-- **LuaExecutor** - executes Lua scripts with context data
-  - Uses mlua with vendored Lua 5.4
-  - Returns JSON value for game-specific parsing
-  - `execute(script, function_name, context_json)` - loads script and calls specified function
-  - State behavior: script code reloads on each execute()
-  - **Sandbox:** dangerous libraries/globals disabled (io, os, package, require, load, loadfile, dofile, debug, collectgarbage, _G)
-  - **Timeout:** optional execution time limit via hook mechanism
-    - Enabled via `new(Some(Duration))` parameter
-    - Hook checks every 10,000 Lua instructions (balanced overhead ~2x)
-    - Returns error if limit exceeded
-    - Performance impact: ~2x slowdown when enabled (acceptable for 30 FPS target)
-- **LuaDecision** - validates JSON decision format
-  - Ensures correct structure: action field, target fields when needed
-  - Basic validation, detailed parsing happens in game code
-- **Design decisions:**
-  - JSON as lingua franca - no shared domain types between crates
-  - Independent development - ynwa-decisions has no dependency on ynwa-core
-  - Can be published separately and reused in other games
-  - ScriptedDecisionMaker adapts between JSON and game types using serde
-  - Coordinate flipping for Team B happens at adapter boundaries, not in parser
-- Test coverage
-  - Script tests verify preamble functions, context structure, and decision generation
+- Game-agnostic Lua scripting, JSON in/out, no domain types
+- Can be published separately and reused in other games
+- See `ynwa-decisions/src/lib.rs` `//!` doc for sandbox, timeout, and architecture details
 
 ## Development Principles
 
@@ -240,152 +194,35 @@ System execution order (important for correct operation):
 - Modular architecture facilitates testing of individual components
 - Deterministic physics for reproducible tests
 
-## Field System (field/)
+## Field System (`field/`)
 
-**Purpose:** Playing field with dimensions, grid, and named zones.
+Y-up right-handed coordinate system: X=width, Y=height, Z=length (Team A → Team B).
+See `field/mod.rs` `//!` doc for types, zone geometry, and design decisions.
 
-**Key types:**
-- `Field` - playing field with width, length, grid dimensions, and zones
-  - Grid for region addressing via `GridDimensions`
-  - Zones stored in HashMap with (name, team) key for O(1) lookup
-- `FieldBuilder` - builder pattern for creating fields with zones
-- `Zone` - named area on field with optional team ownership and geometry
-- `ZoneGeometry` - geometric primitives: Rectangle, Circle, Arc, PointZone
+## Orientation System (`orientation.rs`)
 
-**Coordinate system (zones.rs):** Y-up right-handed system
-- X: field width (left-right)
-- Y: height (up)
-- Z: field length (team A to team B)
+Coordinate transformations between team perspectives.
+See `orientation.rs` `//!` doc for concept, functions, and usage.
 
-**Types:**
-- `Point3D { x: Length, y: Length, z: Length }` - 3D position
-- `Velocity3D { x: Velocity, y: Velocity, z: Velocity }` - 3D velocity
-- Rectangle, Circle, Arc - zone geometry primitives with validation
+## Region System (`region.rs`)
 
-**Design decisions:**
-- Zones stored both in HashMap key and Zone struct for O(1) lookup and self-contained objects
-- Geometric primitives validate inputs at construction (assert!)
-- Cell size calculated as field width / grid columns
+Grid-based field area addressing. Format: `"A1:B2"` (TopLeft:BottomRight), 1-based columns (A=1...).
+See `region.rs` `//!` doc for types and indexing details.
 
-## Orientation System (orientation.rs)
+## Game Configuration (`config.rs`)
 
-**Purpose:** Coordinate transformations between team perspectives.
-
-**Concept:**
-- Display orientation: Team A's left-to-right perspective (canonical)
-- Team B perspective: Right-to-left (scripts see flipped coordinates)
-
-**Functions:**
-- `flip_grid_cell_orientation(cell, grid_dims)` - flips GridCell coordinates
-- `flip_region_orientation(region, grid_dims)` - flips Region and swaps team
-- `flip_point_orientation(point, width, length)` - flips Point3D (Y unchanged)
-
-**Usage:** Applied at system boundaries in ScriptedDecisionMaker:
-- Input: context for Team B has flipped coordinates
-- Output: decisions from Team B are flipped back to display orientation
-
-## Region System (region.rs)
-
-**Purpose:** Addressing field areas through a grid coordinate system.
-
-**Key types:**
-- `GridDimensions { columns: u32, rows: u32 }` - grid dimensions
-- `GridCell { col: u32, row: u32 }` - one cell (1-based indexing)
-- `Region { team: Team, top_left: GridCell, bottom_right: GridCell }` - rectangular area
-
-**Indexing:** 1-based for columns and rows
-- Columns: A=1, B=2, ..., Z=26, AA=27, AB=28, ...
-- Rows: 1, 2, 3, ...
-
-**Grid notation:** Human-readable format for regions
-- Format: "A1:B2" (TopLeft:BottomRight)
-
-## Game Configuration (config.rs)
-
-**Purpose:** TOML-based configuration system for initial game parameters.
+TOML-based configuration for initial game parameters.
 
 ## Physics and Speed
 
-**Coordinate system:** Y-up right-handed (see Field System section)
-
-**Coordinate and velocity types:**
-- `Point3D { x: Length, y: Length, z: Length }` - position in meters
-- `Velocity3D { x: Velocity, y: Velocity, z: Velocity }` - velocity in m/s
-- Using `uom` for type safety of physical quantities
-
-**Physics utilities (physics_util.rs):**
-- `distance(a: &Point3D, b: &Point3D) -> f32` - calculates Euclidean distance between points in meters
-- `distance_length(a: &Point3D, b: &Point3D) -> Length` - same but returns Length for type safety
-
-**Player speed:**
-- `speed_rate`: 10-100 (player configuration)
-- `MAX_SPEED_METERS_PER_SECOND = 10.0` (~36 km/h at speed_rate=100)
-- Formula: `actual_speed = (speed_rate / 100.0) * MAX_SPEED_METERS_PER_SECOND`
-- Linear dependency on `speed_rate`
+Speed formula: `actual_speed = (speed_rate / 100.0) * 10.0 m/s` (max ~36 km/h at rate=100).
+See `physics_util.rs` `//!` doc for coordinate types and utility functions.
 
 ## Ball Possession System
 
-**Purpose:** Determines which player possesses the ball based on proximity and player characteristics.
-
-**System location:** Executes between before DecisionSystem in pipeline.
-
-**Key parameters:**
-- `POSSESSION_RADIUS = 1.0m` - distance for possession contest
-- `POSSESSION_COOLDOWN = 1.0s` - minimum interval between possession changes (prevents bounce)
-- `tackle_rate`: 10-100 (player characteristic) - ability to win ball
-
-**Possession logic:**
-- Only opponents can contest ball from current possessor (teammates never steal from each other)
-- Free ball: all players within radius can claim it
-- Probabilistic selection when multiple opponents compete:
-  - Score = `tackle_rate × random_multiplier` where random_multiplier ∈ [0.5, 1.5]
-  - Multiplicative model ensures even weak players have chance (though small)
-- Possession change triggers `needs_decision = true` for all players
-
-**Ball state:**
-- `possessed_by: Option<usize>` - current owner's player index or None
-- `last_possession_change_time: f32` - timestamp of last change (for cooldown)
-- `last_possessing_team: Option<Team>` - team that last possessed the ball
-  - `Some(Team::A)` or `Some(Team::B)` when a team has/had the ball
-  - `None` when ball has never been possessed (game start, after Setup stage)
-  - Persists during passes (when `possessed_by = None`) to track ball ownership
-  - Reset to `None` on transition to Setup stage (neutral ball for restarts)
-  - Available to Lua scripts via `context.ball.owner_team` field
-
-**Design decisions:**
-- Teammate filtering in `find_nearby_players()` for clean separation of concerns
-- Cooldown prevents unrealistic rapid possession changes (drebezg)
-- Custom RNG support via `with_rng()` for deterministic testing
+See `systems/ball_possession.rs` `//!` doc for parameters, possession logic, ball state fields, and design decisions.
 
 ## Game Stages System
 
-**Purpose:** Manages different phases of the game with stage-specific behavior.
-
-**GameStage enum:**
-- `GameStage::Play` - normal gameplay
-- `GameStage::Setup(String)` - preparation phase (e.g., "Prepare", "start")
-  - Default: `Setup("start")`
-
-**Stage-specific behavior:**
-- **Setup stage:**
-  - Players start behind field at (width/2, 0, -5) - 5m behind field edge
-  - High reaction frequency (20 Hz) for fast movement to positions
-  - Scripts use `prepare()` function instead of `make_decision()`
-  - Players marked ready (`is_ready = true`) when in their start_position region
-- **Play stage:**
-  - Players start at their start_position region centers
-  - Normal reaction frequencies based on player reaction_rate
-  - Scripts use `make_decision()` function
-
-**FootballGameManager system:**
-- Runs first in system pipeline
-- Monitors player readiness in Setup stage
-- Automatically transitions Setup → Play when all players are ready
-- No updates during Play stage (stage remains unchanged) - temporary, until football-specific logic is handled 
-- manages football-specific game logic to determine stage changes (TBD)
-
-**Design decisions:**
-- Tests explicitly specify stage via `Game::with_stage()` for clarity
-- Default `Game::new()` uses `GameStage::default()` = Setup("start")
-- Stage transitions are one-way (no Play → Setup reversal) -temporary, until football-specific logic is handled 
+See `football/game_manager.rs` `//!` doc for `GameStage` enum, stage behavior, and transition logic.
 

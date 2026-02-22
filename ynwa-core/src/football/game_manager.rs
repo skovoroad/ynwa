@@ -1,3 +1,20 @@
+//! Manages game stage transitions and football-specific stage logic.
+//!
+//! GameStage enum:
+//! - `Play` - normal gameplay, scripts call `make_decision()`
+//! - `Setup(String)` - preparation phase, scripts call `prepare()`, default: `Setup("start")`
+//!
+//! Setup stage behavior:
+//! - Players start at (width/2, 0, -5) — 5m behind field edge
+//! - High reaction frequency for fast movement to positions
+//! - Players marked ready when inside their `start_position` region
+//! - Automatically transitions to Play when all players are ready
+//!
+//! Design decisions:
+//! - `Game::new()` uses `GameStage::default()` = `Setup("start")`
+//! - Tests use `Game::with_stage()` to set stage explicitly
+//! - Stage transitions are one-way (no Play → Setup) — temporary until event system is complete
+
 use crate::game::{Game, GameStage};
 use crate::region::Region;
 use crate::system::System;

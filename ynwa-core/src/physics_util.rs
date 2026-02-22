@@ -1,3 +1,10 @@
+//! Physics utility functions and player speed model.
+//!
+//! Player speed: `actual_speed = (speed_rate / 100.0) * MAX_SPEED (10.0 m/s)`
+//! `speed_rate` range: 10-100, linear dependency.
+//!
+//! 3D types (`Point3D`, `Velocity3D`) are defined in `field::zones`, not here.
+
 use crate::field::zones::Point3D;
 use uom::si::f32::Length;
 use uom::si::length::meter;

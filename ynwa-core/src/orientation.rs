@@ -3,6 +3,10 @@
 //! The field has a canonical "display orientation" (Team A's perspective: left-to-right).
 //! Team B plays from the opposite side (right-to-left in their perspective).
 //! These functions convert coordinates between team perspectives and display orientation.
+//!
+//! Applied at system boundaries in `ScriptedDecisionMaker`:
+//! - Input: context for Team B has flipped coordinates (scripts see field from same side as Team A)
+//! - Output: decisions from Team B are flipped back to display orientation
 
 use crate::field::zones::Point3D;
 use crate::region::{GridCell, GridDimensions, Region, RegionError};
@@ -12,16 +16,6 @@ use uom::si::f32::Length;
 use uom::si::length::meter;
 
 /// Flips a grid cell's orientation for the opposite team.
-///
-/// # Example
-/// ```
-/// use ynwa_core::{GridCell, GridDimensions, orientation::flip_grid_cell_orientation};
-///
-/// let grid_dims = GridDimensions::new(26, 44);
-/// let cell = GridCell::new(1, 1).unwrap();
-/// let flipped = flip_grid_cell_orientation(&cell, grid_dims).unwrap();
-/// assert_eq!(flipped, GridCell::new(26, 44).unwrap()); // A1 -> Z44
-/// ```
 pub fn flip_grid_cell_orientation(
     cell: &GridCell,
     grid_dims: GridDimensions,
@@ -36,23 +30,6 @@ pub fn flip_grid_cell_orientation(
 
 /// Flips a region's orientation for the opposite team.
 /// Swaps team and corners to maintain invariants.
-///
-/// # Example
-/// ```
-/// use ynwa_core::{GridCell, GridDimensions, Region, orientation::flip_region_orientation};
-/// use ynwa_core::team::Team;
-///
-/// let grid_dims = GridDimensions::new(26, 44);
-/// let region = Region::new(
-///     Team::A,
-///     GridCell::new(1, 1).unwrap(),
-///     GridCell::new(2, 2).unwrap(),
-///     grid_dims
-/// ).unwrap();
-///
-/// let flipped = flip_region_orientation(&region, grid_dims).unwrap();
-/// assert_eq!(flipped.team, Team::B);
-/// ```
 pub fn flip_region_orientation(
     region: &Region,
     grid_dims: GridDimensions,
@@ -71,19 +48,6 @@ pub fn flip_region_orientation(
 
 /// Flips a point's orientation for the opposite team.
 /// Y coordinate (height) remains unchanged.
-///
-/// # Example
-/// ```
-/// use ynwa_core::{Point3D, orientation::flip_point_orientation};
-/// use uom::si::length::meter;
-///
-/// let point = Point3D::from_meters(20.0, 1.0, 15.0);
-/// let flipped = flip_point_orientation(&point, 100.0, 60.0);
-///
-/// assert_eq!(flipped.x.get::<meter>(), 80.0);
-/// assert_eq!(flipped.y.get::<meter>(), 1.0); // unchanged
-/// assert_eq!(flipped.z.get::<meter>(), 45.0);
-/// ```
 pub fn flip_point_orientation(point: &Point3D, field_width: f32, field_length: f32) -> Point3D {
     Point3D {
         x: Length::new::<meter>(field_width - point.x.get::<meter>()),

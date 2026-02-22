@@ -1,3 +1,23 @@
+//! Determines which player possesses the ball based on proximity and player characteristics.
+//!
+//! Key parameters:
+//! - `POSSESSION_RADIUS = 1.0m` - distance to contest the ball
+//! - `POSSESSION_COOLDOWN = 1.0s` - minimum interval between possession changes (prevents bounce)
+//! - `tackle_rate`: 10-100 - ability to win the ball
+//!
+//! Possession logic:
+//! - Only opponents can contest ball from current possessor (teammates never steal)
+//! - Free ball: all players within radius can claim it
+//! - Probabilistic selection: Score = `tackle_rate × random_multiplier`, multiplier ∈ [0.5, 1.5]
+//! - Possession change triggers `needs_decision = true` for all players
+//!
+//! Ball state fields:
+//! - `possessed_by: Option<usize>` - current owner index or None
+//! - `last_possessing_team: Option<Team>` - persists during passes to track ownership,
+//!   reset to None on Setup stage transition, available in Lua as `context.ball.owner_team`
+//!
+//! Design: custom RNG via `with_rng()` for deterministic testing.
+
 use crate::game::Game;
 use crate::physics_util::distance_length;
 use crate::system::System;
