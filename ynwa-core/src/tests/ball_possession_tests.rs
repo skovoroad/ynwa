@@ -17,7 +17,6 @@ fn create_test_player(
 ) -> (PlayerDef, PlayerState) {
     let grid_dims = create_test_field().grid_dimensions();
     let start_region = Region::new(
-        team,
         GridCell::new(1, 1).unwrap(),
         GridCell::new(1, 1).unwrap(),
         grid_dims,

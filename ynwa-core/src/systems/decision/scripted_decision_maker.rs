@@ -445,8 +445,7 @@ impl DecisionMaker for ScriptedDecisionMaker {
         };
 
         // Parse JSON decision to Decision type using decision_parser (returns tuple)
-        let player_team = game.config().players[player_index].team;
-        decision_parser::parse_decision(&decision_json, player_team)
+        decision_parser::parse_decision(&decision_json)
     }
 }
 
@@ -462,7 +461,6 @@ mod tests {
         let grid_dims = field.grid_dimensions();
 
         let start_region = Region::new(
-            Team::A,
             GridCell::new(10, 10).unwrap(),
             GridCell::new(11, 11).unwrap(),
             grid_dims,
@@ -622,7 +620,6 @@ mod tests {
         let grid_dims = field.grid_dimensions();
 
         let start_region = Region::new(
-            Team::A,
             GridCell::new(10, 10).unwrap(),
             GridCell::new(11, 11).unwrap(),
             grid_dims,
@@ -671,7 +668,6 @@ mod tests {
 
         // Create a region: columns 10-12 (Z axis), rows 20-22 (X axis)
         let start_region = Region::new(
-            Team::A,
             GridCell::new(10, 20).unwrap(),
             GridCell::new(12, 22).unwrap(),
             grid_dims,
@@ -751,7 +747,6 @@ mod tests {
 
         // Create a region: columns 10-12 (Z axis), rows 20-22 (X axis)
         let start_region = Region::new(
-            Team::B,
             GridCell::new(10, 20).unwrap(),
             GridCell::new(12, 22).unwrap(),
             grid_dims,
@@ -845,7 +840,6 @@ mod tests {
 
         let grid_dims = field.grid_dimensions();
         let start_region = Region::new(
-            Team::A,
             GridCell::new(1, 1).unwrap(),
             GridCell::new(2, 2).unwrap(),
             grid_dims,
@@ -935,7 +929,6 @@ mod tests {
         let grid_dims = field.grid_dimensions();
 
         let start_region = Region::new(
-            Team::A,
             GridCell::new(13, 22).unwrap(),
             GridCell::new(13, 22).unwrap(),
             grid_dims,

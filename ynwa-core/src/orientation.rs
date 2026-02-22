@@ -10,8 +10,6 @@
 
 use crate::field::zones::Point3D;
 use crate::region::{GridCell, GridDimensions, Region, RegionError};
-#[allow(unused_imports)] // Used in doctests
-use crate::team::Team;
 use uom::si::f32::Length;
 use uom::si::length::meter;
 
@@ -29,7 +27,7 @@ pub fn flip_grid_cell_orientation(
 }
 
 /// Flips a region's orientation for the opposite team.
-/// Swaps team and corners to maintain invariants.
+/// Swaps corners to maintain top_left <= bottom_right after flip.
 pub fn flip_region_orientation(
     region: &Region,
     grid_dims: GridDimensions,
@@ -38,12 +36,7 @@ pub fn flip_region_orientation(
     let new_bottom_right = flip_grid_cell_orientation(&region.bottom_right, grid_dims)?;
 
     // Swap corners to maintain top_left <= bottom_right after flip
-    Region::new(
-        region.team.opposite(),
-        new_bottom_right,
-        new_top_left,
-        grid_dims,
-    )
+    Region::new(new_bottom_right, new_top_left, grid_dims)
 }
 
 /// Flips a point's orientation for the opposite team.

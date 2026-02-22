@@ -6,7 +6,6 @@ fn create_test_config() -> GameConfig {
     let grid_dims = field.grid_dimensions();
 
     let start_region_a1 = Region::new(
-        Team::A,
         GridCell::new(1, 1).unwrap(),
         GridCell::new(2, 2).unwrap(),
         grid_dims,
@@ -14,7 +13,6 @@ fn create_test_config() -> GameConfig {
     .unwrap();
 
     let start_region_a2 = Region::new(
-        Team::A,
         GridCell::new(3, 3).unwrap(),
         GridCell::new(4, 4).unwrap(),
         grid_dims,
@@ -22,7 +20,6 @@ fn create_test_config() -> GameConfig {
     .unwrap();
 
     let start_region_b = Region::new(
-        Team::B,
         GridCell::new(20, 20).unwrap(),
         GridCell::new(21, 21).unwrap(),
         grid_dims,
@@ -30,7 +27,6 @@ fn create_test_config() -> GameConfig {
     .unwrap();
 
     let attack_region_a1 = Region::new(
-        Team::A,
         GridCell::new(1, 1).unwrap(),
         GridCell::new(2, 2).unwrap(),
         grid_dims,
@@ -38,7 +34,6 @@ fn create_test_config() -> GameConfig {
     .unwrap();
 
     let attack_region_a2 = Region::new(
-        Team::A,
         GridCell::new(3, 3).unwrap(),
         GridCell::new(4, 4).unwrap(),
         grid_dims,
@@ -46,7 +41,6 @@ fn create_test_config() -> GameConfig {
     .unwrap();
 
     let attack_region_b = Region::new(
-        Team::B,
         GridCell::new(20, 20).unwrap(),
         GridCell::new(21, 21).unwrap(),
         grid_dims,
@@ -54,7 +48,6 @@ fn create_test_config() -> GameConfig {
     .unwrap();
 
     let defence_region_a1 = Region::new(
-        Team::A,
         GridCell::new(1, 3).unwrap(),
         GridCell::new(2, 4).unwrap(),
         grid_dims,
@@ -62,7 +55,6 @@ fn create_test_config() -> GameConfig {
     .unwrap();
 
     let defence_region_a2 = Region::new(
-        Team::A,
         GridCell::new(3, 5).unwrap(),
         GridCell::new(4, 6).unwrap(),
         grid_dims,
@@ -70,7 +62,6 @@ fn create_test_config() -> GameConfig {
     .unwrap();
 
     let defence_region_b = Region::new(
-        Team::B,
         GridCell::new(20, 22).unwrap(),
         GridCell::new(21, 23).unwrap(),
         grid_dims,

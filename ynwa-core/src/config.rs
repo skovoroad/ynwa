@@ -50,13 +50,13 @@ impl PlayerConfig {
         };
 
         // Parse region in team's own orientation
-        let start_region = Region::from_grid_notation(&self.start_position, team, grid_dims)
+        let start_region = Region::from_grid_notation(&self.start_position, grid_dims)
             .map_err(|e| format!("Invalid start position '{}': {}", self.start_position, e))?;
 
-        let attack_region = Region::from_grid_notation(&self.attack_position, team, grid_dims)
+        let attack_region = Region::from_grid_notation(&self.attack_position, grid_dims)
             .map_err(|e| format!("Invalid attack position '{}': {}", self.attack_position, e))?;
 
-        let defence_region = Region::from_grid_notation(&self.defence_position, team, grid_dims)
+        let defence_region = Region::from_grid_notation(&self.defence_position, grid_dims)
             .map_err(|e| {
                 format!(
                     "Invalid defence position '{}': {}",

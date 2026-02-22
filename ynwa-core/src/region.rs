@@ -3,12 +3,11 @@
 //! Key types:
 //! - `GridDimensions { columns, rows }` - grid size
 //! - `GridCell { col, row }` - single cell, 1-based (A=1, B=2, ..., Z=26, AA=27, ...)
-//! - `Region { team, top_left, bottom_right }` - rectangular area
+//! - `Region { top_left, bottom_right }` - rectangular area
 //!
 //! Grid notation format: `"A1:B2"` (TopLeft:BottomRight)
 
 use crate::field::zones::Point3D;
-use crate::team::Team;
 use std::fmt;
 use uom::si::length::meter;
 
@@ -190,13 +189,8 @@ impl GridCell {
 }
 
 /// Rectangular region on the field, defined by two grid cells.
-/// Regions are team-specific because players view the field from different sides.
-///
-/// Example: Region from B3 to G4 (B=2, G=7; so cols 2-7, rows 3-4)
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Region {
-    /// The team this region is defined for (affects perspective)
-    pub team: Team,
     /// Top-left corner of the region
     pub top_left: GridCell,
     /// Bottom-right corner of the region
@@ -206,7 +200,6 @@ pub struct Region {
 impl Region {
     /// Creates a region with validation that cells are within grid bounds.
     pub fn new(
-        team: Team,
         top_left: GridCell,
         bottom_right: GridCell,
         grid_dims: GridDimensions,
@@ -249,7 +242,6 @@ impl Region {
         }
 
         Ok(Self {
-            team,
             top_left,
             bottom_right,
         })
@@ -257,9 +249,8 @@ impl Region {
 
     /// Creates a region without validation. Use with caution.
     /// This is useful when parsing from user scripts where validation will happen later.
-    pub fn new_unchecked(team: Team, top_left: GridCell, bottom_right: GridCell) -> Self {
+    pub fn new_unchecked(top_left: GridCell, bottom_right: GridCell) -> Self {
         Self {
-            team,
             top_left,
             bottom_right,
         }
@@ -323,10 +314,8 @@ impl Region {
     }
 
     /// Parse region from grid notation string (e.g., "A1:B2" or "A1" for single cell)
-    ///
     pub fn from_grid_notation(
         notation: &str,
-        team: Team,
         grid_dims: GridDimensions,
     ) -> Result<Self, RegionError> {
         // Split by colon
@@ -366,7 +355,7 @@ impl Region {
             }
         };
 
-        Region::new(team, top_left, bottom_right, grid_dims)
+        Region::new(top_left, bottom_right, grid_dims)
     }
 }
 

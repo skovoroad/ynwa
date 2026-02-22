@@ -17,7 +17,6 @@ pub fn create_test_game_with_script_and_stage(script: &str, stage: GameStage) ->
     let grid_dims = field.grid_dimensions();
 
     let start_region = Region::new(
-        Team::A,
         GridCell::new(10, 10).unwrap(),
         GridCell::new(11, 11).unwrap(),
         grid_dims,
@@ -63,7 +62,6 @@ pub fn create_test_game_with_preambles_and_stage(script: &str, stage: GameStage)
     let grid_dims = field.grid_dimensions();
 
     let start_region = Region::new(
-        Team::A,
         GridCell::new(10, 10).unwrap(),
         GridCell::new(11, 11).unwrap(),
         grid_dims,
@@ -119,7 +117,6 @@ pub fn create_test_game_with_preambles_and_zones(script: &str, zones: Vec<Zone>)
 
     let grid_dims = field.grid_dimensions();
     let start_region = Region::new(
-        Team::A,
         GridCell::new(10, 10).unwrap(),
         GridCell::new(11, 11).unwrap(),
         grid_dims,

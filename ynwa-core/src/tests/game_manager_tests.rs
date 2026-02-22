@@ -12,7 +12,6 @@ fn create_test_game_setup() -> Game {
     let grid_dims = field.grid_dimensions();
 
     let start_region = Region::new(
-        Team::A,
         GridCell::new(10, 10).unwrap(),
         GridCell::new(11, 11).unwrap(),
         grid_dims,
@@ -148,7 +147,6 @@ fn test_no_updates_in_play_stage() {
     let field = Field::from_meters(100.0, 60.0, 26, 44);
     let grid_dims = field.grid_dimensions();
     let start_region = Region::new(
-        Team::A,
         GridCell::new(10, 10).unwrap(),
         GridCell::new(11, 11).unwrap(),
         grid_dims,
@@ -206,7 +204,6 @@ fn test_game_resumes_after_event_triggered_setup() {
 
     let grid_dims = field.grid_dimensions();
     let start_region = Region::new(
-        Team::A,
         GridCell::new(10, 10).unwrap(),
         GridCell::new(11, 11).unwrap(),
         grid_dims,
@@ -296,7 +293,6 @@ fn test_ball_resets_to_initial_position_in_setup() {
     let field = Field::from_meters(100.0, 60.0, 26, 44);
     let grid_dims = field.grid_dimensions();
     let start_region = Region::new(
-        Team::A,
         GridCell::new(10, 10).unwrap(),
         GridCell::new(11, 11).unwrap(),
         grid_dims,

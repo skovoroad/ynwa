@@ -3,7 +3,6 @@ use crate::orientation::{
     flip_grid_cell_orientation, flip_point_orientation, flip_region_orientation,
 };
 use crate::region::{GridCell, GridDimensions, Region};
-use crate::team::Team;
 use uom::si::length::meter;
 
 #[test]
@@ -35,7 +34,6 @@ fn test_flip_grid_cell_double_flip() {
 fn test_flip_region_orientation() {
     let grid_dims = GridDimensions::new(26, 44);
     let region = Region::new(
-        Team::A,
         GridCell::new(1, 1).unwrap(),
         GridCell::new(2, 2).unwrap(),
         grid_dims,
@@ -45,7 +43,6 @@ fn test_flip_region_orientation() {
     let flipped = flip_region_orientation(&region, grid_dims).unwrap();
 
     // Team should be opposite
-    assert_eq!(flipped.team, Team::B);
 
     // Coordinates should be flipped and swapped
     // Original: top_left=(1,1), bottom_right=(2,2)
@@ -59,7 +56,6 @@ fn test_flip_region_orientation() {
 fn test_flip_region_double_flip() {
     let grid_dims = GridDimensions::new(26, 44);
     let region = Region::new(
-        Team::A,
         GridCell::new(5, 10).unwrap(),
         GridCell::new(8, 15).unwrap(),
         grid_dims,
@@ -68,8 +64,6 @@ fn test_flip_region_double_flip() {
 
     let flipped_once = flip_region_orientation(&region, grid_dims).unwrap();
     let flipped_twice = flip_region_orientation(&flipped_once, grid_dims).unwrap();
-
-    assert_eq!(flipped_twice.team, region.team);
     assert_eq!(flipped_twice.top_left, region.top_left);
     assert_eq!(flipped_twice.bottom_right, region.bottom_right);
 }

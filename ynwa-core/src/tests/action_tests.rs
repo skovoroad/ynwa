@@ -19,7 +19,6 @@ fn create_test_game_with_player_stats(
     let grid_dims = field.grid_dimensions();
 
     let start_region = crate::region::Region::new(
-        Team::A,
         GridCell::new(1, 1).unwrap(),
         GridCell::new(1, 1).unwrap(),
         grid_dims,
@@ -55,7 +54,6 @@ fn create_test_game_with_two_players() -> Game {
     let grid_dims = field.grid_dimensions();
 
     let start_region = crate::region::Region::new(
-        Team::A,
         GridCell::new(1, 1).unwrap(),
         GridCell::new(1, 1).unwrap(),
         grid_dims,

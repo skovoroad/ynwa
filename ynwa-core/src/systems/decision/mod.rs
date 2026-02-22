@@ -28,9 +28,8 @@ fn convert_decision_to_display_orientation(
             let flipped_target = match target {
                 DecisionTarget::Region(region) => {
                     let flipped = region.flip_orientation(grid_dimensions).unwrap();
-                    // flip_orientation swaps team; force Team::A for display orientation
                     let display_region =
-                        Region::new_unchecked(Team::A, flipped.top_left, flipped.bottom_right);
+                        Region::new_unchecked(flipped.top_left, flipped.bottom_right);
                     DecisionTarget::Region(display_region)
                 }
                 DecisionTarget::GridCell(cell) => {
@@ -62,7 +61,6 @@ mod tests {
     fn test_convert_decision_team_a_unchanged() {
         let grid_dims = GridDimensions::new(26, 44);
         let region = Region::new(
-            Team::A,
             GridCell::new(1, 1).unwrap(),
             GridCell::new(2, 2).unwrap(),
             grid_dims,
@@ -74,7 +72,6 @@ mod tests {
 
         match converted {
             Decision::Run(DecisionTarget::Region(r)) => {
-                assert_eq!(r.team, region.team);
                 assert_eq!(r.top_left, region.top_left);
                 assert_eq!(r.bottom_right, region.bottom_right);
             }
@@ -95,7 +92,6 @@ mod tests {
     fn test_convert_decision_team_b_region_flipped() {
         let grid_dims = GridDimensions::new(26, 44);
         let region_b = Region::new(
-            Team::B,
             GridCell::new(1, 1).unwrap(),
             GridCell::new(1, 1).unwrap(),
             grid_dims,
@@ -108,7 +104,6 @@ mod tests {
 
         match converted {
             Decision::Run(DecisionTarget::Region(r)) => {
-                assert_eq!(r.team, Team::A);
                 // A1 for Team B = col 26, row 44 in 26x44 grid
                 assert_eq!(r.top_left, GridCell::new(26, 44).unwrap());
                 assert_eq!(r.bottom_right, GridCell::new(26, 44).unwrap());

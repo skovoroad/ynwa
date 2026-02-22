@@ -328,11 +328,10 @@ fn test_orientation_roundtrip() {
     // Should match original (note: single cell "M25" becomes "M25:M25" after round-trip)
     assert_eq!(config_back.team, "B");
     // Both "M25" and "M25:M25" are valid representations of the same single cell
-    let team_b = Team::B;
     let parsed_back =
-        Region::from_grid_notation(&config_back.start_position, team_b, grid_dims).unwrap();
+        Region::from_grid_notation(&config_back.start_position, grid_dims).unwrap();
     let parsed_original =
-        Region::from_grid_notation(&original_config.start_position, team_b, grid_dims).unwrap();
+        Region::from_grid_notation(&original_config.start_position, grid_dims).unwrap();
     assert_eq!(parsed_back, parsed_original);
 }
 

@@ -97,7 +97,6 @@ mod tests {
         for i in 0..11 {
             let row = i + 1;
             let start_region = Region::new(
-                Team::A,
                 GridCell::new(1, row).unwrap(),
                 GridCell::new(2, row).unwrap(),
                 grid_dims,
@@ -115,7 +114,6 @@ mod tests {
         for i in 0..11 {
             let row = i + 1;
             let start_region = Region::new(
-                Team::B,
                 GridCell::new(25, row).unwrap(),
                 GridCell::new(26, row).unwrap(),
                 grid_dims,

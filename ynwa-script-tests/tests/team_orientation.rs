@@ -19,7 +19,6 @@ fn create_game_with_team_script(team: Team, script: String) -> Game {
     // For Team B, start near their goal (right side, but in Team B coordinates = left in their view)
     let start_region = if team == Team::A {
         Region::new(
-            Team::A,
             GridCell::new(1, 20).unwrap(),
             GridCell::new(1, 20).unwrap(),
             grid_dims,
@@ -28,7 +27,6 @@ fn create_game_with_team_script(team: Team, script: String) -> Game {
     } else {
         // Team B starts at A20 in Team B coordinates (which is their left side)
         Region::new(
-            Team::B,
             GridCell::new(1, 20).unwrap(),
             GridCell::new(1, 20).unwrap(),
             grid_dims,
@@ -161,7 +159,6 @@ fn test_team_a_region_unchanged() {
 
     match decision.as_ref().unwrap() {
         Decision::Run(DecisionTarget::Region(region)) => {
-            assert_eq!(region.team, Team::A);
             assert_eq!(region.top_left, GridCell::new(1, 1).unwrap());
             assert_eq!(region.bottom_right, GridCell::new(2, 2).unwrap());
         }
@@ -205,7 +202,6 @@ fn test_team_b_region_flipped() {
             // After flip: team remains A (lua_format always creates Team A regions),
             // but coordinates flip
             // A1 -> R44, B2 -> Q43 (in 18x44 grid)
-            assert_eq!(region.team, Team::A);
             assert_eq!(
                 region.top_left,
                 GridCell::new(17, 43).unwrap(),

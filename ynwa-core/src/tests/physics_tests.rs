@@ -10,7 +10,6 @@ fn create_test_game() -> Game {
     let grid_dims = field.grid_dimensions();
 
     let start_region = crate::region::Region::new(
-        Team::A,
         GridCell::new(1, 1).unwrap(),
         GridCell::new(1, 1).unwrap(),
         grid_dims,

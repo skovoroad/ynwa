@@ -66,7 +66,6 @@ mod tests {
 
         // Player 0: fast and reactive
         let start_region_0 = Region::new(
-            Team::A,
             GridCell::new(1, 1).unwrap(),
             GridCell::new(1, 1).unwrap(),
             grid_dims,
@@ -85,7 +84,6 @@ mod tests {
 
         // Player 1: slow and less reactive
         let start_region_1 = Region::new(
-            Team::A,
             GridCell::new(5, 1).unwrap(),
             GridCell::new(5, 1).unwrap(),
             grid_dims,
@@ -141,7 +139,6 @@ mod tests {
         let grid_dims = game.config().field.grid_dimensions();
 
         let target_region = Region::new(
-            Team::A,
             GridCell::new(15, 15).unwrap(),
             GridCell::new(20, 20).unwrap(),
             grid_dims,
@@ -361,7 +358,6 @@ mod tests {
         let grid_dims = field.grid_dimensions();
 
         let start_region = Region::new(
-            Team::A,
             GridCell::new(13, 22).unwrap(), // Center of field
             GridCell::new(13, 22).unwrap(),
             grid_dims,
@@ -442,7 +438,6 @@ mod tests {
         let grid_dims = field.grid_dimensions();
 
         let start_region = Region::new(
-            Team::A,
             GridCell::new(13, 22).unwrap(),
             GridCell::new(13, 22).unwrap(),
             grid_dims,

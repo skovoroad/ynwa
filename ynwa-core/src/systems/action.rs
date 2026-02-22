@@ -22,7 +22,6 @@ fn calculate_target_point(target: &DecisionTarget, game: &Game) -> Point3D {
         DecisionTarget::Point(point) => *point,
         DecisionTarget::GridCell(cell) => {
             let region = Region::new(
-                crate::team::Team::A,
                 *cell,
                 *cell,
                 game.config().field.grid_dimensions(),
