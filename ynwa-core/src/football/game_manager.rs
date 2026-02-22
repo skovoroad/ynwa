@@ -2,11 +2,10 @@
 //!
 //! GameStage enum:
 //! - `Play` - normal gameplay, scripts call `make_decision()`
-//! - `Setup(String)` - preparation phase, scripts call `prepare()`, default: `Setup("start")`
+//! - `Setup(String)` - preparation phase, scripts call `get_setup_position(reason)`, default: `Setup("start")`
 //!
 //! Setup stage behavior:
 //! - Players start at (width/2, 0, -5) — 5m behind field edge
-//! - High reaction frequency for fast movement to positions
 //! - Players marked ready when inside their `start_position` region
 //! - Automatically transitions to Play when all players are ready
 //!

@@ -1,4 +1,5 @@
-use crate::game::{Decision, DecisionTarget, Game};
+use crate::game::{Decision, DecisionTarget, Game, GameStage};
+use crate::physics_util::distance_2d;
 use crate::region::GridCell;
 use crate::system::System;
 use rand::Rng;
@@ -6,6 +7,9 @@ use std::fmt;
 use uom::si::length::meter;
 
 use super::convert_decision_to_display_orientation;
+use super::util::resolve_target_point;
+
+const SETUP_ARRIVAL_THRESHOLD_METERS: f32 = 0.5;
 
 // Design: DecisionSystem delegates decision-making to DecisionMaker implementations.
 // This separates coordination (when to decide) from strategy (what to decide).
@@ -115,14 +119,40 @@ impl System for DecisionSystem {
         let player_count = game.state.player_states.len();
 
         for player_index in 0..player_count {
+            // In Setup stage: check arrival every tick without calling the script.
+            let is_setup = matches!(game.state.stage, GameStage::Setup(_));
+            if is_setup {
+                let field_width = game.config().field.width().get::<meter>();
+                let field_length = game.config().field.length().get::<meter>();
+                let grid_dims = game.config().field.grid_dimensions();
+                let player_team = game.config().players[player_index].team;
+                let player_pos = game.state.player_states[player_index].position;
+                let current_decision = game.state.player_states[player_index].current_decision.clone();
+
+                if let Some(decision) = &current_decision {
+                    if let Some(target) = resolve_target_point(decision, field_width, grid_dims) {
+                        if distance_2d(&player_pos, &target) < SETUP_ARRIVAL_THRESHOLD_METERS {
+                            let stop = convert_decision_to_display_orientation(
+                                &Decision::Stop,
+                                player_team,
+                                field_width,
+                                field_length,
+                                grid_dims,
+                            );
+                            let player_state = &mut game.state.player_states[player_index];
+                            player_state.current_decision = Some(stop);
+                            player_state.decision_processed = false;
+                            player_state.needs_decision = false;
+                            continue;
+                        }
+                    }
+                }
+            }
+
             if game.state.player_states[player_index].needs_decision {
-                // Get decision or handle error
                 let decision_result = self.decision_maker.make_decision(game, player_index);
 
-                // Get player's team for coordinate conversion
                 let player_team = game.config().players[player_index].team;
-
-                // Get field dimensions for coordinate conversion
                 let field_width = game.config().field.width().get::<meter>();
                 let field_length = game.config().field.length().get::<meter>();
                 let grid_dims = game.config().field.grid_dimensions();
@@ -131,7 +161,7 @@ impl System for DecisionSystem {
 
                 match decision_result {
                     Ok((decision, reason)) => {
-                        // Convert decision from team's orientation to display orientation
+
                         let display_decision = convert_decision_to_display_orientation(
                             &decision,
                             player_team,
@@ -140,20 +170,17 @@ impl System for DecisionSystem {
                             grid_dims,
                         );
 
-                        // Success: set the decision and reason
                         player_state.current_decision = Some(display_decision);
                         player_state.decision_reason = reason;
                         player_state.decision_processed = false;
                         player_state.needs_decision = false;
                         player_state.last_decision_time = timestamp;
-                        player_state.last_error = None; // Clear any previous error
+                        player_state.last_error = None;
                     }
                     Err(error) => {
-                        // Error: call error handler and save error message for UI
                         let error_message = error.to_string();
                         let error_decision = (self.on_error)(&error, player_index);
 
-                        // If error handler provides a decision, convert it too
                         let converted_error_decision = error_decision.map(|d| {
                             convert_decision_to_display_orientation(
                                 &d,
@@ -167,7 +194,7 @@ impl System for DecisionSystem {
                         // Always treat error as "completed attempt" to prevent storm
                         // This ensures rate-limiting via PlayerReactionSystem's reaction_rate
                         player_state.current_decision = converted_error_decision;
-                        player_state.decision_reason = None; // No reason on error
+                        player_state.decision_reason = None;
                         player_state.decision_processed = false;
                         player_state.needs_decision = false;
                         player_state.last_decision_time = timestamp;

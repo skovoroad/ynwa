@@ -86,9 +86,9 @@ The following aspects are considered in the design but implementation is postpon
 **Game Systems:**
 System execution order (important for correct operation):
 1. **FootballGameManager** - manages game stage transitions (Setup → Play), manages football-specific game logic for determining events (future)
-2. **PlayerReactionSystem** - determines when player is ready to accept new decision based on reaction_rate
+2. **PlayerReactionSystem** - determines when player is ready to accept new decision based on reaction_rate. During Setup stage: requests a decision once (when player has none); arrival is handled by DecisionSystem, not by re-polling.
 3. **BallPossessionSystem** - determines which player possesses the ball (see Ball Possession System section)
-4. **DecisionSystem** - creates decisions (Decision) for players using DecisionMaker trait
+4. **DecisionSystem** - creates decisions (Decision) for players using DecisionMaker trait. During Setup stage: on every tick checks if the player has reached their Run target (within 0.5m); if so, overrides the decision with Stop without calling the script.
 5. **ActionSystem** - transforms decisions into velocity (applies speed_rate)
 6. **PhysicsSystem** - applies velocity to position using kinematics: position += velocity × delta_time
 

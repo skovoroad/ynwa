@@ -124,12 +124,12 @@ impl DecisionEngine {
         self.execute_function(player_index, "make_decision", context)
     }
 
-    pub fn prepare(
+    pub fn get_setup_position(
         &self,
         player_index: usize,
         context: &JsonValue,
     ) -> Result<JsonValue, DecisionEngineError> {
-        self.execute_function(player_index, "prepare", context)
+        self.execute_function(player_index, "get_setup_position", context)
     }
 
     /// Execute a function for a player
@@ -480,10 +480,10 @@ mod tests {
     }
 
     #[test]
-    fn test_decision_engine_prepare_function() {
+    fn test_decision_engine_get_setup_position() {
         let config = create_test_config(
             r#"
-            function prepare(reason)
+            function get_setup_position(reason)
                 return {action = "stop"}
             end
             "#,
@@ -491,7 +491,7 @@ mod tests {
 
         let engine = DecisionEngine::new(&config, "", "").unwrap();
         let context = json!({"me": {"number": 1}});
-        let decision = engine.prepare(0, &context);
+        let decision = engine.get_setup_position(0, &context);
 
         assert!(decision.is_ok());
         let dec = decision.unwrap();
@@ -499,10 +499,9 @@ mod tests {
     }
 
     #[test]
-    fn test_decision_engine_prepare_with_default_from_stdlib() {
-        // Test that default prepare from stdlib works
+    fn test_decision_engine_get_setup_position_from_stdlib() {
         let stdlib_preamble = r#"
-            function prepare(reason)
+            function get_setup_position(reason)
                 return {action = "stop"}
             end
         "#;
@@ -518,8 +517,7 @@ mod tests {
         let engine = DecisionEngine::new(&config, "", stdlib_preamble).unwrap();
         let context = json!({"me": {"number": 1}});
 
-        // Should be able to call prepare even though user script doesn't define it
-        let decision = engine.prepare(0, &context);
+        let decision = engine.get_setup_position(0, &context);
         assert!(decision.is_ok());
         let dec = decision.unwrap();
         assert_eq!(dec.get("action").and_then(|a| a.as_str()), Some("stop"));

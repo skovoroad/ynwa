@@ -25,6 +25,13 @@ pub fn distance(a: &Point3D, b: &Point3D) -> f32 {
     (dx * dx + dy * dy + dz * dz).sqrt()
 }
 
+/// Calculate horizontal distance between two points, ignoring the Y axis (meters)
+pub fn distance_2d(a: &Point3D, b: &Point3D) -> f32 {
+    let dx = a.x.get::<meter>() - b.x.get::<meter>();
+    let dz = a.z.get::<meter>() - b.z.get::<meter>();
+    (dx * dx + dz * dz).sqrt()
+}
+
 /// Calculate distance between two 3D points (returns Length type)
 pub fn distance_length(a: &Point3D, b: &Point3D) -> Length {
     Length::new::<meter>(distance(a, b))

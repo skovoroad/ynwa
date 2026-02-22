@@ -1,7 +1,7 @@
 use super::*;
 use crate::field::Field;
-use crate::game::{BallDef, GameConfig, PlayerDef, RefereeDef};
-use crate::region::{GridCell};
+use crate::game::{BallDef, GameConfig, GameStage, PlayerDef, RefereeDef};
+use crate::region::GridCell;
 use crate::team::Team;
 
 fn create_test_game() -> Game {
@@ -378,6 +378,7 @@ fn test_error_cleared_on_successful_decision() {
 
     assert!(game.state.player_states[0].last_error.is_some());
 
+
     // Now: switch to working decision maker
     let mut system = DecisionSystem::new();
     game.state.player_states[0].needs_decision = true;
@@ -387,4 +388,182 @@ fn test_error_cleared_on_successful_decision() {
     // Error should be cleared
     assert!(game.state.player_states[0].last_error.is_none());
     assert!(game.state.player_states[0].current_decision.is_some());
+}
+
+// ── Setup stage: arrival check ───────────────────────────────────────────────
+
+fn make_setup_game_with_player_at(x: f32, z: f32) -> Game {
+    let field = Field::from_meters(100.0, 60.0, 26, 44);
+    let grid_dims = field.grid_dimensions();
+    let start_region = grid_dims
+        .create_region(GridCell::new(1, 1).unwrap(), GridCell::new(2, 2).unwrap())
+        .unwrap();
+
+    let config = GameConfig {
+        field,
+        players: vec![PlayerDef::new(
+            Team::A,
+            1,
+            "Test Player".to_string(),
+            "function make_decision() return {} end".to_string(),
+            start_region,
+        )],
+        ball: BallDef::default(),
+        referees: vec![RefereeDef::default()],
+        scripting: crate::game::ScriptingConfig::empty(),
+    };
+
+    let mut game = Game::with_stage(config, GameStage::Setup("start".to_string()));
+    game.state.player_states[0].position = crate::field::zones::Point3D::from_meters(x, 0.0, z);
+    game
+}
+
+#[test]
+fn test_setup_arrival_check_stops_player_when_close_to_target() {
+    // Player is within 0.5m of the Run target → DecisionSystem must override with Stop
+    let target_x = 30.0_f32;
+    let target_z = 20.0_f32;
+    let mut game = make_setup_game_with_player_at(target_x + 0.3, target_z + 0.3);
+    let mut system = DecisionSystem::new();
+
+    // Give the player a Run decision pointing to (target_x, target_z)
+    let target = crate::field::zones::Point3D::from_meters(target_x, 0.0, target_z);
+    game.state.player_states[0].current_decision =
+        Some(Decision::Run(DecisionTarget::Point(target)));
+    game.state.player_states[0].needs_decision = false;
+
+    system.update(&mut game, 1.0);
+
+    assert!(
+        matches!(game.state.player_states[0].current_decision, Some(Decision::Stop)),
+        "Expected Stop when player is within arrival threshold"
+    );
+}
+
+#[test]
+fn test_setup_arrival_check_does_not_stop_player_when_far() {
+    // Player is more than 0.5m away → decision must remain Run
+    let target_x = 30.0_f32;
+    let target_z = 20.0_f32;
+    let mut game = make_setup_game_with_player_at(target_x + 5.0, target_z);
+    let mut system = DecisionSystem::new();
+
+    let target = crate::field::zones::Point3D::from_meters(target_x, 0.0, target_z);
+    game.state.player_states[0].current_decision =
+        Some(Decision::Run(DecisionTarget::Point(target)));
+    game.state.player_states[0].needs_decision = false;
+
+    system.update(&mut game, 1.0);
+
+    assert!(
+        matches!(
+            game.state.player_states[0].current_decision,
+            Some(Decision::Run(_))
+        ),
+        "Expected Run to be preserved when player is far from target"
+    );
+}
+
+#[test]
+fn test_setup_arrival_check_skipped_when_no_decision() {
+    // Player has no current decision → arrival check must not panic or assign Stop
+    let mut game = make_setup_game_with_player_at(50.0, 30.0);
+    let mut system = DecisionSystem::new();
+
+    game.state.player_states[0].current_decision = None;
+    game.state.player_states[0].needs_decision = false;
+
+    system.update(&mut game, 1.0);
+
+    assert!(
+        game.state.player_states[0].current_decision.is_none(),
+        "No decision should be created by arrival check alone"
+    );
+}
+
+#[test]
+fn test_setup_arrival_check_skipped_when_decision_is_stop() {
+    // Player already has Stop (already arrived) → no change
+    let mut game = make_setup_game_with_player_at(30.0, 20.0);
+    let mut system = DecisionSystem::new();
+
+    game.state.player_states[0].current_decision = Some(Decision::Stop);
+    game.state.player_states[0].needs_decision = false;
+
+    system.update(&mut game, 1.0);
+
+    assert!(
+        matches!(game.state.player_states[0].current_decision, Some(Decision::Stop))
+    );
+}
+
+#[test]
+fn test_play_stage_arrival_check_does_not_fire() {
+    // In Play stage the arrival check must not override decisions
+    let field = Field::from_meters(100.0, 60.0, 26, 44);
+    let grid_dims = field.grid_dimensions();
+    let start_region = grid_dims
+        .create_region(GridCell::new(1, 1).unwrap(), GridCell::new(2, 2).unwrap())
+        .unwrap();
+    let config = GameConfig {
+        field,
+        players: vec![PlayerDef::new(
+            Team::A,
+            1,
+            "Test Player".to_string(),
+            "function make_decision() return {} end".to_string(),
+            start_region,
+        )],
+        ball: BallDef::default(),
+        referees: vec![RefereeDef::default()],
+        scripting: crate::game::ScriptingConfig::empty(),
+    };
+
+    let mut game = Game::with_stage(config, GameStage::Play);
+    let target = crate::field::zones::Point3D::from_meters(30.0, 0.0, 20.0);
+    // Put player right on top of the target — in Play this must NOT trigger Stop
+    game.state.player_states[0].position =
+        crate::field::zones::Point3D::from_meters(30.0, 0.0, 20.0);
+    game.state.player_states[0].current_decision =
+        Some(Decision::Run(DecisionTarget::Point(target)));
+    game.state.player_states[0].needs_decision = false;
+
+    let mut system = DecisionSystem::new();
+    system.update(&mut game, 1.0);
+
+    assert!(
+        matches!(
+            game.state.player_states[0].current_decision,
+            Some(Decision::Run(_))
+        ),
+        "Arrival check must not fire in Play stage"
+    );
+}
+
+#[test]
+fn test_setup_arrival_check_does_not_call_script() {
+    // When arrival check fires, the script must not be called (needs_decision was false)
+    // We verify this by using an ErrorDecisionMaker: if the script were called it would
+    // wipe current_decision; since it must not be called, Stop must remain.
+    let target_x = 30.0_f32;
+    let target_z = 20.0_f32;
+    let mut game = make_setup_game_with_player_at(target_x + 0.1, target_z);
+
+    let target = crate::field::zones::Point3D::from_meters(target_x, 0.0, target_z);
+    game.state.player_states[0].current_decision =
+        Some(Decision::Run(DecisionTarget::Point(target)));
+    game.state.player_states[0].needs_decision = false;
+
+    let mut system =
+        DecisionSystem::new().with_decision_maker(Box::new(ErrorDecisionMaker));
+
+    system.update(&mut game, 1.0);
+
+    // Arrival check fired → Stop; ErrorDecisionMaker was NOT called
+    assert!(
+        matches!(game.state.player_states[0].current_decision, Some(Decision::Stop)),
+        "Arrival check must override to Stop without calling the script"
+    );
+    // No error must have been recorded
+    assert!(game.state.player_states[0].last_error.is_none());
 }

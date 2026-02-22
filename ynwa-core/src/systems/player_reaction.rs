@@ -24,23 +24,19 @@ impl System for PlayerReactionSystem {
         let is_setup = matches!(game.state().stage, crate::game::GameStage::Setup(_));
 
         for i in 0..player_count {
-            let reaction_rate = if is_setup {
-                // Use maximum frequency during setup stage
-                100
-            } else {
-                game.config().players[i].reaction_rate
-            };
-
-            let mut interval = Self::reaction_interval(reaction_rate);
             if is_setup {
-                // Player must't leave cell before check
-                // TODO: revise this hack
-                interval /= 3.;
-            }
-            let player_state = &mut game.state.player_states[i];
-
-            if timestamp - player_state.last_decision_time >= interval {
-                player_state.needs_decision = true;
+                // During setup, request a decision only once — the engine will
+                // override it with Stop when the player arrives (see DecisionSystem).
+                if game.state.player_states[i].current_decision.is_none() {
+                    game.state.player_states[i].needs_decision = true;
+                }
+            } else {
+                let reaction_rate = game.config().players[i].reaction_rate;
+                let interval = Self::reaction_interval(reaction_rate);
+                let player_state = &mut game.state.player_states[i];
+                if timestamp - player_state.last_decision_time >= interval {
+                    player_state.needs_decision = true;
+                }
             }
         }
     }

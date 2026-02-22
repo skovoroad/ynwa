@@ -46,7 +46,8 @@ fn calculate_velocity(
 
     let distance = (dx * dx + dy * dy + dz * dz).sqrt();
 
-    if distance < 0.01 {
+    // Stop when close enough to avoid overshooting
+    if distance < 0.5 {
         return Velocity3D::default();
     }
 
@@ -129,15 +130,12 @@ impl System for ActionSystem {
                                 let player_def = &game.config().players[player_index];
                                 let ball_position = game.state.ball_state.position;
 
-                                // Get two random values for power and accuracy
                                 let rng_power = self.get_random();
                                 let rng_accuracy = self.get_random();
 
-                                // Calculate kick speed with variation
                                 let kick_speed =
                                     calculate_kick_velocity(player_def.shot_power, rng_power);
 
-                                // Calculate direction with accuracy-based deviation
                                 let (dx, dz) = calculate_kick_direction_with_accuracy(
                                     &target_point,
                                     &ball_position,
@@ -145,14 +143,12 @@ impl System for ActionSystem {
                                     rng_accuracy,
                                 );
 
-                                // Set ball velocity (kick along ground, y=0)
                                 game.state.ball_state.velocity = Velocity3D::from_meters_per_second(
                                     dx * kick_speed,
                                     0.0,
                                     dz * kick_speed,
                                 );
 
-                                // Release possession
                                 game.state.ball_state.possessed_by = None;
                             }
                             // If player doesn't own ball, ignore kick decision (no action)

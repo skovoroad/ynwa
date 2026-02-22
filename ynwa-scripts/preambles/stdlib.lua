@@ -105,28 +105,19 @@ function get_random_shot_target_to_goal(opponent_team)
     return {x = goal_x, z = goal_z, y = 0}
 end
 
--- Default prepare function for setup stage
+-- Default get_setup_position for setup stage
 -- Runs to start position if not there yet, stops when arrived
-function prepare(reason)
+function get_setup_position(reason)
     local my_pos = my_position()
     local start_pos = my_regions()["start position"]
-    
+
     if start_pos == nil then
-        -- No start position defined, just stop
         return {action = "stop"}
     end
-    
-    -- Check if we're already in start position (roughly)
+
     local center_x = (start_pos.min_x + start_pos.max_x) / 2
     local center_z = (start_pos.min_z + start_pos.max_z) / 2
-    local dist = math.sqrt((my_pos.x - center_x)^2 + (my_pos.z - center_z)^2)
-    
-    -- If we're close to start position (within 1 meter), stop
-    if dist < 1.0 then
-        return {action = "stop"}
-    end
-    
-    -- Otherwise, run to start position center
+
     return {
         action = "run",
         target_type = "point",

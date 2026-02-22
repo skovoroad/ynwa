@@ -47,11 +47,10 @@ function make_decision()
 end
 ```
 
-Each player script must define a `prepare()` function that:
-- Receives an implicit `context` parameter (global variable) with game state
-- Returns a Lua table with a decision
-    - "run" decision, if player is not ready yet
-    - "stop" decision, if player is ready for a game
+Each player script may define a `get_setup_position(reason)` function that:
+- Receives `reason` string (e.g. `"start"`, `"after_goal"`) via `context.game.setup_reason`
+- Returns a `"run"` decision towards the player's start position
+- **Stopping is handled by the engine automatically** — once the player is within 0.5m of the target, the engine replaces the decision with Stop; the script does not need to check distance
 
 ### 2.2 Input Data: `context` Structure
 
@@ -122,7 +121,9 @@ context = {
     
     -- Game time
     game = {
-        elapsed_time = 125.5  -- Seconds since game start
+        elapsed_time = 125.5,  -- Seconds since game start
+        setup_reason = "start" -- Present only during Setup stage: reason for setup
+                               -- Values: "start", "after_goal", "throw_in", "set_piece"
     }
 }
 ```

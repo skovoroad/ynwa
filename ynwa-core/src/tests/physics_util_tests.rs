@@ -93,6 +93,57 @@ fn test_kick_direction_perfect_accuracy_no_deviation() {
 }
 
 #[test]
+fn test_distance_2d_zero() {
+    let point = Point3D::from_meters(5.0, 3.0, 2.0);
+    assert_eq!(distance_2d(&point, &point), 0.0);
+}
+
+#[test]
+fn test_distance_2d_along_x() {
+    let a = Point3D::from_meters(0.0, 0.0, 0.0);
+    let b = Point3D::from_meters(10.0, 0.0, 0.0);
+    assert!((distance_2d(&a, &b) - 10.0).abs() < 0.001);
+}
+
+#[test]
+fn test_distance_2d_along_z() {
+    let a = Point3D::from_meters(0.0, 0.0, 0.0);
+    let b = Point3D::from_meters(0.0, 0.0, 10.0);
+    assert!((distance_2d(&a, &b) - 10.0).abs() < 0.001);
+}
+
+#[test]
+fn test_distance_2d_ignores_y() {
+    // Two points at the same X/Z but different Y — 2D distance must be 0
+    let a = Point3D::from_meters(5.0, 0.0, 5.0);
+    let b = Point3D::from_meters(5.0, 100.0, 5.0);
+    assert_eq!(distance_2d(&a, &b), 0.0);
+}
+
+#[test]
+fn test_distance_2d_differs_from_3d_when_y_differs() {
+    let a = Point3D::from_meters(0.0, 0.0, 0.0);
+    let b = Point3D::from_meters(3.0, 4.0, 0.0);
+    // 3D distance = 5.0 (3-4-5), 2D distance = 3.0 (Y ignored)
+    assert!((distance(&a, &b) - 5.0).abs() < 0.001);
+    assert!((distance_2d(&a, &b) - 3.0).abs() < 0.001);
+}
+
+#[test]
+fn test_distance_2d_diagonal() {
+    let a = Point3D::from_meters(0.0, 99.0, 0.0);
+    let b = Point3D::from_meters(3.0, 0.0, 4.0);
+    // sqrt(3^2 + 4^2) = 5, Y is irrelevant
+    assert!((distance_2d(&a, &b) - 5.0).abs() < 0.001);
+}
+
+#[test]
+fn test_distance_2d_symmetric() {
+    let a = Point3D::from_meters(1.0, 2.0, 3.0);
+    let b = Point3D::from_meters(4.0, 5.0, 6.0);
+    assert_eq!(distance_2d(&a, &b), distance_2d(&b, &a));
+}
+#[test]
 fn test_kick_direction_perfect_accuracy_max_deviation() {
     let ball = Point3D::from_meters(50.0, 30.0, 0.0);
     let target = Point3D::from_meters(60.0, 30.0, 0.0); // Straight along X axis

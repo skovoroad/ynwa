@@ -428,27 +428,25 @@ impl DecisionMaker for ScriptedDecisionMaker {
         game: &Game,
         player_index: usize,
     ) -> Result<(Decision, Option<String>), DecisionError> {
-        // Build context
         let context = Self::build_context(game, player_index)?;
 
-        // Choose function based on game stage
         let decision_json = match &game.state().stage {
             crate::game::GameStage::Play => self
                 .engine
                 .make_decision(player_index, &context)
                 .map_err(|e| DecisionError::RuntimeError(format!("Engine error: {}", e)))?,
-            crate::game::GameStage::Setup(_reason) => {
+            crate::game::GameStage::Setup(reason) => {
+                let mut ctx = context;
+                ctx["game"]["setup_reason"] = serde_json::Value::String(reason.clone());
                 self.engine
-                    .prepare(player_index, &context)
+                    .get_setup_position(player_index, &ctx)
                     .map_err(|e| DecisionError::RuntimeError(format!("Engine error: {}", e)))?
             }
             crate::game::GameStage::GameOver => {
-                // During game over, return Stop decision with no reason
                 return Ok((Decision::Stop, None));
             }
         };
 
-        // Parse JSON decision to Decision type using decision_parser (returns tuple)
         decision_parser::parse_decision(&decision_json)
     }
 }
@@ -557,14 +555,14 @@ mod tests {
     }
 
     #[test]
-    fn test_prepare_function_in_play_stage() {
+    fn test_get_setup_position_in_play_stage() {
         let mut game = create_test_game_with_script(
             r#"
             function make_decision()
                 return {action = "stop"}
             end
-            
-            function prepare(reason)
+
+            function get_setup_position(reason)
                 return {action = "run", target_type = "cell", target = "B2"}
             end
             "#,
@@ -575,20 +573,20 @@ mod tests {
         let decision = maker.make_decision(&game, 0);
 
         assert!(decision.is_ok());
-        // In Play stage, should call make_decision, not prepare
+        // In Play stage, should call make_decision, not get_setup_position
         let (decision_value, _) = decision.unwrap();
         assert!(matches!(decision_value, Decision::Stop));
     }
 
     #[test]
-    fn test_prepare_function_in_setup_stage() {
+    fn test_get_setup_position_in_setup_stage() {
         let mut game = create_test_game_with_script(
             r#"
             function make_decision()
                 return {action = "stop"}
             end
-            
-            function prepare(reason)
+
+            function get_setup_position(reason)
                 return {action = "run", target_type = "cell", target = "B2"}
             end
             "#,
@@ -599,7 +597,6 @@ mod tests {
         let decision = maker.make_decision(&game, 0);
 
         assert!(decision.is_ok());
-        // In Setup stage, should call prepare
         let (decision_value, _) = decision.unwrap();
         match decision_value {
             Decision::Run(target) => match target {
@@ -614,14 +611,38 @@ mod tests {
     }
 
     #[test]
-    fn test_prepare_function_default_from_stdlib() {
+    fn test_get_setup_position_receives_reason() {
+        let mut game = create_test_game_with_script(
+            r#"
+            function make_decision()
+                return {action = "stop"}
+            end
+
+            function get_setup_position(reason)
+                -- reason comes via context.game.setup_reason
+                return {action = "stop", reason = context.game.setup_reason}
+            end
+            "#,
+        );
+
+        game.state.stage = crate::game::GameStage::Setup("after_goal".to_string());
+        let mut maker = ScriptedDecisionMaker::new(&game).unwrap();
+        let decision = maker.make_decision(&game, 0);
+
+        assert!(decision.is_ok());
+        let (decision_value, _) = decision.unwrap();
+        assert!(matches!(decision_value, Decision::Stop));
+    }
+
+    #[test]
+    fn test_get_setup_position_default_from_stdlib() {
         let field = Field::from_meters(100.0, 60.0, 26, 44);
         let grid_dims = field.grid_dimensions();
 
         let start_region = grid_dims.create_region(GridCell::new(10, 10).unwrap(), GridCell::new(11, 11).unwrap()).unwrap();
 
         let stdlib_preamble = r#"
-            function prepare(reason)
+            function get_setup_position(reason)
                 return {action = "stop"}
             end
         "#;
@@ -648,7 +669,6 @@ mod tests {
         let decision = maker.make_decision(&game, 0);
 
         assert!(decision.is_ok());
-        // Should use default prepare from stdlib
         let (decision_value, _reason) = decision.unwrap();
         assert!(matches!(decision_value, Decision::Stop));
     }
