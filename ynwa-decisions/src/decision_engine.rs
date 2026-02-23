@@ -62,8 +62,6 @@ impl DecisionEngine {
         let mut executors = Vec::with_capacity(players.len());
         let mut scripts = Vec::with_capacity(players.len());
 
-        let static_data = config.get("static_data");
-
         for (player_index, player) in players.iter().enumerate() {
             let script = player
                 .get("script")
@@ -100,7 +98,8 @@ impl DecisionEngine {
                         ))
                     })?;
 
-            if let Some(data) = static_data {
+            // Per-player static_data is set as GAME_DATA in the player's Lua VM
+            if let Some(data) = player.get("static_data") {
                 executor.set_global("GAME_DATA", data).map_err(|e| {
                     DecisionEngineError::RuntimeError(format!(
                         "Failed to set GAME_DATA for player {}: {}",
@@ -543,17 +542,17 @@ mod tests {
                             }
                         end
                     "#,
-                    "team": "team_a"
-                }
-            ],
-            "static_data": {
-                "zones": {
-                    "test_zone": {
-                        "name": "TestZone",
-                        "value": 42
+                    "team": "team_a",
+                    "static_data": {
+                        "zones": {
+                            "test_zone": {
+                                "name": "TestZone",
+                                "value": 42
+                            }
+                        }
                     }
                 }
-            }
+            ]
         });
 
         let engine = DecisionEngine::new(&config, "", "").unwrap();

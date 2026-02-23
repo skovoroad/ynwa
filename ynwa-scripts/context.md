@@ -335,7 +335,9 @@ GAME_DATA = {
         length = 101.5  -- field length in meters (Z axis)
     },
     zones = {
-        -- Field zones with geometry (Team A coordinates)
+        -- Field zones with geometry, pre-transformed for the current player's team perspective.
+        -- Team B sees zones with flipped coordinates (same transformation as positions).
+        -- Scripts work identically for both teams without manual coordinate handling.
         field = {
             type = "rectangle",
             min_x = 0.0, max_x = 101.5,
@@ -349,6 +351,11 @@ GAME_DATA = {
 ```
 
 **`GAME_DATA.field`**: actual field dimensions from the engine.
+
+**`GAME_DATA.zones`**: zone coordinates are already in the current player's script coordinate system.
+- Team A sees zones in canonical (display) coordinates
+- Team B sees zones with flipped X and Z (same transformation applied to all positions)
+- Use `GAME_DATA.zones` directly without any coordinate adjustment
 
 **Zone Types**:
 - `rectangle`: defined by `min_x`, `max_x`, `min_z`, `max_z`
@@ -406,6 +413,8 @@ Before executing user script, three preamble levels are loaded in the following 
 - Team play style
 
 **Rule**: Team preamble can use functions from core and stdlib, but not vice versa. Stdlib can use core, but not vice versa.
+
+**Orientation invariant**: Both teams' preambles must use the same directional logic. Because coordinates are pre-transformed by the engine, "ahead" (towards opponent goal) always means higher Z for both teams. Do **not** use `forward_direction` multipliers or team-conditional logic based on `my_team_name()` — both teams' scripts see an identical coordinate perspective.
 
 ## 3.4 Player Regions: Detailed Description
 
@@ -563,6 +572,14 @@ cargo test --package ynwa-script-tests --test stdlib_functions
 **`create_test_game_with_preambles(script: &str)`**
 - Creates game with core and stdlib preambles loaded
 - Use for testing preamble functions and realistic scripts
+
+**`create_test_game_with_preambles_and_zones(script: &str, zones: Vec<Zone>)`**
+- Creates game with preambles and custom field zones
+- Use for testing zone-related functions (`is_in_zone`, `is_point_in_penalty_area`, etc.)
+
+**`create_test_game_with_preambles_zones_and_team(script: &str, zones: Vec<Zone>, team: Team, team_preamble: &str)`**
+- Creates game with preambles, custom zones, a specific team, and a team preamble
+- Use for testing orientation invariance: verify Team B receives correctly flipped zones in `GAME_DATA`
 
 **`load_test_script(name: &str)`**
 - Loads test script from `ynwa-scripts/test-scripts/` directory

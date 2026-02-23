@@ -4,7 +4,10 @@ use ynwa_core::systems::decision::{DecisionSystem, ScriptedDecisionMaker};
 use ynwa_core::systems::player_reaction::PlayerReactionSystem;
 use ynwa_core::team::Team;
 use ynwa_core::System;
-use ynwa_script_tests::create_test_game_with_preambles_and_zones;
+use ynwa_script_tests::{
+    create_test_game_with_preambles_and_zones, create_test_game_with_preambles_zones_and_team,
+    request_decisions_for_all,
+};
 
 const MAKE_DECISION_STUB: &str = r#"
 function make_decision()
@@ -337,5 +340,90 @@ test_center_circle()
         player_state.last_error.is_none(),
         "Center circle test failed: {:?}",
         player_state.last_error
+    );
+}
+
+// Team B sees zone coordinates flipped in GAME_DATA.
+// A zone at x=[0..20], z=[0..30] for Team A should appear as x=[80..100], z=[30..60] for Team B
+// (field is 100x60, flip: x'=100-x, z'=60-z, min/max swap after flip).
+#[test]
+fn test_game_data_zones_flipped_for_team_b() {
+    let zones = vec![Zone::new(
+        "test_zone",
+        None,
+        ZoneGeometry::Rectangle(Rectangle::from_meters(0.0, 0.0, 20.0, 30.0)),
+    )];
+
+    // Script reads zone coordinates from GAME_DATA and returns them in the decision
+    let script = r#"
+function make_decision()
+    local zone = GAME_DATA.zones["test_zone"]
+    return {
+        action = "stop",
+        min_x = zone.min_x,
+        max_x = zone.max_x,
+        min_z = zone.min_z,
+        max_z = zone.max_z
+    }
+end
+"#;
+
+    let run_and_get_decision = |team: Team| {
+        let mut game =
+            create_test_game_with_preambles_zones_and_team(script, zones.clone(), team, "");
+        request_decisions_for_all(&mut game);
+        let maker = ScriptedDecisionMaker::new(&game).unwrap();
+        let mut decision_system =
+            DecisionSystem::new().with_decision_maker(Box::new(maker));
+        decision_system.update(&mut game, 1.0);
+        game.state().player_states[0].last_error.clone()
+    };
+
+    // Verify scripts execute without error for both teams
+    assert!(run_and_get_decision(Team::A).is_none(), "Team A zone access failed");
+    assert!(run_and_get_decision(Team::B).is_none(), "Team B zone access failed");
+
+    // Verify Team B receives flipped coordinates via is_in_zone with known positions
+    // Zone canonical: x=[0..20], z=[0..30]. For Team B: x=[80..100], z=[30..60].
+    // A point at (90, 40) is inside the flipped zone for Team B.
+    let script_check = r#"
+function make_decision()
+    local inside = is_in_zone("test_zone", 90, 40)
+    return {action = "stop", inside = inside}
+end
+"#;
+
+    let mut game_b =
+        create_test_game_with_preambles_zones_and_team(script_check, zones.clone(), Team::B, "");
+    request_decisions_for_all(&mut game_b);
+    let maker_b = ScriptedDecisionMaker::new(&game_b).unwrap();
+    let mut decision_system_b =
+        DecisionSystem::new().with_decision_maker(Box::new(maker_b));
+    decision_system_b.update(&mut game_b, 1.0);
+    assert!(
+        game_b.state().player_states[0].last_error.is_none(),
+        "Team B zone check failed: {:?}",
+        game_b.state().player_states[0].last_error
+    );
+
+    // Point (10, 15) is inside canonical zone but outside Team B's flipped zone
+    let script_check_outside = r#"
+function make_decision()
+    local inside = is_in_zone("test_zone", 10, 15)
+    return {action = "stop", inside = inside}
+end
+"#;
+
+    let mut game_b2 =
+        create_test_game_with_preambles_zones_and_team(script_check_outside, zones, Team::B, "");
+    request_decisions_for_all(&mut game_b2);
+    let maker_b2 = ScriptedDecisionMaker::new(&game_b2).unwrap();
+    let mut decision_system_b2 =
+        DecisionSystem::new().with_decision_maker(Box::new(maker_b2));
+    decision_system_b2.update(&mut game_b2, 1.0);
+    assert!(
+        game_b2.state().player_states[0].last_error.is_none(),
+        "Team B zone check (outside) failed: {:?}",
+        game_b2.state().player_states[0].last_error
     );
 }

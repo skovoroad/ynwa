@@ -114,7 +114,7 @@ System execution order (important for correct operation):
 - Adapter between ynwa-core domain types and ynwa-decisions JSON API
 - One isolated Lua VM per player via `DecisionEngine`
 - Team B coordinates flipped on input; decisions flipped back on output (parser does NOT flip)
-- `GAME_DATA` (static, set once): `zones` (field zones in Team A coordinates), `field.width`, `field.length`
+- `GAME_DATA` (static, set once per player): `zones` (field zones pre-transformed for the player's team perspective), `field.width`, `field.length`
 - See module `//!` doc for JSON contract and Lua script return format
 
 **Decision Engine Library (`ynwa-decisions` crate):**

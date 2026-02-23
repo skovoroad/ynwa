@@ -53,8 +53,10 @@ impl ScriptedDecisionMaker {
         let config = game.config();
         let scripting = &config.scripting;
 
-        let zones_json = Self::zones_to_json(&config.field);
+        let field_width = config.field.width().get::<meter>();
+        let field_length = config.field.length().get::<meter>();
 
+        // static_data duplicated for each player to maintain orientation
         json!({
             "team_preambles": {
                 "team_a": scripting.team_a_preamble,
@@ -67,76 +69,17 @@ impl ScriptedDecisionMaker {
                 };
                 json!({
                     "script": p.script,
-                    "team": team_key
+                    "team": team_key,
+                    "static_data": {
+                        "zones": Self::zones_to_json_for_team(&config.field, p.team, field_width, field_length),
+                        "field": {
+                            "width": field_width,
+                            "length": field_length
+                        }
+                    }
                 })
-            }).collect::<Vec<_>>(),
-            "static_data": {
-                "zones": zones_json,
-                "field": {
-                    "width": config.field.width().get::<meter>(),
-                    "length": config.field.length().get::<meter>()
-                }
-            }
+            }).collect::<Vec<_>>()
         })
-    }
-
-    fn zones_to_json(field: &crate::field::Field) -> serde_json::Value {
-        use crate::field::zones::ZoneGeometry;
-        use serde_json::json;
-
-        let mut zones_map = serde_json::Map::new();
-
-        for ((name, team), zone) in field.zones() {
-            let team_suffix = match team {
-                Some(Team::A) => "_a",
-                Some(Team::B) => "_b",
-                None => "",
-            };
-            let key = format!("{}{}", name, team_suffix);
-
-            let geometry_json = match &zone.geometry {
-                ZoneGeometry::Rectangle(rect) => {
-                    json!({
-                        "type": "rectangle",
-                        "min_x": rect.min.x.get::<meter>(),
-                        "max_x": rect.max.x.get::<meter>(),
-                        "min_z": rect.min.z.get::<meter>(),
-                        "max_z": rect.max.z.get::<meter>()
-                    })
-                }
-                ZoneGeometry::Circle(circle) => {
-                    json!({
-                        "type": "circle",
-                        "center_x": circle.center.x.get::<meter>(),
-                        "center_z": circle.center.z.get::<meter>(),
-                        "radius": circle.radius.get::<meter>()
-                    })
-                }
-                ZoneGeometry::Arc(arc) => {
-                    use uom::si::angle::degree;
-                    json!({
-                        "type": "arc",
-                        "center_x": arc.center.x.get::<meter>(),
-                        "center_z": arc.center.z.get::<meter>(),
-                        "radius": arc.radius.get::<meter>(),
-                        "start_angle": arc.start_angle.get::<degree>(),
-                        "end_angle": arc.end_angle.get::<degree>()
-                    })
-                }
-                ZoneGeometry::Point(point) => {
-                    json!({
-                        "type": "point",
-                        "x": point.position.x.get::<meter>(),
-                        "z": point.position.z.get::<meter>(),
-                        "tolerance": 0.5
-                    })
-                }
-            };
-
-            zones_map.insert(key, geometry_json);
-        }
-
-        serde_json::Value::Object(zones_map)
     }
 
     fn zones_to_json_for_team(
@@ -328,11 +271,6 @@ impl ScriptedDecisionMaker {
             })
             .collect();
 
-        // Build zones with coordinate transformation for Team B
-        let zones_json =
-            Self::zones_to_json_for_team(&config.field, player_team, field_width, field_length);
-
-        // Build context (same as ContextBuilder, but inline)
         let context = json!({
             "me": {
                 "team": format!("{:?}", player_team),
@@ -367,8 +305,7 @@ impl ScriptedDecisionMaker {
             },
             "game": {
                 "elapsed_time": state.elapsed_time
-            },
-            "zones": zones_json
+            }
         });
 
         Ok(context)
@@ -883,6 +820,7 @@ mod tests {
 
         assert!(decision.is_ok());
 
+        // Verify zone data is accessible from Lua via GAME_DATA
         let config_json = ScriptedDecisionMaker::build_config(&game);
         let engine = ynwa_decisions::DecisionEngine::new(
             &config_json,
@@ -1037,9 +975,11 @@ mod tests {
         let config_json = ScriptedDecisionMaker::build_config(&game);
 
         let field_data = config_json
-            .get("static_data")
+            .get("players")
+            .and_then(|p| p.get(0))
+            .and_then(|p| p.get("static_data"))
             .and_then(|sd| sd.get("field"))
-            .expect("static_data.field must exist");
+            .expect("players[0].static_data.field must exist");
 
         assert!(
             (field_data["width"].as_f64().unwrap() - 47.0).abs() < 0.01,

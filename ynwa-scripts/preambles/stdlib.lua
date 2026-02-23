@@ -51,7 +51,7 @@ function is_in_zone(zone_name, x, z)
     local pos_x = x or my_position().x
     local pos_z = z or my_position().z
     
-    local zone = context.zones[zone_name]
+    local zone = GAME_DATA.zones[zone_name]
     if not zone then
         return false
     end
@@ -84,13 +84,13 @@ function get_random_shot_target_to_goal(opponent_team)
     local goal_x
     
     if team_lower == "a" then
-        goal_zone = context.zones["goal_a"]
+        goal_zone = GAME_DATA.zones["goal_a"]
         if not goal_zone or goal_zone.type ~= "rectangle" then
             return nil
         end
         goal_x = goal_zone.max_x  -- Front of Team A goal (toward field)
     else
-        goal_zone = context.zones["goal_b"]
+        goal_zone = GAME_DATA.zones["goal_b"]
         if not goal_zone or goal_zone.type ~= "rectangle" then
             return nil
         end

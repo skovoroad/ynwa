@@ -3,7 +3,7 @@
 /// (right-to-left) to display orientation (Team A's left-to-right perspective).
 use ynwa_core::football::field_builder::create_football_field;
 use ynwa_core::game::{BallDef, Decision, DecisionTarget, Game, GameConfig, PlayerDef, RefereeDef};
-use ynwa_core::region::{GridCell};
+use ynwa_core::region::GridCell;
 use ynwa_core::system::System;
 use ynwa_core::systems::decision::{DecisionSystem, ScriptedDecisionMaker};
 use ynwa_core::team::Team;
