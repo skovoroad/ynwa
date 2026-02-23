@@ -128,7 +128,13 @@ impl DecisionEngine {
         player_index: usize,
         context: &JsonValue,
     ) -> Result<JsonValue, DecisionEngineError> {
-        self.execute_function(player_index, "get_setup_position", context)
+        let reason = context
+            .get("game")
+            .and_then(|g| g.get("setup_reason"))
+            .and_then(|r| r.as_str())
+            .unwrap_or("")
+            .to_string();
+        self.execute_function_with_args(player_index, "get_setup_position", context, reason)
     }
 
     /// Execute a function for a player
@@ -138,7 +144,16 @@ impl DecisionEngine {
         function_name: &str,
         context: &JsonValue,
     ) -> Result<JsonValue, DecisionEngineError> {
-        // Validate player index
+        self.execute_function_with_args(player_index, function_name, context, ())
+    }
+
+    fn execute_function_with_args<A: mlua::IntoLuaMulti>(
+        &self,
+        player_index: usize,
+        function_name: &str,
+        context: &JsonValue,
+        args: A,
+    ) -> Result<JsonValue, DecisionEngineError> {
         let executor = self
             .executors
             .get(player_index)
@@ -146,12 +161,10 @@ impl DecisionEngine {
 
         let script = &self.scripts[player_index];
 
-        // Execute script with context
         let result = executor
-            .execute(script, function_name, context)
+            .execute_with_args(script, function_name, context, args)
             .map_err(Self::convert_script_error)?;
 
-        // Validate that result is a valid LuaDecision (but return raw JSON)
         let _lua_decision: LuaDecision =
             serde_json::from_value(result.data.clone()).map_err(|e| {
                 DecisionEngineError::ScriptError(format!("Invalid decision format: {}", e))

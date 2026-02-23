@@ -141,6 +141,17 @@ impl LuaExecutor {
         function_name: &str,
         context: &T,
     ) -> Result<ScriptResult, ScriptError> {
+        self.execute_with_args(script, function_name, context, ())
+    }
+
+    /// Execute a Lua script with context and additional positional arguments passed to the function.
+    pub fn execute_with_args<T: Serialize, A: mlua::IntoLuaMulti>(
+        &self,
+        script: &str,
+        function_name: &str,
+        context: &T,
+        args: A,
+    ) -> Result<ScriptResult, ScriptError> {
         if let Some(timeout) = self.timeout {
             self.setup_timeout_hook(timeout)?;
         }
@@ -167,7 +178,7 @@ impl LuaExecutor {
             ))
         })?;
 
-        let result: Value = function.call(()).map_err(|e| self.map_lua_error(e))?;
+        let result: Value = function.call(args).map_err(|e| self.map_lua_error(e))?;
 
         if self.timeout.is_some() {
             self.lua.remove_hook();

@@ -34,22 +34,27 @@ Goal: provide a set of reusable functions for writing AI players in Lua without 
 
 ### 2.1 Main Contract
 
-Each player script must define a `make_decision()` function that:
-- Receives an implicit `context` parameter (global variable) with game state
-- Returns a Lua table with a decision
+**During Play stage**, stdlib defines `make_decision()` — do NOT redefine it in team or player scripts. Instead, populate dispatch tables:
 
 ```lua
-function make_decision()
-    -- Analyze context and make decision here
-    return {action = "stop"}
-end
+-- In team preamble (team_a.lua / team_b.lua):
+team_play  = { i_have_ball = f, ball_is_free = f, team_has_ball = f, opponent_has_ball = f }
+team_setup = { start = f, after_goal = f }
+
+-- In player script (optional override):
+player_play  = { i_have_ball = f, ... }   -- takes priority over team_play
+player_setup = { start = f, ... }         -- takes priority over team_setup
 ```
 
-Each player script may define a `get_setup_position(reason)` function that:
-- Receives `reason` string (e.g. `"start"`, `"after_goal"`) via `context.game.setup_reason`
-- Returns a `"run"` decision towards the player's start position
-- **Stopping is handled by the engine automatically** — once the player is within 0.5m of the target, the engine replaces the decision with Stop; the script does not need to check distance
-- Defined in team preambles — calls `default_get_setup_position(reason)` from stdlib; override per-role in the team preamble for custom setup behavior
+`make_decision()` determines possession state and dispatches: `player_play[state]` → `team_play[state]` → `error()`.
+
+`get_setup_position(reason)` dispatches: `player_setup[reason]` → `team_setup[reason]` → `default_get_setup_position(reason)`.
+
+**Possession states**: `"i_have_ball"`, `"ball_is_free"`, `"team_has_ball"`, `"opponent_has_ball"`.
+
+**Setup reasons**: `"start"`, `"after_goal"` (handled by team); unknown reasons fall back to `default_get_setup_position`.
+
+A player script with no `player_play`/`player_setup` defined uses team tactics entirely. An empty script `''` is valid.
 
 ### 2.2 Input Data: `context` Structure
 
@@ -399,38 +404,45 @@ Before executing user script, three preamble levels are loaded in the following 
 
 **File**: `ynwa-scripts/preambles/stdlib.lua`
 
-**Purpose**: Common utilities used by all teams.
+**Purpose**: Common utilities and the central dispatch mechanism.
 
-**Responsibilities**:
-- Distance calculations
-- Ball ownership checks
-- `default_get_setup_position(reason)` — default implementation for the setup stage; runs to center of the `"start position"` region
+**Action functions** (use in dispatch tables):
+- `chase_ball()` — run to ball
+- `run_to_attack_position()`, `run_to_defence_position()`, `run_to_start_position()` — run to named region center
+- `press_or_attack()` — chase ball if top-3 closest, else run to attack position
+- `press_or_defend()` — chase ball if top-3 closest, else run to defence position
+- `pass_to_nearest_teammate()` — pass to nearest teammate ≥15m away, else kick to opponent goal
+- `kick_to_opponent_goal()` — kick to center of opponent goal
+
+**Dispatcher functions** (defined here, NOT in team/player scripts):
+- `make_decision()` — Play stage dispatcher; reads possession state, calls `player_play[state]` → `team_play[state]` → `error()`
+- `get_setup_position(reason)` — Setup stage dispatcher; calls `player_setup[reason]` → `team_setup[reason]` → `default_get_setup_position(reason)`
+- `default_get_setup_position(reason)` — fallback; runs to center of `"start position"` region
+
+**Helper functions**:
+- `am_i_ball_owner()`, `am_i_top3_closest_to_ball()`, `distance(pos1, pos2)`
 
 **Rule**: Stdlib contains no team strategies, only reusable utilities.
 
 ### 3.3 Team Preamble
 
-**Purpose**: Functions specific to a particular team's strategy.
+**Purpose**: Define team tactics as dispatch tables.
 
-**Responsibilities**:
-- Team tactics (formation, zones of responsibility)
-- `get_setup_position(reason)` — delegates to `default_get_setup_position(reason)` from stdlib; override per team or per role for custom setup behavior
-- Role-based decision functions called by player scripts:
-  - `make_goalkeeper_decision()`
-  - `make_left_back_decision()`
-  - `make_center_back_left_decision()`
-  - `make_center_back_right_decision()`
-  - `make_right_back_decision()`
-  - `make_left_midfielder_decision()`
-  - `make_center_midfielder_decision()`
-  - `make_right_midfielder_decision()`
-  - `make_left_winger_decision()`
-  - `make_striker_decision()`
-  - `make_right_winger_decision()`
+**Current structure** (both `team_a.lua` and `team_b.lua`):
+```lua
+team_play = {
+    i_have_ball       = pass_to_nearest_teammate,
+    ball_is_free      = press_or_defend,
+    team_has_ball     = press_or_attack,
+    opponent_has_ball = press_or_defend,
+}
+team_setup = {
+    start      = run_to_start_position,
+    after_goal = run_to_start_position,
+}
+```
 
-**Rule**: Team preamble can use functions from core and stdlib, but not vice versa. Stdlib can use core, but not vice versa.
-
-**Orientation invariant**: Both teams' preambles must use the same directional logic. Because coordinates are pre-transformed by the engine, "ahead" (towards opponent goal) always means higher Z for both teams. Do **not** use `forward_direction` multipliers or team-conditional logic based on `my_team_name()` — both teams' scripts see an identical coordinate perspective.
+**Rule**: Team preamble defines `team_play`/`team_setup` tables only. Do NOT define `make_decision()` or `get_setup_position()` here — they live in stdlib.
 
 ## 3.4 Player Regions: Detailed Description
 
@@ -481,19 +493,18 @@ Important: Team B sees the field from the opposite side. The core automatically 
 
 **Files**: In game configuration (TOML), `script` field for each player
 
-**Purpose**: Individual behavior of a specific player.
+**Purpose**: Optional per-player behavior override via `player_play`/`player_setup` tables.
 
-**Responsibilities**:
-- Implementation of `make_decision()` function
-- Using functions from all three preamble levels
-- Player-specific behavior
+An empty script `''` is valid — the player uses team tactics entirely.
 
-**Example**:
+**Example** (partial override — player always chases ball when team has it):
 ```lua
-function make_decision()
-    return common_behavior_v2()
-end
+player_play = {
+    team_has_ball = chase_ball,
+}
 ```
+
+All unset states fall through to `team_play`.
 
 ### 3.7 Loading Order and Isolation
 
@@ -577,15 +588,20 @@ cargo test --package ynwa-script-tests --test stdlib_functions
 
 **`create_test_game_with_preambles_and_stage(script: &str, stage: GameStage)`**
 - Creates game with core and stdlib preambles loaded at a specific game stage
-- Use for testing stage-dependent behavior (e.g. Setup vs Play)
 
 **`create_test_game_with_full_preambles_and_stage(script: &str, stage: GameStage)`**
-- Creates game with core, stdlib, and team A preambles loaded at a specific stage
-- Use for testing functions that require the full preamble stack (e.g. `get_setup_position` during Setup)
+- Creates game with core + stdlib + team A preambles at a specific stage
+- Use for tests that require dispatch tables (`team_play`/`team_setup`)
+
+**`create_test_game_football_field_with_preambles(script: &str)`**
+- Creates game with full football field (real zones including `goal_a`/`goal_b`) and core + stdlib preambles
+- Use for tests that access `GAME_DATA.zones.goal_*`
 
 **`load_test_script(name: &str)`**
-- Loads test script from `ynwa-scripts/test-scripts/` directory
-- Returns script content as String
+- Loads test script from `ynwa-scripts/test-scripts/`
+
+**`request_decisions_for_all(game: &mut Game)`**
+- Sets `needs_decision = true` for all players, bypassing reaction rate timer
 
 ### 5.4 Writing New Tests
 

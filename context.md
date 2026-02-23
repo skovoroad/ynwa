@@ -24,9 +24,11 @@ The project is divided into independent modules using Rust workspace:
   - Can be published separately and reused in other games
   
 - **Scripts (`ynwa-scripts`)** - Lua scripts library (data only, no Rust code)
-  - `preambles/` - core.lua (elementary functions), stdlib.lua (utilities)
-  - `test-scripts/` - integration test scripts
+  - `preambles/` - core.lua (elementary functions), stdlib.lua (utilities + dispatch)
+  - `team-libs/` - team_a.lua, team_b.lua (dispatch tables only)
+  - `test-scripts/` - integration test scripts (including `dispatch_spy.lua` for dispatch testing)
   - Three-level preamble system: core → stdlib → team → user script
+  - **Dispatch model**: `make_decision()` and `get_setup_position(reason)` are defined in stdlib and dispatch to `team_play`/`team_setup` (team preamble) or `player_play`/`player_setup` (player script). Player tables override team tables. Player scripts in config are empty `''` by default.
   - See `ynwa-scripts/context.md` for full scripting API documentation
   
 - **Clients** - applications using the core:
@@ -121,6 +123,9 @@ System execution order (important for correct operation):
 **Decision Engine Library (`ynwa-decisions` crate):**
 - Game-agnostic Lua scripting, JSON in/out, no domain types
 - Can be published separately and reused in other games
+- `LuaExecutor::execute(script, fn, context)` — calls Lua function with no positional args
+- `LuaExecutor::execute_with_args(script, fn, context, args)` — calls Lua function with positional args; `execute` delegates to this with `()`
+- `DecisionEngine::get_setup_position` extracts `setup_reason` from context and passes it as the first positional argument to the Lua `get_setup_position(reason)` function
 - See `ynwa-decisions/src/lib.rs` `//!` doc for sandbox, timeout, and architecture details
 
 ## Development Principles
