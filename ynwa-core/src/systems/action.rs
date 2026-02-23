@@ -95,7 +95,7 @@ impl ActionSystem {
 }
 
 impl System for ActionSystem {
-    fn update(&mut self, game: &mut Game, _timestamp: f32) {
+    fn update(&mut self, game: &mut Game, timestamp: f32) {
         let player_count = game.state.player_states.len();
 
         for player_index in 0..player_count {
@@ -149,7 +149,11 @@ impl System for ActionSystem {
                                     dz * kick_speed,
                                 );
 
+                                // Release possession and reset cooldown timer so
+                                // BallPossessionSystem won't immediately re-assign
+                                // the ball back to the kicker on the next tick.
                                 game.state.ball_state.possessed_by = None;
+                                game.state.ball_state.last_possession_change_time = timestamp;
                             }
                             // If player doesn't own ball, ignore kick decision (no action)
                         }

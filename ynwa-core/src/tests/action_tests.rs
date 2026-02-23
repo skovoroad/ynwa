@@ -486,3 +486,35 @@ fn test_kick_preserves_player_velocity() {
 
     assert!(game.state.player_states[0].decision_processed);
 }
+
+#[test]
+fn test_kick_resets_possession_cooldown_timer() {
+    // Regression test: after a kick, last_possession_change_time must be updated to the
+    // current timestamp so that BallPossessionSystem's cooldown prevents the kicker from
+    // immediately re-acquiring the ball on the next tick.
+    let mut game = create_test_game_with_player_stats(100, 50, 50, 100, 100);
+
+    game.state.ball_state.possessed_by = Some(0);
+    game.state.ball_state.position = Point3D::from_meters(50.0, 0.0, 30.0);
+    // Simulate an old possession change time (well before kick)
+    game.state.ball_state.last_possession_change_time = 0.0;
+
+    let target = Point3D::from_meters(50.0, 0.0, 60.0);
+    game.state.player_states[0].current_decision = Some(Decision::Kick(target));
+    game.state.player_states[0].decision_processed = false;
+
+    let kick_timestamp = 5.0_f32;
+    let mut system = ActionSystem::with_rng(|| 0.5);
+    system.update(&mut game, kick_timestamp);
+
+    // Possession released
+    assert_eq!(game.state.ball_state.possessed_by, None);
+
+    // Cooldown timer must equal the kick timestamp so BallPossessionSystem
+    // won't re-assign the ball until at least POSSESSION_COOLDOWN seconds later.
+    assert_eq!(
+        game.state.ball_state.last_possession_change_time,
+        kick_timestamp,
+        "last_possession_change_time must be updated on kick to prevent immediate re-possession"
+    );
+}
