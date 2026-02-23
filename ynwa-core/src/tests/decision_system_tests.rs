@@ -498,8 +498,10 @@ fn test_setup_arrival_check_skipped_when_decision_is_stop() {
 }
 
 #[test]
-fn test_play_stage_arrival_check_does_not_fire() {
-    // In Play stage the arrival check must not override decisions
+fn test_play_stage_arrival_check_fires_and_stops_player() {
+    // In Play stage the arrival check MUST override a Run decision with Stop
+    // when the player reaches their target. This prevents overshooting caused
+    // by the reaction-rate gap between script calls.
     let field = Field::from_meters(100.0, 60.0, 26, 44);
     let grid_dims = field.grid_dimensions();
     let start_region = grid_dims
@@ -521,7 +523,7 @@ fn test_play_stage_arrival_check_does_not_fire() {
 
     let mut game = Game::with_stage(config, GameStage::Play);
     let target = crate::field::zones::Point3D::from_meters(30.0, 0.0, 20.0);
-    // Put player right on top of the target — in Play this must NOT trigger Stop
+    // Put player right on top of the target
     game.state.player_states[0].position =
         crate::field::zones::Point3D::from_meters(30.0, 0.0, 20.0);
     game.state.player_states[0].current_decision =
@@ -531,12 +533,21 @@ fn test_play_stage_arrival_check_does_not_fire() {
     let mut system = DecisionSystem::new();
     system.update(&mut game, 1.0);
 
+    // Arrival check must have replaced Run with Stop
     assert!(
         matches!(
             game.state.player_states[0].current_decision,
-            Some(Decision::Run(_))
+            Some(Decision::Stop)
         ),
-        "Arrival check must not fire in Play stage"
+        "Arrival check must fire in Play stage and replace Run with Stop"
+    );
+
+    // needs_decision must NOT be suppressed in Play — the reaction timer continues
+    // so the script will get called at the next reaction interval.
+    // (needs_decision was false before, arrival check must not set it to true either)
+    assert!(
+        !game.state.player_states[0].needs_decision,
+        "Arrival check in Play stage must not touch needs_decision"
     );
 }
 
