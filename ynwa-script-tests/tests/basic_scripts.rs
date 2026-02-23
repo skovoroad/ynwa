@@ -5,8 +5,8 @@ use ynwa_core::game::{Decision, DecisionTarget};
 use ynwa_core::systems::decision::{DecisionSystem, ScriptedDecisionMaker};
 use ynwa_core::System;
 use ynwa_script_tests::{
-    create_test_game_with_preambles, create_test_game_with_script, load_test_script,
-    request_decisions_for_all,
+    create_test_game_football_field_with_preambles, create_test_game_with_preambles,
+    create_test_game_with_script, load_test_script, request_decisions_for_all,
 };
 
 /// Helper function to test that a Lua script produces expected decision type
@@ -487,5 +487,57 @@ fn test_run_to_ball_with_reason() {
         player_state.decision_reason.as_deref(),
         Some("chasing the ball"),
         "Expected reason to be preserved"
+    );
+}
+
+#[test]
+fn test_get_opponent_goal_returns_valid_zone() {
+    // For Team A the opponent goal is goal_b (at Z = field_length..field_length+GOAL_DEPTH).
+    // After coordinate transformation both teams see their opponent goal with min_z >= field_length
+    // and a width matching the FIFA spec (~7.32 m).
+    let script = r#"
+        function make_decision()
+            local goal = get_opponent_goal()
+            if not goal then
+                error("get_opponent_goal() returned nil")
+            end
+
+            local width = goal.max_x - goal.min_x
+            local expected_width = 7.32
+            if math.abs(width - expected_width) > 0.1 then
+                error("goal width=" .. tostring(width) .. " expected ~" .. tostring(expected_width))
+            end
+
+            -- Opponent goal starts at or beyond the far goal line
+            if goal.min_z < GAME_DATA.field.length then
+                error("opponent goal min_z=" .. tostring(goal.min_z) ..
+                      " must be >= field_length=" .. tostring(GAME_DATA.field.length))
+            end
+
+            -- Goal must be centred on the X axis
+            local field_half_x = GAME_DATA.field.width / 2
+            local goal_center_x = (goal.min_x + goal.max_x) / 2
+            if math.abs(goal_center_x - field_half_x) > 0.1 then
+                error("goal not centred: center_x=" .. tostring(goal_center_x) ..
+                      " field_half_x=" .. tostring(field_half_x))
+            end
+
+            return {action = "stop"}
+        end
+    "#;
+
+    let mut game = create_test_game_football_field_with_preambles(script);
+    request_decisions_for_all(&mut game);
+
+    let decision_maker =
+        ScriptedDecisionMaker::new(&game).expect("Failed to create ScriptedDecisionMaker");
+    let mut decision_system = DecisionSystem::new().with_decision_maker(Box::new(decision_maker));
+    decision_system.update(&mut game, 1.0);
+
+    let player_state = &game.state().player_states[0];
+    assert!(
+        player_state.last_error.is_none(),
+        "get_opponent_goal() test failed: {:?}",
+        player_state.last_error
     );
 }

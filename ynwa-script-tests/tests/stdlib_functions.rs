@@ -4,8 +4,8 @@ use ynwa_core::game::{Decision, GameStage};
 use ynwa_core::systems::decision::{DecisionSystem, ScriptedDecisionMaker};
 use ynwa_core::System;
 use ynwa_script_tests::{
-    create_test_game_with_full_preambles_and_stage, create_test_game_with_preambles,
-    request_decisions_for_all,
+    create_test_game_football_field_with_preambles, create_test_game_with_full_preambles_and_stage,
+    create_test_game_with_preambles, load_test_script, request_decisions_for_all,
 };
 
 // Stub make_decision() that does nothing - required by game engine
@@ -141,5 +141,67 @@ end
         matches!(player_state.current_decision, Some(Decision::Run(_))),
         "Expected Run decision from get_setup_position(), got: {:?}",
         player_state.current_decision
+    );
+}
+
+#[test]
+fn test_kick_to_opponent_goal() {
+    // kick_to_opponent_goal() must aim at the center of the opponent goal zone.
+    // We derive expected coordinates from the actual field, not from hardcoded constants,
+    // so the test stays valid if field dimensions change.
+    let script = load_test_script("kick_to_opponent_goal.lua");
+    let mut game = create_test_game_football_field_with_preambles(&script);
+    request_decisions_for_all(&mut game);
+
+    let decision_maker =
+        ScriptedDecisionMaker::new(&game).expect("Failed to create ScriptedDecisionMaker");
+    let mut decision_system = DecisionSystem::new().with_decision_maker(Box::new(decision_maker));
+    decision_system.update(&mut game, 1.0);
+
+    let player_state = &game.state().player_states[0];
+    assert!(
+        player_state.last_error.is_none(),
+        "kick_to_opponent_goal() error: {:?}",
+        player_state.last_error
+    );
+
+    let Some(ynwa_core::game::Decision::Kick(target)) = &player_state.current_decision else {
+        panic!(
+            "Expected Kick decision, got: {:?}",
+            player_state.current_decision
+        );
+    };
+
+    use uom::si::length::meter;
+    use ynwa_core::field::zones::ZoneGeometry;
+    use ynwa_core::team::Team;
+
+    // Team A player → opponent goal is goal_b
+    let goal_zone = game
+        .config()
+        .field
+        .get_zone("goal", Some(Team::B))
+        .expect("goal_b must exist on football field");
+    let ZoneGeometry::Rectangle(ref rect) = goal_zone.geometry else {
+        panic!("goal zone must be a Rectangle");
+    };
+
+    let target_x = target.x.get::<meter>();
+    let target_z = target.z.get::<meter>();
+    let goal_min_x = rect.min.x.get::<meter>();
+    let goal_max_x = rect.max.x.get::<meter>();
+    let goal_min_z = rect.min.z.get::<meter>();
+    let goal_max_z = rect.max.z.get::<meter>();
+
+    let expected_x = (goal_min_x + goal_max_x) / 2.0;
+    let expected_z = (goal_min_z + goal_max_z) / 2.0;
+
+    assert!(
+        (target_x - expected_x).abs() < 0.1,
+        "kick target x={target_x:.4} must equal goal center x={expected_x:.4}"
+    );
+    assert!(
+        (target_z - expected_z).abs() < 0.1,
+        "kick target z={target_z:.4} must equal goal center z={expected_z:.4}"
     );
 }

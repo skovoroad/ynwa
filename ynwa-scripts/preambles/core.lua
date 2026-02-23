@@ -44,3 +44,14 @@ end
 function get_ball_owner_team()
     return context.ball.owner_team
 end
+
+-- Returns the goal zone of the opposing team.
+-- Opponent goal always has larger Z in the current player's coordinate system
+-- because the engine pre-transforms coordinates for Team B.
+function get_opponent_goal()
+    if my_team_name() == "A" then
+        return GAME_DATA.zones.goal_b
+    else
+        return GAME_DATA.zones.goal_a
+    end
+end

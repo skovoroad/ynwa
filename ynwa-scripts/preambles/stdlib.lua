@@ -17,6 +17,18 @@ function distance(pos1, pos2)
     return math.sqrt(dx * dx + dz * dz)
 end
 
+-- Returns a Kick decision aimed at the center of the opponent's goal.
+-- Works transparently for both teams: get_opponent_goal() handles coordinate perspective.
+function kick_to_opponent_goal()
+    local goal = get_opponent_goal()
+    local target_x = (goal.min_x + goal.max_x) / 2
+    local target_z = (goal.min_z + goal.max_z) / 2
+    return {
+        action = "kick",
+        target = {x = target_x, z = target_z}
+    }
+end
+
 -- Default get_setup_position for setup stage
 -- Runs to center of "start position" region.
 -- Stopping is handled by the engine automatically once the player is within 0.5m of the target.
