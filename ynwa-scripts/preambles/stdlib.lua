@@ -156,7 +156,7 @@ function common_behavior_v2()
             return {
                 action = "kick",                
                 target = {x = best_teammate.position.x, z = best_teammate.position.z},
-                reason = "Passing to" .. best_teammate.index .. ", distance=" .. string.format("%.2f", best_distance)
+                reason = "Passing to #" .. best_teammate.index .. ", distance=" .. string.format("%.2f", best_distance)
             }
         else
             -- No suitable teammate found, kick in random direction as fallback
@@ -164,7 +164,8 @@ function common_behavior_v2()
             local target_z = math.random() * GAME_DATA.field.length
             return {
                 action = "kick",
-                target = {x = target_x, z = target_z}
+                target = {x = target_x, z = target_z},
+                reason = "No teammate >=15m away, kicking randomly"
             }
         end
     end
@@ -186,7 +187,8 @@ function common_behavior_v2()
         return {
             action = "run",
             target_type = "point",
-            target = {x = ball_pos.x, z = ball_pos.z, y = 0}
+            target = {x = ball_pos.x, z = ball_pos.z, y = 0},
+            reason = "Chasing ball, rank=" .. (closer_count + 1) .. ", dist=" .. string.format("%.2f", my_dist_to_ball)
         }
     end
     
@@ -205,7 +207,8 @@ function common_behavior_v2()
             return {
                 action = "run",
                 target_type = "point",
-                target = {x = center_x, z = center_z, y = 0}
+                target = {x = center_x, z = center_z, y = 0},
+                reason = "My team owns ball, moving to attack position"
             }
         end
     else
@@ -213,15 +216,16 @@ function common_behavior_v2()
         local defence_pos = regions["defence position"]
         if defence_pos then
             local center_x = (defence_pos.min_x + defence_pos.max_x) / 2
-            local center_z = (defence_pos.min_z + defence_pos.max_z) / 2
+            local centre_z = (defence_pos.min_z + defence_pos.max_z) / 2
             return {
                 action = "run",
                 target_type = "point",
-                target = {x = center_x, z = center_z, y = 0}
+                target = {x = center_x, z = centre_z, y = 0},
+                reason = "Opponent owns ball (owner_team=" .. tostring(owner_team) .. "), moving to defence position"
             }
         end
     end
     
     -- Fallback: stop
-    return {action = "stop"}
+    return {action = "stop", reason = "No valid position found, stopping"}
 end

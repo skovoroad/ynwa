@@ -37,76 +37,107 @@ pub fn draw_control_panel(
     draw_player_decisions_table(panel_x, y_offset, game_config, game_state);
 }
 
+fn player_decision_text(
+    player_state: &ynwa_core::game::PlayerState,
+) -> String {
+    match &player_state.current_decision {
+        Some(Decision::Run(target)) => match target {
+            DecisionTarget::Region(region) => {
+                format!("Run to {:?}", region.to_grid_notation())
+            }
+            DecisionTarget::GridCell(cell) => {
+                let col_label = ynwa_core::GridCell::column_to_label(cell.col);
+                format!("Run to {}{}", col_label, cell.row)
+            }
+            DecisionTarget::Point(_) => "Run to point".to_string(),
+        },
+        Some(Decision::Stop) => "Stop".to_string(),
+        Some(Decision::Kick(_)) => "Kick".to_string(),
+        None => {
+            if let Some(error) = &player_state.last_error {
+                format!("ERROR: {}", error)
+            } else {
+                "—".to_string()
+            }
+        }
+    }
+}
+
+fn draw_player_column(
+    x: f32,
+    start_y: f32,
+    players: &[(usize, &ynwa_core::game::PlayerDef)],
+    game_state: &GameState,
+    label: &str,
+) {
+    let line_height = 26.0;
+    let sub_line_height = 20.0;
+    let row_gap = 4.0;
+    let header_color = Color::new(0.9, 0.9, 0.9, 1.0);
+    let text_color = Color::new(0.8, 0.8, 0.8, 1.0);
+    let meta_color = Color::new(0.55, 0.55, 0.55, 1.0);
+
+    let mut y = start_y;
+    draw_text(label, x, y, 22.0, header_color);
+    y += line_height;
+    draw_text("#", x, y, 20.0, header_color);
+    draw_text("Decision", x + 36.0, y, 20.0, header_color);
+    y += line_height;
+
+    for (i, player_def) in players {
+        let player_state = &game_state.player_states[*i];
+
+        draw_text(&player_def.number.to_string(), x, y, 20.0, text_color);
+        draw_text(&player_decision_text(player_state), x + 36.0, y, 20.0, text_color);
+        y += line_height;
+
+        let time_str = if player_state.current_decision.is_some() {
+            format!("t={:.1}s", player_state.last_decision_time)
+        } else {
+            "t=—".to_string()
+        };
+        let meta_text = if let Some(reason) = &player_state.decision_reason {
+            format!("  {} | {}", time_str, reason)
+        } else {
+            format!("  {}", time_str)
+        };
+        draw_text(&meta_text, x + 36.0, y, 16.0, meta_color);
+        y += sub_line_height + row_gap;
+
+        if y > screen_height() - 20.0 {
+            break;
+        }
+    }
+}
+
 fn draw_player_decisions_table(
     x: f32,
     start_y: f32,
     game_config: &GameConfig,
     game_state: &GameState,
 ) {
-    let mut y = start_y;
-    let line_height = 20.0;
     let header_color = Color::new(0.9, 0.9, 0.9, 1.0);
-    let text_color = Color::new(0.8, 0.8, 0.8, 1.0);
+    draw_text("Player Decisions:", x, start_y, 22.0, header_color);
 
-    draw_text("Player Decisions:", x, y, 20.0, header_color);
-    y += line_height * 1.5;
+    // Split players into two teams by their team field
+    let team_a: Vec<(usize, &ynwa_core::game::PlayerDef)> = game_config
+        .players
+        .iter()
+        .enumerate()
+        .filter(|(_, p)| p.team == ynwa_core::team::Team::A)
+        .collect();
+    let team_b: Vec<(usize, &ynwa_core::game::PlayerDef)> = game_config
+        .players
+        .iter()
+        .enumerate()
+        .filter(|(_, p)| p.team == ynwa_core::team::Team::B)
+        .collect();
 
-    draw_text("#", x, y, 16.0, header_color);
-    draw_text("Decision", x + 30.0, y, 16.0, header_color);
-    draw_text("Time", x + 250.0, y, 16.0, header_color);
-    y += line_height;
+    let col_width = (screen_width() - x) / 2.0 - 10.0;
+    let table_y = start_y + 30.0;
 
-    for (i, player_def) in game_config.players.iter().enumerate() {
-        let player_state = &game_state.player_states[i];
-
-        let number_text = format!("{}", player_def.number);
-        draw_text(&number_text, x, y, 14.0, text_color);
-
-        let decision_text = match &player_state.current_decision {
-            Some(Decision::Run(target)) => match target {
-                DecisionTarget::Region(region) => {
-                    format!("Run to {:?}", region.to_grid_notation())
-                }
-                DecisionTarget::GridCell(cell) => {
-                    let col_label = ynwa_core::GridCell::column_to_label(cell.col);
-                    format!("Run to {}{}", col_label, cell.row)
-                }
-                DecisionTarget::Point(_) => "Run to point".to_string(),
-            },
-            Some(Decision::Stop) => "Stop".to_string(),
-            Some(Decision::Kick(_)) => "Kick".to_string(),
-            None => {
-                // Check if there's an error to display
-                if let Some(error) = &player_state.last_error {
-                    format!("ERROR: {}", error)
-                } else {
-                    "—".to_string()
-                }
-            }
-        };
-
-        // Add decision reason if available
-        let full_decision_text = if let Some(reason) = &player_state.decision_reason {
-            format!("{} ({})", decision_text, reason)
-        } else {
-            decision_text
-        };
-
-        draw_text(&full_decision_text, x + 30.0, y, 14.0, text_color);
-
-        let time_text = if player_state.current_decision.is_some() {
-            format!("{:.1}s", player_state.last_decision_time)
-        } else {
-            "—".to_string()
-        };
-        draw_text(&time_text, x + 250.0, y, 14.0, text_color);
-
-        y += line_height;
-
-        if y > screen_height() - 20.0 {
-            break;
-        }
-    }
+    draw_player_column(x, table_y, &team_a, game_state, "Team A");
+    draw_player_column(x + col_width, table_y, &team_b, game_state, "Team B");
 }
 
 pub fn draw_separator(x: f32, screen_height: f32) {
