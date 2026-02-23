@@ -158,7 +158,7 @@ pub fn create_test_game_with_full_preambles_and_stage(script: &str, stage: GameS
 /// Create a test game using a full football field (with all zones including goals)
 /// and core + stdlib preambles. Required for tests that access GAME_DATA.zones.goal_*.
 pub fn create_test_game_football_field_with_preambles(script: &str) -> Game {
-    let field = ynwa_core::football::field_builder::create_football_field();
+    let field = ynwa_football::field_builder::create_football_field();
     let grid_dims = field.grid_dimensions();
 
     let start_region = grid_dims

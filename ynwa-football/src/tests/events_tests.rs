@@ -1,13 +1,17 @@
-use super::*;
-use crate::field::zones::{Rectangle, ZoneGeometry};
-use crate::field::{FieldBuilder, Zone};
-use crate::game::{BallDef, GameConfig, GameStage, PlayerDef, RefereeDef};
-use crate::region::{GridCell};
+use crate::events::{
+    check_events, check_game_end, check_goal, check_goal_line, check_touchline, FootballEvent,
+    GAME_DURATION,
+};
+use ynwa_core::field::zones::{Point3D, Rectangle, ZoneGeometry};
+use ynwa_core::field::{FieldBuilder, Zone};
+use ynwa_core::game::{BallDef, Game, GameConfig, GameStage, PlayerDef, RefereeDef};
+use ynwa_core::region::GridCell;
+use ynwa_core::team::Team;
 use uom::si::f32::Length;
 use uom::si::length::meter;
 
 fn create_test_game() -> Game {
-    // Standard football field: length=100m (X axis), width=60m (Z axis)
+    // Standard football field: width=60m (X axis), length=100m (Z axis)
     let field = FieldBuilder::from_meters(60.0, 100.0, 26, 44)
         .with_zone(Zone::new(
             "goal",
@@ -22,7 +26,9 @@ fn create_test_game() -> Game {
         .build();
 
     let grid_dims = field.grid_dimensions();
-    let start_region = grid_dims.create_region(GridCell::new(1, 1).unwrap(), GridCell::new(2, 2).unwrap()).unwrap();
+    let start_region = grid_dims
+        .create_region(GridCell::new(1, 1).unwrap(), GridCell::new(2, 2).unwrap())
+        .unwrap();
 
     let config = GameConfig {
         field,
@@ -41,7 +47,7 @@ fn create_test_game() -> Game {
             ),
         },
         referees: vec![RefereeDef::default()],
-        scripting: crate::game::ScriptingConfig::empty(),
+        scripting: ynwa_core::game::ScriptingConfig::empty(),
     };
 
     Game::with_stage(config, GameStage::Play)
@@ -50,7 +56,6 @@ fn create_test_game() -> Game {
 #[test]
 fn test_goal_team_a() {
     let mut game = create_test_game();
-    // Place ball completely inside Team A goal
     game.state.ball_state.position = Point3D::new(
         Length::new::<meter>(-1.0),
         Length::new::<meter>(0.0),
@@ -64,7 +69,6 @@ fn test_goal_team_a() {
 #[test]
 fn test_goal_team_b() {
     let mut game = create_test_game();
-    // Place ball completely inside Team B goal
     game.state.ball_state.position = Point3D::new(
         Length::new::<meter>(101.0),
         Length::new::<meter>(0.0),
@@ -78,7 +82,6 @@ fn test_goal_team_b() {
 #[test]
 fn test_ball_on_goal_line_not_a_goal() {
     let mut game = create_test_game();
-    // Ball center on goal line, but not completely inside
     game.state.ball_state.position = Point3D::new(
         Length::new::<meter>(0.0),
         Length::new::<meter>(0.0),
@@ -92,7 +95,6 @@ fn test_ball_on_goal_line_not_a_goal() {
 #[test]
 fn test_ball_partially_in_goal_not_a_goal() {
     let mut game = create_test_game();
-    // Ball partially crosses goal line but not completely inside goal
     game.state.ball_state.position = Point3D::new(
         Length::new::<meter>(-0.05), // Only 5cm inside, ball radius is 11cm
         Length::new::<meter>(0.0),
@@ -106,7 +108,6 @@ fn test_ball_partially_in_goal_not_a_goal() {
 #[test]
 fn test_touchline_left() {
     let mut game = create_test_game();
-    // Ball completely over left sideline (x < 0), X axis = width
     game.state.ball_state.position = Point3D::new(
         Length::new::<meter>(-0.12), // Beyond ball radius on X axis
         Length::new::<meter>(0.0),
@@ -120,7 +121,6 @@ fn test_touchline_left() {
 #[test]
 fn test_touchline_right() {
     let mut game = create_test_game();
-    // Field width is 60m, ball completely over right sideline (x > 60)
     game.state.ball_state.position = Point3D::new(
         Length::new::<meter>(60.12), // Beyond ball radius (60 + 0.12 > 60 + 0.11)
         Length::new::<meter>(0.0),
@@ -134,7 +134,6 @@ fn test_touchline_right() {
 #[test]
 fn test_ball_on_touchline_not_out() {
     let mut game = create_test_game();
-    // Ball touching but not completely over touchline (X axis)
     game.state.ball_state.position = Point3D::new(
         Length::new::<meter>(0.11), // Center at ball radius from line - still in play
         Length::new::<meter>(0.0),
@@ -148,7 +147,6 @@ fn test_ball_on_touchline_not_out() {
 #[test]
 fn test_goal_line_near() {
     let mut game = create_test_game();
-    // Ball completely over near goal line (z < 0), Z axis = length
     game.state.ball_state.position = Point3D::new(
         Length::new::<meter>(30.0),
         Length::new::<meter>(0.0),
@@ -162,7 +160,6 @@ fn test_goal_line_near() {
 #[test]
 fn test_goal_line_far() {
     let mut game = create_test_game();
-    // Ball completely over far goal line (z > field_length), Z axis = length
     game.state.ball_state.position = Point3D::new(
         Length::new::<meter>(30.0),
         Length::new::<meter>(0.0),
@@ -194,7 +191,6 @@ fn test_game_not_ended() {
 #[test]
 fn test_check_events_priority_goal() {
     let mut game = create_test_game();
-    // Ball in goal AND time expired - goal has priority
     game.state.ball_state.position = Point3D::new(
         Length::new::<meter>(-1.0),
         Length::new::<meter>(0.0),
@@ -209,9 +205,8 @@ fn test_check_events_priority_goal() {
 #[test]
 fn test_check_events_priority_game_end() {
     let mut game = create_test_game();
-    // Time expired AND ball out - game end has priority
     game.state.ball_state.position = Point3D::new(
-        Length::new::<meter>(-0.12), // X axis = width, out over sideline
+        Length::new::<meter>(-0.12),
         Length::new::<meter>(0.0),
         Length::new::<meter>(50.0),
     );
@@ -224,7 +219,6 @@ fn test_check_events_priority_game_end() {
 #[test]
 fn test_check_events_no_event() {
     let mut game = create_test_game();
-    // Ball in play, time not expired
     game.state.ball_state.position = Point3D::new(
         Length::new::<meter>(50.0),
         Length::new::<meter>(0.0),

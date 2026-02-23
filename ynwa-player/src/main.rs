@@ -7,7 +7,7 @@ use macroquad::prelude::*;
 use std::env;
 use std::path::Path;
 use uom::si::length::meter;
-use ynwa_core::create_football_world_from_file;
+use ynwa_football::create_football_world_from_file;
 
 use input::handle_input;
 use renderer::render_field;

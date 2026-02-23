@@ -1,9 +1,10 @@
-use super::*;
-use crate::field::zones::Point3D;
-use crate::field::Field;
-use crate::game::{BallDef, GameConfig, GameStage, PlayerDef, RefereeDef};
-use crate::region::{GridCell};
-use crate::team::Team;
+use crate::game_manager::FootballGameManager;
+use ynwa_core::field::zones::{Point3D, Rectangle, ZoneGeometry};
+use ynwa_core::field::{Field, FieldBuilder, Zone};
+use ynwa_core::game::{BallDef, Game, GameConfig, GameStage, PlayerDef, RefereeDef};
+use ynwa_core::region::GridCell;
+use ynwa_core::system::System;
+use ynwa_core::team::Team;
 use uom::si::f32::Length;
 use uom::si::length::meter;
 
@@ -11,7 +12,12 @@ fn create_test_game_setup() -> Game {
     let field = Field::from_meters(100.0, 60.0, 26, 44);
     let grid_dims = field.grid_dimensions();
 
-    let start_region = grid_dims.create_region(GridCell::new(10, 10).unwrap(), GridCell::new(11, 11).unwrap()).unwrap();
+    let start_region = grid_dims
+        .create_region(
+            GridCell::new(10, 10).unwrap(),
+            GridCell::new(11, 11).unwrap(),
+        )
+        .unwrap();
 
     let config = GameConfig {
         field,
@@ -33,7 +39,7 @@ fn create_test_game_setup() -> Game {
         ],
         ball: BallDef::default(),
         referees: vec![RefereeDef::default()],
-        scripting: crate::game::ScriptingConfig::empty(),
+        scripting: ynwa_core::game::ScriptingConfig::empty(),
     };
 
     Game::with_stage(config, GameStage::Setup("Prepare".to_string()))
@@ -44,8 +50,8 @@ fn test_players_start_at_edge_in_setup() {
     let game = create_test_game_setup();
 
     let field_length = game.config().field.length().get::<meter>();
-    let expected_x = -5.0; // Off the side of the field
-    let expected_z = field_length / 2.0; // Center along field length (Z axis)
+    let expected_x = -5.0;
+    let expected_z = field_length / 2.0;
 
     for (idx, player_state) in game.state.player_states.iter().enumerate() {
         assert!(
@@ -71,10 +77,8 @@ fn test_check_player_readiness_when_not_in_region() {
     let mut game = create_test_game_setup();
     let mut manager = FootballGameManager::new();
 
-    // Players are at edge, not in start region
     manager.update(&mut game, 0.0);
 
-    // Should still be in Setup stage
     assert_eq!(game.state.stage, GameStage::Setup("Prepare".to_string()));
     assert!(!game.state.player_states[0].is_ready);
     assert!(!game.state.player_states[1].is_ready);
@@ -85,8 +89,7 @@ fn test_check_player_readiness_when_in_region() {
     let mut game = create_test_game_setup();
     let mut manager = FootballGameManager::new();
 
-    // Move player 0 into start region
-    let start_region = &game.config().players[0].regions["start position"];
+    let start_region = game.config().players[0].regions["start position"].clone();
     let center = start_region.center(
         game.config().field.grid_dimensions(),
         game.config().field.width().get::<meter>(),
@@ -95,11 +98,8 @@ fn test_check_player_readiness_when_in_region() {
 
     manager.update(&mut game, 0.0);
 
-    // Player 0 should be ready, player 1 not
     assert!(game.state.player_states[0].is_ready);
     assert!(!game.state.player_states[1].is_ready);
-
-    // Should still be in Setup (not all ready)
     assert_eq!(game.state.stage, GameStage::Setup("Prepare".to_string()));
 }
 
@@ -108,7 +108,6 @@ fn test_transition_to_play_when_all_ready() {
     let mut game = create_test_game_setup();
     let mut manager = FootballGameManager::new();
 
-    // Collect start region centers first to avoid borrowing issues
     let centers: Vec<_> = game
         .config()
         .players
@@ -122,18 +121,14 @@ fn test_transition_to_play_when_all_ready() {
         })
         .collect();
 
-    // Move all players into their start regions
     for (idx, player_state) in game.state.player_states.iter_mut().enumerate() {
         player_state.position = centers[idx].clone();
     }
 
     manager.update(&mut game, 0.0);
 
-    // All players should be ready
     assert!(game.state.player_states[0].is_ready);
     assert!(game.state.player_states[1].is_ready);
-
-    // Should transition to Play
     assert_eq!(game.state.stage, GameStage::Play);
 }
 
@@ -141,276 +136,11 @@ fn test_transition_to_play_when_all_ready() {
 fn test_no_updates_in_play_stage() {
     let field = Field::from_meters(100.0, 60.0, 26, 44);
     let grid_dims = field.grid_dimensions();
-    let start_region = grid_dims.create_region(GridCell::new(10, 10).unwrap(), GridCell::new(11, 11).unwrap()).unwrap();
-
-    let config = GameConfig {
-        field,
-        players: vec![PlayerDef::new(
-            Team::A,
-            1,
-            "Test Player".to_string(),
-            "function make_decision() return {} end".to_string(),
-            start_region,
-        )],
-        ball: BallDef {
-            initial_position: Point3D::new(
-                Length::new::<meter>(50.0), // Center of field length
-                Length::new::<meter>(0.0),
-                Length::new::<meter>(30.0), // Center of field width
-            ),
-        },
-        referees: vec![RefereeDef::default()],
-        scripting: crate::game::ScriptingConfig::empty(),
-    };
-
-    let mut game = Game::with_stage(config, GameStage::Play);
-    let mut manager = FootballGameManager::new();
-
-    let initial_stage = game.state.stage.clone();
-    manager.update(&mut game, 0.0);
-
-    // Stage should remain unchanged
-    assert_eq!(game.state.stage, initial_stage);
-}
-
-#[test]
-fn test_game_resumes_after_event_triggered_setup() {
-    use crate::field::zones::{Rectangle, ZoneGeometry};
-    use crate::field::{FieldBuilder, Zone};
-
-    // Create field with goal zones to trigger Goal event
-    let field = FieldBuilder::from_meters(60.0, 100.0, 26, 44)
-        .with_zone(Zone::new(
-            "goal",
-            Some(Team::A),
-            ZoneGeometry::Rectangle(Rectangle::from_meters(-2.0, 27.32, 0.0, 32.68)),
-        ))
-        .with_zone(Zone::new(
-            "goal",
-            Some(Team::B),
-            ZoneGeometry::Rectangle(Rectangle::from_meters(100.0, 27.32, 102.0, 32.68)),
-        ))
-        .build();
-
-    let grid_dims = field.grid_dimensions();
-    let start_region = grid_dims.create_region(GridCell::new(10, 10).unwrap(), GridCell::new(11, 11).unwrap()).unwrap();
-
-    let config = GameConfig {
-        field,
-        players: vec![PlayerDef::new(
-            Team::A,
-            1,
-            "Test Player".to_string(),
-            "function make_decision() return {} end".to_string(),
-            start_region.clone(),
-        )],
-        ball: BallDef {
-            initial_position: Point3D::new(
-                Length::new::<meter>(50.0),
-                Length::new::<meter>(0.0),
-                Length::new::<meter>(30.0),
-            ),
-        },
-        referees: vec![RefereeDef::default()],
-        scripting: crate::game::ScriptingConfig::empty(),
-    };
-
-    let mut game = Game::with_stage(config, GameStage::Play);
-    let mut manager = FootballGameManager::new();
-
-    // Step 1: Game in Play, ball is in safe position
-    assert_eq!(game.state.stage, GameStage::Play);
-    manager.update(&mut game, 0.0);
-    assert_eq!(game.state.stage, GameStage::Play, "Should remain in Play");
-
-    // Step 2: Move ball to trigger Goal event
-    game.state.ball_state.position = Point3D::new(
-        Length::new::<meter>(-1.0), // Inside Team A goal
-        Length::new::<meter>(0.0),
-        Length::new::<meter>(30.0),
-    );
-
-    // Step 3: Update triggers event → transition to Setup("after_goal")
-    manager.update(&mut game, 0.0);
-    match &game.state.stage {
-        GameStage::Setup(reason) => {
-            assert_eq!(
-                reason, "after_goal",
-                "Should transition to after_goal setup"
-            );
-        }
-        _ => panic!(
-            "Expected Setup stage after goal, got {:?}",
-            game.state.stage
-        ),
-    }
-
-    // Step 4: Players not ready yet
-    assert!(
-        !game.state.player_states[0].is_ready,
-        "Player should not be ready initially"
-    );
-
-    // Step 5: Move player to start region
-    let center = start_region.center(
-        game.config().field.grid_dimensions(),
-        game.config().field.width().get::<meter>(),
-    );
-    game.state.player_states[0].position = center;
-
-    // Step 6: Update → player becomes ready
-    manager.update(&mut game, 0.0);
-    assert!(
-        game.state.player_states[0].is_ready,
-        "Player should be marked ready"
-    );
-
-    // After step 6, should already transition to Play because all players are ready
-    assert_eq!(
-        game.state.stage,
-        GameStage::Play,
-        "Game should resume Play immediately after all players ready"
-    );
-}
-
-#[test]
-fn test_ball_resets_to_initial_position_in_setup() {
-    let field = Field::from_meters(100.0, 60.0, 26, 44);
-    let grid_dims = field.grid_dimensions();
-    let start_region = grid_dims.create_region(GridCell::new(10, 10).unwrap(), GridCell::new(11, 11).unwrap()).unwrap();
-
-    let initial_ball_position = Point3D::new(
-        Length::new::<meter>(50.0), // Center of field length
-        Length::new::<meter>(0.0),
-        Length::new::<meter>(30.0), // Center of field width
-    );
-
-    let config = GameConfig {
-        field,
-        players: vec![PlayerDef::new(
-            Team::A,
-            1,
-            "Test Player".to_string(),
-            "function make_decision() return {} end".to_string(),
-            start_region,
-        )],
-        ball: BallDef {
-            initial_position: initial_ball_position.clone(),
-        },
-        referees: vec![RefereeDef::default()],
-        scripting: crate::game::ScriptingConfig::empty(),
-    };
-
-    let mut game = Game::with_stage(config, GameStage::Play);
-
-    // Move ball to a different position during play
-    game.state.ball_state.position = Point3D::new(
-        Length::new::<meter>(10.0),
-        Length::new::<meter>(0.0),
-        Length::new::<meter>(5.0),
-    );
-    game.state.ball_state.velocity =
-        crate::field::zones::Velocity3D::from_meters_per_second(2.0, 1.0, 3.0);
-
-    // Verify ball is not at initial position
-    assert_ne!(
-        game.state.ball_state.position.x.get::<meter>(),
-        initial_ball_position.x.get::<meter>()
-    );
-
-    // Transition to Setup stage
-    game.state.stage = GameStage::Setup("after_goal".to_string());
-
-    let mut manager = FootballGameManager::new();
-    manager.update(&mut game, 0.0);
-
-    // Ball should be reset to initial position
-    assert_eq!(
-        game.state.ball_state.position.x.get::<meter>(),
-        initial_ball_position.x.get::<meter>(),
-        "Ball X position should be reset"
-    );
-    assert_eq!(
-        game.state.ball_state.position.y.get::<meter>(),
-        initial_ball_position.y.get::<meter>(),
-        "Ball Y position should be reset"
-    );
-    assert_eq!(
-        game.state.ball_state.position.z.get::<meter>(),
-        initial_ball_position.z.get::<meter>(),
-        "Ball Z position should be reset"
-    );
-
-    // Ball velocity should be reset to zero
-    use uom::si::velocity::meter_per_second;
-    assert_eq!(
-        game.state.ball_state.velocity.x.get::<meter_per_second>(),
-        0.0,
-        "Ball X velocity should be zero"
-    );
-    assert_eq!(
-        game.state.ball_state.velocity.y.get::<meter_per_second>(),
-        0.0,
-        "Ball Y velocity should be zero"
-    );
-    assert_eq!(
-        game.state.ball_state.velocity.z.get::<meter_per_second>(),
-        0.0,
-        "Ball Z velocity should be zero"
-    );
-}
-
-#[test]
-fn test_ball_ownership_resets_in_setup_stage() {    use crate::team::Team;
-
-    let mut game = create_test_game_setup();
-
-    // Set ball ownership to Team A during Play stage
-    game.state.stage = GameStage::Play;
-    game.state.ball_state.possessed_by = Some(0);
-    game.state.ball_state.last_possessing_team = Some(Team::A);
-
-    // Verify ownership is set
-    assert_eq!(game.state.ball_state.possessed_by, Some(0));
-    assert_eq!(game.state.ball_state.last_possessing_team, Some(Team::A));
-
-    // Transition to Setup stage
-    game.state.stage = GameStage::Setup("after_goal".to_string());
-
-    let mut manager = FootballGameManager::new();
-    manager.update(&mut game, 0.0);
-
-    // Ball ownership should be reset to neutral
-    assert_eq!(
-        game.state.ball_state.possessed_by, None,
-        "Ball should have no owner in Setup stage"
-    );
-    assert_eq!(
-        game.state.ball_state.last_possessing_team, None,
-        "Ball ownership team should be reset to None in Setup stage"
-    );
-}
-
-#[test]
-fn test_handle_event_clears_decision_so_setup_position_is_requested() {
-    // Regression test: when Play→Setup transition fires via an event,
-    // players must have current_decision cleared and needs_decision set.
-    // Otherwise PlayerReactionSystem won't request get_setup_position
-    // (it only fires when current_decision is None), and players stay frozen.
-    use crate::field::zones::{Rectangle, ZoneGeometry};
-    use crate::field::{FieldBuilder, Zone};
-
-    let field = FieldBuilder::from_meters(60.0, 100.0, 26, 44)
-        .with_zone(Zone::new(
-            "goal",
-            Some(Team::A),
-            ZoneGeometry::Rectangle(Rectangle::from_meters(-2.0, 27.32, 0.0, 32.68)),
-        ))
-        .build();
-
-    let grid_dims = field.grid_dimensions();
     let start_region = grid_dims
-        .create_region(GridCell::new(10, 10).unwrap(), GridCell::new(11, 11).unwrap())
+        .create_region(
+            GridCell::new(10, 10).unwrap(),
+            GridCell::new(11, 11).unwrap(),
+        )
         .unwrap();
 
     let config = GameConfig {
@@ -430,17 +160,239 @@ fn test_handle_event_clears_decision_so_setup_position_is_requested() {
             ),
         },
         referees: vec![RefereeDef::default()],
-        scripting: crate::game::ScriptingConfig::empty(),
+        scripting: ynwa_core::game::ScriptingConfig::empty(),
     };
 
     let mut game = Game::with_stage(config, GameStage::Play);
     let mut manager = FootballGameManager::new();
 
-    // Give player a stale Play-stage decision
-    game.state.player_states[0].current_decision = Some(crate::game::Decision::Stop);
+    let initial_stage = game.state.stage.clone();
+    manager.update(&mut game, 0.0);
+
+    assert_eq!(game.state.stage, initial_stage);
+}
+
+#[test]
+fn test_game_resumes_after_event_triggered_setup() {
+    let field = FieldBuilder::from_meters(60.0, 100.0, 26, 44)
+        .with_zone(Zone::new(
+            "goal",
+            Some(Team::A),
+            ZoneGeometry::Rectangle(Rectangle::from_meters(-2.0, 27.32, 0.0, 32.68)),
+        ))
+        .with_zone(Zone::new(
+            "goal",
+            Some(Team::B),
+            ZoneGeometry::Rectangle(Rectangle::from_meters(100.0, 27.32, 102.0, 32.68)),
+        ))
+        .build();
+
+    let grid_dims = field.grid_dimensions();
+    let start_region = grid_dims
+        .create_region(
+            GridCell::new(10, 10).unwrap(),
+            GridCell::new(11, 11).unwrap(),
+        )
+        .unwrap();
+
+    let config = GameConfig {
+        field,
+        players: vec![PlayerDef::new(
+            Team::A,
+            1,
+            "Test Player".to_string(),
+            "function make_decision() return {} end".to_string(),
+            start_region.clone(),
+        )],
+        ball: BallDef {
+            initial_position: Point3D::new(
+                Length::new::<meter>(50.0),
+                Length::new::<meter>(0.0),
+                Length::new::<meter>(30.0),
+            ),
+        },
+        referees: vec![RefereeDef::default()],
+        scripting: ynwa_core::game::ScriptingConfig::empty(),
+    };
+
+    let mut game = Game::with_stage(config, GameStage::Play);
+    let mut manager = FootballGameManager::new();
+
+    assert_eq!(game.state.stage, GameStage::Play);
+    manager.update(&mut game, 0.0);
+    assert_eq!(game.state.stage, GameStage::Play, "Should remain in Play");
+
+    game.state.ball_state.position = Point3D::new(
+        Length::new::<meter>(-1.0),
+        Length::new::<meter>(0.0),
+        Length::new::<meter>(30.0),
+    );
+
+    manager.update(&mut game, 0.0);
+    match &game.state.stage {
+        GameStage::Setup(reason) => {
+            assert_eq!(reason, "after_goal", "Should transition to after_goal setup");
+        }
+        _ => panic!("Expected Setup stage after goal, got {:?}", game.state.stage),
+    }
+
+    assert!(!game.state.player_states[0].is_ready, "Player should not be ready initially");
+
+    let center = start_region.center(
+        game.config().field.grid_dimensions(),
+        game.config().field.width().get::<meter>(),
+    );
+    game.state.player_states[0].position = center;
+
+    manager.update(&mut game, 0.0);
+    assert!(game.state.player_states[0].is_ready, "Player should be marked ready");
+
+    assert_eq!(
+        game.state.stage,
+        GameStage::Play,
+        "Game should resume Play immediately after all players ready"
+    );
+}
+
+#[test]
+fn test_ball_resets_to_initial_position_in_setup() {
+    let field = Field::from_meters(100.0, 60.0, 26, 44);
+    let grid_dims = field.grid_dimensions();
+    let start_region = grid_dims
+        .create_region(
+            GridCell::new(10, 10).unwrap(),
+            GridCell::new(11, 11).unwrap(),
+        )
+        .unwrap();
+
+    let initial_ball_position = Point3D::new(
+        Length::new::<meter>(50.0),
+        Length::new::<meter>(0.0),
+        Length::new::<meter>(30.0),
+    );
+
+    let config = GameConfig {
+        field,
+        players: vec![PlayerDef::new(
+            Team::A,
+            1,
+            "Test Player".to_string(),
+            "function make_decision() return {} end".to_string(),
+            start_region,
+        )],
+        ball: BallDef {
+            initial_position: initial_ball_position.clone(),
+        },
+        referees: vec![RefereeDef::default()],
+        scripting: ynwa_core::game::ScriptingConfig::empty(),
+    };
+
+    let mut game = Game::with_stage(config, GameStage::Play);
+
+    game.state.ball_state.position = Point3D::new(
+        Length::new::<meter>(10.0),
+        Length::new::<meter>(0.0),
+        Length::new::<meter>(5.0),
+    );
+    game.state.ball_state.velocity =
+        ynwa_core::field::zones::Velocity3D::from_meters_per_second(2.0, 1.0, 3.0);
+
+    assert_ne!(
+        game.state.ball_state.position.x.get::<meter>(),
+        initial_ball_position.x.get::<meter>()
+    );
+
+    game.state.stage = GameStage::Setup("after_goal".to_string());
+
+    let mut manager = FootballGameManager::new();
+    manager.update(&mut game, 0.0);
+
+    assert_eq!(
+        game.state.ball_state.position.x.get::<meter>(),
+        initial_ball_position.x.get::<meter>(),
+        "Ball X position should be reset"
+    );
+    assert_eq!(
+        game.state.ball_state.position.y.get::<meter>(),
+        initial_ball_position.y.get::<meter>(),
+        "Ball Y position should be reset"
+    );
+    assert_eq!(
+        game.state.ball_state.position.z.get::<meter>(),
+        initial_ball_position.z.get::<meter>(),
+        "Ball Z position should be reset"
+    );
+
+    use uom::si::velocity::meter_per_second;
+    assert_eq!(game.state.ball_state.velocity.x.get::<meter_per_second>(), 0.0);
+    assert_eq!(game.state.ball_state.velocity.y.get::<meter_per_second>(), 0.0);
+    assert_eq!(game.state.ball_state.velocity.z.get::<meter_per_second>(), 0.0);
+}
+
+#[test]
+fn test_ball_ownership_resets_in_setup_stage() {
+    let mut game = create_test_game_setup();
+
+    game.state.stage = GameStage::Play;
+    game.state.ball_state.possessed_by = Some(0);
+    game.state.ball_state.last_possessing_team = Some(Team::A);
+
+    assert_eq!(game.state.ball_state.possessed_by, Some(0));
+    assert_eq!(game.state.ball_state.last_possessing_team, Some(Team::A));
+
+    game.state.stage = GameStage::Setup("after_goal".to_string());
+
+    let mut manager = FootballGameManager::new();
+    manager.update(&mut game, 0.0);
+
+    assert_eq!(game.state.ball_state.possessed_by, None);
+    assert_eq!(game.state.ball_state.last_possessing_team, None);
+}
+
+#[test]
+fn test_handle_event_clears_decision_so_setup_position_is_requested() {
+    let field = FieldBuilder::from_meters(60.0, 100.0, 26, 44)
+        .with_zone(Zone::new(
+            "goal",
+            Some(Team::A),
+            ZoneGeometry::Rectangle(Rectangle::from_meters(-2.0, 27.32, 0.0, 32.68)),
+        ))
+        .build();
+
+    let grid_dims = field.grid_dimensions();
+    let start_region = grid_dims
+        .create_region(
+            GridCell::new(10, 10).unwrap(),
+            GridCell::new(11, 11).unwrap(),
+        )
+        .unwrap();
+
+    let config = GameConfig {
+        field,
+        players: vec![PlayerDef::new(
+            Team::A,
+            1,
+            "Test Player".to_string(),
+            "function make_decision() return {} end".to_string(),
+            start_region,
+        )],
+        ball: BallDef {
+            initial_position: Point3D::new(
+                Length::new::<meter>(50.0),
+                Length::new::<meter>(0.0),
+                Length::new::<meter>(30.0),
+            ),
+        },
+        referees: vec![RefereeDef::default()],
+        scripting: ynwa_core::game::ScriptingConfig::empty(),
+    };
+
+    let mut game = Game::with_stage(config, GameStage::Play);
+    let mut manager = FootballGameManager::new();
+
+    game.state.player_states[0].current_decision = Some(ynwa_core::game::Decision::Stop);
     game.state.player_states[0].needs_decision = false;
 
-    // Trigger Goal event: ball inside Team A goal
     game.state.ball_state.position = Point3D::new(
         Length::new::<meter>(-1.0),
         Length::new::<meter>(0.0),
@@ -449,19 +401,14 @@ fn test_handle_event_clears_decision_so_setup_position_is_requested() {
 
     manager.update(&mut game, 0.0);
 
-    // Must have transitioned to Setup
     assert!(
         matches!(game.state.stage, GameStage::Setup(_)),
         "Expected Setup stage"
     );
-
-    // current_decision must be cleared so PlayerReactionSystem requests a new one
     assert!(
         game.state.player_states[0].current_decision.is_none(),
         "current_decision must be None after Play→Setup transition"
     );
-
-    // needs_decision must be set so the script is called on next tick
     assert!(
         game.state.player_states[0].needs_decision,
         "needs_decision must be true after Play→Setup transition"

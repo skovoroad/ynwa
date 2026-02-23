@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "ynwa-core",
     "ynwa-decisions",
+    "ynwa-football",
     "ynwa-player",
     "ynwa-script-tests",
 ]

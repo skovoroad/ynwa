@@ -1,6 +1,6 @@
-use crate::field::zones::Point3D;
-use crate::game::Game;
-use crate::team::Team;
+use ynwa_core::field::zones::Point3D;
+use ynwa_core::game::Game;
+use ynwa_core::team::Team;
 use uom::si::length::meter;
 
 /// Football game events
@@ -99,13 +99,12 @@ pub fn check_events(game: &Game) -> Option<FootballEvent> {
     None
 }
 
-/// Helper: check if ball (with radius) is completely inside a zone
 fn is_ball_completely_in_zone(
     ball_pos: &Point3D,
-    zone: &crate::field::Zone,
+    zone: &ynwa_core::field::Zone,
     ball_radius: f32,
 ) -> bool {
-    use crate::field::zones::ZoneGeometry;
+    use ynwa_core::field::zones::ZoneGeometry;
 
     match &zone.geometry {
         ZoneGeometry::Rectangle(rect) => {
@@ -122,5 +121,5 @@ fn is_ball_completely_in_zone(
 }
 
 #[cfg(test)]
-#[path = "../tests/events_tests.rs"]
+#[path = "tests/events_tests.rs"]
 mod tests;

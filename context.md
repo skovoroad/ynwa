@@ -13,10 +13,18 @@ The project is divided into independent modules using Rust workspace:
 - **Core (`ynwa-core`)** - a library that simulates the game
   - Knows only game simulation logic
   - Receives all parameters (characteristics, commands, instructions) from outside via API
-  - Does not depend on specific client implementations
+  - Does not depend on specific client implementations or sport-specific modules
   - Uses `ynwa-decisions` for Lua scripting support
   - No external physics engine - custom physics in PhysicsSystem
   
+- **Football (`ynwa-football`)** - football-specific rules and world factory
+  - Depends on `ynwa-core`; `ynwa-core` does NOT depend on this crate (guaranteed by Cargo's cycle detection)
+  - `field_builder` - standard football field with FIFA regulation zones
+  - `game_manager` - `FootballGameManager` system: stage transitions (Setup → Play), player readiness, event handling
+  - `events` - goal detection, out-of-bounds (touchline/goal line), game end
+  - Entry point: `create_football_world_from_file()` — creates a ready-to-use `World`
+  - Design decision: keeping sport rules separate from simulation core enables reuse of `ynwa-core` for other sports
+
 - **Decision Engine (`ynwa-decisions`)** - game-agnostic decision-making library
   - Independent crate with Lua scripting support
   - No dependencies on game domain types (no GridCell, Region, Point3D)
@@ -32,12 +40,12 @@ The project is divided into independent modules using Rust workspace:
   - See `ynwa-scripts/context.md` for full scripting API documentation
   
 - **Clients** - applications using the core:
-  - `ynwa-player` - local client, simulates the game locally and interacts with the player
+  - `ynwa-player` - local client, depends on `ynwa-core` + `ynwa-football`, simulates the game locally and interacts with the player
   - Game server (future) - simulates multiple games, transmits data over network
   - `ynwa-simulator` - local client, simulates the game locally and write the game to the file
   
 - **Test suites:**
-  - `ynwa-script-tests` - integration tests for Lua scripts
+  - `ynwa-script-tests` - integration tests for Lua scripts, depends on `ynwa-core` + `ynwa-football`
   - Verifies that scripts produce correct decisions through the full system pipeline
 
 ### Universality (optional requirement)
@@ -79,15 +87,16 @@ The following aspects are considered in the design but implementation is postpon
 - Design decision: systems receive &mut Game instead of &mut World to avoid borrow checker issues during iteration over systems
 - Design decision: systems receive absolute timestamp instead of delta_time so they can store last update time and calculate intervals themselves
 
-**Football Module (`football/mod.rs`):**
+**Football Crate (`ynwa-football`):**
 - Main API for creating football world: `create_football_world_from_file()`
-- GameConfig creation functions are made private - clients work directly with World
-- Design decision: field is created inside the football module, external code has no direct access to field creation
+- GameConfig creation functions are private - clients work directly with World
+- Design decision: field is created inside `ynwa-football`, external code has no direct access to field creation
 - Clients use ready-made world creation functions rather than manually constructing Game
+- Design decision: extracted from `ynwa-core` so the core stays sport-agnostic; other sports would provide their own equivalent crate
 
 **Game Systems:**
 System execution order (important for correct operation):
-1. **FootballGameManager** - manages game stage transitions (Setup → Play), manages football-specific game logic for determining events (future)
+1. **FootballGameManager** (`ynwa-football`) - manages game stage transitions (Setup → Play), manages football-specific game logic for determining events
 2. **PlayerReactionSystem** - determines when player is ready to accept new decision based on reaction_rate. During Setup stage: requests a decision once (when player has none); arrival is handled by DecisionSystem, not by re-polling.
 3. **BallPossessionSystem** - determines which player possesses the ball (see Ball Possession System section)
 4. **DecisionSystem** - creates decisions (Decision) for players using DecisionMaker trait. During Setup stage: on every tick checks if the player has reached their Run target (within 0.5m); if so, overrides the decision with Stop without calling the script.
@@ -235,5 +244,5 @@ See `systems/ball_possession.rs` `//!` doc for parameters, possession logic, bal
 
 ## Game Stages System
 
-See `football/game_manager.rs` `//!` doc for `GameStage` enum, stage behavior, and transition logic.
+See `ynwa-football/src/game_manager.rs` `//!` doc for `GameStage` enum, stage behavior, and transition logic.
 

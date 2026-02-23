@@ -1,6 +1,6 @@
-use crate::field::zones::*;
-use crate::field::{Field, FieldBuilder, Zone};
-use crate::team::Team;
+use ynwa_core::field::zones::*;
+use ynwa_core::field::{Field, FieldBuilder, Zone};
+use ynwa_core::team::Team;
 use std::f32::consts::PI;
 
 // FIFA regulation dimensions (meters)

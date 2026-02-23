@@ -767,10 +767,10 @@ mod tests {
     /// and same for Z. This catches any divergence between the two computations.
     #[test]
     fn test_build_context_region_agrees_with_region_center() {
-        use crate::football::field_builder::create_football_field;
+        use crate::field::Field;
         use uom::si::length::meter;
 
-        let field = create_football_field();
+        let field = Field::from_meters(60.0, 101.538_46, 26, 44);
         let grid_dims = field.grid_dimensions();
 
         // Use an off-centre region so X/Z confusion is clearly detectable
@@ -822,11 +822,11 @@ mod tests {
     /// flip_point_orientation applied to Region::center().
     #[test]
     fn test_build_context_region_team_b_agrees_with_flipped_center() {
-        use crate::football::field_builder::create_football_field;
+        use crate::field::Field;
         use crate::orientation::flip_point_orientation;
         use uom::si::length::meter;
 
-        let field = create_football_field();
+        let field = Field::from_meters(60.0, 101.538_46, 26, 44);
         let grid_dims = field.grid_dimensions();
         let fw = field.width().get::<meter>();
         let fl = field.length().get::<meter>();

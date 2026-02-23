@@ -1,7 +1,6 @@
 /// Integration tests for team orientation coordinate conversion.
 /// Tests that Team B decisions are correctly converted from Team B's perspective
 /// (right-to-left) to display orientation (Team A's left-to-right perspective).
-use ynwa_core::football::field_builder::create_football_field;
 use ynwa_core::game::{BallDef, Decision, DecisionTarget, Game, GameConfig, PlayerDef, RefereeDef};
 use ynwa_core::region::GridCell;
 use ynwa_core::system::System;
@@ -10,9 +9,9 @@ use ynwa_core::team::Team;
 use ynwa_script_tests::request_decisions_for_all;
 
 /// Helper function to create a test game with a specific script for a team.
-/// Uses the standard football field from the single source of truth: create_football_field().
+/// Uses a standard football field (60×101.5m, 26×44 grid) without zones — zones are not needed here.
 fn create_game_with_team_script(team: Team, script: String) -> Game {
-    let field = create_football_field();
+    let field = ynwa_core::field::Field::from_meters(60.0, 101.538_46, 26, 44);
     let grid_dims = field.grid_dimensions();
 
     // For Team A, start near their goal (left side)
@@ -234,9 +233,8 @@ fn test_team_b_point_flipped() {
         Decision::Run(DecisionTarget::Point(point)) => {
             use uom::si::length::meter;
 
-            let field = create_football_field();
-            let field_width = field.width().get::<meter>();
-            let field_length = field.length().get::<meter>();
+            let field_width = 60.0_f32;
+            let field_length = 101.538_46_f32;
 
             // Point (20, 0, 15) for Team B should flip to:
             // x: field_width - 20, y: unchanged, z: field_length - 15

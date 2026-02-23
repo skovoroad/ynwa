@@ -2,7 +2,6 @@
 
 pub mod config;
 pub mod field;
-pub mod football;
 pub mod game;
 pub mod orientation;
 pub mod physics_util;
@@ -18,8 +17,6 @@ pub use game::{
     BallDef, BallState, Decision, DecisionTarget, Game, GameConfig, GameStage, GameState,
     PlayerDef, PlayerState, RefereeDef, RefereeState,
 };
-
-pub use football::create_football_world_from_file;
 
 pub use orientation::{
     flip_grid_cell_orientation, flip_point_orientation, flip_region_orientation,

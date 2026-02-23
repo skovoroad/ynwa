@@ -1,21 +1,29 @@
+//! YNWA Football - Football rules and world factory.
+//!
+//! This crate implements football-specific rules on top of `ynwa-core`:
+//! - `field_builder` - standard football field with FIFA regulation zones
+//! - `game_manager` - `FootballGameManager` system: stage transitions, player readiness
+//! - `events` - goal detection, out-of-bounds, game end
+//!
+//! Entry point: `create_football_world_from_file` creates a ready-to-use `World`.
+
 pub mod events;
 pub mod field_builder;
 pub mod game_manager;
 
-use crate::config::SerializableGameConfig;
-use crate::field::zones::ZoneGeometry;
-use crate::football::game_manager::FootballGameManager;
-use crate::game::{BallDef, Game, GameConfig, GameStage};
-use crate::systems::decision::ScriptedDecisionMaker;
-use crate::systems::{
+use field_builder::create_football_field;
+use game_manager::FootballGameManager;
+use ynwa_core::config::SerializableGameConfig;
+use ynwa_core::field::zones::ZoneGeometry;
+use ynwa_core::game::{BallDef, Game, GameConfig, GameStage};
+use ynwa_core::systems::decision::ScriptedDecisionMaker;
+use ynwa_core::systems::{
     ActionSystem, BallPossessionSystem, DecisionSystem, PhysicsSystem, PlayerReactionSystem,
 };
-use crate::world::World;
-
-use field_builder::create_football_field;
+use ynwa_core::world::World;
 
 /// Extract ball initial position from center_spot zone (football rule)
-fn get_ball_initial_position(field: &crate::field::Field) -> crate::field::zones::Point3D {
+fn get_ball_initial_position(field: &ynwa_core::field::Field) -> ynwa_core::field::zones::Point3D {
     let center_spot_zone = field
         .get_zone("center_spot", None)
         .expect("Football field must have center_spot zone");
@@ -30,11 +38,9 @@ fn create_football_game_config_from_file(path: &std::path::Path) -> Result<GameC
     let config = SerializableGameConfig::from_file(path)?;
     let field = create_football_field();
 
-    // Resolve preamble paths relative to config file directory
     let config_dir = path.parent();
     let game_config = config.to_game_config(field, config_dir)?;
 
-    // Set ball initial position to center_spot (football rule)
     let mut game_config = game_config;
     game_config.ball = BallDef {
         initial_position: get_ball_initial_position(&game_config.field),
@@ -48,7 +54,6 @@ fn add_football_systems(world: &mut World) {
     world.add_system(Box::new(PlayerReactionSystem));
     world.add_system(Box::new(BallPossessionSystem::new()));
 
-    // Try to create scripted decision maker, fall back to placeholder if it fails
     let decision_system = match ScriptedDecisionMaker::new(world.game()) {
         Ok(scripted_maker) => {
             println!(
@@ -80,17 +85,14 @@ pub fn create_football_world_from_file(path: &std::path::Path) -> Result<World, 
 }
 
 #[cfg(test)]
-#[path = "../tests/axis_contract_tests.rs"]
-mod axis_contract_tests;
-
-#[cfg(test)]
+    #[path = "tests/field_builder_tests.rs"]
+    mod field_builder_tests;#[cfg(test)]
 mod tests {
     use super::*;
     use uom::si::length::meter;
-
-    use crate::game::*;
-    use crate::region::*;
-    use crate::team::Team;
+    use ynwa_core::game::*;
+    use ynwa_core::region::*;
+    use ynwa_core::team::Team;
 
     fn create_football_game_config() -> GameConfig {
         let field = create_football_field();
@@ -100,8 +102,12 @@ mod tests {
         let mut players = Vec::new();
         for i in 0..11 {
             let row = i + 1;
-            let start_region = grid_dims.create_region(GridCell::new(1, row).unwrap(), GridCell::new(2, row).unwrap())
-            .unwrap();
+            let start_region = grid_dims
+                .create_region(
+                    GridCell::new(1, row).unwrap(),
+                    GridCell::new(2, row).unwrap(),
+                )
+                .unwrap();
 
             players.push(PlayerDef::new(
                 Team::A,
@@ -113,8 +119,12 @@ mod tests {
         }
         for i in 0..11 {
             let row = i + 1;
-            let start_region = grid_dims.create_region(GridCell::new(25, row).unwrap(), GridCell::new(26, row).unwrap())
-            .unwrap();
+            let start_region = grid_dims
+                .create_region(
+                    GridCell::new(25, row).unwrap(),
+                    GridCell::new(26, row).unwrap(),
+                )
+                .unwrap();
 
             players.push(PlayerDef::new(
                 Team::B,
@@ -132,7 +142,7 @@ mod tests {
                 initial_position: ball_initial_position,
             },
             referees: vec![RefereeDef::default()],
-            scripting: crate::game::ScriptingConfig::empty(),
+            scripting: ynwa_core::game::ScriptingConfig::empty(),
         }
     }
 
@@ -157,7 +167,6 @@ mod tests {
         let world = create_football_world();
         let game = world.game();
 
-        // Get center_spot position from field
         let center_spot = game
             .config()
             .field
@@ -165,24 +174,14 @@ mod tests {
             .expect("Football field must have center_spot");
 
         let expected_position = match &center_spot.geometry {
-            crate::field::zones::ZoneGeometry::Point(point) => &point.position,
+            ynwa_core::field::zones::ZoneGeometry::Point(point) => &point.position,
             _ => panic!("center_spot must be a Point zone"),
         };
 
-        // Ball should start at center_spot
         let ball_position = &game.state().ball_state.position;
-        assert_eq!(
-            ball_position.x.get::<meter>(),
-            expected_position.x.get::<meter>()
-        );
-        assert_eq!(
-            ball_position.y.get::<meter>(),
-            expected_position.y.get::<meter>()
-        );
-        assert_eq!(
-            ball_position.z.get::<meter>(),
-            expected_position.z.get::<meter>()
-        );
+        assert_eq!(ball_position.x.get::<meter>(), expected_position.x.get::<meter>());
+        assert_eq!(ball_position.y.get::<meter>(), expected_position.y.get::<meter>());
+        assert_eq!(ball_position.z.get::<meter>(), expected_position.z.get::<meter>());
     }
 
     #[test]

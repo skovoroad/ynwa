@@ -807,12 +807,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "ynwa-football"
+version = "0.1.0"
+dependencies = [
+ "uom",
+ "ynwa-core",
+]
+
+[[package]]
 name = "ynwa-player"
 version = "0.1.0"
 dependencies = [
  "macroquad",
  "uom",
  "ynwa-core",
+ "ynwa-football",
 ]
 
 [[package]]
@@ -822,6 +831,7 @@ dependencies = [
  "serde_json",
  "uom",
  "ynwa-core",
+ "ynwa-football",
 ]
 
 [[package]]

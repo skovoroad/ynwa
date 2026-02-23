@@ -14,12 +14,13 @@
 //! - Tests use `Game::with_stage()` to set stage explicitly
 //! - Stage transitions are one-way (no Play → Setup) — temporary until event system is complete
 
-use crate::game::{Game, GameStage};
-use crate::region::Region;
-use crate::system::System;
+use ynwa_core::field::zones::Velocity3D;
+use ynwa_core::game::{Game, GameStage};
+use ynwa_core::region::Region;
+use ynwa_core::system::System;
 use uom::si::length::meter;
 
-use super::events::{check_events, FootballEvent};
+use crate::events::{check_events, FootballEvent};
 
 /// Football game manager - manages football-specific game logic
 pub struct FootballGameManager;
@@ -35,7 +36,7 @@ impl System for FootballGameManager {
         match &game.state.stage {
             GameStage::Setup(_stage_name) => {
                 game.state.ball_state.position = game.config().ball.initial_position;
-                game.state.ball_state.velocity = crate::field::zones::Velocity3D::default();
+                game.state.ball_state.velocity = Velocity3D::default();
                 game.state.ball_state.possessed_by = None;
                 game.state.ball_state.last_possessing_team = None;
 
@@ -129,9 +130,9 @@ impl FootballGameManager {
 }
 
 fn is_player_in_start_region(
-    position: &crate::field::zones::Point3D,
+    position: &ynwa_core::field::zones::Point3D,
     start_region: &Region,
-    grid_dims: crate::region::GridDimensions,
+    grid_dims: ynwa_core::region::GridDimensions,
     field_width: f32,
 ) -> bool {
     start_region.contains_point(grid_dims, field_width, position)
@@ -144,5 +145,5 @@ impl Default for FootballGameManager {
 }
 
 #[cfg(test)]
-#[path = "../tests/game_manager_tests.rs"]
+#[path = "tests/game_manager_tests.rs"]
 mod tests;
