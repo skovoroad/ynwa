@@ -37,6 +37,8 @@ fn convert_decision_to_display_orientation(
                 DecisionTarget::Point(point) => {
                     DecisionTarget::Point(flip_point_orientation(point, field_width, field_height))
                 }
+                // Ball position is always in world coordinates — no flip needed.
+                DecisionTarget::Ball => DecisionTarget::Ball,
             };
             Decision::Run(flipped_target)
         }

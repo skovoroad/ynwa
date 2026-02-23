@@ -97,6 +97,7 @@ System execution order (important for correct operation):
   - `DecisionTarget::Point(Point3D)` - specific point
   - `DecisionTarget::GridCell(GridCell)` - center of grid cell
   - `DecisionTarget::Region(Region)` - center of region
+  - `DecisionTarget::Ball` - current ball position (resolved live each tick for arrival check; direction set once at decision processing time)
 - `Decision::Stop` - stop
 - `Decision::Kick(Point3D)` - kick ball towards target point (only if player possesses ball)
 - Each decision is processed exactly once (decision_processed flag)

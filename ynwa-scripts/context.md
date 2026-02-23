@@ -292,7 +292,19 @@ Player runs to the center of a rectangular region defined by two corner cells.
 - `from` and `to` can be specified in any order
 - Region center is calculated automatically
 
-#### 2.3.5 Kick
+#### 2.3.5 Chase Ball
+
+```lua
+return {
+    action = "run",
+    target_type = "ball"
+    -- no "target" field needed
+}
+```
+
+Player runs toward the current ball position. The engine resolves the target to the ball's live position each tick for the arrival check, so the player stops as soon as they actually reach the ball — not the stale position from when the decision was made. The direction of movement is set at the moment the decision is processed; the player runs in a straight line from there (no real-time steering).
+
+#### 2.3.6 Kick
 
 ```lua
 return {
@@ -311,7 +323,7 @@ Player kicks the ball towards the specified point.
 - Target specifies direction
 - Ball physics determines actual trajectory
 
-#### 2.3.6 Decision Validation
+#### 2.3.7 Decision Validation
 
 The core validates:
 - Presence of required `action` field

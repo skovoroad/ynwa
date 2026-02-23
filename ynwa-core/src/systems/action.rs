@@ -32,6 +32,12 @@ fn calculate_target_point(target: &DecisionTarget, game: &Game) -> Point3D {
             game.config().field.grid_dimensions(),
             game.config().field.width().get::<meter>(),
         ),
+        // Ball position is resolved at the moment the decision is processed.
+        // The player heads toward where the ball is right now and runs in a
+        // straight line from there. If the ball moves, the player's direction
+        // won't update until the next script invocation — this is intentional
+        // (angular correction, not real-time tracking).
+        DecisionTarget::Ball => game.state.ball_state.position,
     }
 }
 

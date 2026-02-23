@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 /// - `{action = "run", target_type = "cell", target = "A5"}` for running to cell
 /// - `{action = "run", target_type = "region", target = {from = "A5", to = "C7"}}` for region
 /// - `{action = "run", target_type = "point", target = {x = 10.5, z = 20.0}}` for point
+/// - `{action = "run", target_type = "ball"}` for chasing the ball (no target needed)
 /// - `{action = "kick", target = {x = 50.0, z = 30.0}}` for kicking towards point
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(tag = "action", rename_all = "lowercase")]
@@ -18,6 +19,8 @@ pub enum LuaDecision {
     Stop,
     Run {
         target_type: String,
+        /// Present for all target types except "ball".
+        #[serde(default)]
         target: serde_json::Value,
     },
     Kick {

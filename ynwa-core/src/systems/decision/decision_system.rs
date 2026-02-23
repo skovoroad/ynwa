@@ -134,7 +134,7 @@ impl System for DecisionSystem {
             // override with Stop — without calling the script. This prevents overshooting
             // caused by the gap between reaction-rate ticks (up to 3 s at low reaction_rate).
             if let Some(decision) = &current_decision {
-                if let Some(target) = resolve_target_point(decision, field_width, grid_dims) {
+                if let Some(target) = resolve_target_point(decision, field_width, grid_dims, &game.state.ball_state) {
                     if distance_2d(&player_pos, &target) < ARRIVAL_THRESHOLD_METERS {
                         let stop = convert_decision_to_display_orientation(
                             &Decision::Stop,

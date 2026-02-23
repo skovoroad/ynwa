@@ -50,6 +50,7 @@ fn player_decision_text(
                 format!("Run to {}{}", col_label, cell.row)
             }
             DecisionTarget::Point(_) => "Run to point".to_string(),
+            DecisionTarget::Ball => "Chase ball".to_string(),
         },
         Some(Decision::Stop) => "Stop".to_string(),
         Some(Decision::Kick(_)) => "Kick".to_string(),

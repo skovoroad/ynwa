@@ -14,6 +14,8 @@ pub enum DecisionTarget {
     Region(Region),
     GridCell(GridCell),
     Point(Point3D),
+    /// Chase the ball: target point is resolved to the ball's current position each tick.
+    Ball,
 }
 
 #[derive(Debug, Clone)]

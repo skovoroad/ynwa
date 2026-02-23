@@ -412,3 +412,80 @@ fn test_ball_owner_team_context() {
         player_state.current_decision
     );
 }
+
+// ── DecisionTarget::Ball tests ────────────────────────────────────────────────
+
+/// Lua script returns `target_type = "ball"` → Rust should produce `DecisionTarget::Ball`.
+#[test]
+fn test_run_to_ball_decision() {
+    test_script_produces_decision(
+        r#"
+        function make_decision()
+            return {
+                action = "run",
+                target_type = "ball"
+            }
+        end
+        "#,
+        |d| matches!(d, Decision::Run(DecisionTarget::Ball)),
+        "test_run_to_ball_decision",
+    );
+}
+
+/// `target_type = "ball"` should work even when the optional `target` field is absent.
+#[test]
+fn test_run_to_ball_no_target_field() {
+    test_script_produces_decision(
+        r#"
+        function make_decision()
+            -- No "target" field — should be accepted without error
+            return {action = "run", target_type = "ball"}
+        end
+        "#,
+        |d| matches!(d, Decision::Run(DecisionTarget::Ball)),
+        "test_run_to_ball_no_target_field",
+    );
+}
+
+/// A script may include a `reason` alongside `target_type = "ball"`.
+/// The reason should be preserved.
+#[test]
+fn test_run_to_ball_with_reason() {
+    let script = r#"
+        function make_decision()
+            return {
+                action = "run",
+                target_type = "ball",
+                reason = "chasing the ball"
+            }
+        end
+    "#;
+
+    let mut game = create_test_game_with_script(script);
+    request_decisions_for_all(&mut game);
+
+    let decision_maker =
+        ScriptedDecisionMaker::new(&game).expect("Failed to create ScriptedDecisionMaker");
+    let mut decision_system = DecisionSystem::new().with_decision_maker(Box::new(decision_maker));
+    decision_system.update(&mut game, 1.0);
+
+    let player_state = &game.state().player_states[0];
+    assert!(
+        player_state.last_error.is_none(),
+        "Unexpected script error: {:?}",
+        player_state.last_error
+    );
+    assert!(
+        matches!(
+            player_state.current_decision,
+            Some(Decision::Run(DecisionTarget::Ball))
+        ),
+        "Expected Run(Ball), got: {:?}",
+        player_state.current_decision
+    );
+    assert_eq!(
+        player_state.decision_reason.as_deref(),
+        Some("chasing the ball"),
+        "Expected reason to be preserved"
+    );
+}

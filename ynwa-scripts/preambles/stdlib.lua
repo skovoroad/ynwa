@@ -183,11 +183,12 @@ function common_behavior_v2()
     
     -- If less than 3 teammates are closer, I'm in top 3
     if closer_count < 3 then
-        -- Run to the ball
+        -- Chase the ball: ActionSystem resolves the target to the ball's current position
+        -- at the moment of processing; arrival check in DecisionSystem tests against
+        -- the live ball position each tick, so the player stops when they actually reach it.
         return {
             action = "run",
-            target_type = "point",
-            target = {x = ball_pos.x, z = ball_pos.z, y = 0},
+            target_type = "ball",
             reason = "Chasing ball, rank=" .. (closer_count + 1) .. ", dist=" .. string.format("%.2f", my_dist_to_ball)
         }
     end
