@@ -103,18 +103,24 @@ impl FootballGameManager {
             FootballEvent::Goal(_team) => {
                 for player_state in game.state.player_states.iter_mut() {
                     player_state.is_ready = false;
+                    player_state.current_decision = None;
+                    player_state.needs_decision = true;
                 }
                 game.state.stage = GameStage::Setup("after_goal".to_string());
             }
             FootballEvent::Touchline(_position) => {
                 for player_state in game.state.player_states.iter_mut() {
                     player_state.is_ready = false;
+                    player_state.current_decision = None;
+                    player_state.needs_decision = true;
                 }
                 game.state.stage = GameStage::Setup("throw_in".to_string());
             }
             FootballEvent::GoalLine(_position) => {
                 for player_state in game.state.player_states.iter_mut() {
                     player_state.is_ready = false;
+                    player_state.current_decision = None;
+                    player_state.needs_decision = true;
                 }
                 game.state.stage = GameStage::Setup("set_piece".to_string());
             }

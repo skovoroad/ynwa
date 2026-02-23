@@ -361,8 +361,7 @@ fn test_ball_resets_to_initial_position_in_setup() {
 }
 
 #[test]
-fn test_ball_ownership_resets_in_setup_stage() {
-    use crate::team::Team;
+fn test_ball_ownership_resets_in_setup_stage() {    use crate::team::Team;
 
     let mut game = create_test_game_setup();
 
@@ -389,5 +388,82 @@ fn test_ball_ownership_resets_in_setup_stage() {
     assert_eq!(
         game.state.ball_state.last_possessing_team, None,
         "Ball ownership team should be reset to None in Setup stage"
+    );
+}
+
+#[test]
+fn test_handle_event_clears_decision_so_setup_position_is_requested() {
+    // Regression test: when Play→Setup transition fires via an event,
+    // players must have current_decision cleared and needs_decision set.
+    // Otherwise PlayerReactionSystem won't request get_setup_position
+    // (it only fires when current_decision is None), and players stay frozen.
+    use crate::field::zones::{Rectangle, ZoneGeometry};
+    use crate::field::{FieldBuilder, Zone};
+
+    let field = FieldBuilder::from_meters(60.0, 100.0, 26, 44)
+        .with_zone(Zone::new(
+            "goal",
+            Some(Team::A),
+            ZoneGeometry::Rectangle(Rectangle::from_meters(-2.0, 27.32, 0.0, 32.68)),
+        ))
+        .build();
+
+    let grid_dims = field.grid_dimensions();
+    let start_region = grid_dims
+        .create_region(GridCell::new(10, 10).unwrap(), GridCell::new(11, 11).unwrap())
+        .unwrap();
+
+    let config = GameConfig {
+        field,
+        players: vec![PlayerDef::new(
+            Team::A,
+            1,
+            "Test Player".to_string(),
+            "function make_decision() return {} end".to_string(),
+            start_region,
+        )],
+        ball: BallDef {
+            initial_position: Point3D::new(
+                Length::new::<meter>(50.0),
+                Length::new::<meter>(0.0),
+                Length::new::<meter>(30.0),
+            ),
+        },
+        referees: vec![RefereeDef::default()],
+        scripting: crate::game::ScriptingConfig::empty(),
+    };
+
+    let mut game = Game::with_stage(config, GameStage::Play);
+    let mut manager = FootballGameManager::new();
+
+    // Give player a stale Play-stage decision
+    game.state.player_states[0].current_decision = Some(crate::game::Decision::Stop);
+    game.state.player_states[0].needs_decision = false;
+
+    // Trigger Goal event: ball inside Team A goal
+    game.state.ball_state.position = Point3D::new(
+        Length::new::<meter>(-1.0),
+        Length::new::<meter>(0.0),
+        Length::new::<meter>(30.0),
+    );
+
+    manager.update(&mut game, 0.0);
+
+    // Must have transitioned to Setup
+    assert!(
+        matches!(game.state.stage, GameStage::Setup(_)),
+        "Expected Setup stage"
+    );
+
+    // current_decision must be cleared so PlayerReactionSystem requests a new one
+    assert!(
+        game.state.player_states[0].current_decision.is_none(),
+        "current_decision must be None after Play→Setup transition"
+    );
+
+    // needs_decision must be set so the script is called on next tick
+    assert!(
+        game.state.player_states[0].needs_decision,
+        "needs_decision must be true after Play→Setup transition"
     );
 }
