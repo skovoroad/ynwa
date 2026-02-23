@@ -237,20 +237,17 @@ impl ScriptedDecisionMaker {
                 let (min_row, max_row) = (region.top_left.row, region.bottom_right.row);
 
                 // Convert grid coordinates to meters
-                // Note: Both X and Z use cell_width (square cells) as per Region::center() logic
-                let cell_width = field_width / grid_dims.columns as f32;
+                // col → X (field width), row → Z (field length); square cells
+                let cell_size = field_width / grid_dims.columns as f32;
 
-                let min_z = (min_col - 1) as f32 * cell_width;
-                let max_z = max_col as f32 * cell_width;
-                let min_x = (min_row - 1) as f32 * cell_width;
-                let max_x = max_row as f32 * cell_width;
+                let min_x = (min_col - 1) as f32 * cell_size;
+                let max_x = max_col as f32 * cell_size;
+                let min_z = (min_row - 1) as f32 * cell_size;
+                let max_z = max_row as f32 * cell_size;
 
                 // Apply coordinate transformation if viewer is Team B
                 let (final_min_x, final_max_x, final_min_z, final_max_z) = if player_team == Team::B
                 {
-                    // Use same transformation as flip_point_orientation: x' = width - x, z' = length - z
-                    // (This matches the parameter order used throughout the codebase)
-                    // When we flip, min and max swap positions
                     let flipped_min_x = field_width - max_x;
                     let flipped_max_x = field_width - min_x;
                     let flipped_min_z = field_length - max_z;
@@ -612,12 +609,12 @@ mod tests {
 
     #[test]
     fn test_region_boundaries_team_a() {
-        // Test that Team A receives correct region boundaries
-        // Football field: width=60m (Z axis), length=100m (X axis)
+        // Test that Team A receives correct region boundaries.
+        // Contract: col → X (field width=60m), row → Z (field length=100m).
         let field = Field::from_meters(60.0, 100.0, 26, 44);
         let grid_dims = field.grid_dimensions();
 
-        // Create a region: columns 10-12 (Z axis), rows 20-22 (X axis)
+        // Region: columns 10-12 → X axis, rows 20-22 → Z axis
         let start_region = grid_dims.create_region(GridCell::new(10, 20).unwrap(), GridCell::new(12, 22).unwrap()).unwrap();
 
         let script = r#"
@@ -648,50 +645,50 @@ mod tests {
         let start_pos = regions.get("start position").unwrap();
 
         // Expected boundaries for Team A (no transformation):
-        // cell_width = 60 / 26 = 2.307...
-        // columns 10-12: Z from (10-1)*2.307 to 12*2.307
-        // rows 20-22: X from (20-1)*2.307 to 22*2.307
-        let cell_width = 60.0 / 26.0;
+        // cell_size = 60 / 26 = 2.307...
+        // columns 10-12 → X from (10-1)*cell_size to 12*cell_size
+        // rows 20-22    → Z from (20-1)*cell_size to 22*cell_size
+        let cell_size = 60.0 / 26.0_f64;
 
-        let expected_min_z = 9.0 * cell_width;
-        let expected_max_z = 12.0 * cell_width;
-        let expected_min_x = 19.0 * cell_width;
-        let expected_max_x = 22.0 * cell_width;
+        let expected_min_x = 9.0 * cell_size;
+        let expected_max_x = 12.0 * cell_size;
+        let expected_min_z = 19.0 * cell_size;
+        let expected_max_z = 22.0 * cell_size;
 
         assert!(
-            (start_pos["min_z"].as_f64().unwrap() - expected_min_z as f64).abs() < 0.01,
-            "Team A min_z: expected {}, got {}",
-            expected_min_z,
-            start_pos["min_z"]
-        );
-        assert!(
-            (start_pos["max_z"].as_f64().unwrap() - expected_max_z as f64).abs() < 0.01,
-            "Team A max_z: expected {}, got {}",
-            expected_max_z,
-            start_pos["max_z"]
-        );
-        assert!(
-            (start_pos["min_x"].as_f64().unwrap() - expected_min_x as f64).abs() < 0.01,
+            (start_pos["min_x"].as_f64().unwrap() - expected_min_x).abs() < 0.01,
             "Team A min_x: expected {}, got {}",
             expected_min_x,
             start_pos["min_x"]
         );
         assert!(
-            (start_pos["max_x"].as_f64().unwrap() - expected_max_x as f64).abs() < 0.01,
+            (start_pos["max_x"].as_f64().unwrap() - expected_max_x).abs() < 0.01,
             "Team A max_x: expected {}, got {}",
             expected_max_x,
             start_pos["max_x"]
+        );
+        assert!(
+            (start_pos["min_z"].as_f64().unwrap() - expected_min_z).abs() < 0.01,
+            "Team A min_z: expected {}, got {}",
+            expected_min_z,
+            start_pos["min_z"]
+        );
+        assert!(
+            (start_pos["max_z"].as_f64().unwrap() - expected_max_z).abs() < 0.01,
+            "Team A max_z: expected {}, got {}",
+            expected_max_z,
+            start_pos["max_z"]
         );
     }
 
     #[test]
     fn test_region_boundaries_team_b() {
-        // Test that Team B receives correctly flipped region boundaries
-        // Football field: width=60m (Z axis), length=100m (X axis)
+        // Test that Team B receives correctly flipped region boundaries.
+        // Contract: col → X (field width=60m), row → Z (field length=100m).
         let field = Field::from_meters(60.0, 100.0, 26, 44);
         let grid_dims = field.grid_dimensions();
 
-        // Create a region: columns 10-12 (Z axis), rows 20-22 (X axis)
+        // Region: columns 10-12 → X axis, rows 20-22 → Z axis
         let start_region = grid_dims.create_region(GridCell::new(10, 20).unwrap(), GridCell::new(12, 22).unwrap()).unwrap();
 
         let script = r#"
@@ -721,45 +718,44 @@ mod tests {
         let regions = context["me"]["regions"].as_object().unwrap();
         let start_pos = regions.get("start position").unwrap();
 
-        // Expected boundaries for Team B (with flip transformation):
-        // cell_width = 60 / 26 = 2.307...
-        // Original: columns 10-12 → Z from 9*2.307 to 12*2.307
-        //           rows 20-22 → X from 19*2.307 to 22*2.307
-        // Flipped using flip_point_orientation logic: x' = width - x, z' = length - z
-        //          min/max swap after flip
-        let cell_width = 60.0 / 26.0;
+        // Pre-flip (Team A frame):
+        // cell_size = 60 / 26
+        // columns 10-12 → X: (9..12) * cell_size
+        // rows 20-22    → Z: (19..22) * cell_size
+        //
+        // After flip (Team B): x' = field_width - x,  z' = field_length - z  (min/max swap)
+        let cell_size = 60.0 / 26.0_f64;
 
-        let orig_min_z = 9.0 * cell_width;
-        let orig_max_z = 12.0 * cell_width;
-        let orig_min_x = 19.0 * cell_width;
-        let orig_max_x = 22.0 * cell_width;
+        let orig_min_x = 9.0 * cell_size;
+        let orig_max_x = 12.0 * cell_size;
+        let orig_min_z = 19.0 * cell_size;
+        let orig_max_z = 22.0 * cell_size;
 
-        // After flip: x' = 60 - x (field_width - x), z' = 100 - z (field_length - z)
         let expected_min_x = 60.0 - orig_max_x;
         let expected_max_x = 60.0 - orig_min_x;
         let expected_min_z = 100.0 - orig_max_z;
         let expected_max_z = 100.0 - orig_min_z;
 
         assert!(
-            (start_pos["min_x"].as_f64().unwrap() - expected_min_x as f64).abs() < 0.01,
+            (start_pos["min_x"].as_f64().unwrap() - expected_min_x).abs() < 0.01,
             "Team B min_x: expected {}, got {}",
             expected_min_x,
             start_pos["min_x"]
         );
         assert!(
-            (start_pos["max_x"].as_f64().unwrap() - expected_max_x as f64).abs() < 0.01,
+            (start_pos["max_x"].as_f64().unwrap() - expected_max_x).abs() < 0.01,
             "Team B max_x: expected {}, got {}",
             expected_max_x,
             start_pos["max_x"]
         );
         assert!(
-            (start_pos["min_z"].as_f64().unwrap() - expected_min_z as f64).abs() < 0.01,
+            (start_pos["min_z"].as_f64().unwrap() - expected_min_z).abs() < 0.01,
             "Team B min_z: expected {}, got {}",
             expected_min_z,
             start_pos["min_z"]
         );
         assert!(
-            (start_pos["max_z"].as_f64().unwrap() - expected_max_z as f64).abs() < 0.01,
+            (start_pos["max_z"].as_f64().unwrap() - expected_max_z).abs() < 0.01,
             "Team B max_z: expected {}, got {}",
             expected_max_z,
             start_pos["max_z"]

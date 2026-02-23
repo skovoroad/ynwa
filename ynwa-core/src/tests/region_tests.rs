@@ -217,9 +217,9 @@ fn test_region_contains_point() {
     // Point in the middle of cell C4 should be inside
     let cell_width = 60.0 / 26.0;
     let point_inside = Point3D::from_meters(
-        (3.5) * cell_width, // Row 4 center
+        (2.5) * cell_width, // Column C (col=3) center → X
         0.0,
-        (2.5) * cell_width, // Column C (col=3) center
+        (3.5) * cell_width, // Row 4 center → Z
     );
     assert!(region.contains_point(
         field.grid_dimensions(),
@@ -246,9 +246,9 @@ fn test_region_contains_point_boundaries() {
 
     // Point exactly at min_x, min_z (should be inside, inclusive)
     let point_min = Point3D::from_meters(
-        (3.0 - 1.0) * cell_width, // Row 3 min
+        (2.0 - 1.0) * cell_width, // Col B (col=2) min → X
         0.0,
-        (2.0 - 1.0) * cell_width, // Col B min
+        (3.0 - 1.0) * cell_width, // Row 3 min → Z
     );
     assert!(region.contains_point(
         field.grid_dimensions(),
@@ -258,9 +258,9 @@ fn test_region_contains_point_boundaries() {
 
     // Point exactly at max_x boundary (should be outside, exclusive)
     let point_max_x = Point3D::from_meters(
-        5.0 * cell_width, // Row 5 max (exclusive)
+        4.0 * cell_width, // Col D (col=4) max (exclusive) → X
         0.0,
-        2.5 * cell_width,
+        3.5 * cell_width,
     );
     assert!(!region.contains_point(
         field.grid_dimensions(),
@@ -270,9 +270,9 @@ fn test_region_contains_point_boundaries() {
 
     // Point exactly at max_z boundary (should be outside, exclusive)
     let point_max_z = Point3D::from_meters(
-        3.5 * cell_width,
+        2.5 * cell_width,
         0.0,
-        4.0 * cell_width, // Col D max (exclusive)
+        5.0 * cell_width, // Row 5 max (exclusive) → Z
     );
     assert!(!region.contains_point(
         field.grid_dimensions(),
@@ -282,9 +282,9 @@ fn test_region_contains_point_boundaries() {
 
     // Point just inside boundaries
     let point_inside_edge = Point3D::from_meters(
-        (3.0 - 1.0) * cell_width + 0.001,
-        0.0,
         (2.0 - 1.0) * cell_width + 0.001,
+        0.0,
+        (3.0 - 1.0) * cell_width + 0.001,
     );
     assert!(region.contains_point(
         field.grid_dimensions(),
@@ -305,8 +305,10 @@ fn test_region_center() {
     let center = region.center(field.grid_dimensions(), field.width().get::<meter>());
 
     let cell_width = 60.0 / 26.0;
-    let expected_z = (2.0 + 0.5) * cell_width; // Col 2 center
-    let expected_x = (4.0 - 0.5) * cell_width; // Row 4 center
+    // col → X: cols B(2)..D(4): min=(2-1)*cw=1*cw, max=4*cw, center=2.5*cw
+    // row → Z: rows 3..5:       min=(3-1)*cw=2*cw, max=5*cw, center=3.5*cw
+    let expected_x = 2.5 * cell_width;
+    let expected_z = 3.5 * cell_width;
 
     assert!((center.x.get::<meter>() - expected_x).abs() < 0.01);
     assert!((center.z.get::<meter>() - expected_z).abs() < 0.01);
@@ -323,8 +325,8 @@ fn test_region_center_single_cell() {
     let center = region.center(field.grid_dimensions(), field.width().get::<meter>());
 
     let cell_width = 60.0 / 26.0;
-    let expected_z = 0.5 * cell_width; // Col 0 center
-    let expected_x = 0.5 * cell_width; // Row 1 center
+    let expected_x = 0.5 * cell_width; // Col A (col=1) center → X
+    let expected_z = 0.5 * cell_width; // Row 1 center → Z
 
     assert!((center.x.get::<meter>() - expected_x).abs() < 0.01);
     assert!((center.z.get::<meter>() - expected_z).abs() < 0.01);

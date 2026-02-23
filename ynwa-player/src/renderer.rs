@@ -23,7 +23,7 @@ pub fn render_field(
     let offset_y = (screen_h - field_render_height) / 2.0;
 
     let to_screen_x = |field_z: f32| offset_x + field_z * scale;
-    let to_screen_y = |field_x: f32| offset_y + field_x * scale;
+    let to_screen_y = |field_x: f32| offset_y + (field_length - field_x) * scale;
 
     let white = Color::new(1.0, 1.0, 1.0, 1.0);
 
@@ -36,7 +36,7 @@ pub fn render_field(
         white,
     );
     draw_grid_cells(&to_screen_x, &to_screen_y, field, scale);
-    draw_grid_labels(&to_screen_x, &to_screen_y, field);
+    draw_grid_labels(&to_screen_x, &to_screen_y, field, field_length);
     draw_center_line(&to_screen_x, &to_screen_y, field_width, field_length, white);
     draw_zones(&to_screen_x, &to_screen_y, field, scale, white);
     draw_players(&to_screen_x, &to_screen_y, game_config, game_state);
@@ -53,7 +53,7 @@ fn draw_field_boundary(
 ) {
     draw_rectangle_lines(
         to_screen_x(0.0),
-        to_screen_y(0.0),
+        to_screen_y(field_length),
         field_width * scale,
         field_length * scale,
         2.0,
@@ -78,12 +78,12 @@ fn draw_grid_cells(
             let is_light = (row + col) % 2 == 0;
             let color = if is_light { green_light } else { green_dark };
 
-            let cell_x = row as f32 * cell_size;
-            let cell_z = col as f32 * cell_size;
+            let cell_x = col as f32 * cell_size;
+            let cell_z = row as f32 * cell_size;
 
             draw_rectangle(
-                to_screen_x(cell_z),
-                to_screen_y(cell_x),
+                to_screen_x(cell_x),
+                to_screen_y(cell_z + cell_size),
                 cell_size * scale,
                 cell_size * scale,
                 color,
@@ -96,6 +96,7 @@ fn draw_grid_labels(
     to_screen_x: &dyn Fn(f32) -> f32,
     to_screen_y: &dyn Fn(f32) -> f32,
     field: &ynwa_core::field::Field,
+    field_length: f32,
 ) {
     let grid_dims = field.grid_dimensions();
     let cell_size = field.cell_size();
@@ -104,9 +105,9 @@ fn draw_grid_labels(
 
     for col in 0..grid_dims.columns {
         let col_label = ynwa_core::GridCell::column_to_label(col + 1);
-        let cell_z = col as f32 * cell_size;
-        let x_pos = to_screen_x(cell_z + cell_size / 2.0);
-        let y_pos = to_screen_y(0.0) - 5.0;
+        let cell_x = col as f32 * cell_size;
+        let x_pos = to_screen_x(cell_x + cell_size / 2.0);
+        let y_pos = to_screen_y(field_length) - 5.0;
 
         let text_dims = measure_text(&col_label, None, font_size as u16, 1.0);
         draw_text(
@@ -120,9 +121,9 @@ fn draw_grid_labels(
 
     for row in 0..grid_dims.rows {
         let row_label = (row + 1).to_string();
-        let cell_x = row as f32 * cell_size;
+        let cell_z = row as f32 * cell_size;
         let x_pos = to_screen_x(0.0) - 5.0;
-        let y_pos = to_screen_y(cell_x + cell_size / 2.0);
+        let y_pos = to_screen_y(cell_z + cell_size / 2.0);
 
         let text_dims = measure_text(&row_label, None, font_size as u16, 1.0);
         draw_text(
@@ -169,10 +170,10 @@ fn draw_zones(
                 let max_z = rect.max.z.get::<meter>();
 
                 draw_rectangle_lines(
-                    to_screen_x(min_z),
-                    to_screen_y(min_x),
-                    (max_z - min_z) * scale,
+                    to_screen_x(min_x),
+                    to_screen_y(max_z),
                     (max_x - min_x) * scale,
+                    (max_z - min_z) * scale,
                     1.0,
                     color,
                 );
@@ -182,13 +183,13 @@ fn draw_zones(
                 let cz = circle.center.z.get::<meter>();
                 let radius = circle.radius.get::<meter>();
 
-                draw_circle_lines(to_screen_x(cz), to_screen_y(cx), radius * scale, 1.0, color);
+                draw_circle_lines(to_screen_x(cx), to_screen_y(cz), radius * scale, 1.0, color);
             }
             ZoneGeometry::Point(point) => {
                 let px = point.position.x.get::<meter>();
                 let pz = point.position.z.get::<meter>();
 
-                draw_circle(to_screen_x(pz), to_screen_y(px), 3.0, color);
+                draw_circle(to_screen_x(px), to_screen_y(pz), 3.0, color);
             }
             ZoneGeometry::Arc(_) => {}
         }
@@ -216,7 +217,7 @@ fn draw_players(
             ynwa_core::team::Team::B => team_b_color,
         };
 
-        draw_circle(to_screen_x(pz), to_screen_y(px), player_radius, color);
+        draw_circle(to_screen_x(px), to_screen_y(pz), player_radius, color);
 
         let number_text = player_def.number.to_string();
         let font_size = 14.0;
@@ -224,8 +225,8 @@ fn draw_players(
 
         draw_text(
             &number_text,
-            to_screen_x(pz) - text_dims.width / 2.0,
-            to_screen_y(px) + text_dims.height / 2.0 - 2.0,
+            to_screen_x(px) - text_dims.width / 2.0,
+            to_screen_y(pz) + text_dims.height / 2.0 - 2.0,
             font_size,
             text_color,
         );
@@ -245,12 +246,11 @@ fn draw_ball(
     let ball_color = WHITE;
     let ball_outline_color = BLACK;
 
-    // Draw ball with black outline
     draw_circle(
-        to_screen_x(bz),
-        to_screen_y(bx),
+        to_screen_x(bx),
+        to_screen_y(bz),
         ball_radius + 1.0,
         ball_outline_color,
     );
-    draw_circle(to_screen_x(bz), to_screen_y(bx), ball_radius, ball_color);
+    draw_circle(to_screen_x(bx), to_screen_y(bz), ball_radius, ball_color);
 }

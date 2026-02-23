@@ -63,43 +63,43 @@ pub fn create_football_field_with_dimensions(
             "field",
             None,
             Box::new(move || {
-                ZoneGeometry::Rectangle(Rectangle::from_meters(0.0, 0.0, length, width))
+                ZoneGeometry::Rectangle(Rectangle::from_meters(0.0, 0.0, width, length))
             }),
         ),
         (
             "half",
             Some(Team::A),
             Box::new(move || {
-                ZoneGeometry::Rectangle(Rectangle::from_meters(0.0, 0.0, half_length, width))
+                ZoneGeometry::Rectangle(Rectangle::from_meters(0.0, 0.0, width, half_length))
             }),
         ),
         (
             "half",
             Some(Team::B),
             Box::new(move || {
-                ZoneGeometry::Rectangle(Rectangle::from_meters(half_length, 0.0, length, width))
+                ZoneGeometry::Rectangle(Rectangle::from_meters(0.0, half_length, width, length))
             }),
         ),
         (
             "goal_area",
             Some(Team::A),
             Box::new(move || {
-                let z_min = (width - GOAL_AREA_WIDTH) / 2.0;
-                let z_max = z_min + GOAL_AREA_WIDTH;
-                ZoneGeometry::Rectangle(Rectangle::from_meters(0.0, z_min, GOAL_AREA_LENGTH, z_max))
+                let x_min = (width - GOAL_AREA_WIDTH) / 2.0;
+                let x_max = x_min + GOAL_AREA_WIDTH;
+                ZoneGeometry::Rectangle(Rectangle::from_meters(x_min, 0.0, x_max, GOAL_AREA_LENGTH))
             }),
         ),
         (
             "goal_area",
             Some(Team::B),
             Box::new(move || {
-                let z_min = (width - GOAL_AREA_WIDTH) / 2.0;
-                let z_max = z_min + GOAL_AREA_WIDTH;
+                let x_min = (width - GOAL_AREA_WIDTH) / 2.0;
+                let x_max = x_min + GOAL_AREA_WIDTH;
                 ZoneGeometry::Rectangle(Rectangle::from_meters(
+                    x_min,
                     length - GOAL_AREA_LENGTH,
-                    z_min,
+                    x_max,
                     length,
-                    z_max,
                 ))
             }),
         ),
@@ -107,13 +107,13 @@ pub fn create_football_field_with_dimensions(
             "penalty_area",
             Some(Team::A),
             Box::new(move || {
-                let z_min = (width - PENALTY_AREA_WIDTH) / 2.0;
-                let z_max = z_min + PENALTY_AREA_WIDTH;
+                let x_min = (width - PENALTY_AREA_WIDTH) / 2.0;
+                let x_max = x_min + PENALTY_AREA_WIDTH;
                 ZoneGeometry::Rectangle(Rectangle::from_meters(
+                    x_min,
                     0.0,
-                    z_min,
+                    x_max,
                     PENALTY_AREA_LENGTH,
-                    z_max,
                 ))
             }),
         ),
@@ -121,13 +121,13 @@ pub fn create_football_field_with_dimensions(
             "penalty_area",
             Some(Team::B),
             Box::new(move || {
-                let z_min = (width - PENALTY_AREA_WIDTH) / 2.0;
-                let z_max = z_min + PENALTY_AREA_WIDTH;
+                let x_min = (width - PENALTY_AREA_WIDTH) / 2.0;
+                let x_max = x_min + PENALTY_AREA_WIDTH;
                 ZoneGeometry::Rectangle(Rectangle::from_meters(
+                    x_min,
                     length - PENALTY_AREA_LENGTH,
-                    z_min,
+                    x_max,
                     length,
-                    z_max,
                 ))
             }),
         ),
@@ -136,8 +136,8 @@ pub fn create_football_field_with_dimensions(
             None,
             Box::new(move || {
                 ZoneGeometry::Circle(Circle::from_meters(
-                    half_length,
                     half_width,
+                    half_length,
                     CENTER_CIRCLE_RADIUS,
                 ))
             }),
@@ -147,8 +147,8 @@ pub fn create_football_field_with_dimensions(
             Some(Team::A),
             Box::new(move || {
                 ZoneGeometry::Arc(Arc::from_radians(
-                    PENALTY_SPOT_DISTANCE,
                     half_width,
+                    PENALTY_SPOT_DISTANCE,
                     PENALTY_ARC_RADIUS,
                     -PI / 2.0,
                     PI / 2.0,
@@ -160,8 +160,8 @@ pub fn create_football_field_with_dimensions(
             Some(Team::B),
             Box::new(move || {
                 ZoneGeometry::Arc(Arc::from_radians(
-                    length - PENALTY_SPOT_DISTANCE,
                     half_width,
+                    length - PENALTY_SPOT_DISTANCE,
                     PENALTY_ARC_RADIUS,
                     PI / 2.0,
                     3.0 * PI / 2.0,
@@ -186,8 +186,8 @@ pub fn create_football_field_with_dimensions(
             Some(Team::A),
             Box::new(move || {
                 ZoneGeometry::Arc(Arc::from_radians(
-                    0.0,
                     width,
+                    0.0,
                     CORNER_ARC_RADIUS,
                     -PI / 2.0,
                     0.0,
@@ -199,8 +199,8 @@ pub fn create_football_field_with_dimensions(
             Some(Team::B),
             Box::new(move || {
                 ZoneGeometry::Arc(Arc::from_radians(
-                    length,
                     0.0,
+                    length,
                     CORNER_ARC_RADIUS,
                     PI / 2.0,
                     PI,
@@ -212,8 +212,8 @@ pub fn create_football_field_with_dimensions(
             Some(Team::B),
             Box::new(move || {
                 ZoneGeometry::Arc(Arc::from_radians(
-                    length,
                     width,
+                    length,
                     CORNER_ARC_RADIUS,
                     PI,
                     3.0 * PI / 2.0,
@@ -223,13 +223,13 @@ pub fn create_football_field_with_dimensions(
         (
             "center_spot",
             None,
-            Box::new(move || ZoneGeometry::Point(PointZone::from_meters(half_length, half_width))),
+            Box::new(move || ZoneGeometry::Point(PointZone::from_meters(half_width, half_length))),
         ),
         (
             "penalty_spot",
             Some(Team::A),
             Box::new(move || {
-                ZoneGeometry::Point(PointZone::from_meters(PENALTY_SPOT_DISTANCE, half_width))
+                ZoneGeometry::Point(PointZone::from_meters(half_width, PENALTY_SPOT_DISTANCE))
             }),
         ),
         (
@@ -237,8 +237,8 @@ pub fn create_football_field_with_dimensions(
             Some(Team::B),
             Box::new(move || {
                 ZoneGeometry::Point(PointZone::from_meters(
-                    length - PENALTY_SPOT_DISTANCE,
                     half_width,
+                    length - PENALTY_SPOT_DISTANCE,
                 ))
             }),
         ),
@@ -246,22 +246,22 @@ pub fn create_football_field_with_dimensions(
             "goal",
             Some(Team::A),
             Box::new(move || {
-                let z_min = (width - GOAL_WIDTH) / 2.0;
-                let z_max = z_min + GOAL_WIDTH;
-                ZoneGeometry::Rectangle(Rectangle::from_meters(-GOAL_DEPTH, z_min, 0.0, z_max))
+                let x_min = (width - GOAL_WIDTH) / 2.0;
+                let x_max = x_min + GOAL_WIDTH;
+                ZoneGeometry::Rectangle(Rectangle::from_meters(x_min, -GOAL_DEPTH, x_max, 0.0))
             }),
         ),
         (
             "goal",
             Some(Team::B),
             Box::new(move || {
-                let z_min = (width - GOAL_WIDTH) / 2.0;
-                let z_max = z_min + GOAL_WIDTH;
+                let x_min = (width - GOAL_WIDTH) / 2.0;
+                let x_max = x_min + GOAL_WIDTH;
                 ZoneGeometry::Rectangle(Rectangle::from_meters(
+                    x_min,
                     length,
-                    z_min,
+                    x_max,
                     length + GOAL_DEPTH,
-                    z_max,
                 ))
             }),
         ),

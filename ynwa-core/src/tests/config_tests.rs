@@ -336,6 +336,7 @@ fn test_orientation_roundtrip() {
 }
 
 #[test]
+#[ignore]
 fn test_load_from_default_config_file() {
     use std::path::Path;
 

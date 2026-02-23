@@ -266,12 +266,13 @@ impl Region {
         point: &Point3D,
     ) -> bool {
         let cell_width = field_width_meters / grid_dims.columns as f32;
+        let cell_length = field_width_meters / grid_dims.columns as f32; // square cells: same size
 
-        // Calculate region boundaries in meters (columns are 1-based)
-        let min_z = (self.top_left.col - 1) as f32 * cell_width;
-        let max_z = self.bottom_right.col as f32 * cell_width;
-        let min_x = (self.top_left.row - 1) as f32 * cell_width;
-        let max_x = self.bottom_right.row as f32 * cell_width;
+        // col → X (field width), row → Z (field length)
+        let min_x = (self.top_left.col - 1) as f32 * cell_width;
+        let max_x = self.bottom_right.col as f32 * cell_width;
+        let min_z = (self.top_left.row - 1) as f32 * cell_length;
+        let max_z = self.bottom_right.row as f32 * cell_length;
 
         // Check if point is within boundaries
         let point_x = point.x.get::<meter>();
@@ -282,13 +283,13 @@ impl Region {
 
     /// Returns the center point of the region (Y=0, ground level).
     pub fn center(&self, grid_dims: GridDimensions, field_width_meters: f32) -> Point3D {
-        let cell_width = field_width_meters / grid_dims.columns as f32;
+        let cell_size = field_width_meters / grid_dims.columns as f32; // square cells
 
-        // Calculate region boundaries in meters (columns are 1-based)
-        let min_z = (self.top_left.col - 1) as f32 * cell_width;
-        let max_z = self.bottom_right.col as f32 * cell_width;
-        let min_x = (self.top_left.row - 1) as f32 * cell_width;
-        let max_x = self.bottom_right.row as f32 * cell_width;
+        // col → X (field width), row → Z (field length)
+        let min_x = (self.top_left.col - 1) as f32 * cell_size;
+        let max_x = self.bottom_right.col as f32 * cell_size;
+        let min_z = (self.top_left.row - 1) as f32 * cell_size;
+        let max_z = self.bottom_right.row as f32 * cell_size;
 
         // Center is the midpoint of boundaries
         let center_x = (min_x + max_x) / 2.0;
