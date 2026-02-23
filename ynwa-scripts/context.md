@@ -30,8 +30,6 @@ Goal: provide a set of reusable functions for writing AI players in Lua without 
 - Rows: 1, 2, 3, ...
 - Example: `"K7"` is center cell, `"A1:B2"` is region from A1 to B2
 
-**See section 7 (end of document) for quick reference tables**.
-
 ## 2. Core Mechanisms: API Contract
 
 ### 2.1 Main Contract
@@ -157,7 +155,6 @@ There is a way to identify players in the game:
 **Important:** 
 - `context.ball.owner_index` contains global index
 - To check team ownership during passes, use `context.ball.owner_team`
-- this low level info must be handled with functions in core preample. High level code must use this functions, not directly low-level abstarctions
   
 #### 2.2.1 Player Regions (`context.me.regions`)
 
@@ -199,7 +196,6 @@ context.me.regions = {
    ```
 
 4. **Common uses**:
-   - Check if player is in assigned zone: `is_point_in_rectangle(my_pos.x, my_pos.z, region)`
    - Navigate to region center during setup
    - Define zones of responsibility for tactics
 
@@ -394,23 +390,20 @@ Before executing user script, three preamble levels are loaded in the following 
 **Responsibilities**:
 - Parsing global `context` variable
 - Helper functions for accessing game data
-- Factories for creating correct decision objects
 - Minimal utilities (no business logic)
 
-**Rule**: Core preamble should not depend on game specifics (football, hockey, etc.), but provides geometric primitives that can be used for any sport.
+**Rule**: Core preamble should not depend on game specifics (football, hockey, etc.).
 
 ### 3.2 Stdlib Preamble (Standard Library)
 
 **File**: `ynwa-scripts/preambles/stdlib.lua`
 
-**Purpose**: Common utilities used by all games and teams.
+**Purpose**: Common utilities used by all teams.
 
 **Responsibilities**:
-- Geometric functions (distances, vectors, angles)
-- Search algorithms (nearest player, nearest opponent)
-- Mathematical utilities
-- Functions for working with regions and grids
-- General tactical functions
+- Distance calculations
+- Ball ownership checks
+- `get_setup_position(reason)` — default implementation for the setup stage
 
 **Rule**: Stdlib contains no team strategies, only reusable utilities.
 
@@ -487,21 +480,7 @@ Important: Team B sees the field from the opposite side. The core automatically 
 **Example**:
 ```lua
 function make_decision()
-    -- Use functions from core
-    local ball_pos = ball_position()
-    local my_pos = my_position()
-    
-    -- Use functions from stdlib
-    if am_i_closest_to_ball() then
-        -- Use functions from team preamble
-        if should_i_chase_ball() then
-            return run_to_point(ball_pos.x, ball_pos.z)
-        end
-    end
-    
-    -- Otherwise go to zone of responsibility
-    local zone = my_defensive_zone()
-    return run_to_region(zone.from, zone.to)
+    return common_behavior_v2()
 end
 ```
 
@@ -584,14 +563,6 @@ cargo test --package ynwa-script-tests --test stdlib_functions
 **`create_test_game_with_preambles(script: &str)`**
 - Creates game with core and stdlib preambles loaded
 - Use for testing preamble functions and realistic scripts
-
-**`create_test_game_with_preambles_and_zones(script: &str, zones: Vec<Zone>)`**
-- Creates game with preambles and custom field zones
-- Use for testing zone-related functions (`is_in_zone`, `is_point_in_penalty_area`, etc.)
-
-**`create_test_game_with_preambles_zones_and_team(script: &str, zones: Vec<Zone>, team: Team, team_preamble: &str)`**
-- Creates game with preambles, custom zones, a specific team, and a team preamble
-- Use for testing orientation invariance: verify Team B receives correctly flipped zones in `GAME_DATA`
 
 **`load_test_script(name: &str)`**
 - Loads test script from `ynwa-scripts/test-scripts/` directory
