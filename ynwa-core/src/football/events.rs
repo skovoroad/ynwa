@@ -35,14 +35,14 @@ pub fn check_goal(game: &Game) -> Option<FootballEvent> {
     None
 }
 
-/// Check if ball went out on sideline (width boundaries)
+/// Check if ball went out on sideline (width boundaries, X axis)
 pub fn check_touchline(game: &Game) -> Option<FootballEvent> {
     let ball_pos = &game.state.ball_state.position;
     let field_width = game.config().field.width().get::<meter>();
 
-    // Ball completely over left or right sideline
-    if ball_pos.z.get::<meter>() - BALL_RADIUS < 0.0
-        || ball_pos.z.get::<meter>() + BALL_RADIUS > field_width
+    // Ball completely over left or right sideline (X axis = width)
+    if ball_pos.x.get::<meter>() - BALL_RADIUS < 0.0
+        || ball_pos.x.get::<meter>() + BALL_RADIUS > field_width
     {
         return Some(FootballEvent::Touchline(*ball_pos));
     }
@@ -50,14 +50,14 @@ pub fn check_touchline(game: &Game) -> Option<FootballEvent> {
     None
 }
 
-/// Check if ball went out on goal line (length boundaries)
+/// Check if ball went out on goal line (length boundaries, Z axis)
 pub fn check_goal_line(game: &Game) -> Option<FootballEvent> {
     let ball_pos = &game.state.ball_state.position;
     let field_length = game.config().field.length().get::<meter>();
 
-    // Ball completely over near or far goal line
-    if ball_pos.x.get::<meter>() - BALL_RADIUS < 0.0
-        || ball_pos.x.get::<meter>() + BALL_RADIUS > field_length
+    // Ball completely over near or far goal line (Z axis = length)
+    if ball_pos.z.get::<meter>() - BALL_RADIUS < 0.0
+        || ball_pos.z.get::<meter>() + BALL_RADIUS > field_length
     {
         return Some(FootballEvent::GoalLine(*ball_pos));
     }

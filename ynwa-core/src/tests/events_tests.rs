@@ -106,11 +106,11 @@ fn test_ball_partially_in_goal_not_a_goal() {
 #[test]
 fn test_touchline_left() {
     let mut game = create_test_game();
-    // Ball completely over left sideline (z < 0)
+    // Ball completely over left sideline (x < 0), X axis = width
     game.state.ball_state.position = Point3D::new(
-        Length::new::<meter>(50.0),
+        Length::new::<meter>(-0.12), // Beyond ball radius on X axis
         Length::new::<meter>(0.0),
-        Length::new::<meter>(-0.12), // Beyond ball radius
+        Length::new::<meter>(50.0),
     );
 
     let event = check_touchline(&game);
@@ -120,11 +120,11 @@ fn test_touchline_left() {
 #[test]
 fn test_touchline_right() {
     let mut game = create_test_game();
-    // Field width is 60m, ball completely over right sideline
+    // Field width is 60m, ball completely over right sideline (x > 60)
     game.state.ball_state.position = Point3D::new(
-        Length::new::<meter>(50.0),
-        Length::new::<meter>(0.0),
         Length::new::<meter>(60.12), // Beyond ball radius (60 + 0.12 > 60 + 0.11)
+        Length::new::<meter>(0.0),
+        Length::new::<meter>(50.0),
     );
 
     let event = check_touchline(&game);
@@ -134,11 +134,11 @@ fn test_touchline_right() {
 #[test]
 fn test_ball_on_touchline_not_out() {
     let mut game = create_test_game();
-    // Ball touching but not completely over touchline
+    // Ball touching but not completely over touchline (X axis)
     game.state.ball_state.position = Point3D::new(
-        Length::new::<meter>(50.0),
-        Length::new::<meter>(0.0),
         Length::new::<meter>(0.11), // Center at ball radius from line - still in play
+        Length::new::<meter>(0.0),
+        Length::new::<meter>(50.0),
     );
 
     let event = check_touchline(&game);
@@ -148,11 +148,11 @@ fn test_ball_on_touchline_not_out() {
 #[test]
 fn test_goal_line_near() {
     let mut game = create_test_game();
-    // Ball completely over near goal line (x < 0)
+    // Ball completely over near goal line (z < 0), Z axis = length
     game.state.ball_state.position = Point3D::new(
-        Length::new::<meter>(-0.12),
-        Length::new::<meter>(0.0),
         Length::new::<meter>(30.0),
+        Length::new::<meter>(0.0),
+        Length::new::<meter>(-0.12),
     );
 
     let event = check_goal_line(&game);
@@ -162,11 +162,11 @@ fn test_goal_line_near() {
 #[test]
 fn test_goal_line_far() {
     let mut game = create_test_game();
-    // Ball completely over far goal line (x > field_length)
+    // Ball completely over far goal line (z > field_length), Z axis = length
     game.state.ball_state.position = Point3D::new(
-        Length::new::<meter>(100.12),
-        Length::new::<meter>(0.0),
         Length::new::<meter>(30.0),
+        Length::new::<meter>(0.0),
+        Length::new::<meter>(100.12),
     );
 
     let event = check_goal_line(&game);
@@ -211,9 +211,9 @@ fn test_check_events_priority_game_end() {
     let mut game = create_test_game();
     // Time expired AND ball out - game end has priority
     game.state.ball_state.position = Point3D::new(
-        Length::new::<meter>(50.0),
+        Length::new::<meter>(-0.12), // X axis = width, out over sideline
         Length::new::<meter>(0.0),
-        Length::new::<meter>(-0.12),
+        Length::new::<meter>(50.0),
     );
     game.state.elapsed_time = GAME_DURATION;
 

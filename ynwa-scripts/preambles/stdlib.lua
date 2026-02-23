@@ -155,7 +155,8 @@ function common_behavior_v2()
             -- Pass to the teammate
             return {
                 action = "kick",
-                target = {x = best_teammate.position.x, z = best_teammate.position.z},
+                target = {x = 0, z = 0},
+                -- target = {x = best_teammate.position.x, z = best_teammate.position.z},
                 reason = "Passing to" .. best_teammate.index .. ", distance=" .. string.format("%.2f", best_distance)
             }
         else
