@@ -4,7 +4,7 @@ use ynwa_core::game::{Decision, GameStage};
 use ynwa_core::systems::decision::{DecisionSystem, ScriptedDecisionMaker};
 use ynwa_core::System;
 use ynwa_script_tests::{
-    create_test_game_with_preambles, create_test_game_with_preambles_and_stage,
+    create_test_game_with_full_preambles_and_stage, create_test_game_with_preambles,
     request_decisions_for_all,
 };
 
@@ -105,20 +105,22 @@ test_distance()
 
 #[test]
 fn test_get_setup_position_runs_to_start_region() {
-    // During Setup stage, get_setup_position() should return a run decision
+    // During Setup stage, get_setup_position() from the team preamble calls
+    // default_get_setup_position() from stdlib and returns a Run decision
     // towards the center of the "start position" region.
-    // The test game places the player's start_region at cells (10,10)-(11,11),
-    // which in a 100x60 field with 26x44 grid gives roughly x≈23.1m, z≈22.7m.
+    // The test game places the player's start_region at cells (10,10)-(11,11).
 
-    // Script has no get_setup_position() — stdlib default is used.
+    // Script has no get_setup_position() — team preamble definition is used.
     let script = r#"
 function make_decision()
     return {action = "stop"}
 end
 "#;
 
-    let mut game =
-        create_test_game_with_preambles_and_stage(script, GameStage::Setup("start".to_string()));
+    let mut game = create_test_game_with_full_preambles_and_stage(
+        script,
+        GameStage::Setup("start".to_string()),
+    );
 
     request_decisions_for_all(&mut game);
 

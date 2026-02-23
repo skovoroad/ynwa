@@ -20,7 +20,8 @@ end
 -- Default get_setup_position for setup stage
 -- Runs to center of "start position" region.
 -- Stopping is handled by the engine automatically once the player is within 0.5m of the target.
-function get_setup_position(reason)
+-- Team preambles define get_setup_position() which calls this function.
+function default_get_setup_position(reason)
     local start_pos = my_regions()["start position"]
 
     if start_pos == nil then

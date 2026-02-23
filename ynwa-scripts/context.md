@@ -49,6 +49,7 @@ Each player script may define a `get_setup_position(reason)` function that:
 - Receives `reason` string (e.g. `"start"`, `"after_goal"`) via `context.game.setup_reason`
 - Returns a `"run"` decision towards the player's start position
 - **Stopping is handled by the engine automatically** — once the player is within 0.5m of the target, the engine replaces the decision with Stop; the script does not need to check distance
+- Defined in team preambles — calls `default_get_setup_position(reason)` from stdlib; override per-role in the team preamble for custom setup behavior
 
 ### 2.2 Input Data: `context` Structure
 
@@ -403,7 +404,7 @@ Before executing user script, three preamble levels are loaded in the following 
 **Responsibilities**:
 - Distance calculations
 - Ball ownership checks
-- `get_setup_position(reason)` — default implementation for the setup stage
+- `default_get_setup_position(reason)` — default implementation for the setup stage; runs to center of the `"start position"` region
 
 **Rule**: Stdlib contains no team strategies, only reusable utilities.
 
@@ -413,9 +414,19 @@ Before executing user script, three preamble levels are loaded in the following 
 
 **Responsibilities**:
 - Team tactics (formation, zones of responsibility)
-- Role functions (defender, forward, goalkeeper)
-- Coordination between players of the same team
-- Team play style
+- `get_setup_position(reason)` — delegates to `default_get_setup_position(reason)` from stdlib; override per team or per role for custom setup behavior
+- Role-based decision functions called by player scripts:
+  - `make_goalkeeper_decision()`
+  - `make_left_back_decision()`
+  - `make_center_back_left_decision()`
+  - `make_center_back_right_decision()`
+  - `make_right_back_decision()`
+  - `make_left_midfielder_decision()`
+  - `make_center_midfielder_decision()`
+  - `make_right_midfielder_decision()`
+  - `make_left_winger_decision()`
+  - `make_striker_decision()`
+  - `make_right_winger_decision()`
 
 **Rule**: Team preamble can use functions from core and stdlib, but not vice versa. Stdlib can use core, but not vice versa.
 
@@ -563,6 +574,14 @@ cargo test --package ynwa-script-tests --test stdlib_functions
 **`create_test_game_with_preambles(script: &str)`**
 - Creates game with core and stdlib preambles loaded
 - Use for testing preamble functions and realistic scripts
+
+**`create_test_game_with_preambles_and_stage(script: &str, stage: GameStage)`**
+- Creates game with core and stdlib preambles loaded at a specific game stage
+- Use for testing stage-dependent behavior (e.g. Setup vs Play)
+
+**`create_test_game_with_full_preambles_and_stage(script: &str, stage: GameStage)`**
+- Creates game with core, stdlib, and team A preambles loaded at a specific stage
+- Use for testing functions that require the full preamble stack (e.g. `get_setup_position` during Setup)
 
 **`load_test_script(name: &str)`**
 - Loads test script from `ynwa-scripts/test-scripts/` directory

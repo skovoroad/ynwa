@@ -19,7 +19,7 @@ attack_position = "M10"  # Move up to midfield zone
 defence_position = "M1"  # Stay at goal line
 script = '''
 function make_decision()
-    return common_behavior_v2()
+    return make_goalkeeper_decision()
 end
 '''
 
@@ -37,7 +37,7 @@ attack_position = "G20"  # Push to just past center line
 defence_position = "G5"  # Drop back slightly
 script = '''
 function make_decision()
-    return common_behavior_v2()
+    return make_left_back_decision()
 end
 '''
 
@@ -55,7 +55,7 @@ attack_position = "K20"  # Push to just past center line
 defence_position = "K5"  # Drop back slightly
 script = '''
 function make_decision()
-    return common_behavior_v2()
+    return make_center_back_left_decision()
 end
 '''
 
@@ -73,7 +73,7 @@ attack_position = "O20"  # Push to just past center line
 defence_position = "O5"  # Drop back slightly
 script = '''
 function make_decision()
-    return common_behavior_v2()
+    return make_center_back_right_decision()
 end
 '''
 
@@ -91,7 +91,7 @@ attack_position = "S20"  # Push to just past center line
 defence_position = "S5"  # Drop back slightly
 script = '''
 function make_decision()
-    return common_behavior_v2()
+    return make_right_back_decision()
 end
 '''
 
@@ -109,7 +109,7 @@ attack_position = "H27"  # Push well into opponent half
 defence_position = "H10"  # Drop back to support defense
 script = '''
 function make_decision()
-    return common_behavior_v2()
+    return make_left_midfielder_decision()
 end
 '''
 
@@ -127,7 +127,7 @@ attack_position = "M27"  # Push well into opponent half
 defence_position = "M10"  # Drop back to support defense
 script = '''
 function make_decision()
-    return common_behavior_v2()
+    return make_center_midfielder_decision()
 end
 '''
 
@@ -145,7 +145,7 @@ attack_position = "R27"  # Push well into opponent half
 defence_position = "R10"  # Drop back to support defense
 script = '''
 function make_decision()
-    return common_behavior_v2()
+    return make_right_midfielder_decision()
 end
 '''
 
@@ -163,7 +163,7 @@ attack_position = "G37"  # Push near opponent penalty area
 defence_position = "G16"  # Drop back slightly past start
 script = '''
 function make_decision()
-    return common_behavior_v2()
+    return make_left_winger_decision()
 end
 '''
 
@@ -181,7 +181,7 @@ attack_position = "M38"  # Push near opponent penalty area
 defence_position = "M16"  # Drop back slightly past start
 script = '''
 function make_decision()
-    return common_behavior_v2()
+    return make_striker_decision()
 end
 '''
 
@@ -199,7 +199,7 @@ attack_position = "S37"  # Push near opponent penalty area
 defence_position = "S16"  # Drop back slightly past start
 script = '''
 function make_decision()
-    return common_behavior_v2()
+    return make_right_winger_decision()
 end
 '''
 
@@ -218,7 +218,7 @@ attack_position = "M10"  # Move up to midfield zone
 defence_position = "M1"  # Stay at goal line
 script = '''
 function make_decision()
-    return common_behavior_v2()
+    return make_goalkeeper_decision()
 end
 '''
 
@@ -236,7 +236,7 @@ attack_position = "G20"  # Push to just past center line
 defence_position = "G5"  # Drop back slightly
 script = '''
 function make_decision()
-    return common_behavior_v2()
+    return make_left_back_decision()
 end
 '''
 
@@ -254,7 +254,7 @@ attack_position = "K20"  # Push to just past center line
 defence_position = "K5"  # Drop back slightly
 script = '''
 function make_decision()
-    return common_behavior_v2()
+    return make_center_back_left_decision()
 end
 '''
 
@@ -272,7 +272,7 @@ attack_position = "O20"  # Push to just past center line
 defence_position = "O5"  # Drop back slightly
 script = '''
 function make_decision()
-    return common_behavior_v2()
+    return make_center_back_right_decision()
 end
 '''
 
@@ -290,7 +290,7 @@ attack_position = "S20"  # Push to just past center line
 defence_position = "S5"  # Drop back slightly
 script = '''
 function make_decision()
-    return common_behavior_v2()
+    return make_right_back_decision()
 end
 '''
 
@@ -308,7 +308,7 @@ attack_position = "H27"  # Push well into opponent half
 defence_position = "H10"  # Drop back to support defense
 script = '''
 function make_decision()
-    return common_behavior_v2()
+    return make_left_midfielder_decision()
 end
 '''
 
@@ -326,7 +326,7 @@ attack_position = "M27"  # Push well into opponent half
 defence_position = "M10"  # Drop back to support defense
 script = '''
 function make_decision()
-    return common_behavior_v2()
+    return make_center_midfielder_decision()
 end
 '''
 
@@ -344,7 +344,7 @@ attack_position = "R27"  # Push well into opponent half
 defence_position = "R10"  # Drop back to support defense
 script = '''
 function make_decision()
-    return common_behavior_v2()
+    return make_right_midfielder_decision()
 end
 '''
 
@@ -362,7 +362,7 @@ attack_position = "G37"  # Push near opponent penalty area
 defence_position = "G16"  # Drop back slightly past start
 script = '''
 function make_decision()
-    return common_behavior_v2()
+    return make_left_winger_decision()
 end
 '''
 
@@ -380,7 +380,7 @@ attack_position = "M38"  # Push near opponent penalty area
 defence_position = "M16"  # Drop back slightly past start
 script = '''
 function make_decision()
-    return common_behavior_v2()
+    return make_striker_decision()
 end
 '''
 
@@ -398,6 +398,6 @@ attack_position = "S37"  # Push near opponent penalty area
 defence_position = "S16"  # Drop back slightly past start
 script = '''
 function make_decision()
-    return common_behavior_v2()
+    return make_right_winger_decision()
 end
 '''
