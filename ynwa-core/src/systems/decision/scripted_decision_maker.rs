@@ -762,6 +762,120 @@ mod tests {
         );
     }
 
+    /// build_context() region JSON must agree with Region::center() on which axis is X.
+    /// Specifically, (min_x+max_x)/2 from the JSON must equal Region::center().x,
+    /// and same for Z. This catches any divergence between the two computations.
+    #[test]
+    fn test_build_context_region_agrees_with_region_center() {
+        use crate::football::field_builder::create_football_field;
+        use uom::si::length::meter;
+
+        let field = create_football_field();
+        let grid_dims = field.grid_dimensions();
+
+        // Use an off-centre region so X/Z confusion is clearly detectable
+        let start_region = grid_dims
+            .create_region(
+                GridCell::from_notation("B3").unwrap(),
+                GridCell::from_notation("D5").unwrap(),
+            )
+            .unwrap();
+
+        // Ground truth from Region::center()
+        let center = start_region.center(grid_dims, field.width().get::<meter>());
+        let expected_cx = center.x.get::<meter>();
+        let expected_cz = center.z.get::<meter>();
+
+        let script = r#"function make_decision() return {action="stop"} end"#;
+        let config = GameConfig {
+            field,
+            players: vec![PlayerDef::new(
+                Team::A,
+                1,
+                "tester".to_string(),
+                script.to_string(),
+                start_region,
+            )],
+            ball: BallDef::default(),
+            referees: vec![RefereeDef::default()],
+            scripting: crate::game::ScriptingConfig::empty(),
+        };
+        let game = Game::new(config);
+
+        let ctx = ScriptedDecisionMaker::build_context(&game, 0).unwrap();
+        let sp = &ctx["me"]["regions"]["start position"];
+
+        let json_cx = ((sp["min_x"].as_f64().unwrap() + sp["max_x"].as_f64().unwrap()) / 2.0) as f32;
+        let json_cz = ((sp["min_z"].as_f64().unwrap() + sp["max_z"].as_f64().unwrap()) / 2.0) as f32;
+
+        assert!(
+            (json_cx - expected_cx).abs() < 0.01,
+            "build_context center_x={json_cx:.4} must equal Region::center().x={expected_cx:.4}"
+        );
+        assert!(
+            (json_cz - expected_cz).abs() < 0.01,
+            "build_context center_z={json_cz:.4} must equal Region::center().z={expected_cz:.4}"
+        );
+    }
+
+    /// For Team B, the center of the flipped region from build_context must equal
+    /// flip_point_orientation applied to Region::center().
+    #[test]
+    fn test_build_context_region_team_b_agrees_with_flipped_center() {
+        use crate::football::field_builder::create_football_field;
+        use crate::orientation::flip_point_orientation;
+        use uom::si::length::meter;
+
+        let field = create_football_field();
+        let grid_dims = field.grid_dimensions();
+        let fw = field.width().get::<meter>();
+        let fl = field.length().get::<meter>();
+
+        let start_region = grid_dims
+            .create_region(
+                GridCell::from_notation("B3").unwrap(),
+                GridCell::from_notation("D5").unwrap(),
+            )
+            .unwrap();
+
+        // Ground truth: flip Region::center() the same way build_context does
+        let center_a = start_region.center(grid_dims, fw);
+        let center_b = flip_point_orientation(&center_a, fw, fl);
+        let expected_cx = center_b.x.get::<meter>();
+        let expected_cz = center_b.z.get::<meter>();
+
+        let script = r#"function make_decision() return {action="stop"} end"#;
+        let config = GameConfig {
+            field,
+            players: vec![PlayerDef::new(
+                Team::B,
+                1,
+                "tester".to_string(),
+                script.to_string(),
+                start_region,
+            )],
+            ball: BallDef::default(),
+            referees: vec![RefereeDef::default()],
+            scripting: crate::game::ScriptingConfig::empty(),
+        };
+        let game = Game::new(config);
+
+        let ctx = ScriptedDecisionMaker::build_context(&game, 0).unwrap();
+        let sp = &ctx["me"]["regions"]["start position"];
+
+        let json_cx = ((sp["min_x"].as_f64().unwrap() + sp["max_x"].as_f64().unwrap()) / 2.0) as f32;
+        let json_cz = ((sp["min_z"].as_f64().unwrap() + sp["max_z"].as_f64().unwrap()) / 2.0) as f32;
+
+        assert!(
+            (json_cx - expected_cx).abs() < 0.01,
+            "Team B build_context center_x={json_cx:.4} must equal flip(Region::center()).x={expected_cx:.4}"
+        );
+        assert!(
+            (json_cz - expected_cz).abs() < 0.01,
+            "Team B build_context center_z={json_cz:.4} must equal flip(Region::center()).z={expected_cz:.4}"
+        );
+    }
+
     #[test]
     fn test_zones_available_in_lua() {
         use crate::field::zones::{Rectangle, ZoneGeometry};

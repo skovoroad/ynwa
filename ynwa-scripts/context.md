@@ -20,9 +20,9 @@ Goal: provide a set of reusable functions for writing AI players in Lua without 
 5. **Preambles**: Three-level library system (core → stdlib → team → your script)
 
 **Coordinate system**:
-- X axis: field length 
+- X axis: field width (short side, ~60 m)
 - Y axis: height above field
-- Z axis: field width 
+- Z axis: field length (long side, ~101.5 m, Team A goal at Z=0)
 - Team B sees flipped coordinates automatically
 
 **Grid notation**:
@@ -140,9 +140,9 @@ context = {
    - This transformation is **automatic** - scripts don't need to handle it manually
 
 2. **Coordinate System**:
-   - X: along the field (length)
+   - X: across the field (width, short side)
    - Y: height above field
-   - Z: across the field (width)
+   - Z: along the field (length, long side, Team A goal at Z=0)
 
 #### Player Identification: Two Methods
 
@@ -260,15 +260,15 @@ The field is divided into a grid using Excel-style column naming:
   - Simple numeric indexing starting from 1
 
 **Grid coordinate system orientation**:
-- Columns (letters) run along the **Z axis** (field width)
-- Rows (numbers) run along the **X axis** (field length)
-- Cell "A1" is at the corner (min X, min Z) from the player's perspective
-- Cell size calculation: `cell_width = field_width / num_columns`
+- Columns (letters) run along the **X axis** (field width)
+- Rows (numbers) run along the **Z axis** (field length)
+- Cell "A1" is at the corner near Team A's goal (min X, min Z) from the player's perspective
+- Cell size calculation: `cell_size = field_width / num_columns`
 
 **Examples**:
-- `"A1"` → top-left corner (col=1, row=1)
-- `"K7"` → center of standard football field (col=11, row=7)
-- `"U13"` → bottom-right corner of standard field (col=21, row=13)
+- `"A1"` → corner near Team A's goal (col=1, row=1)
+- `"M22"` → near the centre of a standard football field (col=13, row=22)
+- `"Z44"` → far corner near Team B's goal (col=26, row=44)
 - `"AA1"` → column 27, row 1
 
 **Important**: Grid cells are 1-based (not 0-based). Column A = 1, Row 1 = 1.
@@ -340,8 +340,8 @@ GAME_DATA = {
         -- Scripts work identically for both teams without manual coordinate handling.
         field = {
             type = "rectangle",
-            min_x = 0.0, max_x = 101.5,
-            min_z = 0.0, max_z = 60.0
+            min_x = 0.0, max_x = 60.0,
+            min_z = 0.0, max_z = 101.5
         },
         penalty_area_a = { ... },
         center_circle = { ... },

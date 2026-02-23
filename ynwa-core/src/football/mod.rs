@@ -80,6 +80,10 @@ pub fn create_football_world_from_file(path: &std::path::Path) -> Result<World, 
 }
 
 #[cfg(test)]
+#[path = "../tests/axis_contract_tests.rs"]
+mod axis_contract_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use uom::si::length::meter;
