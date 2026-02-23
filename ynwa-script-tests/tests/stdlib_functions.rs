@@ -205,3 +205,89 @@ fn test_kick_to_opponent_goal() {
         "kick target z={target_z:.4} must equal goal center z={expected_z:.4}"
     );
 }
+
+// --- Dispatch table tests ---
+
+fn run_dispatch_test(player_script: &str, stage: ynwa_core::game::GameStage) -> ynwa_core::game::PlayerState {
+    use ynwa_core::systems::decision::{DecisionSystem, ScriptedDecisionMaker};
+    use ynwa_core::System;
+    let mut game = create_test_game_with_full_preambles_and_stage(player_script, stage);
+    request_decisions_for_all(&mut game);
+    let decision_maker = ScriptedDecisionMaker::new(&game).expect("ScriptedDecisionMaker");
+    let mut decision_system = DecisionSystem::new().with_decision_maker(Box::new(decision_maker));
+    decision_system.update(&mut game, 1.0);
+    game.state().player_states[0].clone()
+}
+
+#[test]
+fn test_dispatch_team_has_ball_runs_to_attack() {
+    // Ball owned by a teammate (team_has_ball state) → team_play handler → Run decision
+    let state = run_dispatch_test("", GameStage::Play);
+    assert!(
+        state.last_error.is_none(),
+        "dispatch error: {:?}",
+        state.last_error
+    );
+    assert!(
+        matches!(state.current_decision, Some(Decision::Run(_))),
+        "Expected Run, got: {:?}",
+        state.current_decision
+    );
+}
+
+#[test]
+fn test_dispatch_player_overrides_team() {
+    // player_play takes priority over team_play
+    // player_play.team_has_ball returns Stop, team_play.team_has_ball would return Run
+    let player_script = r#"
+player_play = {
+    i_have_ball       = function() return {action = "stop"} end,
+    ball_is_free      = function() return {action = "stop"} end,
+    team_has_ball     = function() return {action = "stop"} end,
+    opponent_has_ball = function() return {action = "stop"} end,
+}
+"#;
+    let state = run_dispatch_test(player_script, GameStage::Play);
+    assert!(
+        state.last_error.is_none(),
+        "dispatch error: {:?}",
+        state.last_error
+    );
+    assert!(
+        matches!(state.current_decision, Some(Decision::Stop)),
+        "Expected Stop (player override), got: {:?}",
+        state.current_decision
+    );
+}
+
+#[test]
+fn test_setup_dispatch_by_reason() {
+    // team_setup.start → run_to_start_position → Run
+    let state = run_dispatch_test("", GameStage::Setup("start".to_string()));
+    assert!(
+        state.last_error.is_none(),
+        "setup dispatch error: {:?}",
+        state.last_error
+    );
+    assert!(
+        matches!(state.current_decision, Some(Decision::Run(_))),
+        "Expected Run from setup dispatch, got: {:?}",
+        state.current_decision
+    );
+}
+
+#[test]
+fn test_setup_fallback_to_default() {
+    // Unknown reason → falls through to default_get_setup_position → Run
+    let state = run_dispatch_test("", GameStage::Setup("throw_in".to_string()));
+    assert!(
+        state.last_error.is_none(),
+        "setup fallback error: {:?}",
+        state.last_error
+    );
+    assert!(
+        matches!(state.current_decision, Some(Decision::Run(_))),
+        "Expected Run from fallback, got: {:?}",
+        state.current_decision
+    );
+}

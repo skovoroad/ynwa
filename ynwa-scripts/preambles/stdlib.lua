@@ -32,7 +32,6 @@ end
 -- Default get_setup_position for setup stage
 -- Runs to center of "start position" region.
 -- Stopping is handled by the engine automatically once the player is within 0.5m of the target.
--- Team preambles define get_setup_position() which calls this function.
 function default_get_setup_position(reason)
     local start_pos = my_regions()["start position"]
 
@@ -50,108 +49,112 @@ function default_get_setup_position(reason)
     }
 end
 
--- Common behavior v2: improved tactical logic
--- 1. If I own the ball -> pass to nearest teammate (not closer than 15m)
--- 2. If I don't own the ball:
---    a) If I'm in top 3 closest teammates to ball -> run to ball
---    b) Otherwise:
---       - If my team owns ball -> run to attack position
---       - If opponent owns ball -> run to defence position
-function common_behavior_v2()
-    local ball_pos = ball_position()
-    local my_pos = my_position()
-    
-    if am_i_ball_owner() then
-        -- Find nearest teammate that is at least 15 meters away
-        local teammates = get_teammates()
-        local best_teammate = nil
-        local best_distance = math.huge
-        local MIN_PASS_DISTANCE = 15.0  -- minimum 15 meters
-        
-        for _, tm in ipairs(teammates) do
-            local dist = distance(my_pos, tm.position)
-            if dist >= MIN_PASS_DISTANCE and dist < best_distance then
-                best_distance = dist
-                best_teammate = tm
-            end
-        end
-        
-        if best_teammate then
-            -- Pass to the teammate
-            return {
-                action = "kick",                
-                target = {x = best_teammate.position.x, z = best_teammate.position.z},
-                reason = "Passing to #" .. best_teammate.index .. ", distance=" .. string.format("%.2f", best_distance)
-            }
-        else
-            -- No suitable teammate found, kick in random direction as fallback
-            local target_x = math.random() * GAME_DATA.field.width
-            local target_z = math.random() * GAME_DATA.field.length
-            return {
-                action = "kick",
-                target = {x = target_x, z = target_z},
-                reason = "No teammate >=15m away, kicking randomly"
-            }
-        end
-    end
-    
-    -- I don't own the ball
-    -- Check if I'm in top 3 closest teammates to ball
-    local my_dist_to_ball = distance(my_pos, ball_pos)
-    local closer_count = 0
-    
+-- Action: run to the ball
+function chase_ball()
+    return {action = "run", target_type = "ball"}
+end
+
+-- Action: chase ball if in top-3 closest, otherwise run to attack position
+function press_or_attack()
+    return am_i_top3_closest_to_ball() and chase_ball() or run_to_attack_position()
+end
+
+-- Action: chase ball if in top-3 closest, otherwise run to defence position
+function press_or_defend()
+    return am_i_top3_closest_to_ball() and chase_ball() or run_to_defence_position()
+end
+
+-- Action: run to center of "attack position" region
+function run_to_attack_position()
+    local pos = my_regions()["attack position"]
+    if pos == nil then return {action = "stop"} end
+    return {
+        action = "run",
+        target_type = "point",
+        target = {x = (pos.min_x + pos.max_x) / 2, z = (pos.min_z + pos.max_z) / 2, y = 0}
+    }
+end
+
+-- Action: run to center of "defence position" region
+function run_to_defence_position()
+    local pos = my_regions()["defence position"]
+    if pos == nil then return {action = "stop"} end
+    return {
+        action = "run",
+        target_type = "point",
+        target = {x = (pos.min_x + pos.max_x) / 2, z = (pos.min_z + pos.max_z) / 2, y = 0}
+    }
+end
+
+-- Action: run to center of "start position" region
+function run_to_start_position()
+    return default_get_setup_position(nil)
+end
+
+-- Returns true if this player is among the 3 closest teammates to the ball
+function am_i_top3_closest_to_ball()
+    local my_dist = distance(my_position(), ball_position())
+    local closer = 0
     for _, tm in ipairs(get_teammates()) do
-        if distance(tm.position, ball_pos) < my_dist_to_ball then
-            closer_count = closer_count + 1
+        if distance(tm.position, ball_position()) < my_dist then
+            closer = closer + 1
         end
     end
-    
-    -- If less than 3 teammates are closer, I'm in top 3
-    if closer_count < 3 then
-        -- Chase the ball: ActionSystem resolves the target to the ball's current position
-        -- at the moment of processing; arrival check in DecisionSystem tests against
-        -- the live ball position each tick, so the player stops when they actually reach it.
-        return {
-            action = "run",
-            target_type = "ball",
-            reason = "Chasing ball, rank=" .. (closer_count + 1) .. ", dist=" .. string.format("%.2f", my_dist_to_ball)
-        }
-    end
-    
-    -- I'm not in top 3, decide based on ball ownership
-    -- Use owner_team from context to determine ball possession
-    local owner_team = get_ball_owner_team()
-    local my_team = my_team_name()
-    local regions = my_regions()
-    
-    if owner_team == my_team then
-        -- My team has the ball -> run to attack position
-        local attack_pos = regions["attack position"]
-        if attack_pos then
-            local center_x = (attack_pos.min_x + attack_pos.max_x) / 2
-            local center_z = (attack_pos.min_z + attack_pos.max_z) / 2
-            return {
-                action = "run",
-                target_type = "point",
-                target = {x = center_x, z = center_z, y = 0},
-                reason = "My team owns ball, moving to attack position"
-            }
+    return closer < 3
+end
+
+-- Action: pass to nearest teammate at least 15m away; kick toward opponent goal if none found
+function pass_to_nearest_teammate()
+    local my_pos = my_position()
+    local best = nil
+    local best_dist = math.huge
+    for _, tm in ipairs(get_teammates()) do
+        local d = distance(my_pos, tm.position)
+        if d >= 15.0 and d < best_dist then
+            best_dist = d
+            best = tm
         end
+    end
+    if best then
+        return {action = "kick", target = {x = best.position.x, z = best.position.z}}
+    end
+    return kick_to_opponent_goal()
+end
+
+-- Dispatcher for Play stage.
+-- Determines possession state and calls the appropriate handler from player_play or team_play.
+-- Priority: player_play[state] -> team_play[state] -> error()
+-- Valid states: "i_have_ball", "ball_is_free", "team_has_ball", "opponent_has_ball"
+function make_decision()
+    local state
+    if am_i_ball_owner() then
+        state = "i_have_ball"
+    elseif get_ball_owner_team() == "None" then
+        state = "ball_is_free"
+    elseif get_ball_owner_team() == my_team_name() then
+        state = "team_has_ball"
     else
-        -- Opponent has the ball (or neutral) -> run to defence position
-        local defence_pos = regions["defence position"]
-        if defence_pos then
-            local center_x = (defence_pos.min_x + defence_pos.max_x) / 2
-            local centre_z = (defence_pos.min_z + defence_pos.max_z) / 2
-            return {
-                action = "run",
-                target_type = "point",
-                target = {x = center_x, z = centre_z, y = 0},
-                reason = "Opponent owns ball (owner_team=" .. tostring(owner_team) .. "), moving to defence position"
-            }
-        end
+        state = "opponent_has_ball"
     end
-    
-    -- Fallback: stop
-    return {action = "stop", reason = "No valid position found, stopping"}
+
+    -- player_play takes priority over team_play
+    if player_play and player_play[state] then
+        return player_play[state]()
+    end
+    if team_play and team_play[state] then
+        return team_play[state]()
+    end
+    error("make_decision: no handler for state '" .. state .. "'")
+end
+
+-- Dispatcher for Setup stage.
+-- Priority: player_setup[reason] -> team_setup[reason] -> default_get_setup_position(reason)
+function get_setup_position(reason)
+    if player_setup and player_setup[reason] then
+        return player_setup[reason]()
+    end
+    if team_setup and team_setup[reason] then
+        return team_setup[reason]()
+    end
+    return default_get_setup_position(reason)
 end
