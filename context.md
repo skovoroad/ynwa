@@ -71,6 +71,13 @@ The following aspects are considered in the design but implementation is postpon
 - API design: `state()` provides access to state
 - Determinism through fixed timestep (controlled by client)
 
+**Statistics (`StatSet` in `game.rs`):**
+- `StatSet` — named `f64` counters, game-specific keys (e.g. `"score"`)
+- `GameState::team_stats: HashMap<Team, StatSet>` — per-team stats
+- `GameState::player_stats: Vec<StatSet>` — per-player stats, parallel to `player_states`
+- Populated by game-specific managers (e.g. `FootballGameManager`), not by core systems
+- Not exposed to the decision engine (Lua scripts have no access to stats)
+
 **Entity Model:**
 - Separation of Config (immutable) / State (mutable per-frame)
 - Entities: Player, Ball, Referee — separate types (not traits), as they are processed by different systems

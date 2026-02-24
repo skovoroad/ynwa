@@ -1,6 +1,14 @@
 use super::*;
 use crate::region::GridCell;
 
+#[test]
+fn test_game_initializes_player_stats_parallel_to_players() {
+    let config = create_test_config();
+    let player_count = config.players.len();
+    let game = Game::new(config);
+    assert_eq!(game.state.player_stats.len(), player_count);
+}
+
 fn create_test_config() -> GameConfig {
     let field = Field::from_meters(100.0, 60.0, 26, 44);
     let grid_dims = field.grid_dimensions();

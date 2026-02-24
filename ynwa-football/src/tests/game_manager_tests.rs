@@ -414,3 +414,66 @@ fn test_handle_event_clears_decision_so_setup_position_is_requested() {
         "needs_decision must be true after Play→Setup transition"
     );
 }
+
+fn create_game_with_team_a_goal() -> Game {
+    let field = FieldBuilder::from_meters(60.0, 100.0, 26, 44)
+        .with_zone(Zone::new(
+            "goal",
+            Some(Team::A),
+            ZoneGeometry::Rectangle(Rectangle::from_meters(-2.0, 27.32, 0.0, 32.68)),
+        ))
+        .build();
+
+    let grid_dims = field.grid_dimensions();
+    let start_region = grid_dims
+        .create_region(GridCell::new(10, 10).unwrap(), GridCell::new(11, 11).unwrap())
+        .unwrap();
+
+    let config = GameConfig {
+        field,
+        players: vec![PlayerDef::new(
+            Team::A, 1, "P".to_string(),
+            "function make_decision() return {} end".to_string(),
+            start_region,
+        )],
+        ball: BallDef::default(),
+        referees: vec![],
+        scripting: ynwa_core::game::ScriptingConfig::empty(),
+    };
+
+    Game::with_stage(config, GameStage::Play)
+}
+
+#[test]
+fn test_team_stats_initialized_for_all_teams() {
+    let game = create_game_with_team_a_goal();
+    assert_eq!(game.state.team_stats[&Team::A].get("score"), 0.0);
+}
+
+#[test]
+fn test_goal_increments_score() {
+    let mut game = create_game_with_team_a_goal();
+    let mut manager = FootballGameManager::new();
+
+    // Ball inside Team A goal zone
+    game.state.ball_state.position = Point3D::new(
+        Length::new::<meter>(-1.0),
+        Length::new::<meter>(0.0),
+        Length::new::<meter>(30.0),
+    );
+    manager.update(&mut game, 0.0);
+
+    assert_eq!(game.state.team_stats[&Team::A].get("score"), 1.0);
+    assert!(game.state.team_stats.get(&Team::B).is_none());
+
+    // Second goal for same team
+    game.state.stage = GameStage::Play;
+    game.state.ball_state.position = Point3D::new(
+        Length::new::<meter>(-1.0),
+        Length::new::<meter>(0.0),
+        Length::new::<meter>(30.0),
+    );
+    manager.update(&mut game, 0.0);
+
+    assert_eq!(game.state.team_stats[&Team::A].get("score"), 2.0);
+}

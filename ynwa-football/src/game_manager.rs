@@ -101,7 +101,11 @@ impl FootballGameManager {
             FootballEvent::GameEnd => {
                 game.state.stage = GameStage::GameOver;
             }
-            FootballEvent::Goal(_team) => {
+            FootballEvent::Goal(team) => {
+                game.state.team_stats
+                    .entry(team)
+                    .or_default()
+                    .increment("score", 1.0);
                 for player_state in game.state.player_states.iter_mut() {
                     player_state.is_ready = false;
                     player_state.current_decision = None;

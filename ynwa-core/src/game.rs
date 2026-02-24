@@ -5,6 +5,26 @@ use crate::team::Team;
 use std::collections::HashMap;
 use uom::si::length::meter;
 
+/// Named numeric statistics. Keys are game-specific (defined by game managers, not core).
+#[derive(Debug, Clone, Default)]
+pub struct StatSet {
+    values: HashMap<String, f64>,
+}
+
+impl StatSet {
+    pub fn get(&self, key: &str) -> f64 {
+        *self.values.get(key).unwrap_or(&0.0)
+    }
+
+    pub fn set(&mut self, key: &str, value: f64) {
+        self.values.insert(key.to_string(), value);
+    }
+
+    pub fn increment(&mut self, key: &str, delta: f64) {
+        *self.values.entry(key.to_string()).or_insert(0.0) += delta;
+    }
+}
+
 // Design: PlayerState, BallState, RefereeState are separate despite similar fields (position, velocity).
 // Reason: Different systems handle them differently (physics, AI, rules). Shared trait would add
 // complexity without benefit since we iterate by type, not across all entities.
@@ -233,6 +253,10 @@ pub struct GameState {
     pub player_states: Vec<PlayerState>,
     pub ball_state: BallState,
     pub referee_states: Vec<RefereeState>,
+    /// Indexed by Team. Populated by game-specific managers (e.g. FootballGameManager).
+    pub team_stats: HashMap<Team, StatSet>,
+    /// Parallel to player_states: player_stats[i] corresponds to player_states[i].
+    pub player_stats: Vec<StatSet>,
 }
 
 pub struct Game {
@@ -293,6 +317,15 @@ impl Game {
             .map(|_| RefereeState::default())
             .collect();
 
+        let team_stats = config
+            .players
+            .iter()
+            .map(|p| p.team)
+            .collect::<std::collections::HashSet<_>>()
+            .into_iter()
+            .map(|t| (t, StatSet::default()))
+            .collect();
+
         Self {
             state: GameState {
                 elapsed_time: 0.0,
@@ -306,6 +339,8 @@ impl Game {
                     last_possessing_team: None,        // Neutral at game start
                 },
                 referee_states,
+                team_stats,
+                player_stats: vec![StatSet::default(); config.players.len()],
             },
             config,
         }

@@ -15,7 +15,7 @@ pub use config::{PlayerConfig, SerializableGameConfig};
 pub use field::zones::{Point3D, Velocity3D};
 pub use game::{
     BallDef, BallState, Decision, DecisionTarget, Game, GameConfig, GameStage, GameState,
-    PlayerDef, PlayerState, RefereeDef, RefereeState,
+    PlayerDef, PlayerState, RefereeDef, RefereeState, StatSet,
 };
 
 pub use orientation::{

@@ -31,10 +31,30 @@ pub fn draw_control_panel(
     );
     y_offset += line_height * 1.5;
 
+    draw_score(panel_x, y_offset, game_state);
+    y_offset += line_height * 2.0;
+
     draw_text("Space - pause/resume", panel_x, y_offset, 20.0, LIGHTGRAY);
     y_offset += line_height * 2.0;
 
     draw_player_decisions_table(panel_x, y_offset, game_config, game_state);
+}
+
+fn draw_score(x: f32, y: f32, game_state: &GameState) {
+    use ynwa_core::team::Team;
+    let score_a = game_state.team_stats
+        .get(&Team::A)
+        .map_or(0.0, |s| s.get("score")) as u32;
+    let score_b = game_state.team_stats
+        .get(&Team::B)
+        .map_or(0.0, |s| s.get("score")) as u32;
+    draw_text(
+        &format!("Score:  A {}  :  {} B", score_a, score_b),
+        x,
+        y,
+        24.0,
+        WHITE,
+    );
 }
 
 fn player_decision_text(
