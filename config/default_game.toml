@@ -239,9 +239,9 @@ speed_rate = 70
 tackle_rate = 63
 shot_power = 50
 shot_accuracy = 50
-start_position = "H14"  # Left midfielder
-attack_position = "H27"  # Push well into opponent half
-defence_position = "H10"  # Drop back to support defense
+start_position = "F14"  # Left midfielder (4-4-2: wider)
+attack_position = "F27"  # Push well into opponent half
+defence_position = "F10"  # Drop back to support defense
 script = ''
 
 [[players]]
@@ -253,9 +253,9 @@ speed_rate = 67
 tackle_rate = 66
 shot_power = 50
 shot_accuracy = 50
-start_position = "M14"  # Center midfielder
-attack_position = "M27"  # Push well into opponent half
-defence_position = "M10"  # Drop back to support defense
+start_position = "J14"  # Center-left midfielder
+attack_position = "J27"  # Push well into opponent half
+defence_position = "J10"  # Drop back to support defense
 script = ''
 
 [[players]]
@@ -267,49 +267,49 @@ speed_rate = 72
 tackle_rate = 61
 shot_power = 50
 shot_accuracy = 50
-start_position = "R14"  # Right midfielder
-attack_position = "R27"  # Push well into opponent half
-defence_position = "R10"  # Drop back to support defense
+start_position = "P14"  # Center-right midfielder
+attack_position = "P27"  # Push well into opponent half
+defence_position = "P10"  # Drop back to support defense
 script = ''
 
 [[players]]
 team = "B"
 number = 9
-name = "Forward B1"
-reaction_rate = 79
-speed_rate = 80
-tackle_rate = 49
+name = "Midfielder B4"
+reaction_rate = 73
+speed_rate = 69
+tackle_rate = 64
 shot_power = 50
 shot_accuracy = 50
-start_position = "G20"  # Left winger
-attack_position = "G37"  # Push near opponent penalty area
-defence_position = "G16"  # Drop back slightly past start
+start_position = "T14"  # Right midfielder (4-4-2: wider)
+attack_position = "T27"  # Push well into opponent half
+defence_position = "T10"  # Drop back to support defense
 script = ''
 
 [[players]]
 team = "B"
 number = 10
-name = "Forward B2"
+name = "Forward B1"
 reaction_rate = 82
 speed_rate = 78
 tackle_rate = 54
 shot_power = 50
 shot_accuracy = 50
-start_position = "M20"  # Striker
-attack_position = "M38"  # Push near opponent penalty area
-defence_position = "M16"  # Drop back slightly past start
+start_position = "I20"  # Left striker
+attack_position = "I38"  # Push near opponent penalty area
+defence_position = "I16"  # Drop back slightly past start
 script = ''
 
 [[players]]
 team = "B"
 number = 11
-name = "Forward B3"
-reaction_rate = 75
-speed_rate = 88
-tackle_rate = 46
+name = "Forward B2"
+reaction_rate = 79
+speed_rate = 80
+tackle_rate = 49
 shot_power = 50
 shot_accuracy = 50
-start_position = "S20"  # Right winger
-attack_position = "S37"  # Push near opponent penalty area
-defence_position = "S16"  # Drop back slightly past start
+start_position = "R20"  # Right striker
+attack_position = "R38"  # Push near opponent penalty area
+defence_position = "R16"  # Drop back slightly past start
 script = ''
