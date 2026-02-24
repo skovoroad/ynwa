@@ -17,7 +17,7 @@ shot_accuracy = 50
 start_position = "M3"  # Center of goal area
 attack_position = "M10"  # Move up to midfield zone
 defence_position = "M1"  # Stay at goal line
-script = ''
+script = 'player_play = { i_have_ball = kick_to_opponent_goal }'
 
 [[players]]
 team = "A"
@@ -31,7 +31,7 @@ shot_accuracy = 50
 start_position = "G8"  # Left back
 attack_position = "G20"  # Push to just past center line
 defence_position = "G5"  # Drop back slightly
-script = ''
+script = 'player_play = { i_have_ball = defender_with_ball }'
 
 [[players]]
 team = "A"
@@ -45,7 +45,7 @@ shot_accuracy = 50
 start_position = "K8"  # Center back left
 attack_position = "K20"  # Push to just past center line
 defence_position = "K5"  # Drop back slightly
-script = ''
+script = 'player_play = { i_have_ball = defender_with_ball }'
 
 [[players]]
 team = "A"
@@ -59,7 +59,7 @@ shot_accuracy = 50
 start_position = "O8"  # Center back right
 attack_position = "O20"  # Push to just past center line
 defence_position = "O5"  # Drop back slightly
-script = ''
+script = 'player_play = { i_have_ball = defender_with_ball }'
 
 [[players]]
 team = "A"
@@ -73,7 +73,7 @@ shot_accuracy = 50
 start_position = "S8"  # Right back
 attack_position = "S20"  # Push to just past center line
 defence_position = "S5"  # Drop back slightly
-script = ''
+script = 'player_play = { i_have_ball = defender_with_ball }'
 
 [[players]]
 team = "A"
@@ -87,7 +87,7 @@ shot_accuracy = 50
 start_position = "H14"  # Left midfielder
 attack_position = "H27"  # Push well into opponent half
 defence_position = "H10"  # Drop back to support defense
-script = ''
+script = 'player_play = { i_have_ball = midfielder_with_ball }'
 
 [[players]]
 team = "A"
@@ -101,7 +101,7 @@ shot_accuracy = 50
 start_position = "M14"  # Center midfielder
 attack_position = "M27"  # Push well into opponent half
 defence_position = "M10"  # Drop back to support defense
-script = ''
+script = 'player_play = { i_have_ball = midfielder_with_ball }'
 
 [[players]]
 team = "A"
@@ -115,7 +115,7 @@ shot_accuracy = 50
 start_position = "R14"  # Right midfielder
 attack_position = "R27"  # Push well into opponent half
 defence_position = "R10"  # Drop back to support defense
-script = ''
+script = 'player_play = { i_have_ball = midfielder_with_ball }'
 
 [[players]]
 team = "A"
@@ -129,7 +129,7 @@ shot_accuracy = 50
 start_position = "G20"  # Left winger
 attack_position = "G37"  # Push near opponent penalty area
 defence_position = "G16"  # Drop back slightly past start
-script = ''
+script = 'player_play = { i_have_ball = forward_with_ball }'
 
 [[players]]
 team = "A"
@@ -143,7 +143,7 @@ shot_accuracy = 50
 start_position = "M20"  # Striker
 attack_position = "M38"  # Push near opponent penalty area
 defence_position = "M16"  # Drop back slightly past start
-script = ''
+script = 'player_play = { i_have_ball = forward_with_ball }'
 
 [[players]]
 team = "A"
@@ -157,7 +157,7 @@ shot_accuracy = 50
 start_position = "S20"  # Right winger
 attack_position = "S37"  # Push near opponent penalty area
 defence_position = "S16"  # Drop back slightly past start
-script = ''
+script = 'player_play = { i_have_ball = forward_with_ball }'
 
 # Team B Players (own orientation: rows 1-22, defending goal at row 1 = display row 44)
 [[players]]
