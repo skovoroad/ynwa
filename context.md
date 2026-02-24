@@ -98,6 +98,8 @@ The following aspects are considered in the design but implementation is postpon
 - Main API for creating football world: `create_football_world_from_file()`
 - GameConfig creation functions are private - clients work directly with World
 - Design decision: field is created inside `ynwa-football`, external code has no direct access to field creation
+- Key constants exposed as `pub(crate)` for use in tests: `GOAL_WIDTH`, `GOAL_DEPTH`, `FIELD_WIDTH` (field_builder), `BALL_RADIUS`, `GAME_DURATION` (events)
+- Test fields use standard production orientation: Team A goal at z < 0, Team B goal at z > field_length
 - Clients use ready-made world creation functions rather than manually constructing Game
 - Design decision: extracted from `ynwa-core` so the core stays sport-agnostic; other sports would provide their own equivalent crate
 
