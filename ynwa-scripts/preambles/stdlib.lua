@@ -25,7 +25,8 @@ function kick_to_opponent_goal()
     local target_z = (goal.min_z + goal.max_z) / 2
     return {
         action = "kick",
-        target = {x = target_x, z = target_z}
+        target = {x = target_x, z = target_z},
+        reason = "kick_to_opponent_goal"
     }
 end
 
@@ -36,7 +37,7 @@ function default_get_setup_position(reason)
     local start_pos = my_regions()["start position"]
 
     if start_pos == nil then
-        return {action = "stop"}
+        return {action = "stop", reason = "no_start_position"}
     end
 
     local center_x = (start_pos.min_x + start_pos.max_x) / 2
@@ -45,13 +46,14 @@ function default_get_setup_position(reason)
     return {
         action = "run",
         target_type = "point",
-        target = {x = center_x, z = center_z, y = 0}
+        target = {x = center_x, z = center_z, y = 0},
+        reason = "run_to_start_position"
     }
 end
 
 -- Action: run to the ball
 function chase_ball()
-    return {action = "run", target_type = "ball"}
+    return {action = "run", target_type = "ball", reason = "chase_ball"}
 end
 
 -- Action: chase ball if in top-3 closest, otherwise run to attack position
@@ -67,22 +69,24 @@ end
 -- Action: run to center of "attack position" region
 function run_to_attack_position()
     local pos = my_regions()["attack position"]
-    if pos == nil then return {action = "stop"} end
+    if pos == nil then return {action = "stop", reason = "no_attack_position"} end
     return {
         action = "run",
         target_type = "point",
-        target = {x = (pos.min_x + pos.max_x) / 2, z = (pos.min_z + pos.max_z) / 2, y = 0}
+        target = {x = (pos.min_x + pos.max_x) / 2, z = (pos.min_z + pos.max_z) / 2, y = 0},
+        reason = "run_to_attack_position"
     }
 end
 
 -- Action: run to center of "defence position" region
 function run_to_defence_position()
     local pos = my_regions()["defence position"]
-    if pos == nil then return {action = "stop"} end
+    if pos == nil then return {action = "stop", reason = "no_defence_position"} end
     return {
         action = "run",
         target_type = "point",
-        target = {x = (pos.min_x + pos.max_x) / 2, z = (pos.min_z + pos.max_z) / 2, y = 0}
+        target = {x = (pos.min_x + pos.max_x) / 2, z = (pos.min_z + pos.max_z) / 2, y = 0},
+        reason = "run_to_defence_position"
     }
 end
 
@@ -116,7 +120,7 @@ function pass_to_nearest_teammate()
         end
     end
     if best then
-        return {action = "kick", target = {x = best.position.x, z = best.position.z}}
+        return {action = "kick", target = {x = best.position.x, z = best.position.z}, reason = "pass_to_nearest_teammate"}
     end
     return kick_to_opponent_goal()
 end
@@ -186,7 +190,8 @@ function run_to_region(from_notation, to_notation)
     return {
         action = "run",
         target_type = "region",
-        target = {from = from_notation, to = to_notation}
+        target = {from = from_notation, to = to_notation},
+        reason = "run_to_region:" .. from_notation .. "-" .. to_notation
     }
 end
 

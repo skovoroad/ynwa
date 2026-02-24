@@ -17,7 +17,7 @@ local function pass_to_numbers(numbers)
         end
     end
     if best then
-        return {action = "kick", target = {x = best.position.x, z = best.position.z}}
+        return {action = "kick", target = {x = best.position.x, z = best.position.z}, reason = "pass_to_#" .. best.number}
     end
     return kick_to_opponent_goal()
 end
