@@ -346,7 +346,9 @@ The global variable `GAME_DATA` contains static information about the field that
 GAME_DATA = {
     field = {
         width = 60.0,   -- field width in meters (X axis)
-        length = 101.5  -- field length in meters (Z axis)
+        length = 101.5, -- field length in meters (Z axis)
+        columns = 26,   -- number of grid columns (X axis)
+        rows = 44       -- number of grid rows (Z axis)
     },
     zones = {
         -- Field zones with geometry, pre-transformed for the current player's team perspective.
@@ -413,6 +415,12 @@ Before executing user script, three preamble levels are loaded in the following 
 - `press_or_defend()` — chase ball if top-3 closest, else run to defence position
 - `pass_to_nearest_teammate()` — pass to nearest teammate ≥15m away, else kick to opponent goal
 - `kick_to_opponent_goal()` — kick to center of opponent goal
+
+**Region utility functions**:
+- `parse_col(s)` — parse column label to number (`"A"` → 1, `"Z"` → 26, `"AA"` → 27); case-insensitive
+- `parse_notation(n)` — parse grid notation to `(col, row)` (`"M22"` → 13, 22); errors on invalid input
+- `is_in_region(from, to)` — returns `true` if `my_position()` is inside the rectangle defined by grid notation (`"A1"`, `"Z44"`); uses `GAME_DATA.field.columns/rows` for cell size calculation
+- `run_to_region(from, to)` — returns a Run decision targeting the region center
 
 **Dispatcher functions** (defined here, NOT in team/player scripts):
 - `make_decision()` — Play stage dispatcher; reads possession state, calls `player_play[state]` → `team_play[state]` → `error()`
