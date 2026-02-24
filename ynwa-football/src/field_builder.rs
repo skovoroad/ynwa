@@ -15,8 +15,9 @@ const PENALTY_SPOT_DISTANCE: f32 = 11.0;
 const CENTER_CIRCLE_RADIUS: f32 = 9.15;
 const CORNER_ARC_RADIUS: f32 = 1.0;
 const PENALTY_ARC_RADIUS: f32 = 9.15;
-const GOAL_DEPTH: f32 = 2.5;
-const GOAL_WIDTH: f32 = 7.32;
+pub(crate) const GOAL_DEPTH: f32 = 2.5;
+pub(crate) const GOAL_WIDTH: f32 = 7.32;
+pub(crate) const FIELD_WIDTH: f32 = DEFAULT_WIDTH;
 
 // Grid dimensions for football field
 const FOOTBALL_GRID_COLUMNS: u32 = 26; // A-Z

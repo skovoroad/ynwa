@@ -102,8 +102,9 @@ impl FootballGameManager {
                 game.state.stage = GameStage::GameOver;
             }
             FootballEvent::Goal(team) => {
+                // `team` is the owner of the goal that was scored into — the scorer is the opponent
                 game.state.team_stats
-                    .entry(team)
+                    .entry(team.opposite())
                     .or_default()
                     .increment("score", 1.0);
                 for player_state in game.state.player_states.iter_mut() {

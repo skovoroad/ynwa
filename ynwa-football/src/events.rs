@@ -16,18 +16,21 @@ pub enum FootballEvent {
     GameEnd,
 }
 
-const BALL_RADIUS: f32 = 0.11; // meters (standard football radius ~11cm)
-pub const GAME_DURATION: f32 = 60.0; // seconds (1 minute for testing)
+pub(crate) const BALL_RADIUS: f32 = 0.11; // meters (standard football radius ~11cm)
+pub const GAME_DURATION: f32 = 120.0; // seconds (1 minute for testing)
 
-/// Check if a goal was scored
-/// Ball must be completely inside the goal zone
+/// Check if a goal was scored.
+/// Goal condition (FIFА): ball has completely crossed the goal line between the goalposts.
+/// - Z axis (goal line): ball fully past the line, i.e. ball radius is accounted for
+/// - X axis (goalposts): ball center is within the goal width, no radius — touching the
+///   post from inside counts as a goal; touching from outside does not
 pub fn check_goal(game: &Game) -> Option<FootballEvent> {
     let ball_pos = &game.state.ball_state.position;
     let field = &game.config().field;
 
     // Check both goals
     for ((name, team), zone) in field.zones() {
-        if name == "goal" && team.is_some() && is_ball_completely_in_zone(ball_pos, zone, BALL_RADIUS) {
+        if name == "goal" && team.is_some() && is_ball_in_goal(ball_pos, zone, BALL_RADIUS) {
             return Some(FootballEvent::Goal(team.unwrap()));
         }
     }
@@ -50,19 +53,46 @@ pub fn check_touchline(game: &Game) -> Option<FootballEvent> {
     None
 }
 
-/// Check if ball went out on goal line (length boundaries, Z axis)
+/// Check if ball went out on goal line (length boundaries, Z axis).
+/// Does NOT fire if the ball is between the goalposts — that is handled by check_goal.
 pub fn check_goal_line(game: &Game) -> Option<FootballEvent> {
     let ball_pos = &game.state.ball_state.position;
     let field_length = game.config().field.length().get::<meter>();
+    let ball_x = ball_pos.x.get::<meter>();
+    let ball_z = ball_pos.z.get::<meter>();
 
-    // Ball completely over near or far goal line (Z axis = length)
-    if ball_pos.z.get::<meter>() - BALL_RADIUS < 0.0
-        || ball_pos.z.get::<meter>() + BALL_RADIUS > field_length
-    {
-        return Some(FootballEvent::GoalLine(*ball_pos));
+    let crossed_near = ball_z - BALL_RADIUS < 0.0;
+    let crossed_far = ball_z + BALL_RADIUS > field_length;
+
+    if !crossed_near && !crossed_far {
+        return None;
     }
 
-    None
+    // If ball is between the goalposts, let check_goal handle it
+    if is_ball_between_goalposts(game, ball_x) {
+        return None;
+    }
+
+    Some(FootballEvent::GoalLine(*ball_pos))
+}
+
+/// Returns true if the ball's X position is within any goal's width on this field.
+fn is_ball_between_goalposts(game: &Game, ball_x: f32) -> bool {
+    use ynwa_core::field::zones::ZoneGeometry;
+
+    for ((name, _team), zone) in game.config().field.zones() {
+        if name != "goal" {
+            continue;
+        }
+        if let ZoneGeometry::Rectangle(rect) = &zone.geometry {
+            let x_min = rect.min.x.get::<meter>();
+            let x_max = rect.max.x.get::<meter>();
+            if ball_x >= x_min && ball_x <= x_max {
+                return true;
+            }
+        }
+    }
+    false
 }
 
 /// Check if game time has ended
@@ -99,7 +129,7 @@ pub fn check_events(game: &Game) -> Option<FootballEvent> {
     None
 }
 
-fn is_ball_completely_in_zone(
+fn is_ball_in_goal(
     ball_pos: &Point3D,
     zone: &ynwa_core::field::Zone,
     ball_radius: f32,
@@ -110,13 +140,19 @@ fn is_ball_completely_in_zone(
         ZoneGeometry::Rectangle(rect) => {
             let x = ball_pos.x.get::<meter>();
             let z = ball_pos.z.get::<meter>();
+            let x_min = rect.min.x.get::<meter>();
+            let x_max = rect.max.x.get::<meter>();
+            let z_min = rect.min.z.get::<meter>();
+            let z_max = rect.max.z.get::<meter>();
 
-            x - ball_radius >= rect.min.x.get::<meter>()
-                && x + ball_radius <= rect.max.x.get::<meter>()
-                && z - ball_radius >= rect.min.z.get::<meter>()
-                && z + ball_radius <= rect.max.z.get::<meter>()
+            // Ball fully crossed the goal line (Z axis): radius counts
+            let crossed_line = z - ball_radius >= z_min && z + ball_radius <= z_max;
+            // Ball center between the goalposts (X axis): no radius
+            let between_posts = x >= x_min && x <= x_max;
+
+            crossed_line && between_posts
         }
-        _ => false, // Goals should be rectangles
+        _ => false,
     }
 }
 

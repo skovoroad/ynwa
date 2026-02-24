@@ -415,15 +415,12 @@ fn test_handle_event_clears_decision_so_setup_position_is_requested() {
     );
 }
 
-fn create_game_with_team_a_goal() -> Game {
-    let field = FieldBuilder::from_meters(60.0, 100.0, 26, 44)
-        .with_zone(Zone::new(
-            "goal",
-            Some(Team::A),
-            ZoneGeometry::Rectangle(Rectangle::from_meters(-2.0, 27.32, 0.0, 32.68)),
-        ))
-        .build();
+/// Standard football field (production orientation) with one player per team.
+/// Team A goal: z < 0, Team B goal: z > field_length.
+fn create_standard_game() -> Game {
+    use crate::field_builder::create_football_field;
 
+    let field = create_football_field();
     let grid_dims = field.grid_dimensions();
     let start_region = grid_dims
         .create_region(GridCell::new(10, 10).unwrap(), GridCell::new(11, 11).unwrap())
@@ -431,11 +428,18 @@ fn create_game_with_team_a_goal() -> Game {
 
     let config = GameConfig {
         field,
-        players: vec![PlayerDef::new(
-            Team::A, 1, "P".to_string(),
-            "function make_decision() return {} end".to_string(),
-            start_region,
-        )],
+        players: vec![
+            PlayerDef::new(
+                Team::A, 1, "A".to_string(),
+                "function make_decision() return {} end".to_string(),
+                start_region.clone(),
+            ),
+            PlayerDef::new(
+                Team::B, 1, "B".to_string(),
+                "function make_decision() return {} end".to_string(),
+                start_region,
+            ),
+        ],
         ball: BallDef::default(),
         referees: vec![],
         scripting: ynwa_core::game::ScriptingConfig::empty(),
@@ -446,34 +450,73 @@ fn create_game_with_team_a_goal() -> Game {
 
 #[test]
 fn test_team_stats_initialized_for_all_teams() {
-    let game = create_game_with_team_a_goal();
+    let game = create_standard_game();
     assert_eq!(game.state.team_stats[&Team::A].get("score"), 0.0);
+    assert_eq!(game.state.team_stats[&Team::B].get("score"), 0.0);
 }
 
 #[test]
 fn test_goal_increments_score() {
-    let mut game = create_game_with_team_a_goal();
+    let mut game = create_standard_game();
     let mut manager = FootballGameManager::new();
+    let field_width = game.config().field.width().get::<meter>();
 
-    // Ball inside Team A goal zone
+    // Ball inside Team A goal (z = -0.5, centered on X) — Team B scores
     game.state.ball_state.position = Point3D::new(
-        Length::new::<meter>(-1.0),
+        Length::new::<meter>(field_width / 2.0),
         Length::new::<meter>(0.0),
-        Length::new::<meter>(30.0),
+        Length::new::<meter>(-0.5),
     );
     manager.update(&mut game, 0.0);
 
-    assert_eq!(game.state.team_stats[&Team::A].get("score"), 1.0);
-    assert!(game.state.team_stats.get(&Team::B).is_none());
+    assert_eq!(game.state.team_stats[&Team::B].get("score"), 1.0);
+    assert_eq!(game.state.team_stats[&Team::A].get("score"), 0.0);
 
-    // Second goal for same team
+    // Second goal in the same net
     game.state.stage = GameStage::Play;
     game.state.ball_state.position = Point3D::new(
-        Length::new::<meter>(-1.0),
+        Length::new::<meter>(field_width / 2.0),
         Length::new::<meter>(0.0),
-        Length::new::<meter>(30.0),
+        Length::new::<meter>(-0.5),
     );
     manager.update(&mut game, 0.0);
 
-    assert_eq!(game.state.team_stats[&Team::A].get("score"), 2.0);
+    assert_eq!(game.state.team_stats[&Team::B].get("score"), 2.0);
+}
+
+#[test]
+fn test_goal_scored_in_standard_field_credits_correct_team() {
+    // Ball in Team B's goal (z > field_length) → Team A scores.
+    let mut game = create_standard_game();
+    let mut manager = FootballGameManager::new();
+    let field_length = game.config().field.length().get::<meter>();
+    let field_width = game.config().field.width().get::<meter>();
+
+    game.state.ball_state.position = Point3D::new(
+        Length::new::<meter>(field_width / 2.0),
+        Length::new::<meter>(0.0),
+        Length::new::<meter>(field_length + 0.5),
+    );
+    manager.update(&mut game, 0.0);
+
+    assert_eq!(game.state.team_stats[&Team::A].get("score"), 1.0, "Team A should score when ball enters Team B's goal");
+    assert_eq!(game.state.team_stats[&Team::B].get("score"), 0.0);
+}
+
+#[test]
+fn test_goal_in_team_a_net_scores_for_team_b() {
+    // Ball in Team A's goal (z < 0) → Team B scores.
+    let mut game = create_standard_game();
+    let mut manager = FootballGameManager::new();
+    let field_width = game.config().field.width().get::<meter>();
+
+    game.state.ball_state.position = Point3D::new(
+        Length::new::<meter>(field_width / 2.0),
+        Length::new::<meter>(0.0),
+        Length::new::<meter>(-0.5),
+    );
+    manager.update(&mut game, 0.0);
+
+    assert_eq!(game.state.team_stats[&Team::B].get("score"), 1.0, "Team B should score when ball enters Team A's goal");
+    assert_eq!(game.state.team_stats[&Team::A].get("score"), 0.0);
 }
