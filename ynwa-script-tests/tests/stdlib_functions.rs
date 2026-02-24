@@ -291,3 +291,222 @@ fn test_setup_fallback_to_default() {
         state.current_decision
     );
 }
+
+#[test]
+fn test_is_in_region_true() {
+    // Field: 100w × 60l, 26 cols × 44 rows → cell_w = 100/26 ≈ 3.846, cell_h = 60/44 ≈ 1.364
+    // Player placed at (50, 0, 30) by default. Region M20:N25 should contain it.
+    // col M=13, row 20: min_x=(13-1)*3.846=46.15, max_x=14*3.846=53.85
+    //                   min_z=(20-1)*1.364=25.91,  max_z=25*1.364=34.09
+    let script = r#"
+function make_decision()
+    if is_in_region("M20", "N25") then
+        return {action = "stop"}
+    else
+        return {action = "kick", target = {x = 0, z = 0}}
+    end
+end
+"#;
+    let mut game = create_test_game_with_preambles(script);
+    game.state.player_states[0].position = ynwa_core::field::zones::Point3D::from_meters(50.0, 0.0, 30.0);
+    request_decisions_for_all(&mut game);
+    let dm = ScriptedDecisionMaker::new(&game).unwrap();
+    let mut ds = DecisionSystem::new().with_decision_maker(Box::new(dm));
+    ds.update(&mut game, 1.0);
+    assert!(
+        matches!(game.state().player_states[0].current_decision, Some(Decision::Stop)),
+        "Expected Stop (inside region), got: {:?}",
+        game.state().player_states[0].current_decision
+    );
+}
+
+#[test]
+fn test_is_in_region_false() {
+    // Same field. Position (1.0, 0, 1.0) is in A1 — outside M20:N25.
+    let script = r#"
+function make_decision()
+    if is_in_region("M20", "N25") then
+        return {action = "stop"}
+    else
+        return {action = "kick", target = {x = 0, z = 0}}
+    end
+end
+"#;
+    let mut game = create_test_game_with_preambles(script);
+    game.state.player_states[0].position = ynwa_core::field::zones::Point3D::from_meters(1.0, 0.0, 1.0);
+    request_decisions_for_all(&mut game);
+    let dm = ScriptedDecisionMaker::new(&game).unwrap();
+    let mut ds = DecisionSystem::new().with_decision_maker(Box::new(dm));
+    ds.update(&mut game, 1.0);
+    assert!(
+        matches!(game.state().player_states[0].current_decision, Some(Decision::Kick(_))),
+        "Expected Kick (outside region), got: {:?}",
+        game.state().player_states[0].current_decision
+    );
+}
+
+#[test]
+fn test_run_to_region() {
+    let script = r#"
+function make_decision()
+    return run_to_region("M20", "N25")
+end
+"#;
+    let mut game = create_test_game_with_preambles(script);
+    request_decisions_for_all(&mut game);
+    let dm = ScriptedDecisionMaker::new(&game).unwrap();
+    let mut ds = DecisionSystem::new().with_decision_maker(Box::new(dm));
+    ds.update(&mut game, 1.0);
+    assert!(
+        matches!(game.state().player_states[0].current_decision, Some(Decision::Run(_))),
+        "Expected Run, got: {:?}",
+        game.state().player_states[0].current_decision
+    );
+}
+
+#[test]
+fn test_parse_col() {
+    let script = format!(
+        r#"
+assert(parse_col("A") == 1,  "A must be 1")
+assert(parse_col("Z") == 26, "Z must be 26")
+assert(parse_col("a") == 1,  "lowercase a must be 1")
+assert(parse_col("AA") == 27, "AA must be 27")
+assert(parse_col("AZ") == 52, "AZ must be 52")
+{}
+"#,
+        MAKE_DECISION_STUB
+    );
+    let mut game = create_test_game_with_preambles(&script);
+    request_decisions_for_all(&mut game);
+    let dm = ScriptedDecisionMaker::new(&game).unwrap();
+    let mut ds = DecisionSystem::new().with_decision_maker(Box::new(dm));
+    ds.update(&mut game, 1.0);
+    assert!(game.state().player_states[0].last_error.is_none());
+}
+
+// ── is_in_region: boundary and edge cases ────────────────────────────────────
+
+// Helper: place player at (x, z) and check is_in_region("M20", "N25")
+// Field: 100w × 60l, 26×44 → cell_w=100/26≈3.846, cell_h=60/44≈1.364
+// M20:N25 → min_x=12·cw, max_x=14·cw, min_z=19·ch, max_z=25·ch
+fn check_m20_n25(x: f32, z: f32) -> Option<Decision> {
+    use ynwa_core::field::zones::Point3D;
+    let script = r#"
+function make_decision()
+    if is_in_region("M20", "N25") then
+        return {action = "stop"}
+    else
+        return {action = "kick", target = {x = 0, z = 0}}
+    end
+end
+"#;
+    let mut game = create_test_game_with_preambles(script);
+    game.state.player_states[0].position = Point3D::from_meters(x, 0.0, z);
+    request_decisions_for_all(&mut game);
+    let dm = ScriptedDecisionMaker::new(&game).unwrap();
+    let mut ds = DecisionSystem::new().with_decision_maker(Box::new(dm));
+    ds.update(&mut game, 1.0);
+    game.state().player_states[0].current_decision.clone()
+}
+
+#[test]
+fn test_is_in_region_min_boundary_inclusive() {
+    let cell_w = 100.0_f32 / 26.0;
+    let cell_h = 60.0_f32 / 44.0;
+    // Exactly at min_x, min_z — must be inside (inclusive)
+    assert!(matches!(check_m20_n25(12.0 * cell_w, 19.0 * cell_h), Some(Decision::Stop)));
+}
+
+#[test]
+fn test_is_in_region_max_boundary_exclusive() {
+    let cell_w = 100.0_f32 / 26.0;
+    let cell_h = 60.0_f32 / 44.0;
+    // One epsilon past max_x and max_z — must be outside regardless of float precision
+    assert!(matches!(check_m20_n25(14.0 * cell_w + 0.001, 25.0 * cell_h + 0.001), Some(Decision::Kick(_))));
+}
+
+#[test]
+fn test_is_in_region_single_cell() {
+    use ynwa_core::field::zones::Point3D;
+    let cell_w = 100.0_f32 / 26.0;
+    let cell_h = 60.0_f32 / 44.0;
+    let script = r#"
+function make_decision()
+    if is_in_region("A1", "A1") then
+        return {action = "stop"}
+    else
+        return {action = "kick", target = {x = 0, z = 0}}
+    end
+end
+"#;
+    let mut game = create_test_game_with_preambles(script);
+    // Center of A1
+    game.state.player_states[0].position = Point3D::from_meters(0.5 * cell_w, 0.0, 0.5 * cell_h);
+    request_decisions_for_all(&mut game);
+    let dm = ScriptedDecisionMaker::new(&game).unwrap();
+    let mut ds = DecisionSystem::new().with_decision_maker(Box::new(dm));
+    ds.update(&mut game, 1.0);
+    assert!(matches!(
+        game.state().player_states[0].current_decision,
+        Some(Decision::Stop)
+    ));
+}
+
+#[test]
+fn test_is_in_region_invalid_notation_causes_error() {
+    let script = r#"
+function make_decision()
+    is_in_region("1A", "Z44")
+    return {action = "stop"}
+end
+"#;
+    let mut game = create_test_game_with_preambles(script);
+    request_decisions_for_all(&mut game);
+    let dm = ScriptedDecisionMaker::new(&game).unwrap();
+    let mut ds = DecisionSystem::new().with_decision_maker(Box::new(dm));
+    ds.update(&mut game, 1.0);
+    assert!(game.state().player_states[0].last_error.is_some());
+}
+
+#[test]
+fn test_parse_notation_invalid_causes_error() {
+    let script = format!(
+        r#"
+local ok, err = pcall(parse_notation, "1A")
+assert(not ok, "parse_notation('1A') must error")
+local ok2, err2 = pcall(parse_notation, "")
+assert(not ok2, "parse_notation('') must error")
+{}
+"#,
+        MAKE_DECISION_STUB
+    );
+    let mut game = create_test_game_with_preambles(&script);
+    request_decisions_for_all(&mut game);
+    let dm = ScriptedDecisionMaker::new(&game).unwrap();
+    let mut ds = DecisionSystem::new().with_decision_maker(Box::new(dm));
+    ds.update(&mut game, 1.0);
+    assert!(game.state().player_states[0].last_error.is_none());
+}#[test]
+fn test_parse_notation() {
+    let script = format!(
+        r#"
+local col, row = parse_notation("A1")
+assert(col == 1 and row == 1, "A1: col=1, row=1")
+
+local col2, row2 = parse_notation("Z44")
+assert(col2 == 26 and row2 == 44, "Z44: col=26, row=44")
+
+local col3, row3 = parse_notation("m22")
+assert(col3 == 13 and row3 == 22, "m22: col=13, row=22")
+{}
+"#,
+        MAKE_DECISION_STUB
+    );
+    let mut game = create_test_game_with_preambles(&script);
+    request_decisions_for_all(&mut game);
+    let dm = ScriptedDecisionMaker::new(&game).unwrap();
+    let mut ds = DecisionSystem::new().with_decision_maker(Box::new(dm));
+    ds.update(&mut game, 1.0);
+    assert!(game.state().player_states[0].last_error.is_none());
+}

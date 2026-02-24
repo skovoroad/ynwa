@@ -74,7 +74,9 @@ impl ScriptedDecisionMaker {
                         "zones": Self::zones_to_json_for_team(&config.field, p.team, field_width, field_length),
                         "field": {
                             "width": field_width,
-                            "length": field_length
+                            "length": field_length,
+                            "columns": config.field.grid_columns(),
+                            "rows": config.field.grid_rows()
                         }
                     }
                 })

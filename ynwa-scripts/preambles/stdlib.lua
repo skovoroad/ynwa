@@ -147,6 +147,49 @@ function make_decision()
     error("make_decision: no handler for state '" .. state .. "'")
 end
 
+-- Parse column label (e.g. "A"→1, "Z"→26, "AA"→27) — case-insensitive.
+function parse_col(s)
+    local col = 0
+    s = s:upper()
+    for i = 1, #s do
+        col = col * 26 + (string.byte(s, i) - string.byte('A') + 1)
+    end
+    return col
+end
+
+-- Parse grid notation (e.g. "M22") → col (number), row (number).
+function parse_notation(n)
+    local col_str, row_str = n:match("^([A-Za-z]+)(%d+)$")
+    if not col_str then error("invalid region notation: " .. n) end
+    return parse_col(col_str), tonumber(row_str)
+end
+
+-- Returns true if my position is inside the region defined by grid notation (e.g. "A1", "Z44").
+function is_in_region(from_notation, to_notation)
+    local cell_w = GAME_DATA.field.width / GAME_DATA.field.columns
+    local cell_h = GAME_DATA.field.length / GAME_DATA.field.rows
+
+    local from_col, from_row = parse_notation(from_notation)
+    local to_col,   to_row   = parse_notation(to_notation)
+
+    local min_x = (from_col - 1) * cell_w
+    local max_x = to_col * cell_w
+    local min_z = (from_row - 1) * cell_h
+    local max_z = to_row * cell_h
+
+    local pos = my_position()
+    return pos.x >= min_x and pos.x < max_x and pos.z >= min_z and pos.z < max_z
+end
+
+-- Returns a Run decision targeting a grid region.
+function run_to_region(from_notation, to_notation)
+    return {
+        action = "run",
+        target_type = "region",
+        target = {from = from_notation, to = to_notation}
+    }
+end
+
 -- Dispatcher for Setup stage.
 -- Priority: player_setup[reason] -> team_setup[reason] -> default_get_setup_position(reason)
 function get_setup_position(reason)
