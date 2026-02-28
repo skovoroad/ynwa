@@ -34,6 +34,8 @@ Goal: provide a set of reusable functions for writing AI players in Lua without 
 
 ### 2.1 Main Contract
 
+**Do NOT access `context` or `GAME_DATA` directly** in team preambles or player scripts. Use the functions from `core.lua` instead (`my_position()`, `ball_position()`, `get_own_goal()`, etc.). Direct access couples scripts to the raw JSON structure, breaking the abstraction layer and making tactic scripts non-portable between teams.
+
 **During Play stage**, stdlib defines `make_decision()` — do NOT redefine it in team or player scripts. Instead, populate dispatch tables:
 
 ```lua
@@ -377,7 +379,7 @@ GAME_DATA = {
 **`GAME_DATA.zones`**: zone coordinates are already in the current player's script coordinate system.
 - Team A sees zones in canonical (display) coordinates
 - Team B sees zones with flipped X and Z (same transformation applied to all positions)
-- Use `GAME_DATA.zones` directly without any coordinate adjustment
+- **Do not access `GAME_DATA.zones` directly** — use wrapper functions from `core.lua` (`get_own_goal()`, `get_opponent_goal()`). Direct access by zone name (`goal_a`, `goal_b`) is team-specific and breaks portability.
 
 **Zone Types**:
 - `rectangle`: defined by `min_x`, `max_x`, `min_z`, `max_z`

@@ -1,5 +1,9 @@
 -- Core preamble: elementary functions for reading game state and creating decisions
 -- These functions provide access to context data without any game logic
+--
+-- RULE: team preambles and player scripts must NOT access `context` or `GAME_DATA` directly.
+-- Use the functions below instead. Direct access by raw key (e.g. `GAME_DATA.zones.goal_a`)
+-- is team-specific and breaks portability between teams.
 
 -- Field dimensions are provided by the engine via GAME_DATA.field (not hardcoded here)
 -- GAME_DATA.field.width  -- X axis (meters)

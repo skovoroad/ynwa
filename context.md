@@ -169,10 +169,15 @@ System execution order (important for correct operation):
 
 ### Documentation
 
-1. **Only non-obvious:** Don't duplicate information from function/variable/constant names
+1. **Only non-obvious:** Don't duplicate information from function/variable/variable/constant names
 2. **Design decisions:** Explain "why" decisions were made, not "what" the code does
 3. **Public API:** Docstrings for public functions with purpose description
 4. **Context.md:** Update when adding new components - record only design decisions and architectural solutions that cannot be extracted from code
+
+### Lua Scripting Rules
+
+1. **No direct `context`/`GAME_DATA` access** outside `core.lua`: team preambles and player scripts must use wrapper functions (`my_position()`, `get_own_goal()`, etc.). Direct access to raw JSON couples scripts to engine internals and breaks portability between teams.
+2. **No `make_decision()` / `get_setup_position()` redefinition** in team or player scripts — these are owned by stdlib.
 
 ### Code Comments
 
