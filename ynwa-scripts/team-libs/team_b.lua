@@ -2,9 +2,12 @@
 
 local FORWARDS = {10, 11}
 
-function goalkeeper_with_ball()
-    return pass_to_nearest_teammate()
-end
+-- Assign via player_play in config: player_play = goalkeeper_play
+goalkeeper_play = {
+    i_have_ball       = function() return pass_to_nearest_teammate() end,
+    team_has_ball     = function() return run_to_defence_position() end,
+    opponent_has_ball = function() return goalkeeper_cover_position() end,
+}
 
 function nonforward_with_ball()
     local pos = my_regions()["attack position"]

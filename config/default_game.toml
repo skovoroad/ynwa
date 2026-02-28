@@ -17,7 +17,7 @@ shot_accuracy = 50
 start_position = "M3"  # Center of goal area
 attack_position = "M10"  # Move up to midfield zone
 defence_position = "M1"  # Stay at goal line
-script = 'player_play = { i_have_ball = kick_to_opponent_goal }'
+script = 'player_play = goalkeeper_play'
 
 [[players]]
 team = "A"
@@ -172,7 +172,7 @@ shot_accuracy = 50
 start_position = "M3"  # Center of goal area (own orientation)
 attack_position = "M10"  # Move up to midfield zone
 defence_position = "M1"  # Stay at goal line
-script = 'player_play = { i_have_ball = goalkeeper_with_ball }'
+script = 'player_play = goalkeeper_play'
 
 [[players]]
 team = "B"

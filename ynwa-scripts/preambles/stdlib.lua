@@ -147,6 +147,23 @@ function pass_to_nearest_teammate()
     return kick_to_opponent_goal()
 end
 
+-- Action: stay on the goal line at defence_position Z, tracking ball X clamped to goal width.
+function goalkeeper_cover_position()
+    local defence = my_regions()["defence position"]
+    if defence == nil then return run_to_defence_position() end
+    local goal = get_own_goal()
+    local target_z = (defence.min_z + defence.max_z) / 2
+    -- clamp ball X to goal post positions so keeper never steps outside
+    local ball_x = ball_position().x
+    local clamped_x = math.max(goal.min_x, math.min(goal.max_x, ball_x))
+    return {
+        action = "run",
+        target_type = "point",
+        target = {x = clamped_x, z = target_z, y = 0},
+        reason = "goalkeeper_cover"
+    }
+end
+
 -- Dispatcher for Play stage.
 -- Determines possession state and calls the appropriate handler from player_play or team_play.
 -- Priority: player_play[state] -> team_play[state] -> error()

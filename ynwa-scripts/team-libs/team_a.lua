@@ -1,5 +1,12 @@
 -- Team A: dispatch tables for play and setup stages
 
+-- Assign via player_play in config: player_play = goalkeeper_play
+goalkeeper_play = {
+    i_have_ball       = function() return pass_to_nearest_teammate() end,
+    team_has_ball     = function() return run_to_defence_position() end,
+    opponent_has_ball = function() return goalkeeper_cover_position() end,
+}
+
 -- Shooting zone: slightly deeper than penalty_area_b, slightly narrower.
 -- I=col9, R=col18 (penalty spans cols 2-25); row 30 is ~3 rows deeper than penalty start.
 local SHOOTING_ZONE_FROM = "I30"

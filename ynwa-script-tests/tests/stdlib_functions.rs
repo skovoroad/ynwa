@@ -791,3 +791,119 @@ fn test_forward_at_attack_position_shoots() {
     assert!(matches!(state.current_decision, Some(Decision::Kick(_))), "expected kick, got {:?}", state.current_decision);
     assert!(state.decision_reason.as_deref().unwrap_or("").starts_with("kick_to_goal"), "reason: {:?}", state.decision_reason);
 }
+
+// --- get_own_goal / goalkeeper_cover_position ---
+
+#[test]
+fn test_get_own_goal_team_a() {
+    // Team A own goal is goal_a (small Z). Assert min_z < field_length/2.
+    let script = r#"
+function make_decision()
+    local g = get_own_goal()
+    assert(g ~= nil, "get_own_goal() returned nil")
+    assert(g.min_z < GAME_DATA.field.length / 2, "team A own goal must be at low Z end")
+    return {action = "stop"}
+end
+"#;
+    let mut game = create_test_game_football_field_with_preambles(script);
+    request_decisions_for_all(&mut game);
+    let dm = ScriptedDecisionMaker::new(&game).unwrap();
+    let mut ds = DecisionSystem::new().with_decision_maker(Box::new(dm));
+    ds.update(&mut game, 1.0);
+    assert!(game.state().player_states[0].last_error.is_none(),
+        "{:?}", game.state().player_states[0].last_error);
+}
+
+#[test]
+fn test_get_own_goal_team_b() {
+    // Team B zones are pre-flipped: goal_b in their view also has small Z (near their goal line).
+    // Also verify get_own_goal() != get_opponent_goal() — they return different zones.
+    let script = r#"
+function make_decision()
+    local own  = get_own_goal()
+    local opp  = get_opponent_goal()
+    assert(own ~= nil, "get_own_goal() returned nil")
+    assert(opp ~= nil, "get_opponent_goal() returned nil")
+    assert(own.min_z < GAME_DATA.field.length / 2,
+        "team B own goal must be at low Z in their view, got " .. own.min_z)
+    assert(opp.min_z > GAME_DATA.field.length / 2,
+        "team B opponent goal must be at high Z in their view, got " .. opp.min_z)
+    -- own and opponent goals must be at different Z positions
+    assert(math.abs(own.min_z - opp.min_z) > 1.0, "own and opponent goals must differ")
+    return {action = "stop"}
+end
+"#;
+    use ynwa_core::region::GridCell;
+
+    let field = ynwa_football::field_builder::create_football_field();
+    let grid_dims = field.grid_dimensions();
+    let start_region = grid_dims.create_region(GridCell::new(1,1).unwrap(), GridCell::new(2,2).unwrap()).unwrap();
+    let player = ynwa_core::game::PlayerDef::new(
+        ynwa_core::team::Team::B, 1, "GK B".to_string(), script.to_string(), start_region,
+    );
+    let mut game = create_test_game_with_all_preambles(vec![player]);
+    game.state.player_states[0].needs_decision = true;
+    let dm = ScriptedDecisionMaker::new(&game).unwrap();
+    let mut ds = DecisionSystem::new().with_decision_maker(Box::new(dm));
+    ds.update(&mut game, 1.0);
+    assert!(game.state().player_states[0].last_error.is_none(),
+        "{:?}", game.state().player_states[0].last_error);
+}
+
+#[test]
+fn test_goalkeeper_cover_position_clamps_to_goal() {
+    // goalkeeper_cover_position: target X is clamped to own goal width, Z is defence position Z.
+    // Ball at X=0 (far left) → target X == goal.min_x; ball at X=field.width (far right) → goal.max_x.
+    let script = r#"
+function make_decision()
+    local goal = get_own_goal()
+    local defence = my_regions()["defence position"]
+    local defence_z = (defence.min_z + defence.max_z) / 2
+
+    -- Ball at extreme left: target X must clamp to goal.min_x
+    context.ball.position.x = -999
+    local d = goalkeeper_cover_position()
+    assert(d.action == "run", "expected run")
+    assert(math.abs(d.target.x - goal.min_x) < 0.01,
+        "left clamp: expected " .. goal.min_x .. " got " .. d.target.x)
+    assert(math.abs(d.target.z - defence_z) < 0.01,
+        "Z must equal defence Z")
+
+    -- Ball at extreme right: target X must clamp to goal.max_x
+    context.ball.position.x = 999
+    d = goalkeeper_cover_position()
+    assert(math.abs(d.target.x - goal.max_x) < 0.01,
+        "right clamp: expected " .. goal.max_x .. " got " .. d.target.x)
+
+    -- Ball at goal center: target X equals ball X
+    local center_x = (goal.min_x + goal.max_x) / 2
+    context.ball.position.x = center_x
+    d = goalkeeper_cover_position()
+    assert(math.abs(d.target.x - center_x) < 0.01,
+        "center: expected " .. center_x .. " got " .. d.target.x)
+
+    return {action = "stop"}
+end
+"#;
+    use ynwa_core::field::zones::Point3D;
+    use ynwa_core::region::GridCell;
+
+    let field = ynwa_football::field_builder::create_football_field();
+    let grid_dims = field.grid_dimensions();
+    let start_region = grid_dims.create_region(GridCell::new(1,1).unwrap(), GridCell::new(2,2).unwrap()).unwrap();
+    // defence position: row 1 (goal line area)
+    let defence_region = grid_dims.create_region(GridCell::new(13,1).unwrap(), GridCell::new(14,2).unwrap()).unwrap();
+
+    let player = ynwa_core::game::PlayerDef::new(
+        ynwa_core::team::Team::A, 1, "GK".to_string(), script.to_string(), start_region,
+    ).with_defence_position(defence_region);
+
+    let mut game = create_test_game_with_all_preambles(vec![player]);
+    game.state.player_states[0].position = Point3D::from_meters(5.0, 0.0, 5.0);
+    game.state.player_states[0].needs_decision = true;
+    let dm = ScriptedDecisionMaker::new(&game).unwrap();
+    let mut ds = DecisionSystem::new().with_decision_maker(Box::new(dm));
+    ds.update(&mut game, 1.0);
+    assert!(game.state().player_states[0].last_error.is_none(),
+        "{:?}", game.state().player_states[0].last_error);
+}
