@@ -201,3 +201,34 @@ pub fn create_test_game_football_field_with_preambles(script: &str) -> Game {
 
     Game::with_stage(config, GameStage::Play)
 }
+
+/// Create a test game with core, stdlib, and both team preambles loaded,
+/// using a football field with goals. Players are provided by the caller.
+pub fn create_test_game_with_all_preambles(players: Vec<PlayerDef>) -> Game {
+    let field = ynwa_football::field_builder::create_football_field();
+
+    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set");
+    let workspace_root = std::path::Path::new(&manifest_dir)
+        .parent()
+        .expect("Failed to get workspace root");
+
+    let load = |rel: &str| -> String {
+        std::fs::read_to_string(workspace_root.join(rel))
+            .unwrap_or_else(|e| panic!("Failed to load {}: {}", rel, e))
+    };
+
+    let config = GameConfig {
+        field,
+        players,
+        ball: BallDef::default(),
+        referees: vec![RefereeDef::default()],
+        scripting: ynwa_core::game::ScriptingConfig {
+            core_preamble:   load("ynwa-scripts/preambles/core.lua"),
+            stdlib_preamble: load("ynwa-scripts/preambles/stdlib.lua"),
+            team_a_preamble: load("ynwa-scripts/team-libs/team_a.lua"),
+            team_b_preamble: load("ynwa-scripts/team-libs/team_b.lua"),
+        },
+    };
+
+    Game::with_stage(config, GameStage::Play)
+}

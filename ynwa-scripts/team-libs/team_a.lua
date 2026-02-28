@@ -6,20 +6,7 @@ local SHOOTING_ZONE_FROM = "I30"
 local SHOOTING_ZONE_TO   = "R44"
 
 local function pass_to_numbers(numbers)
-    local my_pos = my_position()
-    local best, best_dist = nil, math.huge
-    for _, tm in ipairs(get_teammates()) do
-        for _, n in ipairs(numbers) do
-            if tm.number == n then
-                local d = distance(my_pos, tm.position)
-                if d < best_dist then best_dist = d; best = tm end
-            end
-        end
-    end
-    if best then
-        return {action = "kick", target = {x = best.position.x, z = best.position.z}, reason = "pass_to_#" .. best.number}
-    end
-    return kick_to_opponent_goal()
+    return pass_to_players_by_numbers(numbers)
 end
 
 function defender_with_ball()

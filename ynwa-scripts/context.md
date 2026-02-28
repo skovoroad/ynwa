@@ -420,12 +420,14 @@ Before executing user script, three preamble levels are loaded in the following 
 - `press_or_attack()` — chase ball if top-3 closest, else run to attack position
 - `press_or_defend()` — chase ball if top-3 closest, else run to defence position
 - `pass_to_nearest_teammate()` — pass to nearest teammate ≥15m away, else kick to opponent goal; reason: `"pass_to_#N"` with recipient number
+- `pass_to_players_by_numbers(numbers)` — pass to nearest teammate whose number is in `numbers`, else kick to opponent goal; reason: `"pass_to_#N"`
 - `kick_to_opponent_goal()` — kick to center of opponent goal; reason: `"kick_to_goal(x,z)"` with target coordinates
 
 **Region utility functions**:
 - `parse_col(s)` — parse column label to number (`"A"` → 1, `"Z"` → 26, `"AA"` → 27); case-insensitive
 - `parse_notation(n)` — parse grid notation to `(col, row)` (`"M22"` → 13, 22); errors on invalid input
-- `is_in_region(from, to)` — returns `true` if `my_position()` is inside the rectangle defined by grid notation (`"A1"`, `"Z44"`); uses `GAME_DATA.field.columns/rows` for cell size calculation
+- `is_in_region(from, to)` — returns `true` if `my_position()` is inside the rectangle defined by grid notation (`"A1"`, `"Z44"`); uses square cell size (`field.width / field.columns`)
+- `is_in_region_obj(region)` — returns `true` if `my_position()` is inside a region object `{min_x, max_x, min_z, max_z}`; use with regions from `my_regions()`
 - `run_to_region(from, to)` — returns a Run decision targeting the region center
 
 **Dispatcher functions** (defined here, NOT in team/player scripts):

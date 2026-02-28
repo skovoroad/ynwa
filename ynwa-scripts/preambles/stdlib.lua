@@ -107,6 +107,24 @@ function am_i_top3_closest_to_ball()
     return closer < 3
 end
 
+-- Action: pass to nearest teammate among given numbers; kick to goal if none found.
+function pass_to_players_by_numbers(numbers)
+    local my_pos = my_position()
+    local best, best_dist = nil, math.huge
+    for _, tm in ipairs(get_teammates()) do
+        for _, n in ipairs(numbers) do
+            if tm.number == n then
+                local d = distance(my_pos, tm.position)
+                if d < best_dist then best_dist = d; best = tm end
+            end
+        end
+    end
+    if best then
+        return {action = "kick", target = {x = best.position.x, z = best.position.z}, reason = "pass_to_#" .. best.number}
+    end
+    return kick_to_opponent_goal()
+end
+
 -- Action: pass to nearest teammate at least 15m away; kick toward opponent goal if none found
 function pass_to_nearest_teammate()
     local my_pos = my_position()
@@ -170,6 +188,13 @@ function parse_notation(n)
     local col_str, row_str = n:match("^([A-Za-z]+)(%d+)$")
     if not col_str then error("invalid region notation: " .. n) end
     return parse_col(col_str), tonumber(row_str)
+end
+
+-- Returns true if my position is inside the region object {min_x, max_x, min_z, max_z}.
+function is_in_region_obj(region)
+    local pos = my_position()
+    return pos.x >= region.min_x and pos.x < region.max_x
+       and pos.z >= region.min_z and pos.z < region.max_z
 end
 
 -- Returns true if my position is inside the region defined by grid notation (e.g. "A1", "Z44").
