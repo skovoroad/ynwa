@@ -345,6 +345,12 @@ fn test_region_to_grid_notation() {
     .unwrap();
 
     assert_eq!(region2.to_grid_notation(), "Y22:Z24");
+
+    // Single-cell region: compact form without colon
+    let region3 = field.grid_dimensions().create_region(GridCell::new(13, 42).unwrap(), GridCell::new(13, 42).unwrap())
+    .unwrap();
+
+    assert_eq!(region3.to_grid_notation(), "M42");
 }
 
 #[test]

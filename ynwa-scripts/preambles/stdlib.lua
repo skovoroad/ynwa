@@ -26,7 +26,7 @@ function kick_to_opponent_goal()
     return {
         action = "kick",
         target = {x = target_x, z = target_z},
-        reason = "kick_to_opponent_goal"
+        reason = string.format("kick_to_goal(%.1f,%.1f)", target_x, target_z)
     }
 end
 
@@ -47,7 +47,7 @@ function default_get_setup_position(reason)
         action = "run",
         target_type = "point",
         target = {x = center_x, z = center_z, y = 0},
-        reason = "run_to_start_position"
+        reason = "run_to_start_position:" .. start_pos.display_notation
     }
 end
 
@@ -74,7 +74,7 @@ function run_to_attack_position()
         action = "run",
         target_type = "point",
         target = {x = (pos.min_x + pos.max_x) / 2, z = (pos.min_z + pos.max_z) / 2, y = 0},
-        reason = "run_to_attack_position"
+        reason = "run_to_attack_position:" .. pos.display_notation
     }
 end
 
@@ -86,7 +86,7 @@ function run_to_defence_position()
         action = "run",
         target_type = "point",
         target = {x = (pos.min_x + pos.max_x) / 2, z = (pos.min_z + pos.max_z) / 2, y = 0},
-        reason = "run_to_defence_position"
+        reason = "run_to_defence_position:" .. pos.display_notation
     }
 end
 
@@ -120,7 +120,11 @@ function pass_to_nearest_teammate()
         end
     end
     if best then
-        return {action = "kick", target = {x = best.position.x, z = best.position.z}, reason = "pass_to_nearest_teammate"}
+        return {
+            action = "kick",
+            target = {x = best.position.x, z = best.position.z},
+            reason = "pass_to_#" .. best.number
+        }
     end
     return kick_to_opponent_goal()
 end

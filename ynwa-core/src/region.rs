@@ -303,14 +303,20 @@ impl Region {
         crate::orientation::flip_region_orientation(self, grid_dims)
     }
 
-    /// Convert region to grid notation string (e.g., "A1:B2")
-    /// This format is used for human-readable configuration files.
-    ///
+    /// Convert region to grid notation string.
+    /// Single-cell regions are formatted as "A1", multi-cell as "A1:B2".
     pub fn to_grid_notation(&self) -> String {
-        format!(
-            "{}{}:{}{}",
+        let from = format!(
+            "{}{}",
             GridCell::column_to_label(self.top_left.col),
-            self.top_left.row,
+            self.top_left.row
+        );
+        if self.top_left == self.bottom_right {
+            return from;
+        }
+        format!(
+            "{}:{}{}",
+            from,
             GridCell::column_to_label(self.bottom_right.col),
             self.bottom_right.row
         )

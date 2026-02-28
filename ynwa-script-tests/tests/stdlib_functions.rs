@@ -510,3 +510,31 @@ assert(col3 == 13 and row3 == 22, "m22: col=13, row=22")
     ds.update(&mut game, 1.0);
     assert!(game.state().player_states[0].last_error.is_none());
 }
+
+#[test]
+fn test_region_notation_in_context() {
+    // Regions carry a "display_notation" field.
+    // Team A: plain notation, e.g. "J10:K11" or "M3" (single cell).
+    // Team B: "display (team)" format, e.g. "R42 (M3)".
+    // The test game uses Team A, so display_notation is plain.
+    let script = r#"
+function make_decision()
+    local r = my_regions()["start position"]
+    if not r then error("no start position") end
+    if not r.display_notation then error("display_notation field missing") end
+    if type(r.display_notation) ~= "string" then error("display_notation must be a string") end
+    return {action = "stop"}
+end
+"#;
+    let mut game = create_test_game_with_preambles(script);
+    request_decisions_for_all(&mut game);
+    let dm = ScriptedDecisionMaker::new(&game).unwrap();
+    let mut ds = DecisionSystem::new().with_decision_maker(Box::new(dm));
+    ds.update(&mut game, 1.0);
+    assert!(
+        game.state().player_states[0].last_error.is_none(),
+        "region notation test failed: {:?}",
+        game.state().player_states[0].last_error
+    );
+}
+

@@ -259,11 +259,24 @@ impl ScriptedDecisionMaker {
                     (min_x, max_x, min_z, max_z)
                 };
 
+                // display_notation: always in Team A (display) orientation, with team B's
+                // own notation appended in parentheses when they differ, e.g. "R42 (M3)"
+                let display_notation = if player_team == Team::B {
+                    let team_notation = region
+                        .flip_orientation(grid_dims)
+                        .map(|r| r.to_grid_notation())
+                        .unwrap_or_default();
+                    format!("{} ({})", region.to_grid_notation(), team_notation)
+                } else {
+                    region.to_grid_notation()
+                };
+
                 let region_json = json!({
                     "min_x": final_min_x,
                     "max_x": final_max_x,
                     "min_z": final_min_z,
-                    "max_z": final_max_z
+                    "max_z": final_max_z,
+                    "display_notation": display_notation
                 });
 
                 (name.clone(), region_json)

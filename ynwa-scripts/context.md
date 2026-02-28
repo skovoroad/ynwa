@@ -172,10 +172,11 @@ Regions in `context.me.regions` are named rectangular areas assigned to the curr
 ```lua
 context.me.regions = {
     ["region_name"] = {
-        min_x = 10.0,   -- meters
-        max_x = 15.0,   -- meters
-        min_z = 20.0,   -- meters
-        max_z = 25.0    -- meters
+        min_x = 10.0,      -- meters
+        max_x = 15.0,      -- meters
+        min_z = 20.0,      -- meters
+        max_z = 25.0,      -- meters
+        display_notation = "A1:B2" -- human-readable notation; Team B: "display (team)" e.g. "R42 (M3)"
     },
     ["another_region"] = { ... }
 }
@@ -191,7 +192,12 @@ context.me.regions = {
    - Calculated from grid notation in config (e.g., "A1:B2")
    - Use directly with `my_position()` for distance checks
 
-3. **Access via `my_regions()`**:
+3. **`display_notation` field**: Human-readable grid notation string
+   - Team A: plain notation, e.g. `"M3"` (single cell) or `"A1:B2"` (multi-cell)
+   - Team B: `"display (team)"` format, e.g. `"R42 (M3)"` — display orientation first, team perspective in parentheses
+   - Use for logging, reasons, display — no recalculation needed
+
+4. **Access via `my_regions()`**:
    ```lua
    local regions = my_regions()
    local start = regions["start position"]
@@ -409,12 +415,12 @@ Before executing user script, three preamble levels are loaded in the following 
 **Purpose**: Common utilities and the central dispatch mechanism.
 
 **Action functions** (use in dispatch tables):
-- `chase_ball()` — run to ball
-- `run_to_attack_position()`, `run_to_defence_position()`, `run_to_start_position()` — run to named region center
+- `chase_ball()` — run to ball; reason: `"chase_ball"`
+- `run_to_attack_position()`, `run_to_defence_position()`, `run_to_start_position()` — run to named region center; reason: `"run_to_<region>:M3"` or `"run_to_<region>:A1:B2"` using `display_notation` from context
 - `press_or_attack()` — chase ball if top-3 closest, else run to attack position
 - `press_or_defend()` — chase ball if top-3 closest, else run to defence position
-- `pass_to_nearest_teammate()` — pass to nearest teammate ≥15m away, else kick to opponent goal
-- `kick_to_opponent_goal()` — kick to center of opponent goal
+- `pass_to_nearest_teammate()` — pass to nearest teammate ≥15m away, else kick to opponent goal; reason: `"pass_to_#N"` with recipient number
+- `kick_to_opponent_goal()` — kick to center of opponent goal; reason: `"kick_to_goal(x,z)"` with target coordinates
 
 **Region utility functions**:
 - `parse_col(s)` — parse column label to number (`"A"` → 1, `"Z"` → 26, `"AA"` → 27); case-insensitive
