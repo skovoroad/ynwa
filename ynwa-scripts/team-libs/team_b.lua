@@ -70,10 +70,16 @@ function nonforward_with_ball()
 end
 
 function forward_with_ball()
+    -- Highest priority: already in opponent penalty area → shoot immediately
+    if is_in_opponent_penalty_area() then
+        return kick_to_opponent_goal()
+    end
+    -- In attack position → shoot
     local pos = my_regions()["attack position"]
     if pos and is_in_region_obj(pos) then
         return kick_to_opponent_goal()
     end
+    -- Otherwise: run to attack position
     return run_to_attack_position()
 end
 
