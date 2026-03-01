@@ -4,7 +4,7 @@ stdlib_preamble_path = "../ynwa-scripts/preambles/stdlib.lua"
 team_a_preamble_path = "../ynwa-scripts/team-libs/team_a.lua"
 team_b_preamble_path = "../ynwa-scripts/team-libs/team_b.lua"
 
-# Team A Players (rows 23-44, defending goal at row 44, bottom of screen)
+# Team A Players
 [[players]]
 team = "A"
 number = 1
@@ -14,12 +14,9 @@ speed_rate = 45
 tackle_rate = 90
 shot_power = 50
 shot_accuracy = 50
-start_position = "R20"  # Mixed across field
-
-attack_position = "R16"  # Forward from start
-
-defence_position = "R23"  # Backward from startattack_position = "R16"  # 4 rows forward
-defence_position = "R23"  # 3 rows backward
+start_position = "R18"
+attack_position = "R15"
+defence_position = "R21"
 script = '''
 function make_decision()
     return square_game_behavior()
@@ -35,12 +32,9 @@ speed_rate = 58
 tackle_rate = 70
 shot_power = 50
 shot_accuracy = 50
-start_position = "R5"  # Mixed across field
-
-attack_position = "R1"  # Forward from start
-
-defence_position = "R8"  # Backward from startattack_position = "R2"  # 3 rows forward
-defence_position = "R8"  # 3 rows backward
+start_position = "R5"
+attack_position = "R1"
+defence_position = "R7"
 script = '''
 function make_decision()
     return square_game_behavior()
@@ -56,12 +50,9 @@ speed_rate = 55
 tackle_rate = 72
 shot_power = 50
 shot_accuracy = 50
-start_position = "O35"  # Mixed across field
-
-attack_position = "O31"  # Forward from start
-
-defence_position = "O38"  # Backward from startattack_position = "O31"  # 4 rows forward
-defence_position = "O38"  # 3 rows backward
+start_position = "O32"
+attack_position = "O28"
+defence_position = "O35"
 script = '''
 function make_decision()
     return square_game_behavior()
@@ -77,12 +68,9 @@ speed_rate = 57
 tackle_rate = 74
 shot_power = 50
 shot_accuracy = 50
-start_position = "M10"  # Mixed across field
-
-attack_position = "M6"  # Forward from start
-
-defence_position = "M13"  # Backward from startattack_position = "M7"  # 3 rows forward
-defence_position = "M13"  # 3 rows backward
+start_position = "M9"
+attack_position = "M5"
+defence_position = "M12"
 script = '''
 function make_decision()
     return square_game_behavior()
@@ -98,11 +86,10 @@ speed_rate = 61
 tackle_rate = 68
 shot_power = 50
 shot_accuracy = 50
-start_position = "O20"  # Mixed across field
-
-attack_position = "O16"  # Forward from start
-
-defence_position = "O23"  # Backward from startscript = '''
+start_position = "O18"
+attack_position = "O15"
+defence_position = "O21"
+script = '''
 function make_decision()
     return square_game_behavior()
 end
@@ -117,11 +104,10 @@ speed_rate = 68
 tackle_rate = 62
 shot_power = 50
 shot_accuracy = 50
-start_position = "K25"  # Mixed across field
-
-attack_position = "K21"  # Forward from start
-
-defence_position = "K28"  # Backward from startscript = '''
+start_position = "K23"
+attack_position = "K19"
+defence_position = "K25"
+script = '''
 function make_decision()
     return square_game_behavior()
 end
@@ -136,11 +122,10 @@ speed_rate = 65
 tackle_rate = 65
 shot_power = 50
 shot_accuracy = 50
-start_position = "S35"  # Mixed across field
-
-attack_position = "S31"  # Forward from start
-
-defence_position = "S38"  # Backward from startscript = '''
+start_position = "S32"
+attack_position = "S28"
+defence_position = "S35"
+script = '''
 function make_decision()
     return square_game_behavior()
 end
@@ -155,11 +140,10 @@ speed_rate = 70
 tackle_rate = 60
 shot_power = 50
 shot_accuracy = 50
-start_position = "M25"  # Mixed across field
-
-attack_position = "M21"  # Forward from start
-
-defence_position = "M28"  # Backward from startscript = '''
+start_position = "M23"
+attack_position = "M19"
+defence_position = "M25"
+script = '''
 function make_decision()
     return square_game_behavior()
 end
@@ -174,11 +158,10 @@ speed_rate = 82
 tackle_rate = 48
 shot_power = 50
 shot_accuracy = 50
-start_position = "S39"  # Mixed across field
-
-attack_position = "S35"  # Forward from start
-
-defence_position = "S42"  # Backward from startscript = '''
+start_position = "S35"
+attack_position = "S32"
+defence_position = "S38"
+script = '''
 function make_decision()
     return square_game_behavior()
 end
@@ -193,11 +176,10 @@ speed_rate = 75
 tackle_rate = 52
 shot_power = 50
 shot_accuracy = 50
-start_position = "H15"  # Mixed across field
-
-attack_position = "H11"  # Forward from start
-
-defence_position = "H18"  # Backward from startscript = '''
+start_position = "H14"
+attack_position = "H10"
+defence_position = "H16"
+script = '''
 function make_decision()
     return square_game_behavior()
 end
@@ -212,17 +194,16 @@ speed_rate = 85
 tackle_rate = 45
 shot_power = 50
 shot_accuracy = 50
-start_position = "H25"  # Mixed across field
-
-attack_position = "H21"  # Forward from start
-
-defence_position = "H28"  # Backward from startscript = '''
+start_position = "H23"
+attack_position = "H19"
+defence_position = "H25"
+script = '''
 function make_decision()
     return square_game_behavior()
 end
 '''
 
-# Team B Players (own orientation: defending goal at row 44)
+# Team B Players (own orientation: defending goal at row 1 = display row 40)
 [[players]]
 team = "B"
 number = 1
@@ -232,11 +213,10 @@ speed_rate = 42
 tackle_rate = 92
 shot_power = 50
 shot_accuracy = 50
-start_position = "S30"  # Mixed across field
-
-attack_position = "S26"  # Forward from start
-
-defence_position = "S33"  # Backward from startscript = '''
+start_position = "S27"
+attack_position = "S24"
+defence_position = "S30"
+script = '''
 function make_decision()
     return square_game_behavior()
 end
@@ -251,11 +231,10 @@ speed_rate = 60
 tackle_rate = 71
 shot_power = 50
 shot_accuracy = 50
-start_position = "R15"  # Mixed across field
-
-attack_position = "R11"  # Forward from start
-
-defence_position = "R18"  # Backward from startscript = '''
+start_position = "R14"
+attack_position = "R10"
+defence_position = "R16"
+script = '''
 function make_decision()
     return square_game_behavior()
 end
@@ -270,11 +249,10 @@ speed_rate = 53
 tackle_rate = 75
 shot_power = 50
 shot_accuracy = 50
-start_position = "R10"  # Mixed across field
-
-attack_position = "R6"  # Forward from start
-
-defence_position = "R13"  # Backward from startscript = '''
+start_position = "R9"
+attack_position = "R5"
+defence_position = "R12"
+script = '''
 function make_decision()
     return square_game_behavior()
 end
@@ -289,11 +267,10 @@ speed_rate = 56
 tackle_rate = 73
 shot_power = 50
 shot_accuracy = 50
-start_position = "H20"  # Mixed across field
-
-attack_position = "H16"  # Forward from start
-
-defence_position = "H23"  # Backward from startscript = '''
+start_position = "H18"
+attack_position = "H15"
+defence_position = "H21"
+script = '''
 function make_decision()
     return square_game_behavior()
 end
@@ -308,11 +285,10 @@ speed_rate = 62
 tackle_rate = 69
 shot_power = 50
 shot_accuracy = 50
-start_position = "H10"  # Mixed across field
-
-attack_position = "H6"  # Forward from start
-
-defence_position = "H13"  # Backward from startscript = '''
+start_position = "H9"
+attack_position = "H5"
+defence_position = "H12"
+script = '''
 function make_decision()
     return square_game_behavior()
 end
@@ -327,11 +303,10 @@ speed_rate = 70
 tackle_rate = 63
 shot_power = 50
 shot_accuracy = 50
-start_position = "R35"  # Mixed across field
-
-attack_position = "R31"  # Forward from start
-
-defence_position = "R38"  # Backward from startscript = '''
+start_position = "R32"
+attack_position = "R28"
+defence_position = "R35"
+script = '''
 function make_decision()
     return square_game_behavior()
 end
@@ -346,11 +321,10 @@ speed_rate = 67
 tackle_rate = 66
 shot_power = 50
 shot_accuracy = 50
-start_position = "M35"  # Mixed across field
-
-attack_position = "M31"  # Forward from start
-
-defence_position = "M38"  # Backward from startscript = '''
+start_position = "M32"
+attack_position = "M28"
+defence_position = "M35"
+script = '''
 function make_decision()
     return square_game_behavior()
 end
@@ -365,11 +339,10 @@ speed_rate = 72
 tackle_rate = 61
 shot_power = 50
 shot_accuracy = 50
-start_position = "M39"  # Mixed across field
-
-attack_position = "M35"  # Forward from start
-
-defence_position = "M42"  # Backward from startscript = '''
+start_position = "M35"
+attack_position = "M32"
+defence_position = "M38"
+script = '''
 function make_decision()
     return square_game_behavior()
 end
@@ -384,11 +357,10 @@ speed_rate = 80
 tackle_rate = 49
 shot_power = 50
 shot_accuracy = 50
-start_position = "O10"  # Mixed across field
-
-attack_position = "O6"  # Forward from start
-
-defence_position = "O13"  # Backward from startscript = '''
+start_position = "O9"
+attack_position = "O5"
+defence_position = "O12"
+script = '''
 function make_decision()
     return square_game_behavior()
 end
@@ -403,11 +375,10 @@ speed_rate = 78
 tackle_rate = 54
 shot_power = 50
 shot_accuracy = 50
-start_position = "H5"  # Mixed across field
-
-attack_position = "H1"  # Forward from start
-
-defence_position = "H8"  # Backward from startscript = '''
+start_position = "H5"
+attack_position = "H1"
+defence_position = "H7"
+script = '''
 function make_decision()
     return square_game_behavior()
 end
@@ -422,12 +393,12 @@ speed_rate = 88
 tackle_rate = 46
 shot_power = 50
 shot_accuracy = 50
-start_position = "O25"  # Mixed across field
-
-attack_position = "O21"  # Forward from start
-
-defence_position = "O28"  # Backward from startscript = '''
+start_position = "O23"
+attack_position = "O19"
+defence_position = "O25"
+script = '''
 function make_decision()
     return square_game_behavior()
 end
 '''
+

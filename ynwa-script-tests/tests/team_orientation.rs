@@ -9,9 +9,9 @@ use ynwa_core::team::Team;
 use ynwa_script_tests::request_decisions_for_all;
 
 /// Helper function to create a test game with a specific script for a team.
-/// Uses a standard football field (60×101.5m, 26×44 grid) without zones — zones are not needed here.
+/// Uses a standard football field (68×104.6m, 26×40 grid) without zones — zones are not needed here.
 fn create_game_with_team_script(team: Team, script: String) -> Game {
-    let field = ynwa_core::field::Field::from_meters(60.0, 101.538_46, 26, 44);
+    let field = ynwa_core::field::Field::from_meters(68.0, 104.615_38, 26, 40);
     let grid_dims = field.grid_dimensions();
 
     // For Team A, start near their goal (left side)
@@ -103,11 +103,11 @@ fn test_team_b_cell_flipped() {
 
     match decision.as_ref().unwrap() {
         Decision::Run(DecisionTarget::GridCell(cell)) => {
-            // Team B's A1 should flip to Team A's Z44 (column 26, row 44 in 26x44 grid)
+            // Team B's A1 should flip to Team A's Z40 (column 26, row 40 in 26x40 grid)
             assert_eq!(
                 cell,
-                &GridCell::new(26, 44).unwrap(),
-                "Team B: A1 in Team B coords should become Z44 in display coords"
+                &GridCell::new(26, 40).unwrap(),
+                "Team B: A1 in Team B coords should become Z40 in display coords"
             );
         }
         _ => panic!("Expected Run(GridCell)"),
@@ -184,16 +184,16 @@ fn test_team_b_region_flipped() {
         Decision::Run(DecisionTarget::Region(region)) => {
             // After flip: team remains A (lua_format always creates Team A regions),
             // but coordinates flip
-            // A1 -> Z44, B2 -> Y43 (in 26x44 grid)
+            // A1 -> Z40, B2 -> Y39 (in 26x40 grid)
             assert_eq!(
                 region.top_left,
-                GridCell::new(25, 43).unwrap(),
-                "Team B: B2 in Team B coords should become Y43 (25,43) in display coords"
+                GridCell::new(25, 39).unwrap(),
+                "Team B: B2 in Team B coords should become Y39 (25,39) in display coords"
             );
             assert_eq!(
                 region.bottom_right,
-                GridCell::new(26, 44).unwrap(),
-                "Team B: A1 in Team B coords should become Z44 (26,44) in display coords"
+                GridCell::new(26, 40).unwrap(),
+                "Team B: A1 in Team B coords should become Z40 (26,40) in display coords"
             );
         }
         _ => panic!("Expected Run(Region)"),
@@ -233,8 +233,8 @@ fn test_team_b_point_flipped() {
         Decision::Run(DecisionTarget::Point(point)) => {
             use uom::si::length::meter;
 
-            let field_width = 60.0_f32;
-            let field_length = 101.538_46_f32;
+            let field_width = 68.0_f32;
+            let field_length = 104.615_38_f32;
 
             // Point (20, 0, 15) for Team B should flip to:
             // x: field_width - 20, y: unchanged, z: field_length - 15

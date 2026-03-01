@@ -52,9 +52,9 @@ goalkeeper_play = {
 }
 
 -- Shooting zone: slightly deeper than penalty_area_b, slightly narrower.
--- I=col9, R=col18 (penalty spans cols 2-25); row 30 is ~3 rows deeper than penalty start.
-local SHOOTING_ZONE_FROM = "I30"
-local SHOOTING_ZONE_TO   = "R44"
+-- I=col9, R=col18 (penalty spans cols 2-25); row 27 is ~3 rows deeper than penalty start (row 34 in 26×40).
+local SHOOTING_ZONE_FROM = "I27"
+local SHOOTING_ZONE_TO   = "R40"
 
 local function pass_to_numbers(numbers)
     return pass_to_players_by_numbers(numbers)

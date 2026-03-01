@@ -229,6 +229,10 @@ System execution order (important for correct operation):
 Y-up right-handed coordinate system: X=width, Y=height, Z=length (Team A → Team B).
 See `field/mod.rs` `//!` doc for types, zone geometry, and design decisions.
 
+**Standard football field dimensions:** 68m × 104.6m, 26×40 grid (cell ≈ 2.615m).
+Aspect ratio 1:1.54 matches FIFA proportions (68:105). Columns A–Z (26) fit the English alphabet.
+See `ynwa-football/src/field_builder.rs` for constants.
+
 ## Orientation System (`orientation.rs`)
 
 Coordinate transformations between team perspectives.

@@ -4,13 +4,13 @@ use ynwa_core::team::Team;
 use std::f32::consts::PI;
 
 // FIFA regulation dimensions (meters)
-// Adjusted to ensure square grid cells: 60m / 26 columns = ~2.3077m per cell
-const DEFAULT_WIDTH: f32 = 60.0;
-const DEFAULT_LENGTH: f32 = 101.538_46; // 44 rows × 2.3077m
+// Square grid cells: 68m / 26 columns ≈ 2.6154m per cell
+const DEFAULT_WIDTH: f32 = 68.0;
+const DEFAULT_LENGTH: f32 = 104.615_38; // 40 rows × 2.6154m
 const GOAL_AREA_LENGTH: f32 = 5.5;
 const GOAL_AREA_WIDTH: f32 = 18.32;
-const PENALTY_AREA_LENGTH: f32 = 16.153_846; // 7 cells × 2.3077m
-const PENALTY_AREA_WIDTH: f32 = 41.538_46; // 18 cells × 2.3077m
+const PENALTY_AREA_LENGTH: f32 = 18.307_69; // 7 cells × 2.6154m
+const PENALTY_AREA_WIDTH: f32 = 47.076_92; // 18 cells × 2.6154m
 const PENALTY_SPOT_DISTANCE: f32 = 11.0;
 const CENTER_CIRCLE_RADIUS: f32 = 9.15;
 const CORNER_ARC_RADIUS: f32 = 1.0;
@@ -21,7 +21,7 @@ pub(crate) const FIELD_WIDTH: f32 = DEFAULT_WIDTH;
 
 // Grid dimensions for football field
 const FOOTBALL_GRID_COLUMNS: u32 = 26; // A-Z
-const FOOTBALL_GRID_ROWS: u32 = 44; // Calculated for square cells
+const FOOTBALL_GRID_ROWS: u32 = 40; // Calculated for square cells (68m / 26 * 40 ≈ 104.6m, ratio 1:1.54)
 
 /// Creates a standard football field with all regulation zones
 pub fn create_football_field() -> Field {
@@ -314,18 +314,18 @@ mod tests {
 
     #[test]
     fn test_custom_dimensions_valid() {
-        // 52m width with 26 columns = 2m cells, 88m length with 44 rows = 2m cells (square!)
-        let result = create_football_field_with_dimensions(52.0, 88.0, 26, 44);
+        // 52m width with 26 columns = 2m cells, 80m length with 40 rows = 2m cells (square!)
+        let result = create_football_field_with_dimensions(52.0, 80.0, 26, 40);
         assert!(result.is_ok());
         let field = result.unwrap();
         assert_eq!(field.width().get::<meter>(), 52.0);
-        assert_eq!(field.length().get::<meter>(), 88.0);
+        assert_eq!(field.length().get::<meter>(), 80.0);
     }
 
     #[test]
     fn test_custom_dimensions_invalid() {
-        // 60m width with 26 columns = 2.3077m cells, but 100m length with 44 rows = 2.2727m cells (not square!)
-        let result = create_football_field_with_dimensions(60.0, 100.0, 26, 44);
+        // 68m width with 26 columns ≈ 2.615m cells, but 100m length with 40 rows = 2.5m cells (not square!)
+        let result = create_football_field_with_dimensions(68.0, 100.0, 26, 40);
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("square"));
     }

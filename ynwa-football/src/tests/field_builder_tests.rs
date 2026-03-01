@@ -3,10 +3,10 @@
 /// Verifies that football-specific zones (halves, penalty areas, goals, center circle)
 /// are correctly placed on the X/Z axes:
 ///
-///   X axis  = field WIDTH  (horizontal, short side, 60 m)
-///   Z axis  = field LENGTH (vertical,   long  side, 101.538 m)
+///   X axis  = field WIDTH  (horizontal, short side, 68 m)
+///   Z axis  = field LENGTH (vertical,   long  side, 104.6 m)
 ///   col (letter A-Z) → X axis   (26 columns span the width)
-///   row (number 1-44) → Z axis  (44 rows   span the length)
+///   row (number 1-40) → Z axis  (40 rows   span the length)
 ///   Team A goal at Z = 0,   Team B goal at Z = field_length
 ///
 /// Cross-layer tests (Layer 3) ensure that `region.center()` and zone geometry
@@ -30,8 +30,8 @@ fn test_field_x_is_width_z_is_length() {
     let l = field.length().get::<meter>();
 
     assert!(w < l, "Field width ({w:.2}) must be shorter than length ({l:.2}): X=width, Z=length");
-    assert!((w - 60.0).abs() < 0.1, "Field width must be ~60 m (X axis), got {w}");
-    assert!((l - 101.538).abs() < 0.1, "Field length must be ~101.5 m (Z axis), got {l}");
+    assert!((w - 68.0).abs() < 0.1, "Field width must be ~68 m (X axis), got {w}");
+    assert!((l - 104.615).abs() < 0.1, "Field length must be ~104.6 m (Z axis), got {l}");
 }
 
 // ── Layer 2: field_builder zone geometry ─────────────────────────────────────
@@ -198,12 +198,12 @@ fn test_cell_a1_is_in_half_a_not_half_b() {
 }
 
 #[test]
-fn test_cell_z44_is_in_half_b_not_half_a() {
+fn test_cell_z40_is_in_half_b_not_half_a() {
     let field = football_field();
     let w = field.width().get::<meter>();
 
     let region = field.grid_dimensions()
-        .create_region(GridCell::from_notation("Z44").unwrap(), GridCell::from_notation("Z44").unwrap())
+        .create_region(GridCell::from_notation("Z40").unwrap(), GridCell::from_notation("Z40").unwrap())
         .unwrap();
     let center = region.center(field.grid_dimensions(), w);
     let cx = center.x.get::<meter>();
@@ -212,8 +212,8 @@ fn test_cell_z44_is_in_half_b_not_half_a() {
     let half_a = match &field.get_zone("half", Some(ynwa_core::team::Team::A)).unwrap().geometry { ZoneGeometry::Rectangle(r) => r.clone(), _ => panic!() };
     let half_b = match &field.get_zone("half", Some(ynwa_core::team::Team::B)).unwrap().geometry { ZoneGeometry::Rectangle(r) => r.clone(), _ => panic!() };
 
-    assert!(point_in_rect(cx, cz, &half_b), "Cell Z44 center ({cx:.4}, {cz:.4}) must lie inside half_b");
-    assert!(!point_in_rect(cx, cz, &half_a), "Cell Z44 center ({cx:.4}, {cz:.4}) must NOT lie inside half_a");
+    assert!(point_in_rect(cx, cz, &half_b), "Cell Z40 center ({cx:.4}, {cz:.4}) must lie inside half_b");
+    assert!(!point_in_rect(cx, cz, &half_a), "Cell Z40 center ({cx:.4}, {cz:.4}) must NOT lie inside half_a");
 }
 
 #[test]
@@ -236,12 +236,12 @@ fn test_cell_m1_is_in_penalty_area_a() {
 }
 
 #[test]
-fn test_cell_m44_is_in_penalty_area_b() {
+fn test_cell_m40_is_in_penalty_area_b() {
     let field = football_field();
     let w = field.width().get::<meter>();
 
     let region = field.grid_dimensions()
-        .create_region(GridCell::from_notation("M44").unwrap(), GridCell::from_notation("M44").unwrap())
+        .create_region(GridCell::from_notation("M40").unwrap(), GridCell::from_notation("M40").unwrap())
         .unwrap();
     let center = region.center(field.grid_dimensions(), w);
     let cx = center.x.get::<meter>();
@@ -251,7 +251,7 @@ fn test_cell_m44_is_in_penalty_area_b() {
         ZoneGeometry::Rectangle(r) => r.clone(), _ => panic!()
     };
 
-    assert!(point_in_rect(cx, cz, &pb), "Cell M44 center ({cx:.4}, {cz:.4}) must be inside penalty_area_b (min_x={:.4}, max_x={:.4}, min_z={:.4}, max_z={:.4})", pb.min.x.get::<meter>(), pb.max.x.get::<meter>(), pb.min.z.get::<meter>(), pb.max.z.get::<meter>());
+    assert!(point_in_rect(cx, cz, &pb), "Cell M40 center ({cx:.4}, {cz:.4}) must be inside penalty_area_b (min_x={:.4}, max_x={:.4}, min_z={:.4}, max_z={:.4})", pb.min.x.get::<meter>(), pb.max.x.get::<meter>(), pb.min.z.get::<meter>(), pb.max.z.get::<meter>());
 }
 
 #[test]

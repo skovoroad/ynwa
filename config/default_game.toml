@@ -4,7 +4,7 @@ stdlib_preamble_path = "../ynwa-scripts/preambles/stdlib.lua"
 team_a_preamble_path = "../ynwa-scripts/team-libs/team_a.lua"
 team_b_preamble_path = "../ynwa-scripts/team-libs/team_b.lua"
 
-# Team A Players (rows 1-22, defending goal at row 1, Z=0 end of field)
+# Team A Players (rows 1-20, defending goal at row 1, Z=0 end of field)
 [[players]]
 team = "A"
 number = 1
@@ -14,9 +14,9 @@ speed_rate = 85
 tackle_rate = 90
 shot_power = 50
 shot_accuracy = 50
-start_position = "M3"  # Center of goal area
-attack_position = "M10"  # Move up to midfield zone
-defence_position = "M1"  # Stay at goal line
+start_position = "N3"
+attack_position = "N9"
+defence_position = "N1"
 script = 'player_play = goalkeeper_play'
 
 [[players]]
@@ -28,9 +28,9 @@ speed_rate = 58
 tackle_rate = 70
 shot_power = 50
 shot_accuracy = 50
-start_position = "G8"  # Left back
-attack_position = "G20"  # Push to just past center line
-defence_position = "G5"  # Drop back slightly
+start_position = "G7"
+attack_position = "G18"
+defence_position = "G5"
 script = 'player_play = { i_have_ball = defender_with_ball }'
 
 [[players]]
@@ -42,9 +42,9 @@ speed_rate = 55
 tackle_rate = 72
 shot_power = 50
 shot_accuracy = 50
-start_position = "K8"  # Center back left
-attack_position = "K20"  # Push to just past center line
-defence_position = "K5"  # Drop back slightly
+start_position = "K7"
+attack_position = "K18"
+defence_position = "K5"
 script = 'player_play = { i_have_ball = defender_with_ball }'
 
 [[players]]
@@ -56,9 +56,9 @@ speed_rate = 57
 tackle_rate = 74
 shot_power = 50
 shot_accuracy = 50
-start_position = "O8"  # Center back right
-attack_position = "O20"  # Push to just past center line
-defence_position = "O5"  # Drop back slightly
+start_position = "P7"
+attack_position = "P18"
+defence_position = "P5"
 script = 'player_play = { i_have_ball = defender_with_ball }'
 
 [[players]]
@@ -70,9 +70,9 @@ speed_rate = 61
 tackle_rate = 68
 shot_power = 50
 shot_accuracy = 50
-start_position = "S8"  # Right back
-attack_position = "S20"  # Push to just past center line
-defence_position = "S5"  # Drop back slightly
+start_position = "T7"
+attack_position = "T18"
+defence_position = "T5"
 script = 'player_play = { i_have_ball = defender_with_ball }'
 
 [[players]]
@@ -84,9 +84,9 @@ speed_rate = 68
 tackle_rate = 62
 shot_power = 50
 shot_accuracy = 50
-start_position = "H14"  # Left midfielder
-attack_position = "H27"  # Push well into opponent half
-defence_position = "H10"  # Drop back to support defense
+start_position = "H13"
+attack_position = "H25"
+defence_position = "H9"
 script = 'player_play = { i_have_ball = midfielder_with_ball }'
 
 [[players]]
@@ -98,9 +98,9 @@ speed_rate = 65
 tackle_rate = 65
 shot_power = 50
 shot_accuracy = 50
-start_position = "M14"  # Center midfielder
-attack_position = "M27"  # Push well into opponent half
-defence_position = "M10"  # Drop back to support defense
+start_position = "N13"
+attack_position = "N25"
+defence_position = "N9"
 script = 'player_play = { i_have_ball = midfielder_with_ball }'
 
 [[players]]
@@ -112,9 +112,9 @@ speed_rate = 70
 tackle_rate = 60
 shot_power = 50
 shot_accuracy = 50
-start_position = "R14"  # Right midfielder
-attack_position = "R27"  # Push well into opponent half
-defence_position = "R10"  # Drop back to support defense
+start_position = "S13"
+attack_position = "S25"
+defence_position = "S9"
 script = 'player_play = { i_have_ball = midfielder_with_ball }'
 
 [[players]]
@@ -126,9 +126,9 @@ speed_rate = 82
 tackle_rate = 48
 shot_power = 50
 shot_accuracy = 50
-start_position = "G20"  # Left winger
-attack_position = "G37"  # Push near opponent penalty area
-defence_position = "G16"  # Drop back slightly past start
+start_position = "G18"
+attack_position = "G34"
+defence_position = "G15"
 script = 'player_play = { i_have_ball = forward_with_ball }'
 
 [[players]]
@@ -140,9 +140,9 @@ speed_rate = 75
 tackle_rate = 52
 shot_power = 50
 shot_accuracy = 80
-start_position = "M20"  # Striker
-attack_position = "M38"  # Push near opponent penalty area
-defence_position = "M16"  # Drop back slightly past start
+start_position = "N18"
+attack_position = "N35"
+defence_position = "N15"
 script = 'player_play = { i_have_ball = forward_with_ball }'
 
 [[players]]
@@ -154,12 +154,12 @@ speed_rate = 85
 tackle_rate = 45
 shot_power = 50
 shot_accuracy = 50
-start_position = "S20"  # Right winger
-attack_position = "S37"  # Push near opponent penalty area
-defence_position = "S16"  # Drop back slightly past start
+start_position = "T18"
+attack_position = "T34"
+defence_position = "T15"
 script = 'player_play = { i_have_ball = forward_with_ball }'
 
-# Team B Players (own orientation: rows 1-22, defending goal at row 1 = display row 44)
+# Team B Players (own orientation: rows 1-20, defending goal at row 1 = display row 40)
 [[players]]
 team = "B"
 number = 1
@@ -169,9 +169,9 @@ speed_rate = 42
 tackle_rate = 92
 shot_power = 50
 shot_accuracy = 50
-start_position = "M3"  # Center of goal area (own orientation)
-attack_position = "M10"  # Move up to midfield zone
-defence_position = "M1"  # Stay at goal line
+start_position = "N3"
+attack_position = "N9"
+defence_position = "N1"
 script = 'player_play = goalkeeper_play'
 
 [[players]]
@@ -183,9 +183,9 @@ speed_rate = 60
 tackle_rate = 71
 shot_power = 50
 shot_accuracy = 50
-start_position = "G8"  # Left back
-attack_position = "G20"  # Push to just past center line
-defence_position = "G5"  # Drop back slightly
+start_position = "G7"
+attack_position = "G18"
+defence_position = "G5"
 script = 'player_play = { i_have_ball = nonforward_with_ball }'
 
 [[players]]
@@ -197,9 +197,9 @@ speed_rate = 53
 tackle_rate = 75
 shot_power = 50
 shot_accuracy = 50
-start_position = "K8"  # Center back left
-attack_position = "K20"  # Push to just past center line
-defence_position = "K5"  # Drop back slightly
+start_position = "K7"
+attack_position = "K18"
+defence_position = "K5"
 script = 'player_play = { i_have_ball = nonforward_with_ball }'
 
 [[players]]
@@ -211,9 +211,9 @@ speed_rate = 56
 tackle_rate = 73
 shot_power = 50
 shot_accuracy = 50
-start_position = "O8"  # Center back right
-attack_position = "O20"  # Push to just past center line
-defence_position = "O5"  # Drop back slightly
+start_position = "P7"
+attack_position = "P18"
+defence_position = "P5"
 script = 'player_play = { i_have_ball = nonforward_with_ball }'
 
 [[players]]
@@ -225,9 +225,9 @@ speed_rate = 62
 tackle_rate = 69
 shot_power = 50
 shot_accuracy = 50
-start_position = "S8"  # Right back
-attack_position = "S20"  # Push to just past center line
-defence_position = "S5"  # Drop back slightly
+start_position = "T7"
+attack_position = "T18"
+defence_position = "T5"
 script = 'player_play = { i_have_ball = nonforward_with_ball }'
 
 [[players]]
@@ -239,9 +239,9 @@ speed_rate = 70
 tackle_rate = 63
 shot_power = 50
 shot_accuracy = 50
-start_position = "F14"  # Left midfielder (4-4-2: wider)
-attack_position = "F27"  # Push well into opponent half
-defence_position = "F10"  # Drop back to support defense
+start_position = "F13"
+attack_position = "F25"
+defence_position = "F9"
 script = 'player_play = { i_have_ball = nonforward_with_ball }'
 
 [[players]]
@@ -253,9 +253,9 @@ speed_rate = 67
 tackle_rate = 66
 shot_power = 50
 shot_accuracy = 50
-start_position = "K14"  # Center-left midfielder
-attack_position = "J27"  # Push well into opponent half
-defence_position = "J10"  # Drop back to support defense
+start_position = "K13"
+attack_position = "J25"
+defence_position = "J9"
 script = 'player_play = { i_have_ball = nonforward_with_ball }'
 
 [[players]]
@@ -267,9 +267,9 @@ speed_rate = 72
 tackle_rate = 61
 shot_power = 50
 shot_accuracy = 50
-start_position = "N14"  # Center-right midfielder
-attack_position = "P27"  # Push well into opponent half
-defence_position = "P10"  # Drop back to support defense
+start_position = "N13"
+attack_position = "P25"
+defence_position = "P9"
 script = 'player_play = { i_have_ball = nonforward_with_ball }'
 
 [[players]]
@@ -281,9 +281,9 @@ speed_rate = 69
 tackle_rate = 64
 shot_power = 50
 shot_accuracy = 50
-start_position = "T14"  # Right midfielder (4-4-2: wider)
-attack_position = "T27"  # Push well into opponent half
-defence_position = "T10"  # Drop back to support defense
+start_position = "T13"
+attack_position = "T25"
+defence_position = "T9"
 script = 'player_play = { i_have_ball = nonforward_with_ball }'
 
 [[players]]
@@ -295,9 +295,9 @@ speed_rate = 78
 tackle_rate = 54
 shot_power = 50
 shot_accuracy = 50
-start_position = "I20"  # Left striker
-attack_position = "I38"  # Push near opponent penalty area
-defence_position = "I16"  # Drop back slightly past start
+start_position = "I18"
+attack_position = "I35"
+defence_position = "I15"
 script = 'player_play = { i_have_ball = forward_with_ball }'
 
 [[players]]
@@ -309,7 +309,7 @@ speed_rate = 80
 tackle_rate = 49
 shot_power = 50
 shot_accuracy = 50
-start_position = "R20"  # Right striker
-attack_position = "R38"  # Push near opponent penalty area
-defence_position = "R16"  # Drop back slightly past start
+start_position = "R18"
+attack_position = "R35"
+defence_position = "R15"
 script = 'player_play = { i_have_ball = forward_with_ball }'
