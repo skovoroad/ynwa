@@ -107,6 +107,19 @@ function am_i_top3_closest_to_ball()
     return closer < 3
 end
 
+-- Returns the teammate object with the given number, or nil if not found.
+function get_teammate_by_number(n)
+    for _, tm in ipairs(get_teammates()) do
+        if tm.number == n then return tm end
+    end
+    return nil
+end
+
+-- Action: pass to a specific teammate object.
+function pass_to_teammate(tm)
+    return {action = "kick", target = {x = tm.position.x, z = tm.position.z}, reason = "pass_to_#" .. tm.number}
+end
+
 -- Action: pass to nearest teammate among given numbers; kick to goal if none found.
 function pass_to_players_by_numbers(numbers)
     local my_pos = my_position()
@@ -161,6 +174,21 @@ function goalkeeper_cover_position()
         target_type = "point",
         target = {x = clamped_x, z = target_z, y = 0},
         reason = "goalkeeper_cover"
+    }
+end
+
+function is_in_opponent_penalty_area()
+    return is_in_region_obj(get_opponent_penalty_area())
+end
+
+-- Run to center of opponent penalty area.
+function run_to_opponent_penalty_area()
+    local pa = get_opponent_penalty_area()
+    return {
+        action = "run",
+        target_type = "point",
+        target = {x = (pa.min_x + pa.max_x) / 2, z = (pa.min_z + pa.max_z) / 2, y = 0},
+        reason = "run_to_opponent_penalty_area"
     }
 end
 

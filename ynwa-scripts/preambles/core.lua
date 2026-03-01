@@ -65,3 +65,11 @@ function get_own_goal()
         return GAME_DATA.zones.goal_b
     end
 end
+
+function get_opponent_penalty_area()
+    if my_team_name() == "A" then
+        return GAME_DATA.zones.penalty_area_b
+    else
+        return GAME_DATA.zones.penalty_area_a
+    end
+end

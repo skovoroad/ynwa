@@ -422,15 +422,18 @@ Before executing user script, three preamble levels are loaded in the following 
 - `press_or_attack()` — chase ball if top-3 closest, else run to attack position
 - `press_or_defend()` — chase ball if top-3 closest, else run to defence position
 - `pass_to_nearest_teammate()` — pass to nearest teammate ≥15m away, else kick to opponent goal; reason: `"pass_to_#N"` with recipient number
+- `pass_to_teammate(tm)` — pass to a specific teammate object (from `get_teammate_by_number`); reason: `"pass_to_#N"`
 - `pass_to_players_by_numbers(numbers)` — pass to nearest teammate whose number is in `numbers`, else kick to opponent goal; reason: `"pass_to_#N"`
 - `kick_to_opponent_goal()` — kick to center of opponent goal; reason: `"kick_to_goal(x,z)"` with target coordinates
 - `goalkeeper_cover_position()` — run to a point on the defence-position Z line, tracking ball X clamped to own goal width; reason: `"goalkeeper_cover"`
+- `run_to_opponent_penalty_area()` — run to center of opponent penalty area; reason: `"run_to_opponent_penalty_area"`
 
 **Region utility functions**:
 - `parse_col(s)` — parse column label to number (`"A"` → 1, `"Z"` → 26, `"AA"` → 27); case-insensitive
 - `parse_notation(n)` — parse grid notation to `(col, row)` (`"M22"` → 13, 22); errors on invalid input
 - `is_in_region(from, to)` — returns `true` if `my_position()` is inside the rectangle defined by grid notation (`"A1"`, `"Z44"`); uses square cell size (`field.width / field.columns`)
 - `is_in_region_obj(region)` — returns `true` if `my_position()` is inside a region object `{min_x, max_x, min_z, max_z}`; use with regions from `my_regions()`
+- `is_in_opponent_penalty_area()` — returns `true` if `my_position()` is inside the opponent penalty area
 - `run_to_region(from, to)` — returns a Run decision targeting the region center
 
 **Dispatcher functions** (defined here, NOT in team/player scripts):
@@ -440,10 +443,12 @@ Before executing user script, three preamble levels are loaded in the following 
 
 **Helper functions**:
 - `am_i_ball_owner()`, `am_i_top3_closest_to_ball()`, `distance(pos1, pos2)`
+- `get_teammate_by_number(n)` — returns teammate object with the given number, or `nil` if not found
 
 **Core functions** (in `core.lua`):
 - `get_opponent_goal()` — returns opponent goal zone (larger Z in player's coordinate system)
 - `get_own_goal()` — returns own goal zone (smaller Z in player's coordinate system)
+- `get_opponent_penalty_area()` — returns opponent penalty area zone (larger Z in player's coordinate system)
 
 **Rule**: Stdlib contains no team strategies, only reusable utilities.
 
