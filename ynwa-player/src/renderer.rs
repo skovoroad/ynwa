@@ -39,6 +39,8 @@ pub fn render_field(
     draw_grid_labels(&to_screen_x, &to_screen_y, field, field_length);
     draw_center_line(&to_screen_x, &to_screen_y, field_width, field_length, white);
     draw_zones(&to_screen_x, &to_screen_y, field, scale, white);
+    draw_goal_nets(&to_screen_x, &to_screen_y, field_width, field_length, scale);
+    draw_corner_flags(&to_screen_x, &to_screen_y, field_width, field_length, game_state.elapsed_time);
     draw_players(&to_screen_x, &to_screen_y, game_config, game_state);
     draw_ball(&to_screen_x, &to_screen_y, game_state);
 }
@@ -154,6 +156,136 @@ fn draw_center_line(
     );
 }
 
+fn draw_goal_nets(
+    to_screen_x: &dyn Fn(f32) -> f32,
+    to_screen_y: &dyn Fn(f32) -> f32,
+    field_width: f32,
+    field_length: f32,
+    scale: f32,
+) {
+    // GOAL_WIDTH = 7.32, GOAL_DEPTH = 2.5, centered on field width
+    let goal_width = 7.32_f32;
+    let goal_depth = 2.5_f32;
+    let x_min = (field_width - goal_width) / 2.0;
+    let x_max = x_min + goal_width;
+
+    let net_color = Color::new(1.0, 1.0, 1.0, 0.30);
+
+    // Number of net cells: ~0.5m spacing
+    let cols = 14;  // vertical lines inside goal width  (7.32 / 0.5 ≈ 14)
+    let rows = 5;   // horizontal lines across goal depth (2.5  / 0.5 =  5)
+
+    // --- Team A goal: z from -goal_depth to 0 (above field on screen) ---
+    {
+        let z_near = 0.0_f32;        // goal line (field boundary)
+        let z_far  = -goal_depth;    // back of net
+
+        // Background fill: take top/bottom from actual screen coords
+        let sx  = to_screen_x(x_min);
+        let sw  = (x_max - x_min) * scale;
+        let sy1 = to_screen_y(z_near);
+        let sy2 = to_screen_y(z_far);
+        let top = sy1.min(sy2);
+        let sh  = (sy1 - sy2).abs();
+        draw_rectangle(sx, top, sw, sh, Color::new(0.0, 0.0, 0.0, 0.25));
+
+        // Vertical lines (parallel to goal depth, spaced along width)
+        for i in 0..=cols {
+            let x = x_min + (goal_width / cols as f32) * i as f32;
+            draw_line(
+                to_screen_x(x), to_screen_y(z_near),
+                to_screen_x(x), to_screen_y(z_far),
+                1.0, net_color,
+            );
+        }
+        // Horizontal lines (parallel to goal line, spaced along depth)
+        for j in 0..=rows {
+            let z = z_near + (z_far - z_near) / rows as f32 * j as f32;
+            draw_line(
+                to_screen_x(x_min), to_screen_y(z),
+                to_screen_x(x_max), to_screen_y(z),
+                1.0, net_color,
+            );
+        }
+    }
+
+    // --- Team B goal: z from field_length to field_length + goal_depth (below field on screen) ---
+    {
+        let z_near = field_length;
+        let z_far  = field_length + goal_depth;
+
+        let sx  = to_screen_x(x_min);
+        let sw  = (x_max - x_min) * scale;
+        let sy1 = to_screen_y(z_near);
+        let sy2 = to_screen_y(z_far);
+        let top = sy1.min(sy2);
+        let sh  = (sy1 - sy2).abs();
+        draw_rectangle(sx, top, sw, sh, Color::new(0.0, 0.0, 0.0, 0.25));
+
+        for i in 0..=cols {
+            let x = x_min + (goal_width / cols as f32) * i as f32;
+            draw_line(
+                to_screen_x(x), to_screen_y(z_near),
+                to_screen_x(x), to_screen_y(z_far),
+                1.0, net_color,
+            );
+        }
+        for j in 0..=rows {
+            let z = z_near + (z_far - z_near) / rows as f32 * j as f32;
+            draw_line(
+                to_screen_x(x_min), to_screen_y(z),
+                to_screen_x(x_max), to_screen_y(z),
+                1.0, net_color,
+            );
+        }
+    }
+}
+
+fn draw_corner_flags(
+    to_screen_x: &dyn Fn(f32) -> f32,
+    to_screen_y: &dyn Fn(f32) -> f32,
+    field_width: f32,
+    field_length: f32,
+    elapsed_time: f32,
+) {
+    // 2-frame animation: switches every 0.4 seconds
+    let frame = (elapsed_time / 0.4) as i32 % 2;
+
+    let corners = [
+        (0.0, 0.0),
+        (field_width, 0.0),
+        (0.0, field_length),
+        (field_width, field_length),
+    ];
+
+    for (fx, fz) in corners {
+        draw_corner_flag(to_screen_x(fx), to_screen_y(fz), frame);
+    }
+}
+
+/// Pixel-art corner flag. Base at (cx, cy).
+/// Pole: 2px wide, 10px tall. Flag: 6x3px, two frames (waves up/down).
+fn draw_corner_flag(cx: f32, cy: f32, frame: i32) {
+    let pole_color = Color::new(0.9, 0.9, 0.9, 1.0);
+    let flag_color = Color::new(1.0, 0.9, 0.0, 1.0); // yellow
+
+    let p = 2.0_f32; // pixel size
+
+    // Pole: 1×5 pixels, going upward from base
+    let pole_x = cx - p * 0.5;
+    let pole_top = cy - p * 5.0;
+    draw_rectangle(pole_x, pole_top, p, p * 5.0, pole_color);
+
+    // Flag: 3×2 pixels attached to top of pole
+    // Frame 0: flag horizontal (tip at same height as pole top)
+    // Frame 1: flag droops one pixel down (tip 1px lower)
+    let flag_y = match frame {
+        0 => pole_top,
+        _ => pole_top + p,
+    };
+    draw_rectangle(pole_x + p, flag_y, p * 3.0, p * 2.0, flag_color);
+}
+
 fn draw_zones(
     to_screen_x: &dyn Fn(f32) -> f32,
     to_screen_y: &dyn Fn(f32) -> f32,
@@ -238,9 +370,11 @@ fn draw_players(
         let vx = player_state.velocity.x.get::<meter_per_second>();
         let speed = (vx * vx + vz * vz).sqrt();
 
-        let shirt_color = match player_def.team {
-            ynwa_core::team::Team::A => Color::new(0.85, 0.1, 0.1, 1.0),
-            ynwa_core::team::Team::B => Color::new(0.0, 0.45, 1.0, 1.0),
+        let shirt_color = match (player_def.team, player_def.number) {
+            (ynwa_core::team::Team::A, 1) => Color::new(0.05, 0.05, 0.05, 1.0), // GK A: black
+            (ynwa_core::team::Team::B, 1) => Color::new(1.0, 0.85, 0.0, 1.0),   // GK B: yellow
+            (ynwa_core::team::Team::A, _) => Color::new(0.85, 0.1, 0.1, 1.0),
+            (ynwa_core::team::Team::B, _) => Color::new(0.0, 0.45, 1.0, 1.0),
         };
 
         // velocity.z > 0 => moving toward +Z => up on screen => back to viewer
