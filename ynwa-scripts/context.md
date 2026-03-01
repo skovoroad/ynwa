@@ -419,13 +419,10 @@ Before executing user script, three preamble levels are loaded in the following 
 **Action functions** (use in dispatch tables):
 - `chase_ball()` — run to ball; reason: `"chase_ball"`
 - `run_to_attack_position()`, `run_to_defence_position()`, `run_to_start_position()` — run to named region center; reason: `"run_to_<region>:M3"` or `"run_to_<region>:A1:B2"` using `display_notation` from context
-- `press_or_attack()` — chase ball if top-3 closest, else run to attack position
-- `press_or_defend()` — chase ball if top-3 closest, else run to defence position
-- `pass_to_nearest_teammate()` — pass to nearest teammate ≥15m away, else kick to opponent goal; reason: `"pass_to_#N"` with recipient number
 - `pass_to_teammate(tm)` — pass to a specific teammate object (from `get_teammate_by_number`); reason: `"pass_to_#N"`
 - `pass_to_players_by_numbers(numbers)` — pass to nearest teammate whose number is in `numbers`, else kick to opponent goal; reason: `"pass_to_#N"`
 - `kick_to_opponent_goal()` — kick to center of opponent goal; reason: `"kick_to_goal(x,z)"` with target coordinates
-- `goalkeeper_cover_position()` — run to a point on the defence-position Z line, tracking ball X clamped to own goal width; reason: `"goalkeeper_cover"`
+- `default_goalkeeper_cover_position()` — run to a point on the defence-position Z line, tracking ball X clamped to own goal width; reason: `"goalkeeper_cover"`
 - `run_to_opponent_penalty_area()` — run to center of opponent penalty area; reason: `"run_to_opponent_penalty_area"`
 
 **Region utility functions**:
@@ -442,7 +439,7 @@ Before executing user script, three preamble levels are loaded in the following 
 - `default_get_setup_position(reason)` — fallback; runs to center of `"start position"` region
 
 **Helper functions**:
-- `am_i_ball_owner()`, `am_i_top3_closest_to_ball()`, `distance(pos1, pos2)`
+- `am_i_ball_owner()`, `distance(pos1, pos2)`
 - `get_teammate_by_number(n)` — returns teammate object with the given number, or `nil` if not found
 
 **Core functions** (in `core.lua`):
@@ -458,11 +455,17 @@ Before executing user script, three preamble levels are loaded in the following 
 
 **Current structure** (both `team_a.lua` and `team_b.lua`):
 ```lua
+-- Team-specific helpers (local, not exported to player scripts)
+local function am_i_top3_closest_to_ball() ... end
+local function press_or_attack() ... end
+local function press_or_defend() ... end
+local function pass_to_nearest_teammate() ... end
+
 -- Shared goalkeeper dispatch table (assign in player script: player_play = goalkeeper_play)
 goalkeeper_play = {
     i_have_ball       = pass_to_nearest_teammate,
     team_has_ball     = run_to_defence_position,
-    opponent_has_ball = goalkeeper_cover_position,
+    opponent_has_ball = default_goalkeeper_cover_position,
 }
 team_play = {
     ball_is_free      = press_or_defend,

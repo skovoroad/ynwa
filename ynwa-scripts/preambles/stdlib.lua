@@ -56,16 +56,6 @@ function chase_ball()
     return {action = "run", target_type = "ball", reason = "chase_ball"}
 end
 
--- Action: chase ball if in top-3 closest, otherwise run to attack position
-function press_or_attack()
-    return am_i_top3_closest_to_ball() and chase_ball() or run_to_attack_position()
-end
-
--- Action: chase ball if in top-3 closest, otherwise run to defence position
-function press_or_defend()
-    return am_i_top3_closest_to_ball() and chase_ball() or run_to_defence_position()
-end
-
 -- Action: run to center of "attack position" region
 function run_to_attack_position()
     local pos = my_regions()["attack position"]
@@ -93,18 +83,6 @@ end
 -- Action: run to center of "start position" region
 function run_to_start_position()
     return default_get_setup_position(nil)
-end
-
--- Returns true if this player is among the 3 closest teammates to the ball
-function am_i_top3_closest_to_ball()
-    local my_dist = distance(my_position(), ball_position())
-    local closer = 0
-    for _, tm in ipairs(get_teammates()) do
-        if distance(tm.position, ball_position()) < my_dist then
-            closer = closer + 1
-        end
-    end
-    return closer < 3
 end
 
 -- Returns the teammate object with the given number, or nil if not found.
@@ -138,30 +116,8 @@ function pass_to_players_by_numbers(numbers)
     return kick_to_opponent_goal()
 end
 
--- Action: pass to nearest teammate at least 15m away; kick toward opponent goal if none found
-function pass_to_nearest_teammate()
-    local my_pos = my_position()
-    local best = nil
-    local best_dist = math.huge
-    for _, tm in ipairs(get_teammates()) do
-        local d = distance(my_pos, tm.position)
-        if d >= 15.0 and d < best_dist then
-            best_dist = d
-            best = tm
-        end
-    end
-    if best then
-        return {
-            action = "kick",
-            target = {x = best.position.x, z = best.position.z},
-            reason = "pass_to_#" .. best.number
-        }
-    end
-    return kick_to_opponent_goal()
-end
-
 -- Action: stay on the goal line at defence_position Z, tracking ball X clamped to goal width.
-function goalkeeper_cover_position()
+function default_goalkeeper_cover_position()
     local defence = my_regions()["defence position"]
     if defence == nil then return run_to_defence_position() end
     local goal = get_own_goal()

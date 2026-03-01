@@ -675,7 +675,7 @@ end
     assert!(matches!(state.current_decision, Some(Decision::Kick(_))));
 }
 
-// --- get_own_goal / goalkeeper_cover_position ---
+// --- get_own_goal / default_goalkeeper_cover_position ---
 
 #[test]
 fn test_get_own_goal_team_a() {
@@ -735,7 +735,7 @@ end
 
 #[test]
 fn test_goalkeeper_cover_position_clamps_to_goal() {
-    // goalkeeper_cover_position: target X is clamped to own goal width, Z is defence position Z.
+    // default_goalkeeper_cover_position: target X is clamped to own goal width, Z is defence position Z.
     // Ball at X=0 (far left) → target X == goal.min_x; ball at X=field.width (far right) → goal.max_x.
     let script = r#"
 function make_decision()
@@ -745,7 +745,7 @@ function make_decision()
 
     -- Ball at extreme left: target X must clamp to goal.min_x
     context.ball.position.x = -999
-    local d = goalkeeper_cover_position()
+    local d = default_goalkeeper_cover_position()
     assert(d.action == "run", "expected run")
     assert(math.abs(d.target.x - goal.min_x) < 0.01,
         "left clamp: expected " .. goal.min_x .. " got " .. d.target.x)
@@ -754,14 +754,14 @@ function make_decision()
 
     -- Ball at extreme right: target X must clamp to goal.max_x
     context.ball.position.x = 999
-    d = goalkeeper_cover_position()
+    d = default_goalkeeper_cover_position()
     assert(math.abs(d.target.x - goal.max_x) < 0.01,
         "right clamp: expected " .. goal.max_x .. " got " .. d.target.x)
 
     -- Ball at goal center: target X equals ball X
     local center_x = (goal.min_x + goal.max_x) / 2
     context.ball.position.x = center_x
-    d = goalkeeper_cover_position()
+    d = default_goalkeeper_cover_position()
     assert(math.abs(d.target.x - center_x) < 0.01,
         "center: expected " .. center_x .. " got " .. d.target.x)
 
