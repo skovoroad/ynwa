@@ -147,12 +147,19 @@ pub fn create_football_field_with_dimensions(
             "penalty_arc",
             Some(Team::A),
             Box::new(move || {
+                // Arc is the part of the penalty circle outside the penalty area.
+                // Intersection with penalty area boundary: dz = box_z - spot_z, dx = sqrt(r²-dz²)
+                // Angles from +X axis: atan2(dz, ±dx). start < end so span is positive.
+                let dz = PENALTY_AREA_LENGTH - PENALTY_SPOT_DISTANCE;
+                let dx = (PENALTY_ARC_RADIUS * PENALTY_ARC_RADIUS - dz * dz).sqrt();
+                let start = dz.atan2(dx);           // right intersection ~34°
+                let end   = dz.atan2(-dx);          // left intersection  ~146°
                 ZoneGeometry::Arc(Arc::from_radians(
                     half_width,
                     PENALTY_SPOT_DISTANCE,
                     PENALTY_ARC_RADIUS,
-                    -PI / 2.0,
-                    PI / 2.0,
+                    start,
+                    end,
                 ))
             }),
         ),
@@ -160,12 +167,16 @@ pub fn create_football_field_with_dimensions(
             "penalty_arc",
             Some(Team::B),
             Box::new(move || {
+                let dz = PENALTY_AREA_LENGTH - PENALTY_SPOT_DISTANCE;
+                let dx = (PENALTY_ARC_RADIUS * PENALTY_ARC_RADIUS - dz * dz).sqrt();
+                let start = (-dz).atan2(-dx);       // left intersection  ~-146°
+                let end   = (-dz).atan2(dx);        // right intersection ~-34°
                 ZoneGeometry::Arc(Arc::from_radians(
                     half_width,
                     length - PENALTY_SPOT_DISTANCE,
                     PENALTY_ARC_RADIUS,
-                    PI / 2.0,
-                    3.0 * PI / 2.0,
+                    start,
+                    end,
                 ))
             }),
         ),
@@ -190,8 +201,8 @@ pub fn create_football_field_with_dimensions(
                     width,
                     0.0,
                     CORNER_ARC_RADIUS,
-                    -PI / 2.0,
-                    0.0,
+                    PI / 2.0,
+                    PI,
                 ))
             }),
         ),
@@ -203,8 +214,8 @@ pub fn create_football_field_with_dimensions(
                     0.0,
                     length,
                     CORNER_ARC_RADIUS,
-                    PI / 2.0,
-                    PI,
+                    -PI / 2.0,
+                    0.0,
                 ))
             }),
         ),

@@ -191,7 +191,33 @@ fn draw_zones(
 
                 draw_circle(to_screen_x(px), to_screen_y(pz), 3.0, color);
             }
-            ZoneGeometry::Arc(_) => {}
+            ZoneGeometry::Arc(arc) => {
+                use uom::si::angle::radian;
+                let cx = arc.center.x.get::<meter>();
+                let cz = arc.center.z.get::<meter>();
+                let radius = arc.radius.get::<meter>() * scale;
+                let start = arc.start_angle.get::<radian>();
+                let end = arc.end_angle.get::<radian>();
+
+                // Field angles: CCW, +X=0, +Z=PI/2. Screen Y inverted → field angle `a` = screen `-a`.
+                // draw_arc doesn't handle Y-inversion correctly for partial arcs,
+                // so we draw the arc manually as line segments.
+                let mut span = end - start;
+                if span < 0.0 {
+                    span += std::f32::consts::TAU;
+                }
+                let segments = 32_usize;
+                let mut prev_x = to_screen_x(cx + radius / scale * start.cos());
+                let mut prev_y = to_screen_y(cz + radius / scale * start.sin());
+                for i in 1..=segments {
+                    let angle = start + span * i as f32 / segments as f32;
+                    let nx = to_screen_x(cx + radius / scale * angle.cos());
+                    let ny = to_screen_y(cz + radius / scale * angle.sin());
+                    draw_line(prev_x, prev_y, nx, ny, 1.0, color);
+                    prev_x = nx;
+                    prev_y = ny;
+                }
+            }
         }
     }
 }
