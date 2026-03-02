@@ -1,0 +1,6 @@
+name = "Goalkeeper B"
+reaction_rate = 88
+speed_rate = 42
+tackle_rate = 92
+shot_power = 50
+shot_accuracy = 50

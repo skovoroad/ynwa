@@ -1,0 +1,6 @@
+name = "Defender A2"
+reaction_rate = 68
+speed_rate = 55
+tackle_rate = 72
+shot_power = 50
+shot_accuracy = 50

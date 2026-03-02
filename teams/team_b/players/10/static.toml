@@ -1,0 +1,6 @@
+name = "Forward B1"
+reaction_rate = 82
+speed_rate = 78
+tackle_rate = 54
+shot_power = 50
+shot_accuracy = 50

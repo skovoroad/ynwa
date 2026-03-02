@@ -57,6 +57,26 @@ Common traits of target games:
 - Team game on a playing field
 - Game object must be placed into a goal
 
+### Team Repository (`teams/`)
+
+Top-level directory containing team data in a structured format. Each team occupies its own subdirectory:
+
+```
+teams/
+  team_a/
+    meta.toml        # team display name
+    preamble.lua     # team tactics (dispatch tables)
+    players/
+      NN/            # player directory, zero-padded number
+        static.toml    # immutable attributes: name, reaction_rate, speed_rate, tackle_rate, shot_power, shot_accuracy
+        tactical.toml  # tactical attributes: number, start_position, attack_position, defence_position
+        script.lua     # optional player script: player_play / player_setup overrides
+```
+
+Read access is intended to go through a `TeamSource` trait (work in progress), allowing the filesystem implementation to be replaced with a database backend without changing the rest of the codebase.
+
+**Status**: data files created; `TeamSource` trait and `FsTeamRepo` implementation are not yet written.
+
 ### Deferred Aspects
 
 The following aspects are considered in the design but implementation is postponed:

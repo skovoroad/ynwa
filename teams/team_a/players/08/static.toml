@@ -1,0 +1,6 @@
+name = "Midfielder A3"
+reaction_rate = 70
+speed_rate = 70
+tackle_rate = 60
+shot_power = 50
+shot_accuracy = 50

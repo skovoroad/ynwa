@@ -1,0 +1,6 @@
+name = "Defender B3"
+reaction_rate = 67
+speed_rate = 56
+tackle_rate = 73
+shot_power = 50
+shot_accuracy = 50

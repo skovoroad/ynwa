@@ -1,0 +1,6 @@
+name = "Defender A3"
+reaction_rate = 65
+speed_rate = 57
+tackle_rate = 74
+shot_power = 50
+shot_accuracy = 50

@@ -1,0 +1,6 @@
+name = "Forward A3"
+reaction_rate = 76
+speed_rate = 85
+tackle_rate = 45
+shot_power = 50
+shot_accuracy = 50

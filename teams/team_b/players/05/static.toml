@@ -1,0 +1,6 @@
+name = "Defender B4"
+reaction_rate = 63
+speed_rate = 62
+tackle_rate = 69
+shot_power = 50
+shot_accuracy = 50
