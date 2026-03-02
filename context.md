@@ -73,9 +73,9 @@ teams/
         script.lua     # optional player script: player_play / player_setup overrides
 ```
 
-Read access is intended to go through a `TeamSource` trait (work in progress), allowing the filesystem implementation to be replaced with a database backend without changing the rest of the codebase.
+Read access is intended to go through a `TeamRepository` trait (`ynwa-core/src/repository.rs`), allowing the filesystem implementation to be replaced with a database backend without changing the rest of the codebase.
 
-**Status**: data files created; `TeamSource` trait and `FsTeamRepo` implementation are not yet written.
+**Status**: data files created; `TeamRepository` trait defined in `ynwa-core/src/repository.rs`; `FsTeamRepository` implementation (in a separate crate) is not yet written.
 
 ### Deferred Aspects
 

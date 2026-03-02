@@ -6,6 +6,7 @@ pub mod game;
 pub mod orientation;
 pub mod physics_util;
 pub mod region;
+pub mod repository;
 pub mod system;
 pub mod systems;
 pub mod team;
@@ -28,6 +29,7 @@ pub use systems::{
     ActionSystem, DecisionMaker, DecisionSystem, PhysicsSystem, PlaceholderDecisionMaker,
     PlayerReactionSystem,
 };
+pub use repository::{PlayerRecord, PlayerStatic, PlayerTactical, TeamRecord, TeamRepository};
 pub use world::World;
 
 pub fn version() -> &'static str {
