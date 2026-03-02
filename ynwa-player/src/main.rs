@@ -8,6 +8,7 @@ use std::env;
 use std::path::PathBuf;
 use uom::si::length::meter;
 use ynwa_football::create_football_world;
+use ynwa_repository::FsTeamRepository;
 
 use input::handle_input;
 use renderer::render_field;
@@ -32,7 +33,8 @@ async fn main() {
         args.get(2).map(String::as_str).unwrap_or("ynwa-scripts/preambles"),
     );
 
-    let mut world = create_football_world(&teams_path, &preambles_path)
+    let repo = FsTeamRepository::new(&teams_path);
+    let mut world = create_football_world(&repo, &preambles_path)
         .expect("Failed to load game");
 
     println!(

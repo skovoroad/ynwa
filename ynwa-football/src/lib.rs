@@ -16,14 +16,13 @@ use game_manager::FootballGameManager;
 use ynwa_core::field::zones::ZoneGeometry;
 use ynwa_core::game::{BallDef, Game, GameConfig, GameStage, PlayerDef, RefereeDef, ScriptingConfig};
 use ynwa_core::region::Region;
+use ynwa_core::repository::{TeamRecord, TeamRepository};
 use ynwa_core::systems::decision::ScriptedDecisionMaker;
 use ynwa_core::systems::{
     ActionSystem, BallPossessionSystem, DecisionSystem, PhysicsSystem, PlayerReactionSystem,
 };
 use ynwa_core::team::Team;
 use ynwa_core::world::World;
-use ynwa_repository::FsTeamRepository;
-use ynwa_core::repository::TeamRepository;
 
 fn get_ball_initial_position(field: &ynwa_core::field::Field) -> ynwa_core::field::zones::Point3D {
     let center_spot_zone = field
@@ -38,7 +37,7 @@ fn get_ball_initial_position(field: &ynwa_core::field::Field) -> ynwa_core::fiel
 
 fn build_player_defs(
     team: Team,
-    record: &ynwa_core::repository::TeamRecord,
+    record: &TeamRecord,
     grid_dims: ynwa_core::region::GridDimensions,
 ) -> Result<Vec<PlayerDef>, String> {
     record
@@ -113,19 +112,17 @@ fn add_football_systems(world: &mut World) {
 
 /// Creates a football world from team repository.
 ///
-/// `teams_path` - directory containing team subdirectories (e.g. `"teams"`).
+/// `repo` supplies both teams (`"team_a"` and `"team_b"`) and their preambles.
 /// `preambles_path` - directory containing `core.lua` and `stdlib.lua`.
-/// Team A data is loaded from `<teams_path>/team_a/`, Team B from `<teams_path>/team_b/`.
 pub fn create_football_world(
-    teams_path: &std::path::Path,
+    repo: &dyn TeamRepository,
     preambles_path: &std::path::Path,
 ) -> Result<World, String> {
     let field = create_football_field();
     let grid_dims = field.grid_dimensions();
 
-    let repo = FsTeamRepository::new(teams_path);
-    let team_a_record = repo.load_team("team_a").map_err(|e| e.to_string())?;
-    let team_b_record = repo.load_team("team_b").map_err(|e| e.to_string())?;
+    let team_a_record = repo.load_team("team_a")?;
+    let team_b_record = repo.load_team("team_b")?;
 
     let mut players = build_player_defs(Team::A, &team_a_record, grid_dims)?;
     players.extend(build_player_defs(Team::B, &team_b_record, grid_dims)?);
@@ -265,7 +262,8 @@ mod tests {
             return;
         }
 
-        let world = create_football_world(teams_path, preambles_path)
+        let repo = ynwa_repository::FsTeamRepository::new(teams_path);
+        let world = create_football_world(&repo, preambles_path)
             .expect("Failed to create world from repository");
 
         assert_eq!(world.game().config().players.len(), 22);

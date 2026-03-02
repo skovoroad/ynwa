@@ -848,6 +848,7 @@ dependencies = [
  "uom",
  "ynwa-core",
  "ynwa-football",
+ "ynwa-repository",
 ]
 
 [[package]]

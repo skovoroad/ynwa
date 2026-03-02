@@ -5,7 +5,9 @@ edition.workspace = true
 
 [dependencies]
 ynwa-core = { path = "../ynwa-core" }
-ynwa-repository = { path = "../ynwa-repository" }
 uom = { version = "0.36", features = ["f32"] }
+
+[dev-dependencies]
+ynwa-repository = { path = "../ynwa-repository" }
 
 [lib]

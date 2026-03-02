@@ -74,8 +74,6 @@ impl FsTeamRepository {
 }
 
 impl TeamRepository for FsTeamRepository {
-    type Error = String;
-
     fn load_team(&self, team_id: &str) -> Result<TeamRecord, String> {
         let team_dir = self.base.join(team_id);
 

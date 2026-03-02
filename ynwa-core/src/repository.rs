@@ -37,7 +37,5 @@ pub struct TeamRecord {
 }
 
 pub trait TeamRepository {
-    type Error: std::fmt::Display;
-
-    fn load_team(&self, team_id: &str) -> Result<TeamRecord, Self::Error>;
+    fn load_team(&self, team_id: &str) -> Result<TeamRecord, String>;
 }

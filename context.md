@@ -43,7 +43,7 @@ The project is divided into independent modules using Rust workspace:
   - `FsTeamRepository::new(base_path)` — loads team data from `<base>/<team_id>/`
   - Reads `preamble.lua`, `players/NN/{static.toml, tactical.toml, script.lua}`
   - `script.lua` is optional per player
-  - Integrated into `ynwa-football` via `create_football_world(teams_path, preambles_path)`
+  - `ynwa-football` depends only on the `TeamRepository` trait (from `ynwa-core`), not on this crate. `ynwa-player` creates `FsTeamRepository` and passes it to `create_football_world()`
 
 - **Clients** - applications using the core:
   - `ynwa-player` - local client, depends on `ynwa-core` + `ynwa-football`, simulates the game locally and interacts with the player. Loads teams from `teams/` directory by default; paths can be overridden via command-line arguments: `ynwa-player [teams_path] [preambles_path]`.
@@ -123,8 +123,8 @@ The following aspects are considered in the design but implementation is postpon
 - Design decision: systems receive absolute timestamp instead of delta_time so they can store last update time and calculate intervals themselves
 
 **Football Crate (`ynwa-football`):**
-- Main API for creating football world: `create_football_world(teams_path, preambles_path)`
-- Loads two teams (`team_a`, `team_b`) from `teams_path` via `FsTeamRepository`
+- Main API for creating football world: `create_football_world(repo: &dyn TeamRepository, preambles_path)`
+- `ynwa-football` does not depend on `ynwa-repository` — caller injects the repository implementation
 - `preambles_path` points to the directory containing `core.lua` and `stdlib.lua` (default: `ynwa-scripts/preambles/`)
 - GameConfig creation functions are private - clients work directly with World
 - Design decision: field is created inside `ynwa-football`, external code has no direct access to field creation
