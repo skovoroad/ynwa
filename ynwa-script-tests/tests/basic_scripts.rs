@@ -6,7 +6,7 @@ use ynwa_core::systems::decision::{DecisionSystem, ScriptedDecisionMaker};
 use ynwa_core::System;
 use ynwa_script_tests::{
     create_test_game_football_field_with_preambles, create_test_game_with_preambles,
-    create_test_game_with_script, load_test_script, request_decisions_for_all,
+    create_test_game_with_script, request_decisions_for_all,
 };
 
 /// Helper function to test that a Lua script produces expected decision type
@@ -266,10 +266,20 @@ fn test_kick_if_ball_owner() {
     // This function uses am_i_ball_owner() from stdlib and ball_owner() from core
     // Since we can't easily set ball owner, we test that the function works correctly
     // when ball is free (owner_index is nil)
-    let script = load_test_script("kick_if_ball_owner.lua");
+    let script = r#"
+        function make_decision()
+            if am_i_ball_owner() then
+                local target_x = math.random() * GAME_DATA.field.width
+                local target_z = math.random() * GAME_DATA.field.length
+                return {action = "kick", target = {x = target_x, z = target_z}}
+            else
+                return {action = "stop"}
+            end
+        end
+    "#;
 
     // Create game with test script
-    let mut game = create_test_game_with_preambles(&script);
+    let mut game = create_test_game_with_preambles(script);
 
     request_decisions_for_all(&mut game);
 

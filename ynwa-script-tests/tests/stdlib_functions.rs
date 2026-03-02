@@ -6,7 +6,7 @@ use ynwa_core::System;
 use ynwa_script_tests::{
     create_test_game_with_all_preambles,
     create_test_game_football_field_with_preambles, create_test_game_with_full_preambles_and_stage,
-    create_test_game_with_preambles, load_test_script, request_decisions_for_all,
+    create_test_game_with_preambles, request_decisions_for_all,
 };
 
 // Stub make_decision() that does nothing - required by game engine
@@ -150,8 +150,12 @@ fn test_kick_to_opponent_goal() {
     // kick_to_opponent_goal() must aim at the center of the opponent goal zone.
     // We derive expected coordinates from the actual field, not from hardcoded constants,
     // so the test stays valid if field dimensions change.
-    let script = load_test_script("kick_to_opponent_goal.lua");
-    let mut game = create_test_game_football_field_with_preambles(&script);
+    let script = r#"
+        function make_decision()
+            return kick_to_opponent_goal()
+        end
+    "#;
+    let mut game = create_test_game_football_field_with_preambles(script);
     request_decisions_for_all(&mut game);
 
     let decision_maker =

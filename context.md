@@ -33,7 +33,6 @@ The project is divided into independent modules using Rust workspace:
   
 - **Scripts (`ynwa-scripts`)** - Lua scripts library (data only, no Rust code)
   - `preambles/` - core.lua (elementary functions), stdlib.lua (utilities + dispatch)
-  - `test-scripts/` - integration test scripts (including `dispatch_spy.lua` for dispatch testing)
   - Three-level preamble system: core → stdlib → team → user script
   - **Dispatch model**: `make_decision()` and `get_setup_position(reason)` are defined in stdlib and dispatch to `team_play`/`team_setup` (team preamble) or `player_play`/`player_setup` (player script). Player tables override team tables. Player script (`script.lua`) is optional per player; if absent, player uses team tactics entirely.
   - See `ynwa-scripts/context.md` for full scripting API documentation
@@ -54,6 +53,7 @@ The project is divided into independent modules using Rust workspace:
   - `ynwa-script-tests` - integration tests for Lua scripts, depends on `ynwa-core` + `ynwa-football`
   - Verifies that scripts produce correct decisions through the full system pipeline
   - `fixtures/team_a.lua`, `fixtures/team_b.lua` — minimal dispatch tables for tests (no real game tactics)
+  - `fixtures/dispatch_spy.lua` — reusable spy script for dispatch testing; loaded via `load_test_script()`
 
 ### Universality (optional requirement)
 

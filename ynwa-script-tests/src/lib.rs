@@ -43,13 +43,10 @@ pub fn request_decisions_for_all(game: &mut ynwa_core::game::Game) {
     }
 }
 
-/// Load a test script from ynwa-scripts/test-scripts/
+/// Load a test script from ynwa-script-tests/fixtures/
 pub fn load_test_script(name: &str) -> String {
     let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set");
-    let workspace_root = std::path::Path::new(&manifest_dir)
-        .parent()
-        .expect("Failed to get workspace root");
-    let script_path = workspace_root.join(format!("ynwa-scripts/test-scripts/{}", name));
+    let script_path = std::path::Path::new(&manifest_dir).join(format!("fixtures/{}", name));
     std::fs::read_to_string(&script_path)
         .unwrap_or_else(|e| panic!("Failed to load test script {}: {}", name, e))
 }
