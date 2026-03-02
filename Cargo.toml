@@ -5,6 +5,7 @@ members = [
     "ynwa-decisions",
     "ynwa-football",
     "ynwa-player",
+    "ynwa-repository",
     "ynwa-script-tests",
 ]
 

@@ -13,7 +13,7 @@ pub struct PlayerStatic {
 
 /// Tactical player attributes — position within a specific formation.
 pub struct PlayerTactical {
-    /// Jersey number (1–99).
+    /// Tactical number (1–N, contiguous within the team).
     pub number: u32,
     /// Grid notation, e.g. `"N3"`.
     pub start_position: String,

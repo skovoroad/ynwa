@@ -67,7 +67,7 @@ context = {
     -- Current player information
     me = {
         team = "A",           -- Player's team: "A" or "B"
-        number = 10,          -- Player number in the team (jersey number, 1-99)
+        number = 10,          -- Player's tactical number in the team (1-N, contiguous)
         index = 5,            -- Global player index (0-21, position in players array)
         position = {
             x = 15.5,         -- X coordinate (meters)

@@ -39,6 +39,13 @@ The project is divided into independent modules using Rust workspace:
   - **Dispatch model**: `make_decision()` and `get_setup_position(reason)` are defined in stdlib and dispatch to `team_play`/`team_setup` (team preamble) or `player_play`/`player_setup` (player script). Player tables override team tables. Player scripts in config are empty `''` by default.
   - See `ynwa-scripts/context.md` for full scripting API documentation
   
+- **Repository (`ynwa-repository`)** - filesystem implementation of `TeamRepository` trait from `ynwa-core`
+  - Isolates storage concerns: `ynwa-core` depends only on the trait; this crate can be replaced with a DB-backed implementation without touching the rest of the codebase
+  - `FsTeamRepository::new(base_path)` — loads team data from `<base>/<team_id>/`
+  - Reads `preamble.lua`, `players/NN/{static.toml, tactical.toml, script.lua}`
+  - `script.lua` is optional per player
+  - Not yet integrated into `ynwa-football` or `ynwa-player`
+
 - **Clients** - applications using the core:
   - `ynwa-player` - local client, depends on `ynwa-core` + `ynwa-football`, simulates the game locally and interacts with the player
   - Game server (future) - simulates multiple games, transmits data over network
@@ -75,7 +82,9 @@ teams/
 
 Read access is intended to go through a `TeamRepository` trait (`ynwa-core/src/repository.rs`), allowing the filesystem implementation to be replaced with a database backend without changing the rest of the codebase.
 
-**Status**: data files created; `TeamRepository` trait defined in `ynwa-core/src/repository.rs`; `FsTeamRepository` implementation (in a separate crate) is not yet written.
+**Player number semantics**: `tactical.toml` field `number` is the tactical number (1–N, contiguous within the team). Individual jersey numbers are a separate concept and will be introduced when players are decoupled from tactics.
+
+**Status**: data files created; `TeamRepository` trait defined in `ynwa-core/src/repository.rs`; `FsTeamRepository` implemented in `ynwa-repository`; not yet integrated into `ynwa-football` or `ynwa-player`.
 
 ### Deferred Aspects
 
