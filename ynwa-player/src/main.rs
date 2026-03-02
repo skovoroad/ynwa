@@ -5,9 +5,9 @@ mod ui;
 
 use macroquad::prelude::*;
 use std::env;
-use std::path::Path;
+use std::path::PathBuf;
 use uom::si::length::meter;
-use ynwa_football::create_football_world_from_file;
+use ynwa_football::create_football_world;
 
 use input::handle_input;
 use renderer::render_field;
@@ -26,16 +26,14 @@ fn window_conf() -> Conf {
 
 #[macroquad::main(window_conf)]
 async fn main() {
-    // Получаем путь к конфигу из аргументов
     let args: Vec<String> = env::args().collect();
-    let config_path = if args.len() > 1 {
-        Path::new(&args[1])
-    } else {
-        Path::new("config/default_game.toml")
-    };
+    let teams_path = PathBuf::from(args.get(1).map(String::as_str).unwrap_or("teams"));
+    let preambles_path = PathBuf::from(
+        args.get(2).map(String::as_str).unwrap_or("ynwa-scripts/preambles"),
+    );
 
-    let mut world =
-        create_football_world_from_file(config_path).expect("Failed to load game configuration");
+    let mut world = create_football_world(&teams_path, &preambles_path)
+        .expect("Failed to load game");
 
     println!(
         "Loaded game with {} players",

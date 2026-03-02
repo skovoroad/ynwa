@@ -1,6 +1,5 @@
 //! YNWA Football Manager - Core Library
 
-pub mod config;
 pub mod field;
 pub mod game;
 pub mod orientation;
@@ -12,7 +11,6 @@ pub mod systems;
 pub mod team;
 pub mod world;
 
-pub use config::{PlayerConfig, SerializableGameConfig};
 pub use field::zones::{Point3D, Velocity3D};
 pub use game::{
     BallDef, BallState, Decision, DecisionTarget, Game, GameConfig, GameStage, GameState,

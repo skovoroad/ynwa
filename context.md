@@ -33,7 +33,6 @@ The project is divided into independent modules using Rust workspace:
   
 - **Scripts (`ynwa-scripts`)** - Lua scripts library (data only, no Rust code)
   - `preambles/` - core.lua (elementary functions), stdlib.lua (utilities + dispatch)
-  - `team-libs/` - team_a.lua, team_b.lua (dispatch tables only)
   - `test-scripts/` - integration test scripts (including `dispatch_spy.lua` for dispatch testing)
   - Three-level preamble system: core → stdlib → team → user script
   - **Dispatch model**: `make_decision()` and `get_setup_position(reason)` are defined in stdlib and dispatch to `team_play`/`team_setup` (team preamble) or `player_play`/`player_setup` (player script). Player tables override team tables. Player scripts in config are empty `''` by default.
@@ -44,10 +43,10 @@ The project is divided into independent modules using Rust workspace:
   - `FsTeamRepository::new(base_path)` — loads team data from `<base>/<team_id>/`
   - Reads `preamble.lua`, `players/NN/{static.toml, tactical.toml, script.lua}`
   - `script.lua` is optional per player
-  - Not yet integrated into `ynwa-football` or `ynwa-player`
+  - Integrated into `ynwa-football` via `create_football_world(teams_path, preambles_path)`
 
 - **Clients** - applications using the core:
-  - `ynwa-player` - local client, depends on `ynwa-core` + `ynwa-football`, simulates the game locally and interacts with the player
+  - `ynwa-player` - local client, depends on `ynwa-core` + `ynwa-football`, simulates the game locally and interacts with the player. Loads teams from `teams/` directory by default; paths can be overridden via command-line arguments: `ynwa-player [teams_path] [preambles_path]`.
   - Game server (future) - simulates multiple games, transmits data over network
   - `ynwa-simulator` - local client, simulates the game locally and write the game to the file
   
@@ -84,7 +83,7 @@ Read access is intended to go through a `TeamRepository` trait (`ynwa-core/src/r
 
 **Player number semantics**: `tactical.toml` field `number` is the tactical number (1–N, contiguous within the team). Individual jersey numbers are a separate concept and will be introduced when players are decoupled from tactics.
 
-**Status**: data files created; `TeamRepository` trait defined in `ynwa-core/src/repository.rs`; `FsTeamRepository` implemented in `ynwa-repository`; not yet integrated into `ynwa-football` or `ynwa-player`.
+**Status**: data files in `teams/`; `TeamRepository` trait in `ynwa-core/src/repository.rs`; `FsTeamRepository` in `ynwa-repository`; integrated into `ynwa-football` and `ynwa-player`.
 
 ### Deferred Aspects
 
@@ -124,7 +123,9 @@ The following aspects are considered in the design but implementation is postpon
 - Design decision: systems receive absolute timestamp instead of delta_time so they can store last update time and calculate intervals themselves
 
 **Football Crate (`ynwa-football`):**
-- Main API for creating football world: `create_football_world_from_file()`
+- Main API for creating football world: `create_football_world(teams_path, preambles_path)`
+- Loads two teams (`team_a`, `team_b`) from `teams_path` via `FsTeamRepository`
+- `preambles_path` points to the directory containing `core.lua` and `stdlib.lua` (default: `ynwa-scripts/preambles/`)
 - GameConfig creation functions are private - clients work directly with World
 - Design decision: field is created inside `ynwa-football`, external code has no direct access to field creation
 - Key constants exposed as `pub(crate)` for use in tests: `GOAL_WIDTH`, `GOAL_DEPTH`, `FIELD_WIDTH` (field_builder), `BALL_RADIUS`, `GAME_DURATION` (events)

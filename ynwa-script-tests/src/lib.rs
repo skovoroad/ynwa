@@ -124,7 +124,7 @@ pub fn create_test_game_with_full_preambles_and_stage(script: &str, stage: GameS
         .expect("Failed to get workspace root");
     let core_path = workspace_root.join("ynwa-scripts/preambles/core.lua");
     let stdlib_path = workspace_root.join("ynwa-scripts/preambles/stdlib.lua");
-    let team_a_path = workspace_root.join("ynwa-scripts/team-libs/team_a.lua");
+    let team_a_path = workspace_root.join("ynwa-script-tests/fixtures/team_a.lua");
 
     let core_preamble = std::fs::read_to_string(&core_path)
         .unwrap_or_else(|e| panic!("Failed to load core preamble: {}", e));
@@ -225,8 +225,8 @@ pub fn create_test_game_with_all_preambles(players: Vec<PlayerDef>) -> Game {
         scripting: ynwa_core::game::ScriptingConfig {
             core_preamble:   load("ynwa-scripts/preambles/core.lua"),
             stdlib_preamble: load("ynwa-scripts/preambles/stdlib.lua"),
-            team_a_preamble: load("ynwa-scripts/team-libs/team_a.lua"),
-            team_b_preamble: load("ynwa-scripts/team-libs/team_b.lua"),
+            team_a_preamble: load("ynwa-script-tests/fixtures/team_a.lua"),
+            team_b_preamble: load("ynwa-script-tests/fixtures/team_b.lua"),
         },
     };
 

@@ -5,7 +5,7 @@
 //! - `game_manager` - `FootballGameManager` system: stage transitions, player readiness
 //! - `events` - goal detection, out-of-bounds, game end
 //!
-//! Entry point: `create_football_world_from_file` creates a ready-to-use `World`.
+//! Entry point: `create_football_world` creates a ready-to-use `World` from the team repository.
 
 pub mod events;
 pub mod field_builder;
@@ -13,16 +13,18 @@ pub mod game_manager;
 
 use field_builder::create_football_field;
 use game_manager::FootballGameManager;
-use ynwa_core::config::SerializableGameConfig;
 use ynwa_core::field::zones::ZoneGeometry;
-use ynwa_core::game::{BallDef, Game, GameConfig, GameStage};
+use ynwa_core::game::{BallDef, Game, GameConfig, GameStage, PlayerDef, RefereeDef, ScriptingConfig};
+use ynwa_core::region::Region;
 use ynwa_core::systems::decision::ScriptedDecisionMaker;
 use ynwa_core::systems::{
     ActionSystem, BallPossessionSystem, DecisionSystem, PhysicsSystem, PlayerReactionSystem,
 };
+use ynwa_core::team::Team;
 use ynwa_core::world::World;
+use ynwa_repository::FsTeamRepository;
+use ynwa_core::repository::TeamRepository;
 
-/// Extract ball initial position from center_spot zone (football rule)
 fn get_ball_initial_position(field: &ynwa_core::field::Field) -> ynwa_core::field::zones::Point3D {
     let center_spot_zone = field
         .get_zone("center_spot", None)
@@ -34,19 +36,52 @@ fn get_ball_initial_position(field: &ynwa_core::field::Field) -> ynwa_core::fiel
     }
 }
 
-fn create_football_game_config_from_file(path: &std::path::Path) -> Result<GameConfig, String> {
-    let config = SerializableGameConfig::from_file(path)?;
-    let field = create_football_field();
+fn build_player_defs(
+    team: Team,
+    record: &ynwa_core::repository::TeamRecord,
+    grid_dims: ynwa_core::region::GridDimensions,
+) -> Result<Vec<PlayerDef>, String> {
+    record
+        .players
+        .iter()
+        .map(|p| {
+            let parse = |s: &str| {
+                Region::from_grid_notation(s, grid_dims)
+                    .map_err(|e| format!("Invalid position '{}': {}", s, e))
+            };
 
-    let config_dir = path.parent();
-    let game_config = config.to_game_config(field, config_dir)?;
+            let start = parse(&p.tactical.start_position)?;
+            let attack = parse(&p.tactical.attack_position)?;
+            let defence = parse(&p.tactical.defence_position)?;
 
-    let mut game_config = game_config;
-    game_config.ball = BallDef {
-        initial_position: get_ball_initial_position(&game_config.field),
-    };
+            // Team B positions are in own orientation; flip to absolute field coordinates.
+            let flip = |r: Region| {
+                if team == Team::B {
+                    r.flip_orientation(grid_dims)
+                        .map_err(|e| format!("Flip error: {}", e))
+                } else {
+                    Ok(r)
+                }
+            };
 
-    Ok(game_config)
+            let script = p.script.clone().unwrap_or_default();
+
+            Ok(PlayerDef::new(
+                team,
+                p.tactical.number,
+                p.static_data.name.clone(),
+                script,
+                flip(start)?,
+            )
+            .with_reaction_rate(p.static_data.reaction_rate)
+            .with_speed_rate(p.static_data.speed_rate)
+            .with_tackle_rate(p.static_data.tackle_rate)
+            .with_shot_power(p.static_data.shot_power)
+            .with_shot_accuracy(p.static_data.shot_accuracy)
+            .with_attack_position(flip(attack)?)
+            .with_defence_position(flip(defence)?))
+        })
+        .collect()
 }
 
 fn add_football_systems(world: &mut World) {
@@ -76,9 +111,47 @@ fn add_football_systems(world: &mut World) {
     world.add_system(Box::new(PhysicsSystem::new()));
 }
 
-pub fn create_football_world_from_file(path: &std::path::Path) -> Result<World, String> {
-    let game_config = create_football_game_config_from_file(path)?;
-    let game = Game::with_stage(game_config, GameStage::Setup("Prepare".to_string()));
+/// Creates a football world from team repository.
+///
+/// `teams_path` - directory containing team subdirectories (e.g. `"teams"`).
+/// `preambles_path` - directory containing `core.lua` and `stdlib.lua`.
+/// Team A data is loaded from `<teams_path>/team_a/`, Team B from `<teams_path>/team_b/`.
+pub fn create_football_world(
+    teams_path: &std::path::Path,
+    preambles_path: &std::path::Path,
+) -> Result<World, String> {
+    let field = create_football_field();
+    let grid_dims = field.grid_dimensions();
+
+    let repo = FsTeamRepository::new(teams_path);
+    let team_a_record = repo.load_team("team_a").map_err(|e| e.to_string())?;
+    let team_b_record = repo.load_team("team_b").map_err(|e| e.to_string())?;
+
+    let mut players = build_player_defs(Team::A, &team_a_record, grid_dims)?;
+    players.extend(build_player_defs(Team::B, &team_b_record, grid_dims)?);
+
+    let load_preamble = |name: &str| {
+        let path = preambles_path.join(name);
+        std::fs::read_to_string(&path)
+            .map_err(|e| format!("Failed to read preamble '{}': {}", path.display(), e))
+    };
+
+    let game_config = GameConfig {
+        field: field.clone(),
+        players,
+        ball: BallDef {
+            initial_position: get_ball_initial_position(&field),
+        },
+        referees: vec![RefereeDef::default()],
+        scripting: ScriptingConfig {
+            core_preamble: load_preamble("core.lua")?,
+            stdlib_preamble: load_preamble("stdlib.lua")?,
+            team_a_preamble: team_a_record.preamble,
+            team_b_preamble: team_b_record.preamble,
+        },
+    };
+
+    let game = Game::with_stage(game_config, GameStage::Setup("start".to_string()));
     let mut world = World::new(game);
     add_football_systems(&mut world);
     Ok(world)
@@ -90,7 +163,6 @@ pub fn create_football_world_from_file(path: &std::path::Path) -> Result<World, 
 mod tests {
     use super::*;
     use uom::si::length::meter;
-    use ynwa_core::game::*;
     use ynwa_core::region::*;
     use ynwa_core::team::Team;
 
@@ -146,7 +218,7 @@ mod tests {
         }
     }
 
-    pub fn create_football_world() -> World {
+    pub fn create_test_world() -> World {
         let game_config = create_football_game_config();
         let game = Game::with_stage(game_config, GameStage::Setup("Prepare".to_string()));
         let mut world = World::new(game);
@@ -156,7 +228,7 @@ mod tests {
 
     #[test]
     fn test_create_football_world() {
-        let world = create_football_world();
+        let world = create_test_world();
 
         assert_eq!(world.game().config().players.len(), 22);
         assert_eq!(world.game().state().elapsed_time, 0.0);
@@ -164,7 +236,7 @@ mod tests {
 
     #[test]
     fn test_ball_initial_position_at_center_spot() {
-        let world = create_football_world();
+        let world = create_test_world();
         let game = world.game();
 
         let center_spot = game
@@ -185,16 +257,17 @@ mod tests {
     }
 
     #[test]
-    fn test_create_football_world_from_file() {
-        let path = std::path::Path::new("../config/default_game.toml");
-        if !path.exists() {
-            println!("Skipping test - config file not found at {:?}", path);
+    fn test_create_football_world_from_repository() {
+        let teams_path = std::path::Path::new("../teams");
+        let preambles_path = std::path::Path::new("../ynwa-scripts/preambles");
+        if !teams_path.exists() {
+            println!("Skipping test - teams directory not found");
             return;
         }
 
-        let world =
-            create_football_world_from_file(path).expect("Failed to create world from file");
+        let world = create_football_world(teams_path, preambles_path)
+            .expect("Failed to create world from repository");
 
-        assert!(!world.game().config().players.is_empty());
+        assert_eq!(world.game().config().players.len(), 22);
     }
 }
