@@ -22,7 +22,7 @@ The project is divided into independent modules using Rust workspace:
   - `field_builder` - standard football field with FIFA regulation zones
   - `game_manager` - `FootballGameManager` system: stage transitions (Setup → Play), player readiness, event handling
   - `events` - goal detection, out-of-bounds (touchline/goal line), game end
-  - Entry point: `create_football_world_from_file()` — creates a ready-to-use `World`
+  - Entry point: `create_football_world(repo, preambles_path)` — creates a ready-to-use `World`
   - Design decision: keeping sport rules separate from simulation core enables reuse of `ynwa-core` for other sports
 
 - **Decision Engine (`ynwa-decisions`)** - game-agnostic decision-making library
@@ -35,7 +35,7 @@ The project is divided into independent modules using Rust workspace:
   - `preambles/` - core.lua (elementary functions), stdlib.lua (utilities + dispatch)
   - `test-scripts/` - integration test scripts (including `dispatch_spy.lua` for dispatch testing)
   - Three-level preamble system: core → stdlib → team → user script
-  - **Dispatch model**: `make_decision()` and `get_setup_position(reason)` are defined in stdlib and dispatch to `team_play`/`team_setup` (team preamble) or `player_play`/`player_setup` (player script). Player tables override team tables. Player scripts in config are empty `''` by default.
+  - **Dispatch model**: `make_decision()` and `get_setup_position(reason)` are defined in stdlib and dispatch to `team_play`/`team_setup` (team preamble) or `player_play`/`player_setup` (player script). Player tables override team tables. Player script (`script.lua`) is optional per player; if absent, player uses team tactics entirely.
   - See `ynwa-scripts/context.md` for full scripting API documentation
   
 - **Repository (`ynwa-repository`)** - filesystem implementation of `TeamRepository` trait from `ynwa-core`
@@ -46,13 +46,14 @@ The project is divided into independent modules using Rust workspace:
   - `ynwa-football` depends only on the `TeamRepository` trait (from `ynwa-core`), not on this crate. `ynwa-player` creates `FsTeamRepository` and passes it to `create_football_world()`
 
 - **Clients** - applications using the core:
-  - `ynwa-player` - local client, depends on `ynwa-core` + `ynwa-football`, simulates the game locally and interacts with the player. Loads teams from `teams/` directory by default; paths can be overridden via command-line arguments: `ynwa-player [teams_path] [preambles_path]`.
+  - `ynwa-player` - local client, depends on `ynwa-core` + `ynwa-football` + `ynwa-repository`, simulates the game locally and interacts with the player. Creates `FsTeamRepository` and passes it to `create_football_world()`. Default paths: `teams/` and `ynwa-scripts/preambles/`; overridable via CLI: `ynwa-player [teams_path] [preambles_path]`.
   - Game server (future) - simulates multiple games, transmits data over network
   - `ynwa-simulator` - local client, simulates the game locally and write the game to the file
   
 - **Test suites:**
   - `ynwa-script-tests` - integration tests for Lua scripts, depends on `ynwa-core` + `ynwa-football`
   - Verifies that scripts produce correct decisions through the full system pipeline
+  - `fixtures/team_a.lua`, `fixtures/team_b.lua` — minimal dispatch tables for tests (no real game tactics)
 
 ### Universality (optional requirement)
 
@@ -276,10 +277,6 @@ See `region.rs` `//!` doc for types and indexing details.
 Construction API:
 - `GridDimensions::create_region(top_left, bottom_right)` — validated factory; use for user-supplied coordinates
 - `Region::new(top_left, bottom_right)` — no validation; use when coordinates are internally generated (flip results, single-cell from `GridCell` target)
-
-## Game Configuration (`config.rs`)
-
-TOML-based configuration for initial game parameters.
 
 ## Physics and Speed
 
