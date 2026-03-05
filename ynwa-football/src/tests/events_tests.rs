@@ -224,7 +224,7 @@ fn test_goal_line_near_outside_post() {
     // Ball crosses z=0 outside the goalposts — GoalLine
     let mut game = create_test_game();
     set_ball(&mut game, GOAL_X_MIN - 1.0, -(BALL_R + 0.01));
-    assert!(matches!(check_goal_line(&game), Some(FootballEvent::GoalLine(_))));
+    assert!(matches!(check_goal_line(&game), Some(FootballEvent::GoalLine(_, _))));
 }
 
 #[test]
@@ -232,7 +232,7 @@ fn test_goal_line_far_outside_post() {
     // Ball crosses z=TEAM_B_GOAL_Z outside the goalposts — GoalLine
     let mut game = create_test_game();
     set_ball(&mut game, GOAL_X_MAX + 1.0, TEAM_B_GOAL_Z + BALL_R + 0.01);
-    assert!(matches!(check_goal_line(&game), Some(FootballEvent::GoalLine(_))));
+    assert!(matches!(check_goal_line(&game), Some(FootballEvent::GoalLine(_, _))));
 }
 
 #[test]
@@ -256,7 +256,7 @@ fn test_goal_line_team_b_near_outside_post() {
     // Ball crosses z=TEAM_B_GOAL_Z just outside the near post — GoalLine
     let mut game = create_test_game();
     set_ball(&mut game, GOAL_X_MIN - 1.0, TEAM_B_GOAL_Z + BALL_R + 0.01);
-    assert!(matches!(check_goal_line(&game), Some(FootballEvent::GoalLine(_))));
+    assert!(matches!(check_goal_line(&game), Some(FootballEvent::GoalLine(_, _))));
 }
 
 #[test]
@@ -273,14 +273,14 @@ fn test_goal_line_not_fired_ball_on_line_in_play() {
 fn test_touchline_left() {
     let mut game = create_test_game();
     set_ball(&mut game, -(BALL_R + 0.01), 50.0);
-    assert!(matches!(check_touchline(&game), Some(FootballEvent::Touchline(_))));
+    assert!(matches!(check_touchline(&game), Some(FootballEvent::Touchline(_, _))));
 }
 
 #[test]
 fn test_touchline_right() {
     let mut game = create_test_game();
     set_ball(&mut game, FIELD_WIDTH + BALL_R + 0.01, 50.0);
-    assert!(matches!(check_touchline(&game), Some(FootballEvent::Touchline(_))));
+    assert!(matches!(check_touchline(&game), Some(FootballEvent::Touchline(_, _))));
 }
 
 #[test]
@@ -331,4 +331,42 @@ fn test_check_events_no_event() {
     set_ball(&mut game, 30.0, 50.0);
     game.state.elapsed_time = 30.0;
     assert_eq!(check_events(&game), None);
+}
+
+// --- last_possessing_team in out-of-bounds events ---
+
+fn set_last_team(game: &mut Game, team: Option<Team>) {
+    game.state.ball_state.last_possessing_team = team;
+}
+
+#[test]
+fn test_touchline_carries_last_team() {
+    let mut game = create_test_game();
+    set_ball(&mut game, -(BALL_R + 0.01), 50.0);
+    set_last_team(&mut game, Some(Team::B));
+    assert_eq!(check_touchline(&game), Some(FootballEvent::Touchline(game.state.ball_state.position, Team::B)));
+}
+
+#[test]
+fn test_touchline_default_team_when_none() {
+    let mut game = create_test_game();
+    set_ball(&mut game, -(BALL_R + 0.01), 50.0);
+    set_last_team(&mut game, None);
+    assert!(matches!(check_touchline(&game), Some(FootballEvent::Touchline(_, Team::A))));
+}
+
+#[test]
+fn test_goal_line_carries_last_team() {
+    let mut game = create_test_game();
+    set_ball(&mut game, GOAL_X_MIN - 1.0, -(BALL_R + 0.01));
+    set_last_team(&mut game, Some(Team::B));
+    assert!(matches!(check_goal_line(&game), Some(FootballEvent::GoalLine(_, Team::B))));
+}
+
+#[test]
+fn test_goal_line_default_team_when_none() {
+    let mut game = create_test_game();
+    set_ball(&mut game, GOAL_X_MIN - 1.0, -(BALL_R + 0.01));
+    set_last_team(&mut game, None);
+    assert!(matches!(check_goal_line(&game), Some(FootballEvent::GoalLine(_, Team::A))));
 }

@@ -8,10 +8,10 @@ use uom::si::length::meter;
 pub enum FootballEvent {
     /// Goal scored by a team
     Goal(Team),
-    /// Ball went out of bounds on sideline (position where it crossed)
-    Touchline(Point3D),
-    /// Ball went out of bounds on goal line (position where it crossed)
-    GoalLine(Point3D),
+    /// Ball went out of bounds on sideline: crossing position + last team to touch
+    Touchline(Point3D, Team),
+    /// Ball went out of bounds on goal line: crossing position + last team to touch
+    GoalLine(Point3D, Team),
     /// Game ended
     GameEnd,
 }
@@ -47,7 +47,8 @@ pub fn check_touchline(game: &Game) -> Option<FootballEvent> {
     if ball_pos.x.get::<meter>() - BALL_RADIUS < 0.0
         || ball_pos.x.get::<meter>() + BALL_RADIUS > field_width
     {
-        return Some(FootballEvent::Touchline(*ball_pos));
+        let last_team = game.state.ball_state.last_possessing_team.unwrap_or(Team::A);
+        return Some(FootballEvent::Touchline(*ball_pos, last_team));
     }
 
     None
@@ -73,7 +74,8 @@ pub fn check_goal_line(game: &Game) -> Option<FootballEvent> {
         return None;
     }
 
-    Some(FootballEvent::GoalLine(*ball_pos))
+    let last_team = game.state.ball_state.last_possessing_team.unwrap_or(Team::A);
+    Some(FootballEvent::GoalLine(*ball_pos, last_team))
 }
 
 /// Returns true if the ball's X position is within any goal's width on this field.
