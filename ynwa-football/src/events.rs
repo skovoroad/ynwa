@@ -43,9 +43,9 @@ pub fn check_touchline(game: &Game) -> Option<FootballEvent> {
     let ball_pos = &game.state.ball_state.position;
     let field_width = game.config().field.width().get::<meter>();
 
-    // Ball completely over left or right sideline (X axis = width)
-    if ball_pos.x.get::<meter>() - BALL_RADIUS < 0.0
-        || ball_pos.x.get::<meter>() + BALL_RADIUS > field_width
+    // Ball completely over the line: both edges past the boundary
+    if ball_pos.x.get::<meter>() + BALL_RADIUS < 0.0
+        || ball_pos.x.get::<meter>() - BALL_RADIUS > field_width
     {
         let last_team = game.state.ball_state.last_possessing_team.unwrap_or(Team::A);
         return Some(FootballEvent::Touchline(*ball_pos, last_team));
@@ -62,8 +62,9 @@ pub fn check_goal_line(game: &Game) -> Option<FootballEvent> {
     let ball_x = ball_pos.x.get::<meter>();
     let ball_z = ball_pos.z.get::<meter>();
 
-    let crossed_near = ball_z - BALL_RADIUS < 0.0;
-    let crossed_far = ball_z + BALL_RADIUS > field_length;
+    // Ball completely over the line: both edges past the boundary
+    let crossed_near = ball_z + BALL_RADIUS < 0.0;
+    let crossed_far = ball_z - BALL_RADIUS > field_length;
 
     if !crossed_near && !crossed_far {
         return None;

@@ -221,15 +221,39 @@ fn test_goal_team_b_scored_ball_exactly_fully_crossed() {
 
 #[test]
 fn test_goal_line_near_outside_post() {
-    // Ball crosses z=0 outside the goalposts — GoalLine
+    // Ball completely past z=0 outside the goalposts — GoalLine
     let mut game = create_test_game();
     set_ball(&mut game, GOAL_X_MIN - 1.0, -(BALL_R + 0.01));
     assert!(matches!(check_goal_line(&game), Some(FootballEvent::GoalLine(_, _))));
 }
 
 #[test]
+fn test_goal_line_not_fired_ball_partially_past() {
+    // Ball center past z=0 but not completely over it: center=-0.05, radius=0.11 → near edge at +0.06
+    let mut game = create_test_game();
+    set_ball(&mut game, GOAL_X_MIN - 1.0, -0.05);
+    assert_eq!(check_goal_line(&game), None);
+}
+
+#[test]
+fn test_goal_line_not_fired_ball_exactly_on_boundary() {
+    // Ball center exactly at -BALL_R: far edge at 0.0 — not past yet
+    let mut game = create_test_game();
+    set_ball(&mut game, GOAL_X_MIN - 1.0, -BALL_R);
+    assert_eq!(check_goal_line(&game), None);
+}
+
+#[test]
+fn test_goal_line_fired_ball_just_past_boundary() {
+    // Ball center at -(BALL_R + 0.001): far edge just past 0.0 — GoalLine
+    let mut game = create_test_game();
+    set_ball(&mut game, GOAL_X_MIN - 1.0, -(BALL_R + 0.001));
+    assert!(matches!(check_goal_line(&game), Some(FootballEvent::GoalLine(_, _))));
+}
+
+#[test]
 fn test_goal_line_far_outside_post() {
-    // Ball crosses z=TEAM_B_GOAL_Z outside the goalposts — GoalLine
+    // Ball completely past z=TEAM_B_GOAL_Z outside the goalposts — GoalLine
     let mut game = create_test_game();
     set_ball(&mut game, GOAL_X_MAX + 1.0, TEAM_B_GOAL_Z + BALL_R + 0.01);
     assert!(matches!(check_goal_line(&game), Some(FootballEvent::GoalLine(_, _))));
@@ -237,7 +261,7 @@ fn test_goal_line_far_outside_post() {
 
 #[test]
 fn test_goal_line_not_fired_between_goalposts() {
-    // Ball crosses z=0 between the goalposts — not GoalLine (check_goal handles it)
+    // Ball completely past z=0 between the goalposts — not GoalLine (check_goal handles it)
     let mut game = create_test_game();
     set_ball(&mut game, GOAL_X_CENTER, -(BALL_R + 0.01));
     assert_eq!(check_goal_line(&game), None);
@@ -245,7 +269,7 @@ fn test_goal_line_not_fired_between_goalposts() {
 
 #[test]
 fn test_goal_line_team_b_not_fired_between_goalposts() {
-    // Ball crosses z=TEAM_B_GOAL_Z between the goalposts — not GoalLine (check_goal handles it)
+    // Ball completely past z=TEAM_B_GOAL_Z between the goalposts — not GoalLine (check_goal handles it)
     let mut game = create_test_game();
     set_ball(&mut game, GOAL_X_CENTER, TEAM_B_GOAL_Z + BALL_R + 0.01);
     assert_eq!(check_goal_line(&game), None);
@@ -253,7 +277,7 @@ fn test_goal_line_team_b_not_fired_between_goalposts() {
 
 #[test]
 fn test_goal_line_team_b_near_outside_post() {
-    // Ball crosses z=TEAM_B_GOAL_Z just outside the near post — GoalLine
+    // Ball completely past z=TEAM_B_GOAL_Z just outside the near post — GoalLine
     let mut game = create_test_game();
     set_ball(&mut game, GOAL_X_MIN - 1.0, TEAM_B_GOAL_Z + BALL_R + 0.01);
     assert!(matches!(check_goal_line(&game), Some(FootballEvent::GoalLine(_, _))));
@@ -261,9 +285,17 @@ fn test_goal_line_team_b_near_outside_post() {
 
 #[test]
 fn test_goal_line_not_fired_ball_on_line_in_play() {
-    // Ball touching the line but not past it — no event
+    // Ball center on the line — not completely past, no event
     let mut game = create_test_game();
-    set_ball(&mut game, 5.0, BALL_R); // z - R = 0.0, not < 0
+    set_ball(&mut game, 5.0, 0.0); // z + R > 0, not past
+    assert_eq!(check_goal_line(&game), None);
+}
+
+#[test]
+fn test_goal_line_not_fired_ball_touching_line() {
+    // Ball touching the line from inside (center = BALL_R from line) — not past
+    let mut game = create_test_game();
+    set_ball(&mut game, 5.0, BALL_R); // z + R = 2*BALL_R > 0
     assert_eq!(check_goal_line(&game), None);
 }
 
@@ -277,6 +309,30 @@ fn test_touchline_left() {
 }
 
 #[test]
+fn test_touchline_not_fired_ball_partially_past() {
+    // Ball center past x=0 but not completely: center=-0.05, radius=0.11 → right edge at +0.06
+    let mut game = create_test_game();
+    set_ball(&mut game, -0.05, 50.0);
+    assert_eq!(check_touchline(&game), None);
+}
+
+#[test]
+fn test_touchline_not_fired_ball_exactly_on_boundary() {
+    // Ball center at -BALL_R: right edge at 0.0 — not past yet
+    let mut game = create_test_game();
+    set_ball(&mut game, -BALL_R, 50.0);
+    assert_eq!(check_touchline(&game), None);
+}
+
+#[test]
+fn test_touchline_fired_ball_just_past_boundary() {
+    // Ball center at -(BALL_R + 0.001): right edge just past 0.0 — Touchline
+    let mut game = create_test_game();
+    set_ball(&mut game, -(BALL_R + 0.001), 50.0);
+    assert!(matches!(check_touchline(&game), Some(FootballEvent::Touchline(_, _))));
+}
+
+#[test]
 fn test_touchline_right() {
     let mut game = create_test_game();
     set_ball(&mut game, FIELD_WIDTH + BALL_R + 0.01, 50.0);
@@ -285,9 +341,17 @@ fn test_touchline_right() {
 
 #[test]
 fn test_touchline_ball_on_line_in_play() {
-    // Ball center at exactly BALL_R from line — still in play
+    // Ball center at exactly 0 — touching line but not completely past it
     let mut game = create_test_game();
-    set_ball(&mut game, BALL_R, 50.0); // x - R = 0.0, not < 0
+    set_ball(&mut game, 0.0, 50.0); // x + R > 0, not past
+    assert_eq!(check_touchline(&game), None);
+}
+
+#[test]
+fn test_touchline_ball_touching_line_from_inside() {
+    // Ball center at BALL_R — still in play, not past the line
+    let mut game = create_test_game();
+    set_ball(&mut game, BALL_R, 50.0);
     assert_eq!(check_touchline(&game), None);
 }
 
