@@ -55,6 +55,13 @@ The project is divided into independent modules using Rust workspace:
   - `fixtures/team_a.lua`, `fixtures/team_b.lua` — minimal dispatch tables for tests (no real game tactics)
   - `fixtures/dispatch_spy.lua` — reusable spy script for dispatch testing; loaded via `load_test_script()`
 
+- **Visual test scenarios (`ynwa-script-tests/scenarios/`):**
+  - Minimal two-player team configurations for visual verification of specific game situations
+  - Each scenario is a self-contained `teams/` directory that replaces the standard `teams/` path
+  - Launched via `./run_scenario.sh <scenario_name>` (root-level script) — passes `ynwa-script-tests/scenarios/<name>/teams` and `ynwa-scripts/preambles` to `ynwa-player`
+  - Current scenarios:
+    - `goal_kick_teamA_left` — Team A player runs down left flank and kicks past goal line → verifies goal_kick Setup restart: Team B (restarting) walks to ball; Team A retreats 25m from center
+
 ### Universality (optional requirement)
 
 Goal - ability to use the core for other team sports (American football, basketball, hockey).
