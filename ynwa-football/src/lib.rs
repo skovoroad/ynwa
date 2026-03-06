@@ -65,7 +65,7 @@ fn build_player_defs(
 
             let script = p.script.clone().unwrap_or_default();
 
-            Ok(PlayerDef::new(
+            let mut def = PlayerDef::new(
                 team,
                 p.tactical.number,
                 p.static_data.name.clone(),
@@ -78,7 +78,23 @@ fn build_player_defs(
             .with_shot_power(p.static_data.shot_power)
             .with_shot_accuracy(p.static_data.shot_accuracy)
             .with_attack_position(flip(attack)?)
-            .with_defence_position(flip(defence)?))
+            .with_defence_position(flip(defence)?);
+
+            let optional_regions: &[(&str, &Option<String>)] = &[
+                ("goal kick own position", &p.tactical.goal_kick_own_position),
+                ("goal kick opp position", &p.tactical.goal_kick_opp_position),
+                ("corner own left",        &p.tactical.corner_own_left),
+                ("corner own right",       &p.tactical.corner_own_right),
+                ("corner opp left",        &p.tactical.corner_opp_left),
+                ("corner opp right",       &p.tactical.corner_opp_right),
+            ];
+            for (key, maybe_pos) in optional_regions {
+                if let Some(pos) = maybe_pos {
+                    def.regions.insert(key.to_string(), flip(parse(pos)?)?);
+                }
+            }
+
+            Ok(def)
         })
         .collect()
 }
@@ -267,5 +283,94 @@ mod tests {
             .expect("Failed to create world from repository");
 
         assert_eq!(world.game().config().players.len(), 22);
+    }
+
+    #[test]
+    fn build_player_defs_optional_regions_team_a() {
+        use ynwa_core::repository::{PlayerRecord, PlayerStatic, PlayerTactical, TeamRecord};
+
+        let field = create_football_field();
+        let grid_dims = field.grid_dimensions();
+
+        let tactical = PlayerTactical {
+            number: 1,
+            start_position:         "A1".to_string(),
+            attack_position:        "A1".to_string(),
+            defence_position:       "A1".to_string(),
+            goal_kick_own_position: Some("B2".to_string()),
+            goal_kick_opp_position: None,
+            corner_own_left:        Some("C3".to_string()),
+            corner_own_right:       None,
+            corner_opp_left:        None,
+            corner_opp_right:       None,
+        };
+        let record = TeamRecord {
+            preamble: String::new(),
+            players: vec![PlayerRecord {
+                static_data: PlayerStatic { name: "P".to_string(), reaction_rate: 50,
+                    speed_rate: 50, tackle_rate: 50, shot_power: 50, shot_accuracy: 50 },
+                tactical,
+                script: None,
+            }],
+        };
+
+        let defs = build_player_defs(Team::A, &record, grid_dims).unwrap();
+        assert!(defs[0].regions.contains_key("goal kick own position"), "goal kick own position must be set");
+        assert!(!defs[0].regions.contains_key("goal kick opp position"), "goal kick opp position must be absent");
+        assert!(defs[0].regions.contains_key("corner own left"), "corner own left must be set");
+        assert!(!defs[0].regions.contains_key("corner own right"), "corner own right must be absent");
+    }
+
+    #[test]
+    fn build_player_defs_optional_regions_flipped_for_team_b() {
+        use ynwa_core::repository::{PlayerRecord, PlayerStatic, PlayerTactical, TeamRecord};
+        use uom::si::length::meter;
+
+        let field = create_football_field();
+        let grid_dims = field.grid_dimensions();
+        let field_width  = field.width().get::<meter>();
+        let field_length = field.length().get::<meter>();
+
+        let tactical = PlayerTactical {
+            number: 1,
+            start_position:         "A1".to_string(),
+            attack_position:        "A1".to_string(),
+            defence_position:       "A1".to_string(),
+            goal_kick_own_position: Some("C5".to_string()),
+            goal_kick_opp_position: None,
+            corner_own_left: None, corner_own_right: None,
+            corner_opp_left: None, corner_opp_right: None,
+        };
+        let record = TeamRecord {
+            preamble: String::new(),
+            players: vec![PlayerRecord {
+                static_data: PlayerStatic { name: "P".to_string(), reaction_rate: 50,
+                    speed_rate: 50, tackle_rate: 50, shot_power: 50, shot_accuracy: 50 },
+                tactical,
+                script: None,
+            }],
+        };
+
+        let defs_a = build_player_defs(Team::A, &record, grid_dims).unwrap();
+        let defs_b = build_player_defs(Team::B, &record, grid_dims).unwrap();
+
+        let ra = &defs_a[0].regions["goal kick own position"];
+        let rb = &defs_b[0].regions["goal kick own position"];
+
+        // flip_orientation swaps: min_x ↔ (field_width - max_x), min_z ↔ (field_length - max_z)
+        let cell_size = field_width / grid_dims.columns as f32;
+        let a_min_x = (ra.top_left.col     - 1) as f32 * cell_size;
+        let a_max_x =  ra.bottom_right.col      as f32 * cell_size;
+        let a_min_z = (ra.top_left.row     - 1) as f32 * cell_size;
+        let a_max_z =  ra.bottom_right.row      as f32 * cell_size;
+        let b_min_x = (rb.top_left.col     - 1) as f32 * cell_size;
+        let b_max_x =  rb.bottom_right.col      as f32 * cell_size;
+        let b_min_z = (rb.top_left.row     - 1) as f32 * cell_size;
+        let b_max_z =  rb.bottom_right.row      as f32 * cell_size;
+
+        assert!((b_min_x - (field_width  - a_max_x)).abs() < 0.01, "b_min_x={b_min_x} expected {}", field_width  - a_max_x);
+        assert!((b_max_x - (field_width  - a_min_x)).abs() < 0.01, "b_max_x={b_max_x} expected {}", field_width  - a_min_x);
+        assert!((b_min_z - (field_length - a_max_z)).abs() < 0.01, "b_min_z={b_min_z} expected {}", field_length - a_max_z);
+        assert!((b_max_z - (field_length - a_min_z)).abs() < 0.01, "b_max_z={b_max_z} expected {}", field_length - a_min_z);
     }
 }

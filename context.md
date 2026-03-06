@@ -76,7 +76,7 @@ teams/
     players/
       NN/            # player directory, zero-padded number
         static.toml    # immutable attributes: name, reaction_rate, speed_rate, tackle_rate, shot_power, shot_accuracy
-        tactical.toml  # tactical attributes: number, start_position, attack_position, defence_position
+        tactical.toml  # tactical attributes: number, start_position, attack_position, defence_position; optional: goal_kick_own_position, goal_kick_opp_position, corner_own_left, corner_own_right, corner_opp_left, corner_opp_right
         script.lua     # optional player script: player_play / player_setup overrides
 ```
 

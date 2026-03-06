@@ -19,6 +19,18 @@ struct TacticalToml {
     start_position: String,
     attack_position: String,
     defence_position: String,
+    #[serde(default)]
+    goal_kick_own_position: Option<String>,
+    #[serde(default)]
+    goal_kick_opp_position: Option<String>,
+    #[serde(default)]
+    corner_own_left: Option<String>,
+    #[serde(default)]
+    corner_own_right: Option<String>,
+    #[serde(default)]
+    corner_opp_left: Option<String>,
+    #[serde(default)]
+    corner_opp_right: Option<String>,
 }
 
 fn read_toml<T: for<'de> Deserialize<'de>>(path: &Path) -> Result<T, String> {
@@ -56,6 +68,12 @@ fn load_player(dir: &Path) -> Result<PlayerRecord, String> {
             start_position: t.start_position,
             attack_position: t.attack_position,
             defence_position: t.defence_position,
+            goal_kick_own_position: t.goal_kick_own_position,
+            goal_kick_opp_position: t.goal_kick_opp_position,
+            corner_own_left: t.corner_own_left,
+            corner_own_right: t.corner_own_right,
+            corner_opp_left: t.corner_opp_left,
+            corner_opp_right: t.corner_opp_right,
         },
         script,
     })
