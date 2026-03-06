@@ -149,7 +149,7 @@ pub struct PlayerState {
     pub decision_reason: Option<String>, // Short explanation of why this decision was made
     pub decision_processed: bool,
     pub last_error: Option<String>,
-    pub is_ready: bool, // True when player is in start position (for Setup stage)
+    pub is_ready: bool, // True when player has reached their Setup target (current_decision is Stop)
 }
 
 impl Default for PlayerState {

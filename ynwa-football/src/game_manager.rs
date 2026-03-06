@@ -6,7 +6,7 @@
 //!
 //! Setup stage behavior:
 //! - Players start at (width/2, 0, -5) — 5m behind field edge
-//! - Players marked ready when inside their `start_position` region
+//! - Players marked ready when their `current_decision` is `Stop` (arrival detected by DecisionSystem)
 //! - Automatically transitions to Play when all players are ready
 //! - Ball placed at `GameState::restart_position` if set, otherwise at `ball.initial_position`
 //!
@@ -24,7 +24,6 @@
 
 use ynwa_core::field::zones::{Point3D, Velocity3D};
 use ynwa_core::game::{Game, GameStage};
-use ynwa_core::region::Region;
 use ynwa_core::system::System;
 use ynwa_core::team::Team;
 use uom::si::length::meter;
@@ -72,37 +71,11 @@ impl System for FootballGameManager {
 
 impl FootballGameManager {
     fn check_player_readiness(&self, game: &mut Game) {
-        let field_width = game.config().field.width().get::<meter>();
-        let grid_dims = game.config().field.grid_dimensions();
-
-        // Collect player start regions first to avoid borrowing issues
-        let start_regions: Vec<_> = game
-            .config()
-            .players
-            .iter()
-            .map(|player_def| {
-                player_def
-                    .regions
-                    .get("start position")
-                    .expect("Player must have 'start position' region")
-                    .clone()
-            })
-            .collect();
-
-        for (idx, player_state) in game.state.player_states.iter_mut().enumerate() {
+        for player_state in game.state.player_states.iter_mut() {
             if player_state.is_ready {
-                continue; // Already ready
+                continue;
             }
-
-            let start_region = &start_regions[idx];
-
-            // Check if player is inside their start region
-            if is_player_in_start_region(
-                &player_state.position,
-                start_region,
-                grid_dims,
-                field_width,
-            ) {
+            if matches!(player_state.current_decision, Some(ynwa_core::game::Decision::Stop)) {
                 player_state.is_ready = true;
             }
         }
@@ -194,15 +167,6 @@ fn nearest_corner(pos: Point3D, field_width: f32, field_length: f32) -> Point3D 
         })
         .unwrap();
     Point3D::from_meters(cx, 0.0, cz)
-}
-
-fn is_player_in_start_region(
-    position: &ynwa_core::field::zones::Point3D,
-    start_region: &Region,
-    grid_dims: ynwa_core::region::GridDimensions,
-    field_width: f32,
-) -> bool {
-    start_region.contains_point(grid_dims, field_width, position)
 }
 
 impl Default for FootballGameManager {

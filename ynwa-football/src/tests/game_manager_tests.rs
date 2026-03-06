@@ -1,7 +1,7 @@
 use crate::game_manager::FootballGameManager;
 use ynwa_core::field::zones::{Point3D, Rectangle, ZoneGeometry};
 use ynwa_core::field::{Field, FieldBuilder, Zone};
-use ynwa_core::game::{BallDef, Game, GameConfig, GameStage, PlayerDef, RefereeDef};
+use ynwa_core::game::{BallDef, Decision, Game, GameConfig, GameStage, PlayerDef, RefereeDef};
 use ynwa_core::region::GridCell;
 use ynwa_core::system::System;
 use ynwa_core::team::Team;
@@ -77,6 +77,7 @@ fn test_check_player_readiness_when_not_in_region() {
     let mut game = create_test_game_setup();
     let mut manager = FootballGameManager::new();
 
+    // Players have no current_decision — should not be marked ready
     manager.update(&mut game, 0.0);
 
     assert_eq!(game.state.stage, GameStage::Setup("Prepare".to_string()));
@@ -89,12 +90,7 @@ fn test_check_player_readiness_when_in_region() {
     let mut game = create_test_game_setup();
     let mut manager = FootballGameManager::new();
 
-    let start_region = game.config().players[0].regions["start position"].clone();
-    let center = start_region.center(
-        game.config().field.grid_dimensions(),
-        game.config().field.width().get::<meter>(),
-    );
-    game.state.player_states[0].position = center;
+    game.state.player_states[0].current_decision = Some(Decision::Stop);
 
     manager.update(&mut game, 0.0);
 
@@ -108,21 +104,8 @@ fn test_transition_to_play_when_all_ready() {
     let mut game = create_test_game_setup();
     let mut manager = FootballGameManager::new();
 
-    let centers: Vec<_> = game
-        .config()
-        .players
-        .iter()
-        .map(|player_def| {
-            let start_region = &player_def.regions["start position"];
-            start_region.center(
-                game.config().field.grid_dimensions(),
-                game.config().field.width().get::<meter>(),
-            )
-        })
-        .collect();
-
-    for (idx, player_state) in game.state.player_states.iter_mut().enumerate() {
-        player_state.position = centers[idx].clone();
+    for player_state in game.state.player_states.iter_mut() {
+        player_state.current_decision = Some(Decision::Stop);
     }
 
     manager.update(&mut game, 0.0);
@@ -238,11 +221,7 @@ fn test_game_resumes_after_event_triggered_setup() {
 
     assert!(!game.state.player_states[0].is_ready, "Player should not be ready initially");
 
-    let center = start_region.center(
-        game.config().field.grid_dimensions(),
-        game.config().field.width().get::<meter>(),
-    );
-    game.state.player_states[0].position = center;
+    game.state.player_states[0].current_decision = Some(Decision::Stop);
 
     manager.update(&mut game, 0.0);
     assert!(game.state.player_states[0].is_ready, "Player should be marked ready");
