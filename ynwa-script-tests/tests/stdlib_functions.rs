@@ -737,6 +737,137 @@ end
         "{:?}", game.state().player_states[0].last_error);
 }
 
+// --- setup_info tests ---
+
+fn make_setup_info_game(script: &str, team: ynwa_core::team::Team, stage: GameStage) -> ynwa_core::game::Game {
+    use ynwa_core::field::Field;
+    use ynwa_core::game::{BallDef, GameConfig, PlayerDef, RefereeDef};
+    use ynwa_core::region::GridCell;
+
+    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set");
+    let workspace_root = std::path::Path::new(&manifest_dir).parent().unwrap();
+    let load = |rel: &str| std::fs::read_to_string(workspace_root.join(rel))
+        .unwrap_or_else(|e| panic!("Failed to load {}: {}", rel, e));
+
+    let field = Field::from_meters(100.0, 60.0, 26, 44);
+    let grid_dims = field.grid_dimensions();
+    let start_region = grid_dims
+        .create_region(GridCell::new(10, 10).unwrap(), GridCell::new(11, 11).unwrap())
+        .unwrap();
+
+    let config = GameConfig {
+        field,
+        players: vec![PlayerDef::new(team, 1, "P".to_string(), script.to_string(), start_region)],
+        ball: BallDef::default(),
+        referees: vec![RefereeDef::default()],
+        scripting: ynwa_core::game::ScriptingConfig {
+            core_preamble:   load("ynwa-scripts/preambles/core.lua"),
+            stdlib_preamble: load("ynwa-scripts/preambles/stdlib.lua"),
+            team_a_preamble: load("ynwa-script-tests/fixtures/team_a.lua"),
+            team_b_preamble: load("ynwa-script-tests/fixtures/team_b.lua"),
+        },
+    };
+
+    ynwa_core::game::Game::with_stage(config, stage)
+}
+
+fn run_setup_info_game(game: &mut ynwa_core::game::Game) {
+    game.state.player_states[0].needs_decision = true;
+    let dm = ScriptedDecisionMaker::new(game).unwrap();
+    let mut ds = DecisionSystem::new().with_decision_maker(Box::new(dm));
+    ds.update(game, 1.0);
+}
+
+#[test]
+fn test_setup_info_present_when_restart_position_set() {
+    use ynwa_core::field::zones::Point3D;
+    use ynwa_core::team::Team;
+    use uom::si::f32::Length;
+    use uom::si::length::meter;
+
+    // Script asserts setup_info fields match the restart_position set in GameState
+    let script = r#"
+function get_setup_position(reason)
+    local info = context.game.setup_info
+    assert(info ~= nil, "setup_info must be present")
+    assert(math.abs(info.restart_x - 20.0) < 0.01,
+        "restart_x expected 20, got " .. tostring(info.restart_x))
+    assert(math.abs(info.restart_z - 34.0) < 0.01,
+        "restart_z expected 34, got " .. tostring(info.restart_z))
+    assert(info.restarting_team == "A",
+        "restarting_team expected A, got " .. tostring(info.restarting_team))
+    return {action = "stop"}
+end
+function make_decision() return {action = "stop"} end
+"#;
+
+    let mut game = make_setup_info_game(script, Team::A, GameStage::Setup("throw_in".to_string()));
+    game.state.restart_position = Some(Point3D::new(
+        Length::new::<meter>(20.0),
+        Length::new::<meter>(0.0),
+        Length::new::<meter>(34.0),
+    ));
+    game.state.restart_team = Some(Team::A);
+    run_setup_info_game(&mut game);
+    assert!(game.state().player_states[0].last_error.is_none(),
+        "{:?}", game.state().player_states[0].last_error);
+}
+
+#[test]
+fn test_setup_info_absent_for_start_stage() {
+    // "start" has no restart_position → setup_info must be absent in context
+    let script = r#"
+function get_setup_position(reason)
+    assert(context.game.setup_info == nil,
+        "setup_info must be absent for 'start', got: " .. tostring(context.game.setup_info))
+    return {action = "stop"}
+end
+function make_decision() return {action = "stop"} end
+"#;
+
+    let mut game = make_setup_info_game(
+        script,
+        ynwa_core::team::Team::A,
+        GameStage::Setup("start".to_string()),
+    );
+    run_setup_info_game(&mut game);
+    assert!(game.state().player_states[0].last_error.is_none(),
+        "{:?}", game.state().player_states[0].last_error);
+}
+
+#[test]
+fn test_setup_info_coordinates_flipped_for_team_b() {
+    use ynwa_core::field::zones::Point3D;
+    use ynwa_core::team::Team;
+    use uom::si::f32::Length;
+    use uom::si::length::meter;
+
+    // Field 100m wide, 60m long. Team A restart at (20, 34).
+    // Team B sees flipped: (100-20, 60-34) = (80, 26).
+    let script = r#"
+function get_setup_position(reason)
+    local info = context.game.setup_info
+    assert(info ~= nil, "setup_info must be present")
+    assert(math.abs(info.restart_x - 80.0) < 0.01,
+        "Team B restart_x expected 80, got " .. tostring(info.restart_x))
+    assert(math.abs(info.restart_z - 26.0) < 0.01,
+        "Team B restart_z expected 26, got " .. tostring(info.restart_z))
+    return {action = "stop"}
+end
+function make_decision() return {action = "stop"} end
+"#;
+
+    let mut game = make_setup_info_game(script, Team::B, GameStage::Setup("throw_in".to_string()));
+    game.state.restart_position = Some(Point3D::new(
+        Length::new::<meter>(20.0),
+        Length::new::<meter>(0.0),
+        Length::new::<meter>(34.0),
+    ));
+    game.state.restart_team = Some(Team::B);
+    run_setup_info_game(&mut game);
+    assert!(game.state().player_states[0].last_error.is_none(),
+        "{:?}", game.state().player_states[0].last_error);
+}
 #[test]
 fn test_goalkeeper_cover_position_clamps_to_goal() {
     // default_goalkeeper_cover_position: target X is clamped to own goal width, Z is defence position Z.

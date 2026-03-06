@@ -387,6 +387,24 @@ impl DecisionMaker for ScriptedDecisionMaker {
             crate::game::GameStage::Setup(reason) => {
                 let mut ctx = context;
                 ctx["game"]["setup_reason"] = serde_json::Value::String(reason.clone());
+                if let Some(restart_pos) = game.state().restart_position {
+                    let config = game.config();
+                    let field_width = config.field.width().get::<meter>();
+                    let field_length = config.field.length().get::<meter>();
+                    let player_team = config.players[player_index].team;
+                    let pos_json =
+                        Self::position_to_json(&restart_pos, player_team, field_width, field_length);
+                    let restarting_team = game
+                        .state()
+                        .restart_team
+                        .map(|t| format!("{:?}", t))
+                        .unwrap_or_default();
+                    ctx["game"]["setup_info"] = json!({
+                        "restart_x": pos_json["x"],
+                        "restart_z": pos_json["z"],
+                        "restarting_team": restarting_team
+                    });
+                }
                 self.engine
                     .get_setup_position(player_index, &ctx)
                     .map_err(|e| DecisionError::RuntimeError(format!("Engine error: {}", e)))?
