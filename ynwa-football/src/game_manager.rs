@@ -152,10 +152,6 @@ impl FootballGameManager {
                 let attacking_team = if ball_z < field_length / 2.0 { Team::B } else { Team::A };
 
                 if last_team == attacking_team {
-                    game.state.restart_position = Some(nearest_corner(position, field_width, field_length));
-                    game.state.restart_team = Some(last_team);
-                    game.state.stage = GameStage::Setup("corner".to_string());
-                } else {
                     let goal_kick_z = if ball_z < field_length / 2.0 {
                         GOAL_KICK_OFFSET
                     } else {
@@ -166,8 +162,12 @@ impl FootballGameManager {
                         0.0,
                         goal_kick_z,
                     ));
-                    game.state.restart_team = Some(last_team); // defending team takes goal kick
+                    game.state.restart_team = Some(last_team.opposite()); // defending team takes goal kick
                     game.state.stage = GameStage::Setup("goal_kick".to_string());
+                } else {
+                    game.state.restart_position = Some(nearest_corner(position, field_width, field_length));
+                    game.state.restart_team = Some(attacking_team); // attacking team takes corner
+                    game.state.stage = GameStage::Setup("corner".to_string());
                 }
             }
         }

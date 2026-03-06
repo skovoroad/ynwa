@@ -550,35 +550,14 @@ fn test_touchline_sets_restart_position_and_team() {
 }
 
 #[test]
-fn test_goal_line_attacking_team_gives_corner() {
-    // Team B attacked toward z=0 (Team A's goal) and last touched — corner for Team B
+fn test_goal_line_attacking_team_gives_goal_kick() {
+    // Team B attacked toward z=0 (Team A's goal) and last touched — goal kick for Team A
     let mut game = create_standard_game();
     let mut manager = FootballGameManager::new();
     let field_width = game.config().field.width().get::<meter>();
 
     game.state.ball_state.last_possessing_team = Some(Team::B);
     // Ball outside goalposts near z=0
-    set_ball_pos(&mut game, 0.5, -(0.12 + 0.01));
-
-    manager.update(&mut game, 0.0);
-
-    assert_eq!(game.state.stage, GameStage::Setup("corner".to_string()));
-    let rp = game.state.restart_position.expect("restart_position must be set");
-    // Nearest corner to (0.5, ~0) is (0, 0)
-    assert!((rp.x.get::<meter>()).abs() < 0.01);
-    assert!((rp.z.get::<meter>()).abs() < 0.01);
-    assert_eq!(game.state.restart_team, Some(Team::B));
-    let _ = field_width;
-}
-
-#[test]
-fn test_goal_line_defending_team_gives_goal_kick() {
-    // Team A last touched and ball went past z=0 (Team A's own goal line) — goal kick for Team A
-    let mut game = create_standard_game();
-    let mut manager = FootballGameManager::new();
-    let field_width = game.config().field.width().get::<meter>();
-
-    game.state.ball_state.last_possessing_team = Some(Team::A);
     set_ball_pos(&mut game, 0.5, -(0.12 + 0.01));
 
     manager.update(&mut game, 0.0);
@@ -591,35 +570,35 @@ fn test_goal_line_defending_team_gives_goal_kick() {
 }
 
 #[test]
-fn test_goal_line_far_end_attacking_team_gives_corner() {
-    // Team A attacked toward z=field_length and last touched — corner for Team A
+fn test_goal_line_defending_team_gives_corner() {
+    // Team A (defending) last touched past z=0 — corner for Team B (attacking)
+    let mut game = create_standard_game();
+    let mut manager = FootballGameManager::new();
+    let field_width = game.config().field.width().get::<meter>();
+
+    game.state.ball_state.last_possessing_team = Some(Team::A);
+    set_ball_pos(&mut game, 0.5, -(0.12 + 0.01));
+
+    manager.update(&mut game, 0.0);
+
+    assert_eq!(game.state.stage, GameStage::Setup("corner".to_string()));
+    let rp = game.state.restart_position.expect("restart_position must be set");
+    // Nearest corner to (0.5, ~0) is (0, 0)
+    assert!((rp.x.get::<meter>()).abs() < 0.01);
+    assert!((rp.z.get::<meter>()).abs() < 0.01);
+    assert_eq!(game.state.restart_team, Some(Team::B)); // attacking team takes corner
+    let _ = field_width;
+}
+
+#[test]
+fn test_goal_line_far_end_attacking_team_gives_goal_kick() {
+    // Team A attacked toward z=field_length and last touched — goal kick for Team B
     let mut game = create_standard_game();
     let mut manager = FootballGameManager::new();
     let field_length = game.config().field.length().get::<meter>();
     let field_width = game.config().field.width().get::<meter>();
 
     game.state.ball_state.last_possessing_team = Some(Team::A);
-    set_ball_pos(&mut game, field_width - 0.5, field_length + 0.12 + 0.01);
-
-    manager.update(&mut game, 0.0);
-
-    assert_eq!(game.state.stage, GameStage::Setup("corner".to_string()));
-    let rp = game.state.restart_position.expect("restart_position must be set");
-    // Nearest corner to (field_width - 0.5, ~field_length) is (field_width, field_length)
-    assert!((rp.x.get::<meter>() - field_width).abs() < 0.01);
-    assert!((rp.z.get::<meter>() - field_length).abs() < 0.01);
-    assert_eq!(game.state.restart_team, Some(Team::A));
-}
-
-#[test]
-fn test_goal_line_far_end_defending_team_gives_goal_kick() {
-    // Team B last touched past z=field_length — goal kick for Team B
-    let mut game = create_standard_game();
-    let mut manager = FootballGameManager::new();
-    let field_length = game.config().field.length().get::<meter>();
-    let field_width = game.config().field.width().get::<meter>();
-
-    game.state.ball_state.last_possessing_team = Some(Team::B);
     set_ball_pos(&mut game, field_width - 0.5, field_length + 0.12 + 0.01);
 
     manager.update(&mut game, 0.0);
@@ -632,13 +611,34 @@ fn test_goal_line_far_end_defending_team_gives_goal_kick() {
 }
 
 #[test]
+fn test_goal_line_far_end_defending_team_gives_corner() {
+    // Team B (defending) last touched past z=field_length — corner for Team A (attacking)
+    let mut game = create_standard_game();
+    let mut manager = FootballGameManager::new();
+    let field_length = game.config().field.length().get::<meter>();
+    let field_width = game.config().field.width().get::<meter>();
+
+    game.state.ball_state.last_possessing_team = Some(Team::B);
+    set_ball_pos(&mut game, field_width - 0.5, field_length + 0.12 + 0.01);
+
+    manager.update(&mut game, 0.0);
+
+    assert_eq!(game.state.stage, GameStage::Setup("corner".to_string()));
+    let rp = game.state.restart_position.expect("restart_position must be set");
+    // Nearest corner to (field_width - 0.5, ~field_length) is (field_width, field_length)
+    assert!((rp.x.get::<meter>() - field_width).abs() < 0.01);
+    assert!((rp.z.get::<meter>() - field_length).abs() < 0.01);
+    assert_eq!(game.state.restart_team, Some(Team::A)); // attacking team takes corner
+}
+
+#[test]
 fn test_setup_tick_places_ball_at_restart_position() {
     let mut game = create_standard_game();
     let mut manager = FootballGameManager::new();
 
-    game.state.ball_state.last_possessing_team = Some(Team::B);
+    game.state.ball_state.last_possessing_team = Some(Team::A);
     let field_width = game.config().field.width().get::<meter>();
-    set_ball_pos(&mut game, 0.5, -(0.12 + 0.01)); // corner scenario
+    set_ball_pos(&mut game, 0.5, -(0.12 + 0.01)); // corner scenario: defending Team A last touched
 
     manager.update(&mut game, 0.0); // Play tick → corner Setup
 
