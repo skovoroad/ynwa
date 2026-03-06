@@ -98,6 +98,7 @@ The following aspects are considered in the design but implementation is postpon
 **Game API (`game.rs`):**
 - Poll-based model: client owns the game loop
 - API design: `state()` provides access to state
+- `GameState` has `restart_position: Option<Point3D>` and `restart_team: Option<Team>` — set by `FootballGameManager::handle_event` on each Setup transition; used by scripting layer (task 3) and ball placement in Setup tick
 - Determinism through fixed timestep (controlled by client)
 
 **Statistics (`StatSet` in `game.rs`):**

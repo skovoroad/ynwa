@@ -257,6 +257,10 @@ pub struct GameState {
     pub team_stats: HashMap<Team, StatSet>,
     /// Parallel to player_states: player_stats[i] corresponds to player_states[i].
     pub player_stats: Vec<StatSet>,
+    /// Ball placement point for current Setup stage. None means use ball.initial_position.
+    pub restart_position: Option<Point3D>,
+    /// Team that initiates play at current Setup stage restart. None for "start".
+    pub restart_team: Option<Team>,
 }
 
 pub struct Game {
@@ -341,6 +345,8 @@ impl Game {
                 referee_states,
                 team_stats,
                 player_stats: vec![StatSet::default(); config.players.len()],
+                restart_position: None,
+                restart_team: None,
             },
             config,
         }
