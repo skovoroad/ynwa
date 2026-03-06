@@ -868,6 +868,144 @@ function make_decision() return {action = "stop"} end
     assert!(game.state().player_states[0].last_error.is_none(),
         "{:?}", game.state().player_states[0].last_error);
 }
+
+#[test]
+fn test_get_restart_position_returns_coords() {
+    use ynwa_core::field::zones::Point3D;
+    use ynwa_core::team::Team;
+    use uom::si::f32::Length;
+    use uom::si::length::meter;
+
+    let script = r#"
+function get_setup_position(reason)
+    local rp = get_restart_position()
+    assert(rp ~= nil, "get_restart_position() must not be nil")
+    assert(math.abs(rp.x - 20.0) < 0.01,
+        "x expected 20, got " .. tostring(rp.x))
+    assert(math.abs(rp.z - 34.0) < 0.01,
+        "z expected 34, got " .. tostring(rp.z))
+    return {action = "stop"}
+end
+function make_decision() return {action = "stop"} end
+"#;
+
+    let mut game = make_setup_info_game(script, Team::A, GameStage::Setup("throw_in".to_string()));
+    game.state.restart_position = Some(Point3D::new(
+        Length::new::<meter>(20.0),
+        Length::new::<meter>(0.0),
+        Length::new::<meter>(34.0),
+    ));
+    game.state.restart_team = Some(Team::A);
+    run_setup_info_game(&mut game);
+    assert!(game.state().player_states[0].last_error.is_none(),
+        "{:?}", game.state().player_states[0].last_error);
+}
+
+#[test]
+fn test_get_restart_position_returns_nil_without_setup_info() {
+    let script = r#"
+function get_setup_position(reason)
+    assert(get_restart_position() == nil,
+        "get_restart_position() must be nil when setup_info absent")
+    return {action = "stop"}
+end
+function make_decision() return {action = "stop"} end
+"#;
+
+    let mut game = make_setup_info_game(
+        script,
+        ynwa_core::team::Team::A,
+        GameStage::Setup("start".to_string()),
+    );
+    run_setup_info_game(&mut game);
+    assert!(game.state().player_states[0].last_error.is_none(),
+        "{:?}", game.state().player_states[0].last_error);
+}
+
+#[test]
+fn test_is_my_team_restarting() {
+    use ynwa_core::field::zones::Point3D;
+    use ynwa_core::team::Team;
+    use uom::si::f32::Length;
+    use uom::si::length::meter;
+
+    // Team A player, restart_team = A → true; then B → false
+    let script = r#"
+function get_setup_position(reason)
+    local restarting = is_my_team_restarting()
+    assert(restarting == true,
+        "expected true when restarting_team matches my team, got " .. tostring(restarting))
+    return {action = "stop"}
+end
+function make_decision() return {action = "stop"} end
+"#;
+
+    let mut game = make_setup_info_game(script, Team::A, GameStage::Setup("throw_in".to_string()));
+    game.state.restart_position = Some(Point3D::new(
+        Length::new::<meter>(20.0),
+        Length::new::<meter>(0.0),
+        Length::new::<meter>(34.0),
+    ));
+    game.state.restart_team = Some(Team::A);
+    run_setup_info_game(&mut game);
+    assert!(game.state().player_states[0].last_error.is_none(),
+        "{:?}", game.state().player_states[0].last_error);
+
+    let script_b = r#"
+function get_setup_position(reason)
+    local restarting = is_my_team_restarting()
+    assert(restarting == false,
+        "expected false when restarting_team differs, got " .. tostring(restarting))
+    return {action = "stop"}
+end
+function make_decision() return {action = "stop"} end
+"#;
+
+    let mut game2 = make_setup_info_game(script_b, Team::A, GameStage::Setup("throw_in".to_string()));
+    game2.state.restart_position = Some(Point3D::new(
+        Length::new::<meter>(20.0),
+        Length::new::<meter>(0.0),
+        Length::new::<meter>(34.0),
+    ));
+    game2.state.restart_team = Some(Team::B);
+    run_setup_info_game(&mut game2);
+    assert!(game2.state().player_states[0].last_error.is_none(),
+        "{:?}", game2.state().player_states[0].last_error);
+}
+
+#[test]
+fn test_get_restart_position_flipped_for_team_b() {
+    use ynwa_core::field::zones::Point3D;
+    use ynwa_core::team::Team;
+    use uom::si::f32::Length;
+    use uom::si::length::meter;
+
+    // Field 100m × 60m. Team A restart at (20, 34) → Team B sees (80, 26).
+    let script = r#"
+function get_setup_position(reason)
+    local rp = get_restart_position()
+    assert(rp ~= nil, "get_restart_position() must not be nil")
+    assert(math.abs(rp.x - 80.0) < 0.01,
+        "Team B x expected 80, got " .. tostring(rp.x))
+    assert(math.abs(rp.z - 26.0) < 0.01,
+        "Team B z expected 26, got " .. tostring(rp.z))
+    return {action = "stop"}
+end
+function make_decision() return {action = "stop"} end
+"#;
+
+    let mut game = make_setup_info_game(script, Team::B, GameStage::Setup("throw_in".to_string()));
+    game.state.restart_position = Some(Point3D::new(
+        Length::new::<meter>(20.0),
+        Length::new::<meter>(0.0),
+        Length::new::<meter>(34.0),
+    ));
+    game.state.restart_team = Some(Team::A);
+    run_setup_info_game(&mut game);
+    assert!(game.state().player_states[0].last_error.is_none(),
+        "{:?}", game.state().player_states[0].last_error);
+}
+
 #[test]
 fn test_goalkeeper_cover_position_clamps_to_goal() {
     // default_goalkeeper_cover_position: target X is clamped to own goal width, Z is defence position Z.

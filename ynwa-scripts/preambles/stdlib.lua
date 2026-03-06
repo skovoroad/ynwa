@@ -225,6 +225,18 @@ function run_to_region(from_notation, to_notation)
     }
 end
 
+-- Returns {x, z} of the restart point, or nil if setup_info is absent (start/after_goal).
+function get_restart_position()
+    if not context.game.setup_info then return nil end
+    return {x = context.game.setup_info.restart_x, z = context.game.setup_info.restart_z}
+end
+
+-- Returns true if my team initiates the restart, nil if setup_info is absent.
+function is_my_team_restarting()
+    if not context.game.setup_info then return nil end
+    return context.game.setup_info.restarting_team == my_team_name()
+end
+
 -- Dispatcher for Setup stage.
 -- Priority: player_setup[reason] -> team_setup[reason] -> default_get_setup_position(reason)
 function get_setup_position(reason)
