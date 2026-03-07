@@ -1014,6 +1014,37 @@ function make_decision() return {action = "stop"} end
 }
 
 #[test]
+fn test_run_to_restart_position() {
+    use ynwa_core::field::zones::Point3D;
+    use ynwa_core::team::Team;
+    use uom::si::f32::Length;
+    use uom::si::length::meter;
+
+    let script = r#"
+function get_setup_position(reason)
+    local d = run_to_restart_position()
+    assert(d ~= nil, "must not be nil when setup_info present")
+    assert(d.action == "run", "expected run, got " .. tostring(d.action))
+    assert(math.abs(d.target.x - 20.0) < 0.01, "x: " .. tostring(d.target.x))
+    assert(math.abs(d.target.z - 34.0) < 0.01, "z: " .. tostring(d.target.z))
+    return d
+end
+function make_decision() return {action = "stop"} end
+"#;
+
+    let mut game = make_setup_info_game(script, Team::A, GameStage::Setup("throw_in".to_string()));
+    game.state.restart_position = Some(Point3D::new(
+        Length::new::<meter>(20.0),
+        Length::new::<meter>(0.0),
+        Length::new::<meter>(34.0),
+    ));
+    game.state.restart_team = Some(Team::A);
+    run_setup_info_game(&mut game);
+    assert!(game.state().player_states[0].last_error.is_none(),
+        "{:?}", game.state().player_states[0].last_error);
+}
+
+#[test]
 fn test_goalkeeper_cover_position_clamps_to_goal() {
     // default_goalkeeper_cover_position: target X is clamped to own goal width, Z is defence position Z.
     // Ball at X=0 (far left) → target X == goal.min_x; ball at X=field.width (far right) → goal.max_x.

@@ -264,6 +264,14 @@ function is_my_team_restarting()
     return context.game.setup_info.restarting_team == my_team_name()
 end
 
+-- Action: run to the restart point; nil if setup_info is absent.
+function run_to_restart_position()
+    local rp = get_restart_position()
+    if rp == nil then return nil end
+    return {action = "run", target_type = "point", target = {x = rp.x, z = rp.z, y = 0},
+            reason = "run_to_restart_position"}
+end
+
 -- Dispatcher for Setup stage.
 -- Priority: player_setup[reason] -> team_setup[reason] -> default_get_setup_position(reason)
 function get_setup_position(reason)
