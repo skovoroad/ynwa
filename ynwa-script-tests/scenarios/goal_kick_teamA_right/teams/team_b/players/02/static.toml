@@ -1,0 +1,6 @@
+name = "Support B"
+reaction_rate = 99
+speed_rate = 70
+tackle_rate = 50
+shot_power = 50
+shot_accuracy = 50

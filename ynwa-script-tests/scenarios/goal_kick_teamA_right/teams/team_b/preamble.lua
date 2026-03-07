@@ -1,9 +1,8 @@
 -- Scenario: goal_kick_teamA_right
--- Team B: один игрок, стоит на стартовой позиции.
--- В фазе возобновления (goal_kick): team B restarting → идёт к restart_position (к мячу).
--- Если не restarting — встаёт в 25м от центра к своей половине (строка 10 в их координатах).
+-- Team B: два игрока.
+-- Игрок 1 (исполнитель): player_setup → идёт к мячу.
+-- Игрок 2 (поддержка): player_setup → default_goal_kick_setup → goal_kick_own_position.
 
--- В игре: стоять на месте, но если мяч достался — пинать в центр поля
 team_play = {
     i_have_ball = function()
         return kick_to_region("M20", "N21")
@@ -13,23 +12,6 @@ team_play = {
     opponent_has_ball = function() return {action = "stop"} end,
 }
 
--- При возобновлении: если наша команда бьёт — идти к мячу; иначе — в 25м от центра.
-local function goal_kick_setup()
-    if is_my_team_restarting() then
-        -- Наш удар: идти к позиции мяча
-        local rp = get_restart_position()
-        if rp then
-            return {action = "run", target_type = "point", target = {x = rp.x, z = rp.z, y = 0}}
-        end
-    end
-    -- Не наш удар: отойти на 25м от центра в свою половину
-    return run_to_region("N10", "N10")
-end
-
 team_setup = {
-    start      = function() return run_to_region("N16", "N16") end,
-    after_goal = function() return run_to_region("N16", "N16") end,
-    throw_in   = goal_kick_setup,
-    goal_kick  = goal_kick_setup,
-    corner     = goal_kick_setup,
+    start = run_to_start_position,
 }

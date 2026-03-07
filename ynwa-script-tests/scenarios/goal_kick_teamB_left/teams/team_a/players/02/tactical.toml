@@ -1,0 +1,5 @@
+number = 2
+start_position         = "K16"
+attack_position        = "K16"
+defence_position       = "K16"
+goal_kick_own_position = "K30"

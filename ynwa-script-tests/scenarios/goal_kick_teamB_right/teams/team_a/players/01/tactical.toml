@@ -1,7 +1,5 @@
-# Team A стоит на стартовой позиции.
-# В фазе возобновления (goal_kick): Team A restarting → идёт к мячу.
-
 number = 1
-start_position   = "N16"
-attack_position  = "N16"
-defence_position = "N16"
+start_position         = "N16"
+attack_position        = "N16"
+defence_position       = "N16"
+goal_kick_opp_position = "N25"

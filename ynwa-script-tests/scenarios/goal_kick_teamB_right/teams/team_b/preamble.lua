@@ -11,9 +11,6 @@ team_play = {
 }
 
 team_setup = {
-    start      = function() return run_to_region("N16", "N16") end,
-    after_goal = function() return run_to_region("N16", "N16") end,
-    throw_in   = function() return run_to_region("N10", "N10") end,
-    goal_kick  = default_goal_kick_setup,
-    corner     = function() return run_to_region("N10", "N10") end,
+    start     = function() return run_to_region("N16", "N16") end,
+    goal_kick = default_goal_kick_setup,
 }
