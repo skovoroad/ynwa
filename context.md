@@ -108,6 +108,7 @@ The following aspects are considered in the design but implementation is postpon
 - `GameState` has `restart_position: Option<Point3D>` and `restart_team: Option<Team>` — set by `FootballGameManager::handle_event` on each Setup transition; used by scripting layer and ball placement in Setup tick
 - When `restart_position` is `Some`, `ScriptedDecisionMaker` adds `setup_info` to `context.game` in the Setup branch: `{ restart_x, restart_z, restarting_team }`. Coordinates are transformed for the player's team perspective (Team B sees flipped). Field is absent when `restart_position` is `None` (e.g. `"start"`, `"after_goal"`).
 - `stdlib.lua` provides `get_restart_position()` → `{x, z}` or `nil`, and `is_my_team_restarting()` → `bool` or `nil` — wrappers over `setup_info` that follow the no-direct-`context`-access rule.
+- `stdlib.lua` provides `default_goal_kick_setup()` — reusable handler for `team_setup.goal_kick`: restarting team goes to `"goal kick own position"` (fallback: `run_to_start_position()`); defending team goes to `"goal kick opp position"` (fallback: `run_to_defence_position()`). Team preambles reference it directly: `goal_kick = default_goal_kick_setup`.
 - Determinism through fixed timestep (controlled by client)
 
 **Statistics (`StatSet` in `game.rs`):**

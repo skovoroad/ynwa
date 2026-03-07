@@ -1075,3 +1075,78 @@ end
     assert!(game.state().player_states[0].last_error.is_none(),
         "{:?}", game.state().player_states[0].last_error);
 }
+
+#[test]
+fn test_default_goal_kick_setup() {
+    // Lua verifies both branches of default_goal_kick_setup() directly:
+    // - opponent restarting + "goal kick opp position" set → run to that region
+    // - opponent restarting + no "goal kick opp position"  → run to defence position (fallback)
+    let script = r#"
+function make_decision()
+    -- Simulate opponent restarting by patching setup_info
+    context.game.setup_info = {restarting_team = "B", restart_x = 5, restart_z = 100}
+
+    local d = default_goal_kick_setup()
+    assert(d.action == "run", "expected run, got " .. d.action)
+
+    local opp_r = my_regions()["goal kick opp position"]
+    local expected_x = (opp_r.min_x + opp_r.max_x) / 2
+    local expected_z = (opp_r.min_z + opp_r.max_z) / 2
+    assert(math.abs(d.target.x - expected_x) < 0.01,
+        "x mismatch: " .. d.target.x .. " vs " .. expected_x)
+    assert(math.abs(d.target.z - expected_z) < 0.01,
+        "z mismatch: " .. d.target.z .. " vs " .. expected_z)
+
+    -- Fallback: remove opp position, should run to defence position
+    local saved = my_regions()["goal kick opp position"]
+    context.me.regions["goal kick opp position"] = nil
+    local d2 = default_goal_kick_setup()
+    assert(d2.action == "run", "fallback expected run, got " .. d2.action)
+    context.me.regions["goal kick opp position"] = saved
+
+    return {action = "stop"}
+end
+"#;
+
+    use ynwa_core::region::GridCell;
+    use ynwa_core::team::Team;
+
+    let field = ynwa_football::field_builder::create_football_field();
+    let grid_dims = field.grid_dimensions();
+    let mk = |c, r| grid_dims.create_region(GridCell::new(c, r).unwrap(), GridCell::new(c, r).unwrap()).unwrap();
+
+    let player = ynwa_core::game::PlayerDef::new(
+        Team::A, 1, "P".to_string(), script.to_string(),
+        std::collections::HashMap::from([
+            ("start position".to_string(),         mk(13, 16)),
+            ("defence position".to_string(),       mk(13, 16)),
+            ("goal kick opp position".to_string(), mk(13, 25)),
+        ]),
+    );
+
+    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
+    let workspace_root = std::path::Path::new(&manifest_dir).parent().unwrap();
+    let load = |rel: &str| std::fs::read_to_string(workspace_root.join(rel)).unwrap();
+
+    let config = ynwa_core::game::GameConfig {
+        field,
+        players: vec![player],
+        ball: ynwa_core::game::BallDef::default(),
+        referees: vec![ynwa_core::game::RefereeDef::default()],
+        scripting: ynwa_core::game::ScriptingConfig {
+            core_preamble:   load("ynwa-scripts/preambles/core.lua"),
+            stdlib_preamble: load("ynwa-scripts/preambles/stdlib.lua"),
+            team_a_preamble: String::new(),
+            team_b_preamble: String::new(),
+        },
+    };
+    let mut game = ynwa_core::game::Game::with_stage(config, GameStage::Play);
+    game.state.player_states[0].needs_decision = true;
+
+    let dm = ScriptedDecisionMaker::new(&game).unwrap();
+    let mut ds = DecisionSystem::new().with_decision_maker(Box::new(dm));
+    ds.update(&mut game, 1.0);
+
+    let state = &game.state().player_states[0];
+    assert!(state.last_error.is_none(), "error: {:?}", state.last_error);
+}

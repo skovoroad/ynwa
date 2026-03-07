@@ -56,28 +56,25 @@ function chase_ball()
     return {action = "run", target_type = "ball", reason = "chase_ball"}
 end
 
+-- Action: run to center of a region object {min_x, max_x, min_z, max_z}.
+function run_to_region_obj(r, reason)
+    return {action="run", target_type="point",
+            target={x=(r.min_x+r.max_x)/2, z=(r.min_z+r.max_z)/2, y=0},
+            reason=reason}
+end
+
 -- Action: run to center of "attack position" region
 function run_to_attack_position()
     local pos = my_regions()["attack position"]
     if pos == nil then return {action = "stop", reason = "no_attack_position"} end
-    return {
-        action = "run",
-        target_type = "point",
-        target = {x = (pos.min_x + pos.max_x) / 2, z = (pos.min_z + pos.max_z) / 2, y = 0},
-        reason = "run_to_attack_position:" .. pos.display_notation
-    }
+    return run_to_region_obj(pos, "run_to_attack_position")
 end
 
 -- Action: run to center of "defence position" region
 function run_to_defence_position()
     local pos = my_regions()["defence position"]
     if pos == nil then return {action = "stop", reason = "no_defence_position"} end
-    return {
-        action = "run",
-        target_type = "point",
-        target = {x = (pos.min_x + pos.max_x) / 2, z = (pos.min_z + pos.max_z) / 2, y = 0},
-        reason = "run_to_defence_position:" .. pos.display_notation
-    }
+    return run_to_region_obj(pos, "run_to_defence_position")
 end
 
 -- Action: run to center of "start position" region
@@ -272,4 +269,19 @@ function get_setup_position(reason)
         return team_setup[reason]()
     end
     return default_get_setup_position(reason)
+end
+
+-- Default goal kick setup: uses tactical profile regions when available.
+-- Restarting team: go to "goal kick own position" or start position.
+-- Defending team:  go to "goal kick opp position" or defence position.
+function default_goal_kick_setup()
+    if is_my_team_restarting() then
+        local r = my_regions()["goal kick own position"]
+        if r then return run_to_region_obj(r, "goal_kick_own_position") end
+        return run_to_start_position()
+    else
+        local r = my_regions()["goal kick opp position"]
+        if r then return run_to_region_obj(r, "goal_kick_opp_position") end
+        return run_to_defence_position()
+    end
 end
