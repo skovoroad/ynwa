@@ -65,20 +65,10 @@ fn build_player_defs(
 
             let script = p.script.clone().unwrap_or_default();
 
-            let mut def = PlayerDef::new(
-                team,
-                p.tactical.number,
-                p.static_data.name.clone(),
-                script,
-                flip(start)?,
-            )
-            .with_reaction_rate(p.static_data.reaction_rate)
-            .with_speed_rate(p.static_data.speed_rate)
-            .with_tackle_rate(p.static_data.tackle_rate)
-            .with_shot_power(p.static_data.shot_power)
-            .with_shot_accuracy(p.static_data.shot_accuracy)
-            .with_attack_position(flip(attack)?)
-            .with_defence_position(flip(defence)?);
+            let mut regions = std::collections::HashMap::new();
+            regions.insert("start position".to_string(), flip(start)?);
+            regions.insert("attack position".to_string(), flip(attack)?);
+            regions.insert("defence position".to_string(), flip(defence)?);
 
             let optional_regions: &[(&str, &Option<String>)] = &[
                 ("goal kick own position", &p.tactical.goal_kick_own_position),
@@ -90,9 +80,22 @@ fn build_player_defs(
             ];
             for (key, maybe_pos) in optional_regions {
                 if let Some(pos) = maybe_pos {
-                    def.regions.insert(key.to_string(), flip(parse(pos)?)?);
+                    regions.insert(key.to_string(), flip(parse(pos)?)?);
                 }
             }
+
+            let def = PlayerDef::new(
+                team,
+                p.tactical.number,
+                p.static_data.name.clone(),
+                script,
+                regions,
+            )
+            .with_reaction_rate(p.static_data.reaction_rate)
+            .with_speed_rate(p.static_data.speed_rate)
+            .with_tackle_rate(p.static_data.tackle_rate)
+            .with_shot_power(p.static_data.shot_power)
+            .with_shot_accuracy(p.static_data.shot_accuracy);
 
             Ok(def)
         })
@@ -199,7 +202,7 @@ mod tests {
                 i + 1,
                 format!("Player A{}", i + 1),
                 "function make_decision() return {} end".to_string(),
-                start_region,
+                std::collections::HashMap::from([("start position".to_string(), start_region)]),
             ));
         }
         for i in 0..11 {
@@ -216,7 +219,7 @@ mod tests {
                 i + 1,
                 format!("Player B{}", i + 1),
                 "function make_decision() return {} end".to_string(),
-                start_region,
+                std::collections::HashMap::from([("start position".to_string(), start_region)]),
             ));
         }
 

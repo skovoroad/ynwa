@@ -45,17 +45,21 @@ pub enum Decision {
     Kick(Point3D), // Kick the ball towards target point
 }
 
+/// Region key required in `PlayerDef::regions` when starting in `GameStage::Play`.
+/// Contract between core and game-specific layers (e.g. `ynwa-football`).
+pub const REGION_START_POSITION: &str = "start position";
+
 #[derive(Debug, Clone)]
 pub struct PlayerDef {
     pub team: Team,
     pub number: u32,
     pub name: String,
-    pub reaction_rate: u32, // 10-100: player's reaction speed
-    pub speed_rate: u32,    // 10-100: player's movement speed
-    pub tackle_rate: u32,   // 10-100: player's ball control ability
-    pub shot_power: u32,    // 10-100: player's shot power
-    pub shot_accuracy: u32, // 10-100: player's shot accuracy
-    pub script: String,     // Lua script for decision making
+    pub reaction_rate: u32,
+    pub speed_rate: u32,
+    pub tackle_rate: u32,
+    pub shot_power: u32,
+    pub shot_accuracy: u32,
+    pub script: String,
     pub regions: HashMap<String, Region>,
 }
 
@@ -65,18 +69,13 @@ impl PlayerDef {
         number: u32,
         name: String,
         script: String,
-        start_position: Region,
+        regions: HashMap<String, Region>,
     ) -> Self {
-        let mut regions = HashMap::new();
-        regions.insert("start position".to_string(), start_position.clone());
-        regions.insert("attack position".to_string(), start_position.clone());
-        regions.insert("defence position".to_string(), start_position);
-
         Self {
             team,
             number,
             name,
-            reaction_rate: 50, // Default values
+            reaction_rate: 50,
             speed_rate: 50,
             tackle_rate: 50,
             shot_power: 50,
@@ -86,47 +85,28 @@ impl PlayerDef {
         }
     }
 
-    /// Set custom reaction rate (default: 50)
     pub fn with_reaction_rate(mut self, rate: u32) -> Self {
         self.reaction_rate = rate;
         self
     }
 
-    /// Set custom speed rate (default: 50)
     pub fn with_speed_rate(mut self, rate: u32) -> Self {
         self.speed_rate = rate;
         self
     }
 
-    /// Set custom tackle rate (default: 50)
     pub fn with_tackle_rate(mut self, rate: u32) -> Self {
         self.tackle_rate = rate;
         self
     }
 
-    /// Set custom shot power (default: 50)
     pub fn with_shot_power(mut self, power: u32) -> Self {
         self.shot_power = power;
         self
     }
 
-    /// Set custom shot accuracy (default: 50)
     pub fn with_shot_accuracy(mut self, accuracy: u32) -> Self {
         self.shot_accuracy = accuracy;
-        self
-    }
-
-    /// Set attack position (different from start position)
-    pub fn with_attack_position(mut self, attack_position: Region) -> Self {
-        self.regions
-            .insert("attack position".to_string(), attack_position);
-        self
-    }
-
-    /// Set defence position (different from start position)
-    pub fn with_defence_position(mut self, defence_position: Region) -> Self {
-        self.regions
-            .insert("defence position".to_string(), defence_position);
         self
     }
 }
@@ -290,10 +270,9 @@ impl Game {
                         )
                     }
                     GameStage::Play | GameStage::GameOver => {
-                        // In Play/GameOver stage, players start at their start_position
                         let start_region = config.players[idx]
                             .regions
-                            .get("start position")
+                            .get(REGION_START_POSITION)
                             .expect("Player must have 'start position' region");
                         start_region.center(
                             config.field.grid_dimensions(),

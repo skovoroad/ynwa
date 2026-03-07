@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use super::*;
 use crate::field::Field;
 use crate::game::{BallDef, GameConfig, GameStage, PlayerDef, RefereeDef, Decision, DecisionTarget};
@@ -16,7 +17,7 @@ fn create_test_game() -> Game {
             1,
             "Player 1".to_string(),
             "function make_decision() return {} end".to_string(),
-            start_region.clone(),
+            HashMap::from([("start position".to_string(), start_region.clone())]),
         )
         .with_reaction_rate(100),
         PlayerDef::new(
@@ -24,7 +25,7 @@ fn create_test_game() -> Game {
             2,
             "Player 2".to_string(),
             "function make_decision() return {} end".to_string(),
-            start_region.clone(),
+            HashMap::from([("start position".to_string(), start_region.clone())]),
         )
         .with_reaction_rate(55),
         PlayerDef::new(
@@ -32,7 +33,7 @@ fn create_test_game() -> Game {
             3,
             "Player 3".to_string(),
             "function make_decision() return {} end".to_string(),
-            start_region.clone(),
+            HashMap::from([("start position".to_string(), start_region.clone())]),
         )
         .with_reaction_rate(10),
     ];
@@ -135,7 +136,7 @@ fn make_setup_game() -> Game {
         1,
         "Player 1".to_string(),
         "function make_decision() return {} end".to_string(),
-        start_region,
+        HashMap::from([("start position".to_string(), start_region)]),
     )
     .with_reaction_rate(100)];
 
@@ -227,7 +228,7 @@ fn test_setup_ignores_reaction_rate_interval() {
         1,
         "Slow Player".to_string(),
         "function make_decision() return {} end".to_string(),
-        start_region,
+        HashMap::from([("start position".to_string(), start_region)]),
     )
     .with_reaction_rate(10)]; // slowest rate: interval = 3.0s
 

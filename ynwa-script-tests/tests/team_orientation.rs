@@ -25,7 +25,8 @@ fn create_game_with_team_script(team: Team, script: String) -> Game {
         .unwrap()
     };
 
-    let player = PlayerDef::new(team, 1, format!("Player {:?}1", team), script, start_region)
+    let player = PlayerDef::new(team, 1, format!("Player {:?}1", team), script,
+        std::collections::HashMap::from([("start position".to_string(), start_region)]))
         .with_reaction_rate(100); // Fast reaction rate
 
     let config = GameConfig {

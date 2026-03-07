@@ -574,8 +574,12 @@ fn make_is_in_region_obj_game(player_x: f32, player_z: f32, assert_inside: bool)
     let root = std::path::Path::new(&manifest_dir).parent().unwrap();
     let load = |p: &str| std::fs::read_to_string(root.join(p)).unwrap();
 
-    let player = PlayerDef::new(ynwa_core::team::Team::A, 1, msg.to_string(), script, start_region)
-        .with_attack_position(attack_region);
+    let player = PlayerDef::new(ynwa_core::team::Team::A, 1, msg.to_string(), script, {
+        let mut r = std::collections::HashMap::new();
+        r.insert("start position".to_string(), start_region);
+        r.insert("attack position".to_string(), attack_region);
+        r
+    });
     let mut game = ynwa_core::game::Game::with_stage(GameConfig {
         field,
         players: vec![player],
@@ -639,8 +643,9 @@ fn test_pass_to_players_by_numbers_found() {
 
     let caller = PlayerDef::new(ynwa_core::team::Team::A, 7, "Caller".to_string(),
         "function make_decision() return pass_to_players_by_numbers({10, 11}) end".to_string(),
-        region.clone());
-    let target = PlayerDef::new(ynwa_core::team::Team::A, 10, "Target".to_string(), String::new(), region.clone());
+        std::collections::HashMap::from([("start position".to_string(), region.clone())]));
+    let target = PlayerDef::new(ynwa_core::team::Team::A, 10, "Target".to_string(), String::new(),
+        std::collections::HashMap::from([("start position".to_string(), region.clone())]));
 
     let mut game = ynwa_core::game::Game::with_stage(GameConfig {
         field,
@@ -726,7 +731,8 @@ end
     let grid_dims = field.grid_dimensions();
     let start_region = grid_dims.create_region(GridCell::new(1,1).unwrap(), GridCell::new(2,2).unwrap()).unwrap();
     let player = ynwa_core::game::PlayerDef::new(
-        ynwa_core::team::Team::B, 1, "GK B".to_string(), script.to_string(), start_region,
+        ynwa_core::team::Team::B, 1, "GK B".to_string(), script.to_string(),
+        std::collections::HashMap::from([("start position".to_string(), start_region)]),
     );
     let mut game = create_test_game_with_all_preambles(vec![player]);
     game.state.player_states[0].needs_decision = true;
@@ -757,7 +763,8 @@ fn make_setup_info_game(script: &str, team: ynwa_core::team::Team, stage: GameSt
 
     let config = GameConfig {
         field,
-        players: vec![PlayerDef::new(team, 1, "P".to_string(), script.to_string(), start_region)],
+        players: vec![PlayerDef::new(team, 1, "P".to_string(), script.to_string(),
+            std::collections::HashMap::from([("start position".to_string(), start_region)]))],
         ball: BallDef::default(),
         referees: vec![RefereeDef::default()],
         scripting: ynwa_core::game::ScriptingConfig {
@@ -1051,8 +1058,13 @@ end
     let defence_region = grid_dims.create_region(GridCell::new(13,1).unwrap(), GridCell::new(14,2).unwrap()).unwrap();
 
     let player = ynwa_core::game::PlayerDef::new(
-        ynwa_core::team::Team::A, 1, "GK".to_string(), script.to_string(), start_region,
-    ).with_defence_position(defence_region);
+        ynwa_core::team::Team::A, 1, "GK".to_string(), script.to_string(), {
+            let mut r = std::collections::HashMap::new();
+            r.insert("start position".to_string(), start_region);
+            r.insert("defence position".to_string(), defence_region);
+            r
+        },
+    );
 
     let mut game = create_test_game_with_all_preambles(vec![player]);
     game.state.player_states[0].position = Point3D::from_meters(5.0, 0.0, 5.0);

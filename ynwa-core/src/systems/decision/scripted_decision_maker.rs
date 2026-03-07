@@ -421,6 +421,7 @@ impl DecisionMaker for ScriptedDecisionMaker {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashMap;
     use crate::field::Field;
     use crate::game::{BallDef, GameConfig, PlayerDef, RefereeDef};
     use crate::region::{GridCell};
@@ -438,7 +439,7 @@ mod tests {
                 1,
                 "Test Player".to_string(),
                 script.to_string(),
-                start_region,
+                HashMap::from([("start position".to_string(), start_region)]),
             )],
             ball: BallDef::default(),
             referees: vec![RefereeDef::default()],
@@ -617,7 +618,7 @@ mod tests {
         let config = GameConfig {
             field,
             players: vec![PlayerDef::new(Team::A, 1, "Test Player".to_string(), "function make_decision() return {action = 'run', target_type = 'cell', target = 'A1'} end".to_string(),
-                start_region,
+                HashMap::from([("start position".to_string(), start_region)]),
             )],
             ball: BallDef::default(),
             referees: vec![RefereeDef::default()],
@@ -663,7 +664,7 @@ mod tests {
                 1,
                 "Test Player A".to_string(),
                 script.to_string(),
-                start_region,
+                HashMap::from([("start position".to_string(), start_region)]),
             )],
             ball: BallDef::default(),
             referees: vec![RefereeDef::default()],
@@ -737,7 +738,7 @@ mod tests {
                 1,
                 "Test Player B".to_string(),
                 script.to_string(),
-                start_region,
+                HashMap::from([("start position".to_string(), start_region)]),
             )],
             ball: BallDef::default(),
             referees: vec![RefereeDef::default()],
@@ -827,7 +828,7 @@ mod tests {
                 1,
                 "tester".to_string(),
                 script.to_string(),
-                start_region,
+                HashMap::from([("start position".to_string(), start_region)]),
             )],
             ball: BallDef::default(),
             referees: vec![RefereeDef::default()],
@@ -885,7 +886,7 @@ mod tests {
                 1,
                 "tester".to_string(),
                 script.to_string(),
-                start_region,
+                HashMap::from([("start position".to_string(), start_region)]),
             )],
             ball: BallDef::default(),
             referees: vec![RefereeDef::default()],
@@ -950,7 +951,7 @@ mod tests {
                 1,
                 "Test Player".to_string(),
                 script,
-                start_region,
+                HashMap::from([("start position".to_string(), start_region)]),
             )],
             ball: BallDef::default(),
             referees: vec![RefereeDef::default()],
@@ -1028,7 +1029,7 @@ mod tests {
                 1,
                 "Test Player".to_string(),
                 script,
-                start_region,
+                HashMap::from([("start position".to_string(), start_region)]),
             )],
             ball: BallDef::default(),
             referees: vec![RefereeDef::default()],
@@ -1107,7 +1108,7 @@ mod tests {
                 1,
                 "Test Player".to_string(),
                 "function make_decision() return {action='stop'} end".to_string(),
-                start_region,
+                HashMap::from([("start position".to_string(), start_region)]),
             )],
             ball: BallDef::default(),
             referees: vec![RefereeDef::default()],

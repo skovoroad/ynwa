@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use super::*;
 use crate::field::zones::{Point3D, Velocity3D};
 use crate::field::Field;
@@ -16,7 +17,7 @@ fn create_test_game() -> Game {
         1,
         "Test Player".to_string(),
         "function make_decision() return {} end".to_string(),
-        start_region,
+        HashMap::from([("start position".to_string(), start_region)]),
     )];
 
     let config = GameConfig {

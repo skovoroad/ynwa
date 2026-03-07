@@ -73,7 +73,7 @@ mod tests {
             1,
             "Fast Player".to_string(),
             "function make_decision() return {} end".to_string(),
-            start_region_0,
+            HashMap::from([("start position".to_string(), start_region_0)]),
         )
         .with_reaction_rate(100) // reaction_rate = 100 (1 second interval)
         .with_speed_rate(100); // speed_rate = 100 (full speed)
@@ -87,7 +87,7 @@ mod tests {
             2,
             "Slow Player".to_string(),
             "function make_decision() return {} end".to_string(),
-            start_region_1,
+            HashMap::from([("start position".to_string(), start_region_1)]),
         )
         .with_reaction_rate(50) // reaction_rate = 50 (2 second interval)
         .with_speed_rate(50); // speed_rate = 50 (half speed)
@@ -374,7 +374,7 @@ mod tests {
                 end
                 "#
                 .to_string(),
-                start_region,
+                HashMap::from([("start position".to_string(), start_region)]),
             )
             .with_reaction_rate(100) // Fast reaction
             .with_speed_rate(100)], // Fast movement
@@ -441,7 +441,7 @@ mod tests {
                 end
                 "#
                 .to_string(),
-                start_region,
+                HashMap::from([("start position".to_string(), start_region)]),
             )],
             ball: BallDef::default(),
             referees: vec![],

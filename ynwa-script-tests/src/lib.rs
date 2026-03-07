@@ -3,8 +3,13 @@
 
 use ynwa_core::field::Field;
 use ynwa_core::game::{BallDef, Game, GameConfig, GameStage, PlayerDef, RefereeDef};
-use ynwa_core::region::GridCell;
+use ynwa_core::region::{GridCell, Region};
 use ynwa_core::team::Team;
+use std::collections::HashMap;
+
+pub fn start_regions(r: Region) -> HashMap<String, Region> {
+    HashMap::from([("start position".to_string(), r)])
+}
 
 /// Create a simple test game with one player using the given script
 pub fn create_test_game_with_script(script: &str) -> Game {
@@ -26,7 +31,7 @@ pub fn create_test_game_with_script_and_stage(script: &str, stage: GameStage) ->
             1,
             "Test Player".to_string(),
             script.to_string(),
-            start_region,
+            start_regions(start_region),
         )],
         ball: BallDef::default(),
         referees: vec![RefereeDef::default()],
@@ -88,7 +93,7 @@ pub fn create_test_game_with_preambles_and_stage(script: &str, stage: GameStage)
             1,
             "Test Player".to_string(),
             script.to_string(),
-            start_region,
+            start_regions(start_region),
         )],
         ball: BallDef::default(),
         referees: vec![RefereeDef::default()],
@@ -137,7 +142,7 @@ pub fn create_test_game_with_full_preambles_and_stage(script: &str, stage: GameS
             1,
             "Test Player".to_string(),
             script.to_string(),
-            start_region,
+            start_regions(start_region),
         )],
         ball: BallDef::default(),
         referees: vec![RefereeDef::default()],
@@ -184,7 +189,7 @@ pub fn create_test_game_football_field_with_preambles(script: &str) -> Game {
             1,
             "Test Player".to_string(),
             script.to_string(),
-            start_region,
+            start_regions(start_region),
         )],
         ball: BallDef::default(),
         referees: vec![RefereeDef::default()],

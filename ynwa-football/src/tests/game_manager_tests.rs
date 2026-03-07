@@ -2,11 +2,16 @@ use crate::game_manager::FootballGameManager;
 use ynwa_core::field::zones::{Point3D, Rectangle, ZoneGeometry};
 use ynwa_core::field::{Field, FieldBuilder, Zone};
 use ynwa_core::game::{BallDef, Decision, Game, GameConfig, GameStage, PlayerDef, RefereeDef};
-use ynwa_core::region::GridCell;
+use ynwa_core::region::{GridCell, Region};
 use ynwa_core::system::System;
 use ynwa_core::team::Team;
 use uom::si::f32::Length;
 use uom::si::length::meter;
+use std::collections::HashMap;
+
+fn start_regions(r: Region) -> HashMap<String, Region> {
+    HashMap::from([("start position".to_string(), r)])
+}
 
 fn create_test_game_setup() -> Game {
     let field = Field::from_meters(100.0, 60.0, 26, 44);
@@ -27,14 +32,14 @@ fn create_test_game_setup() -> Game {
                 1,
                 "Test Player 1".to_string(),
                 "function make_decision() return {} end".to_string(),
-                start_region.clone(),
+                start_regions(start_region.clone()),
             ),
             PlayerDef::new(
                 Team::A,
                 2,
                 "Test Player 2".to_string(),
                 "function make_decision() return {} end".to_string(),
-                start_region,
+                start_regions(start_region),
             ),
         ],
         ball: BallDef::default(),
@@ -133,7 +138,7 @@ fn test_no_updates_in_play_stage() {
             1,
             "Test Player".to_string(),
             "function make_decision() return {} end".to_string(),
-            start_region,
+            start_regions(start_region),
         )],
         ball: BallDef {
             initial_position: Point3D::new(
@@ -185,7 +190,7 @@ fn test_game_resumes_after_event_triggered_setup() {
             1,
             "Test Player".to_string(),
             "function make_decision() return {} end".to_string(),
-            start_region.clone(),
+            start_regions(start_region.clone()),
         )],
         ball: BallDef {
             initial_position: Point3D::new(
@@ -257,7 +262,7 @@ fn test_ball_resets_to_initial_position_in_setup() {
             1,
             "Test Player".to_string(),
             "function make_decision() return {} end".to_string(),
-            start_region,
+            start_regions(start_region),
         )],
         ball: BallDef {
             initial_position: initial_ball_position.clone(),
@@ -353,7 +358,7 @@ fn test_handle_event_clears_decision_so_setup_position_is_requested() {
             1,
             "Test Player".to_string(),
             "function make_decision() return {} end".to_string(),
-            start_region,
+            start_regions(start_region),
         )],
         ball: BallDef {
             initial_position: Point3D::new(
@@ -411,12 +416,12 @@ fn create_standard_game() -> Game {
             PlayerDef::new(
                 Team::A, 1, "A".to_string(),
                 "function make_decision() return {} end".to_string(),
-                start_region.clone(),
+                start_regions(start_region.clone()),
             ),
             PlayerDef::new(
                 Team::B, 1, "B".to_string(),
                 "function make_decision() return {} end".to_string(),
-                start_region,
+                start_regions(start_region),
             ),
         ],
         ball: BallDef::default(),

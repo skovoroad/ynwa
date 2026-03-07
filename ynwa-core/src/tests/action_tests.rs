@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use super::*;
 use crate::field::Field;
 use crate::game::{BallDef, GameConfig, PlayerDef, RefereeDef};
@@ -25,7 +26,7 @@ fn create_test_game_with_player_stats(
         1,
         "Test Player".to_string(),
         "function make_decision() return {} end".to_string(),
-        start_region,
+        HashMap::from([("start position".to_string(), start_region)]),
     )
     .with_reaction_rate(reaction_rate)
     .with_speed_rate(speed_rate)
@@ -56,14 +57,14 @@ fn create_test_game_with_two_players() -> Game {
             1,
             "Player 1".to_string(),
             "function make_decision() return {} end".to_string(),
-            start_region.clone(),
+            HashMap::from([("start position".to_string(), start_region.clone())]),
         ),
         PlayerDef::new(
             Team::A,
             2,
             "Player 2".to_string(),
             "function make_decision() return {} end".to_string(),
-            start_region,
+            HashMap::from([("start position".to_string(), start_region)]),
         ),
     ];
 

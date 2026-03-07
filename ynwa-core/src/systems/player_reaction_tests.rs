@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use super::*;
 use crate::field::Field;
 use crate::game::{BallDef, GameConfig, PlayerDef, RefereeDef};

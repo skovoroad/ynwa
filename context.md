@@ -121,6 +121,7 @@ The following aspects are considered in the design but implementation is postpon
 - Separation of Config (immutable) / State (mutable per-frame)
 - Entities: Player, Ball, Referee — separate types (not traits), as they are processed by different systems
 - Indices: `config.players[i]` ↔ `state.player_states[i]` — O(1) access
+- `PlayerDef::new(team, number, name, script, regions: HashMap<String, Region>)` — the last argument is a map of named regions; game-specific callers (e.g. `ynwa-football`) populate it; core only reads the key `REGION_START_POSITION` (`"start position"`) to place the player at game start. `REGION_START_POSITION` is the contract between core and game-specific layers — core does not know any other region names.
 
 **World & Systems (`world.rs`, `system.rs`):**
 - World coordinates the game loop, contains Game and a list of systems

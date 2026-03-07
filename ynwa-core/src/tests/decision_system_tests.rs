@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use super::*;
 use crate::field::Field;
 use crate::game::{BallDef, GameConfig, GameStage, PlayerDef, RefereeDef};
@@ -17,7 +18,7 @@ fn create_test_game() -> Game {
             1,
             "Test Player".to_string(),
             "function make_decision() return {} end".to_string(),
-            start_region,
+            HashMap::from([("start position".to_string(), start_region)]),
         )],
         ball: BallDef::default(),
         referees: vec![RefereeDef::default()],
@@ -406,7 +407,7 @@ fn make_setup_game_with_player_at(x: f32, z: f32) -> Game {
             1,
             "Test Player".to_string(),
             "function make_decision() return {} end".to_string(),
-            start_region,
+            HashMap::from([("start position".to_string(), start_region)]),
         )],
         ball: BallDef::default(),
         referees: vec![RefereeDef::default()],
@@ -514,7 +515,7 @@ fn test_play_stage_arrival_check_fires_and_stops_player() {
             1,
             "Test Player".to_string(),
             "function make_decision() return {} end".to_string(),
-            start_region,
+            HashMap::from([("start position".to_string(), start_region)]),
         )],
         ball: BallDef::default(),
         referees: vec![RefereeDef::default()],

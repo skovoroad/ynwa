@@ -1,6 +1,14 @@
 use super::*;
 use crate::region::GridCell;
 
+fn make_regions(start: Region, attack: Region, defence: Region) -> HashMap<String, Region> {
+    HashMap::from([
+        ("start position".to_string(), start),
+        ("attack position".to_string(), attack),
+        ("defence position".to_string(), defence),
+    ])
+}
+
 #[test]
 fn test_game_initializes_player_stats_parallel_to_players() {
     let config = create_test_config();
@@ -13,63 +21,27 @@ fn create_test_config() -> GameConfig {
     let field = Field::from_meters(100.0, 60.0, 26, 44);
     let grid_dims = field.grid_dimensions();
 
-    let start_region_a1 = grid_dims.create_region(GridCell::new(1, 1).unwrap(), GridCell::new(2, 2).unwrap())
-    .unwrap();
+    let start_region_a1 = grid_dims.create_region(GridCell::new(1, 1).unwrap(), GridCell::new(2, 2).unwrap()).unwrap();
+    let start_region_a2 = grid_dims.create_region(GridCell::new(3, 3).unwrap(), GridCell::new(4, 4).unwrap()).unwrap();
+    let start_region_b  = grid_dims.create_region(GridCell::new(20, 20).unwrap(), GridCell::new(21, 21).unwrap()).unwrap();
 
-    let start_region_a2 = grid_dims.create_region(GridCell::new(3, 3).unwrap(), GridCell::new(4, 4).unwrap())
-    .unwrap();
+    let attack_region_a1 = grid_dims.create_region(GridCell::new(1, 1).unwrap(), GridCell::new(2, 2).unwrap()).unwrap();
+    let attack_region_a2 = grid_dims.create_region(GridCell::new(3, 3).unwrap(), GridCell::new(4, 4).unwrap()).unwrap();
+    let attack_region_b  = grid_dims.create_region(GridCell::new(20, 20).unwrap(), GridCell::new(21, 21).unwrap()).unwrap();
 
-    let start_region_b = grid_dims.create_region(GridCell::new(20, 20).unwrap(), GridCell::new(21, 21).unwrap())
-    .unwrap();
-
-    let attack_region_a1 = grid_dims.create_region(GridCell::new(1, 1).unwrap(), GridCell::new(2, 2).unwrap())
-    .unwrap();
-
-    let attack_region_a2 = grid_dims.create_region(GridCell::new(3, 3).unwrap(), GridCell::new(4, 4).unwrap())
-    .unwrap();
-
-    let attack_region_b = grid_dims.create_region(GridCell::new(20, 20).unwrap(), GridCell::new(21, 21).unwrap())
-    .unwrap();
-
-    let defence_region_a1 = grid_dims.create_region(GridCell::new(1, 3).unwrap(), GridCell::new(2, 4).unwrap())
-    .unwrap();
-
-    let defence_region_a2 = grid_dims.create_region(GridCell::new(3, 5).unwrap(), GridCell::new(4, 6).unwrap())
-    .unwrap();
-
-    let defence_region_b = grid_dims.create_region(GridCell::new(20, 22).unwrap(), GridCell::new(21, 23).unwrap())
-    .unwrap();
+    let defence_region_a1 = grid_dims.create_region(GridCell::new(1, 3).unwrap(), GridCell::new(2, 4).unwrap()).unwrap();
+    let defence_region_a2 = grid_dims.create_region(GridCell::new(3, 5).unwrap(), GridCell::new(4, 6).unwrap()).unwrap();
+    let defence_region_b  = grid_dims.create_region(GridCell::new(20, 22).unwrap(), GridCell::new(21, 23).unwrap()).unwrap();
 
     GameConfig {
         field,
         players: vec![
-            PlayerDef::new(
-                Team::A,
-                1,
-                "Player A1".to_string(),
-                "function make_decision() return {} end".to_string(),
-                start_region_a1,
-            )
-            .with_attack_position(attack_region_a1)
-            .with_defence_position(defence_region_a1),
-            PlayerDef::new(
-                Team::A,
-                2,
-                "Player A2".to_string(),
-                "function make_decision() return {} end".to_string(),
-                start_region_a2,
-            )
-            .with_attack_position(attack_region_a2)
-            .with_defence_position(defence_region_a2),
-            PlayerDef::new(
-                Team::B,
-                1,
-                "Player B1".to_string(),
-                "function make_decision() return {} end".to_string(),
-                start_region_b,
-            )
-            .with_attack_position(attack_region_b)
-            .with_defence_position(defence_region_b),
+            PlayerDef::new(Team::A, 1, "Player A1".to_string(), "function make_decision() return {} end".to_string(),
+                make_regions(start_region_a1, attack_region_a1, defence_region_a1)),
+            PlayerDef::new(Team::A, 2, "Player A2".to_string(), "function make_decision() return {} end".to_string(),
+                make_regions(start_region_a2, attack_region_a2, defence_region_a2)),
+            PlayerDef::new(Team::B, 1, "Player B1".to_string(), "function make_decision() return {} end".to_string(),
+                make_regions(start_region_b, attack_region_b, defence_region_b)),
         ],
         ball: BallDef::default(),
         referees: vec![RefereeDef::default()],
