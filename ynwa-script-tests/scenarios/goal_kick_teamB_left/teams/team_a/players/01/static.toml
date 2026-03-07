@@ -1,0 +1,6 @@
+name = "Defender A"
+reaction_rate = 99
+speed_rate = 70
+tackle_rate = 80
+shot_power = 50
+shot_accuracy = 50

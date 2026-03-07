@@ -225,6 +225,31 @@ function run_to_region(from_notation, to_notation)
     }
 end
 
+-- Returns a Kick decision aimed at the center of a grid cell.
+function kick_to_cell(notation)
+    local cell_size = GAME_DATA.field.width / GAME_DATA.field.columns
+    local col, row = parse_notation(notation)
+    return {
+        action = "kick",
+        target = {x = (col - 0.5) * cell_size, z = (row - 0.5) * cell_size, y = 0},
+        reason = "kick_to_cell:" .. notation
+    }
+end
+
+-- Returns a Kick decision aimed at the center of a grid region.
+function kick_to_region(from_notation, to_notation)
+    local cell_size = GAME_DATA.field.width / GAME_DATA.field.columns
+    local from_col, from_row = parse_notation(from_notation)
+    local to_col,   to_row   = parse_notation(to_notation)
+    local cx = ((from_col - 1) + to_col) / 2 * cell_size
+    local cz = ((from_row - 1) + to_row) / 2 * cell_size
+    return {
+        action = "kick",
+        target = {x = cx, z = cz, y = 0},
+        reason = "kick_to_region:" .. from_notation .. "-" .. to_notation
+    }
+end
+
 -- Returns {x, z} of the restart point, or nil if setup_info is absent (start/after_goal).
 function get_restart_position()
     if not context.game.setup_info then return nil end

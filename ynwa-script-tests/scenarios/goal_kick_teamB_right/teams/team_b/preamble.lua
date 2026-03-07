@@ -1,9 +1,9 @@
--- Scenario: goal_kick_teamA_left
--- Team A бьёт левее ворот B (col E, row 40) → мяч за лицевой → удар от ворот для Team B.
+-- Scenario: goal_kick_teamB_right
+-- Team B бьёт правее ворот A (col V, row 40 в системе B) → мяч за лицевой → удар от ворот для Team A.
 
 team_play = {
     i_have_ball = function()
-        return kick_to_cell("E40")
+        return kick_to_cell("V40")
     end,
     team_has_ball     = function() return chase_ball() end,
     ball_is_free      = function() return chase_ball() end,

@@ -1,4 +1,4 @@
--- Scenario: goal_kick_teamA_left
+-- Scenario: goal_kick_teamA_right
 -- Team B: один игрок, стоит на стартовой позиции.
 -- В фазе возобновления (goal_kick): team B restarting → идёт к restart_position (к мячу).
 -- Если не restarting — встаёт в 25м от центра к своей половине (строка 10 в их координатах).
