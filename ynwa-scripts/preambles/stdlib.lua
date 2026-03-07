@@ -56,6 +56,11 @@ function chase_ball()
     return {action = "run", target_type = "ball", reason = "chase_ball"}
 end
 
+-- Action: run to the ball
+function stop(reason)
+    return {action = "stop", reason = reason}
+end
+
 -- Action: run to center of a region object {min_x, max_x, min_z, max_z}.
 function run_to_region_obj(r, reason)
     return {action="run", target_type="point",

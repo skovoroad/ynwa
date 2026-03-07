@@ -221,6 +221,8 @@ System execution order (important for correct operation):
 
 1. **No direct `context`/`GAME_DATA` access** outside `core.lua`: team preambles and player scripts must use wrapper functions (`my_position()`, `get_own_goal()`, etc.). Direct access to raw JSON couples scripts to engine internals and breaks portability between teams.
 2. **No `make_decision()` / `get_setup_position()` redefinition** in team or player scripts — these are owned by stdlib.
+3. **No raw action tables in tactic scripts**: use stdlib functions instead of constructing `{action = "..."}` tables directly. When a stdlib function exists (`stop()`, `chase_ball()`, `run_to_start_position()`, etc.) — use it.
+4. **Prefer point-free style for dispatch tables**: assign function references directly instead of wrapping them in lambdas. Write `team_has_ball = chase_ball` instead of `team_has_ball = function() return chase_ball() end`.
 
 ### Code Comments
 

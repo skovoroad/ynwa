@@ -6,5 +6,5 @@ player_play = {
 }
 
 player_setup = {
-    goal_kick = function() return default_goal_kick_setup() end,
+    goal_kick = default_goal_kick_setup,
 }
