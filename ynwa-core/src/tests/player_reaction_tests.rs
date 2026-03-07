@@ -195,6 +195,24 @@ fn test_setup_does_not_reset_needs_decision_already_true() {
 }
 
 #[test]
+fn test_setup_suppresses_needs_decision_set_by_other_systems() {
+    // BallPossessionSystem (or similar) may set needs_decision=true between ticks.
+    // PlayerReactionSystem must suppress it for players that already have a decision,
+    // so the script is not re-triggered while a player is running to their setup position.
+    let mut game = make_setup_game();
+    let mut system = PlayerReactionSystem::new();
+
+    let cell = GridCell::new(1, 1).unwrap();
+    game.state.player_states[0].current_decision =
+        Some(Decision::Run(DecisionTarget::GridCell(cell)));
+    game.state.player_states[0].needs_decision = true; // set externally
+
+    system.update(&mut game, 0.0);
+
+    assert!(!game.state.player_states[0].needs_decision);
+}
+
+#[test]
 fn test_setup_ignores_reaction_rate_interval() {
     // Even a slow player (reaction_rate=10, interval=3s) must get a decision request
     // immediately during setup if they have no current decision.

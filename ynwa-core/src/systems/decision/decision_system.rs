@@ -146,10 +146,6 @@ impl System for DecisionSystem {
                         let player_state = &mut game.state.player_states[player_index];
                         player_state.current_decision = Some(stop);
                         player_state.decision_processed = false;
-                        // In Setup: suppress the next script call so the player stays put
-                        // until the manager transitions to Play.
-                        // In Play: allow the reaction timer to fire normally — the script
-                        // will pick a new target when it next runs.
                         let is_setup = matches!(game.state.stage, GameStage::Setup(_));
                         if is_setup {
                             player_state.needs_decision = false;
@@ -157,6 +153,14 @@ impl System for DecisionSystem {
                         continue;
                     }
                 }
+            }
+
+            // In Setup, a player with Stop has already arrived — don't re-poll the script
+            // regardless of what other systems wrote into needs_decision.
+            let is_setup = matches!(game.state.stage, GameStage::Setup(_));
+            if is_setup && matches!(current_decision, Some(Decision::Stop)) {
+                game.state.player_states[player_index].needs_decision = false;
+                continue;
             }
 
             if game.state.player_states[player_index].needs_decision {

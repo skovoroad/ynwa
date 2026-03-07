@@ -25,10 +25,13 @@ impl System for PlayerReactionSystem {
 
         for i in 0..player_count {
             if is_setup {
-                // During setup, request a decision only once — the engine will
-                // override it with Stop when the player arrives (see DecisionSystem).
+                // In Setup: request a decision only when the player has none yet.
+                // Suppresses needs_decision for players already moving or arrived
+                // (DecisionSystem is the final guard for the arrived-Stop case).
                 if game.state.player_states[i].current_decision.is_none() {
                     game.state.player_states[i].needs_decision = true;
+                } else {
+                    game.state.player_states[i].needs_decision = false;
                 }
             } else {
                 let reaction_rate = game.config().players[i].reaction_rate;

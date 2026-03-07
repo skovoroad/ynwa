@@ -6,6 +6,7 @@
 //! - `tackle_rate`: 10-100 - ability to win the ball
 //!
 //! Possession logic:
+//! - Skipped entirely during Setup stage (ball is fixed, possession is meaningless)
 //! - Only opponents can contest ball from current possessor (teammates never steal)
 //! - Free ball: all players within radius can claim it
 //! - Probabilistic selection: Score = `tackle_rate × random_multiplier`, multiplier ∈ [0.5, 1.5]
@@ -121,6 +122,10 @@ impl BallPossessionSystem {
 
 impl System for BallPossessionSystem {
     fn update(&mut self, game: &mut Game, timestamp: f32) {
+        if matches!(game.state.stage, crate::game::GameStage::Setup(_)) {
+            return;
+        }
+
         // Check if we're in cooldown period after last possession change
         let time_since_change = timestamp - game.state.ball_state.last_possession_change_time;
         if time_since_change < POSSESSION_COOLDOWN {

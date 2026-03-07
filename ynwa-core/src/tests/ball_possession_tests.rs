@@ -1,12 +1,17 @@
 use super::*;
 use crate::field::zones::{Point3D, Velocity3D};
 use crate::field::Field;
-use crate::game::{BallDef, GameConfig, PlayerDef, PlayerState, RefereeDef};
+use crate::game::{BallDef, GameConfig, GameStage, PlayerDef, PlayerState, RefereeDef};
 use crate::region::{GridCell};
 use crate::team::Team;
 
 fn create_test_field() -> Field {
     Field::from_meters(100.0, 60.0, 20, 40)
+}
+
+// Possession tests need Play stage — the system is a no-op in Setup.
+fn make_play_game(config: GameConfig) -> Game {
+    Game::with_stage(config, GameStage::Play)
 }
 
 fn create_test_player(
@@ -61,7 +66,7 @@ fn test_no_players_nearby() {
         scripting: crate::game::ScriptingConfig::empty(),
     };
 
-    let mut game = Game::new(config);
+    let mut game = make_play_game(config);
     game.state.ball_state.position = ball_pos;
     game.state.player_states = vec![player_state];
     game.state.ball_state.possessed_by = None;
@@ -92,7 +97,7 @@ fn test_single_player_nearby() {
         scripting: crate::game::ScriptingConfig::empty(),
     };
 
-    let mut game = Game::new(config);
+    let mut game = make_play_game(config);
     game.state.ball_state.position = ball_pos;
     game.state.player_states = vec![player_state];
     game.state.ball_state.possessed_by = None;
@@ -134,7 +139,7 @@ fn test_two_players_deterministic_selection() {
         scripting: crate::game::ScriptingConfig::empty(),
     };
 
-    let mut game = Game::new(config);
+    let mut game = make_play_game(config);
     game.state.ball_state.position = ball_pos;
     game.state.player_states = vec![player1_state, player2_state];
     game.state.ball_state.possessed_by = None;
@@ -179,7 +184,7 @@ fn test_two_players_probabilistic_upset() {
         scripting: crate::game::ScriptingConfig::empty(),
     };
 
-    let mut game = Game::new(config);
+    let mut game = make_play_game(config);
     game.state.ball_state.position = ball_pos;
     game.state.player_states = vec![player1_state, player2_state];
     game.state.ball_state.possessed_by = None;
@@ -234,7 +239,7 @@ fn test_extreme_difference_weak_can_still_win() {
         scripting: crate::game::ScriptingConfig::empty(),
     };
 
-    let mut game = Game::new(config);
+    let mut game = make_play_game(config);
     game.state.ball_state.position = ball_pos;
     game.state.player_states = vec![player1_state, player2_state];
     game.state.ball_state.possessed_by = None;
@@ -289,7 +294,7 @@ fn test_moderate_difference_upset_possible() {
         scripting: crate::game::ScriptingConfig::empty(),
     };
 
-    let mut game = Game::new(config);
+    let mut game = make_play_game(config);
     game.state.ball_state.position = ball_pos;
     game.state.player_states = vec![player1_state, player2_state];
     game.state.ball_state.possessed_by = None;
@@ -335,7 +340,7 @@ fn test_possession_cooldown_prevents_immediate_change() {
         scripting: crate::game::ScriptingConfig::empty(),
     };
 
-    let mut game = Game::new(config);
+    let mut game = make_play_game(config);
     game.state.ball_state.position = ball_pos;
     game.state.player_states = vec![player1_state, player2_state];
     game.state.ball_state.possessed_by = None;
@@ -385,7 +390,7 @@ fn test_possession_cooldown_allows_change_after_timeout() {
         scripting: crate::game::ScriptingConfig::empty(),
     };
 
-    let mut game = Game::new(config);
+    let mut game = make_play_game(config);
     game.state.ball_state.position = ball_pos;
     game.state.player_states = vec![player1_state, player2_state];
     game.state.ball_state.possessed_by = None;
@@ -438,7 +443,7 @@ fn test_no_possession_change_updates_timestamp() {
         scripting: crate::game::ScriptingConfig::empty(),
     };
 
-    let mut game = Game::new(config);
+    let mut game = make_play_game(config);
     game.state.ball_state.position = ball_pos;
     game.state.player_states = vec![player_state];
     game.state.ball_state.possessed_by = None;
@@ -499,7 +504,7 @@ fn test_possession_change_triggers_all_players_decision() {
         scripting: crate::game::ScriptingConfig::empty(),
     };
 
-    let mut game = Game::new(config);
+    let mut game = make_play_game(config);
     game.state.ball_state.position = ball_pos;
     game.state.player_states = vec![player1_state, player2_state, player3_state];
     game.state.ball_state.possessed_by = None;
@@ -550,7 +555,7 @@ fn test_no_possession_change_no_decision_trigger() {
         scripting: crate::game::ScriptingConfig::empty(),
     };
 
-    let mut game = Game::new(config);
+    let mut game = make_play_game(config);
     game.state.ball_state.position = ball_pos;
     game.state.player_states = vec![player1_state, player2_state];
     game.state.ball_state.possessed_by = None;
@@ -606,7 +611,7 @@ fn test_possession_transfer_triggers_decision() {
         scripting: crate::game::ScriptingConfig::empty(),
     };
 
-    let mut game = Game::new(config);
+    let mut game = make_play_game(config);
     game.state.ball_state.position = ball_pos;
     game.state.player_states = vec![player1_state, player2_state];
     game.state.ball_state.possessed_by = None;
@@ -683,7 +688,7 @@ fn test_teammates_dont_steal_from_each_other() {
         scripting: crate::game::ScriptingConfig::empty(),
     };
 
-    let mut game = Game::new(config);
+    let mut game = make_play_game(config);
     game.state.ball_state.position = ball_pos;
     game.state.player_states = vec![player1_state, player2_state, player3_state];
 
@@ -726,7 +731,7 @@ fn test_opponents_can_steal_from_owner() {
         scripting: crate::game::ScriptingConfig::empty(),
     };
 
-    let mut game = Game::new(config);
+    let mut game = make_play_game(config);
     game.state.ball_state.position = ball_pos;
     game.state.player_states = vec![player1_state, player2_state];
 
@@ -774,7 +779,7 @@ fn test_teammates_nearby_opponent_far_keeps_possession() {
         scripting: crate::game::ScriptingConfig::empty(),
     };
 
-    let mut game = Game::new(config);
+    let mut game = make_play_game(config);
     game.state.ball_state.position = ball_pos;
     game.state.player_states = vec![player1_state, player2_state, player3_state];
 
@@ -794,6 +799,34 @@ fn test_teammates_nearby_opponent_far_keeps_possession() {
 #[test]
 fn test_ball_possession_system_exists() {
     let _system = BallPossessionSystem::new();
+}
+
+#[test]
+fn test_skipped_during_setup_stage() {
+    // In Setup the ball is fixed and possession is meaningless — system must be a no-op.
+    let field = create_test_field();
+    let ball_pos = Point3D::from_meters(50.0, 30.0, 0.0);
+    let (player_def, mut player_state) =
+        create_test_player(Team::A, 1, 80, Point3D::from_meters(50.5, 30.0, 0.0));
+    player_state.needs_decision = false;
+
+    let config = GameConfig {
+        field,
+        players: vec![player_def],
+        ball: BallDef::default(),
+        referees: vec![RefereeDef::default()],
+        scripting: crate::game::ScriptingConfig::empty(),
+    };
+
+    let mut game = Game::with_stage(config, GameStage::Setup("start".to_string()));
+    game.state.ball_state.position = ball_pos;
+    game.state.player_states = vec![player_state];
+
+    let mut system = BallPossessionSystem::new();
+    system.update(&mut game, 0.0);
+
+    assert_eq!(game.state.ball_state.possessed_by, None, "possession must not be assigned in Setup");
+    assert!(!game.state.player_states[0].needs_decision, "needs_decision must not be set in Setup");
 }
 
 #[test]
@@ -817,7 +850,7 @@ fn test_last_possessing_team_tracks_during_pass() {
         scripting: crate::game::ScriptingConfig::empty(),
     };
 
-    let mut game = Game::new(config);
+    let mut game = make_play_game(config);
     game.state.ball_state.position = ball_pos;
     game.state.player_states = vec![player1_state, player2_state];
 
@@ -863,7 +896,7 @@ fn test_last_possessing_team_changes_on_interception() {
         scripting: crate::game::ScriptingConfig::empty(),
     };
 
-    let mut game = Game::new(config);
+    let mut game = make_play_game(config);
     game.state.ball_state.position = ball_pos;
 
     // Team A has the ball

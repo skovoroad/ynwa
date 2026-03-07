@@ -578,3 +578,24 @@ fn test_setup_arrival_check_does_not_call_script() {
     // No error must have been recorded
     assert!(game.state.player_states[0].last_error.is_none());
 }
+
+#[test]
+fn test_setup_stop_blocks_script_even_when_needs_decision_true() {
+    // A player with Stop in Setup must never be re-polled, even if some other system
+    // (e.g. BallPossessionSystem in a future edge case) wrote needs_decision = true.
+    // DecisionSystem is the final guard.
+    let mut game = make_setup_game_with_player_at(30.0, 20.0);
+    game.state.player_states[0].current_decision = Some(Decision::Stop);
+    game.state.player_states[0].needs_decision = true; // externally forced
+
+    let mut system = DecisionSystem::new().with_decision_maker(Box::new(ErrorDecisionMaker));
+    system.update(&mut game, 1.0);
+
+    // Script must not have been called — decision stays Stop, no error recorded
+    assert!(
+        matches!(game.state.player_states[0].current_decision, Some(Decision::Stop)),
+        "Stop must be preserved"
+    );
+    assert!(game.state.player_states[0].last_error.is_none(), "script must not have been called");
+    assert!(!game.state.player_states[0].needs_decision, "needs_decision must be cleared");
+}

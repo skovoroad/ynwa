@@ -147,9 +147,9 @@ The following aspects are considered in the design but implementation is postpon
 **Game Systems:**
 System execution order (important for correct operation):
 1. **FootballGameManager** (`ynwa-football`) - manages game stage transitions (Setup → Play), manages football-specific game logic for determining events. Players are marked ready when their `current_decision` is `Stop` (arrival detected by DecisionSystem); game transitions to Play once all players are ready.
-2. **PlayerReactionSystem** - determines when player is ready to accept new decision based on reaction_rate. During Setup stage: requests a decision once (when player has none); arrival is handled by DecisionSystem, not by re-polling.
-3. **BallPossessionSystem** - determines which player possesses the ball (see Ball Possession System section)
-4. **DecisionSystem** - creates decisions (Decision) for players using DecisionMaker trait. During Setup stage: on every tick checks if the player has reached their Run target (within 0.5m); if so, overrides the decision with Stop without calling the script.
+2. **PlayerReactionSystem** - determines when player is ready to accept new decision based on reaction_rate. During Setup stage: sets `needs_decision` when player has no decision yet, suppresses it otherwise (early filter; DecisionSystem is the final guard for arrived players). During Play: fires when reaction interval elapsed.
+3. **BallPossessionSystem** - determines which player possesses the ball (see Ball Possession System section). Skipped entirely during Setup stage (ball is fixed, possession is meaningless).
+4. **DecisionSystem** - creates decisions (Decision) for players using DecisionMaker trait. During Setup stage: (a) on every tick checks if the player has reached their Run target (within 0.5m); if so, overrides the decision with Stop without calling the script; (b) if the player's decision is already Stop, suppresses any re-poll regardless of `needs_decision`.
 5. **ActionSystem** - transforms decisions into velocity (applies speed_rate)
 6. **PhysicsSystem** - applies velocity to position using kinematics: position += velocity × delta_time
 
