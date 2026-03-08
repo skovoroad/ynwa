@@ -1,7 +1,7 @@
 use crate::game_manager::FootballGameManager;
 use ynwa_core::field::zones::{Point3D, Rectangle, ZoneGeometry};
 use ynwa_core::field::{Field, FieldBuilder, Zone};
-use ynwa_core::game::{BallDef, Decision, Game, GameConfig, GameStage, PlayerDef, RefereeDef, REGION_START_POSITION};
+use ynwa_core::game::{BallDef, Decision, DecisionTarget, Game, GameConfig, GameStage, PlayerDef, RefereeDef, REGION_START_POSITION};
 use ynwa_core::region::{GridCell, Region};
 use ynwa_core::system::System;
 use ynwa_core::team::Team;
@@ -96,6 +96,7 @@ fn test_check_player_readiness_when_in_region() {
     let mut manager = FootballGameManager::new();
 
     game.state.player_states[0].current_decision = Some(Decision::Stop);
+    game.state.player_states[0].needs_decision = false;
 
     manager.update(&mut game, 0.0);
 
@@ -111,6 +112,7 @@ fn test_transition_to_play_when_all_ready() {
 
     for player_state in game.state.player_states.iter_mut() {
         player_state.current_decision = Some(Decision::Stop);
+        player_state.needs_decision = false;
     }
 
     manager.update(&mut game, 0.0);
@@ -227,6 +229,7 @@ fn test_game_resumes_after_event_triggered_setup() {
     assert!(!game.state.player_states[0].is_ready, "Player should not be ready initially");
 
     game.state.player_states[0].current_decision = Some(Decision::Stop);
+    game.state.player_states[0].needs_decision = false;
 
     manager.update(&mut game, 0.0);
     assert!(game.state.player_states[0].is_ready, "Player should be marked ready");
@@ -526,7 +529,7 @@ fn test_touchline_sets_restart_position_and_team() {
 
     manager.update(&mut game, 0.0);
 
-    assert_eq!(game.state.stage, GameStage::Setup("throw_in".to_string()));
+    assert_eq!(game.state.stage, GameStage::Setup("throw in".to_string()));
     let rp = game.state.restart_position.expect("restart_position must be set");
     assert!((rp.z.get::<meter>() - 30.0).abs() < 0.01);
     assert_eq!(game.state.restart_team, Some(Team::B)); // opposite of last_team A
@@ -546,7 +549,7 @@ fn test_goal_line_attacking_team_gives_goal_kick() {
 
     manager.update(&mut game, 0.0);
 
-    assert_eq!(game.state.stage, GameStage::Setup("goal_kick".to_string()));
+    assert_eq!(game.state.stage, GameStage::Setup("goal kick".to_string()));
     let rp = game.state.restart_position.expect("restart_position must be set");
     assert!((rp.x.get::<meter>() - field_width / 2.0).abs() < 0.01);
     assert!((rp.z.get::<meter>() - 5.5).abs() < 0.01);
@@ -587,7 +590,7 @@ fn test_goal_line_far_end_attacking_team_gives_goal_kick() {
 
     manager.update(&mut game, 0.0);
 
-    assert_eq!(game.state.stage, GameStage::Setup("goal_kick".to_string()));
+    assert_eq!(game.state.stage, GameStage::Setup("goal kick".to_string()));
     let rp = game.state.restart_position.expect("restart_position must be set");
     assert!((rp.x.get::<meter>() - field_width / 2.0).abs() < 0.01);
     assert!((rp.z.get::<meter>() - (field_length - 5.5)).abs() < 0.01);
@@ -649,4 +652,253 @@ fn test_kick_off_has_no_restart_position() {
 
     assert_eq!(game.state.stage, GameStage::Setup("kick off".to_string()));
     assert!(game.state.restart_position.is_none());
+}
+
+// --- resolve_set_piece_key ---
+
+use crate::game_manager::resolve_set_piece_key;
+
+#[test]
+fn test_resolve_kick_off() {
+    let field_width = 68.0_f32;
+    let field_length = 104.6_f32;
+    assert_eq!(
+        resolve_set_piece_key("kick off", Team::A, Some(Team::A), None, field_width, field_length),
+        Some("kick off own")
+    );
+    assert_eq!(
+        resolve_set_piece_key("kick off", Team::A, Some(Team::B), None, field_width, field_length),
+        Some("kick off opp")
+    );
+    assert_eq!(
+        resolve_set_piece_key("kick off", Team::B, Some(Team::B), None, field_width, field_length),
+        Some("kick off own")
+    );
+}
+
+#[test]
+fn test_resolve_goal_kick() {
+    let fw = 68.0_f32;
+    let fl = 104.6_f32;
+    let pos = Some(Point3D::from_meters(34.0, 0.0, 5.5));
+    assert_eq!(
+        resolve_set_piece_key("goal kick", Team::A, Some(Team::A), pos, fw, fl),
+        Some("goal kick own")
+    );
+    assert_eq!(
+        resolve_set_piece_key("goal kick", Team::B, Some(Team::A), pos, fw, fl),
+        Some("goal kick opp")
+    );
+}
+
+#[test]
+fn test_resolve_corner_left_right() {
+    let fw = 68.0_f32;
+    let fl = 104.6_f32;
+    let corner_left_a = Some(Point3D::from_meters(0.0, 0.0, 0.0));
+    assert_eq!(
+        resolve_set_piece_key("corner", Team::A, Some(Team::B), corner_left_a, fw, fl),
+        Some("corner opp left")
+    );
+    assert_eq!(
+        resolve_set_piece_key("corner", Team::B, Some(Team::B), corner_left_a, fw, fl),
+        Some("corner own right")
+    );
+
+    let corner_right_a = Some(Point3D::from_meters(fw, 0.0, 0.0));
+    assert_eq!(
+        resolve_set_piece_key("corner", Team::A, Some(Team::A), corner_right_a, fw, fl),
+        Some("corner own right")
+    );
+    assert_eq!(
+        resolve_set_piece_key("corner", Team::B, Some(Team::A), corner_right_a, fw, fl),
+        Some("corner opp left")
+    );
+}
+
+#[test]
+fn test_resolve_unknown_reason_returns_none() {
+    assert_eq!(
+        resolve_set_piece_key("unknown", Team::A, None, None, 68.0, 104.6),
+        None
+    );
+}
+
+#[test]
+fn test_resolve_throw_in_all_variants() {
+    let fw = 68.0_f32;
+    let fl = 104.6_f32;
+    let pos = Some(Point3D::from_meters(10.0, 0.0, 20.0));
+    assert_eq!(
+        resolve_set_piece_key("throw in", Team::A, Some(Team::A), pos, fw, fl),
+        Some("throw in own left own half")
+    );
+    let pos2 = Some(Point3D::from_meters(50.0, 0.0, 70.0));
+    assert_eq!(
+        resolve_set_piece_key("throw in", Team::A, Some(Team::B), pos2, fw, fl),
+        Some("throw in opp right opp half")
+    );
+    let pos3 = Some(Point3D::from_meters(50.0, 0.0, 70.0));
+    assert_eq!(
+        resolve_set_piece_key("throw in", Team::B, Some(Team::B), pos3, fw, fl),
+        Some("throw in own left own half")
+    );
+}
+
+// --- assign_setup_decisions ---
+
+#[test]
+fn test_assign_setup_decisions_sends_non_taker_to_region() {
+    use crate::field_builder::create_football_field;
+    let field = create_football_field();
+    let grid_dims = field.grid_dimensions();
+    let region = grid_dims.create_region(GridCell::new(5, 5).unwrap(), GridCell::new(6, 6).unwrap()).unwrap();
+
+    let mut regions = HashMap::new();
+    regions.insert(REGION_START_POSITION.to_string(), region.clone());
+    regions.insert("goal kick opp".to_string(), region.clone());
+
+    let config = GameConfig {
+        field,
+        players: vec![PlayerDef::new(
+            Team::A, 1, "A".to_string(),
+            "function make_decision() return {} end".to_string(),
+            regions,
+        )],
+        ball: BallDef::default(),
+        referees: vec![],
+        scripting: ynwa_core::game::ScriptingConfig::empty(),
+    };
+
+    let mut game = Game::with_stage(config, GameStage::Setup("goal kick".to_string()));
+    game.state.restart_team = Some(Team::B); // Team B takes goal kick → Team A is defender (opp)
+    game.state.restart_position = Some(Point3D::new(
+        Length::new::<meter>(34.0),
+        Length::new::<meter>(0.0),
+        Length::new::<meter>(5.5),
+    ));
+
+    let mut manager = FootballGameManager::new();
+    manager.update(&mut game, 0.0);
+
+    assert!(
+        matches!(game.state.player_states[0].current_decision, Some(Decision::Run(_))),
+        "non-taker should get a Run decision"
+    );
+    assert!(!game.state.player_states[0].needs_decision);
+}
+
+#[test]
+fn test_assign_setup_decisions_sends_taker_to_restart_position() {
+    use crate::field_builder::create_football_field;
+    let field = create_football_field();
+    let grid_dims = field.grid_dimensions();
+    let region = grid_dims.create_region(GridCell::new(5, 5).unwrap(), GridCell::new(6, 6).unwrap()).unwrap();
+
+    let mut regions = HashMap::new();
+    regions.insert(REGION_START_POSITION.to_string(), region.clone());
+
+    let mut roles = std::collections::HashSet::new();
+    roles.insert("goal kick own".to_string());
+
+    let config = GameConfig {
+        field,
+        players: vec![PlayerDef::new(
+            Team::A, 1, "A".to_string(),
+            "function make_decision() return {} end".to_string(),
+            regions,
+        ).with_set_piece_roles(roles)],
+        ball: BallDef::default(),
+        referees: vec![],
+        scripting: ynwa_core::game::ScriptingConfig::empty(),
+    };
+
+    let restart = Point3D::new(
+        Length::new::<meter>(34.0),
+        Length::new::<meter>(0.0),
+        Length::new::<meter>(5.5),
+    );
+    let mut game = Game::with_stage(config, GameStage::Setup("goal kick".to_string()));
+    game.state.restart_team = Some(Team::A); // Team A takes goal kick → own
+    game.state.restart_position = Some(restart);
+
+    let mut manager = FootballGameManager::new();
+    manager.update(&mut game, 0.0);
+
+    match &game.state.player_states[0].current_decision {
+        Some(Decision::Run(DecisionTarget::Point(p))) => {
+            assert!((p.x.get::<meter>() - 34.0).abs() < 0.01);
+            assert!((p.z.get::<meter>() - 5.5).abs() < 0.01);
+        }
+        other => panic!("expected Run(Point(restart_pos)), got {:?}", other),
+    }
+}
+
+#[test]
+fn test_assign_setup_decisions_sets_error_for_missing_region() {
+    use crate::field_builder::create_football_field;
+    let field = create_football_field();
+    let grid_dims = field.grid_dimensions();
+    let region = grid_dims.create_region(GridCell::new(5, 5).unwrap(), GridCell::new(6, 6).unwrap()).unwrap();
+
+    // Player has no "goal kick opp" region
+    let regions = HashMap::from([(REGION_START_POSITION.to_string(), region)]);
+
+    let config = GameConfig {
+        field,
+        players: vec![PlayerDef::new(
+            Team::A, 1, "A".to_string(),
+            "function make_decision() return {} end".to_string(),
+            regions,
+        )],
+        ball: BallDef::default(),
+        referees: vec![],
+        scripting: ynwa_core::game::ScriptingConfig::empty(),
+    };
+
+    let mut game = Game::with_stage(config, GameStage::Setup("goal kick".to_string()));
+    game.state.restart_team = Some(Team::B); // Team A is opp → needs "goal kick opp" region
+
+    let mut manager = FootballGameManager::new();
+    manager.update(&mut game, 0.0);
+
+    assert!(game.state.player_states[0].current_decision.is_none());
+    assert!(game.state.player_states[0].last_error.is_some(), "last_error must be set for missing region");
+}
+
+#[test]
+fn test_assign_setup_skips_players_without_needs_decision() {
+    use crate::field_builder::create_football_field;
+    let field = create_football_field();
+    let grid_dims = field.grid_dimensions();
+    let region = grid_dims.create_region(GridCell::new(5, 5).unwrap(), GridCell::new(6, 6).unwrap()).unwrap();
+
+    let regions = HashMap::from([
+        (REGION_START_POSITION.to_string(), region.clone()),
+        ("goal kick opp".to_string(), region),
+    ]);
+
+    let config = GameConfig {
+        field,
+        players: vec![PlayerDef::new(
+            Team::A, 1, "A".to_string(),
+            "function make_decision() return {} end".to_string(),
+            regions,
+        )],
+        ball: BallDef::default(),
+        referees: vec![],
+        scripting: ynwa_core::game::ScriptingConfig::empty(),
+    };
+
+    let mut game = Game::with_stage(config, GameStage::Setup("goal kick".to_string()));
+    game.state.restart_team = Some(Team::B);
+    game.state.player_states[0].needs_decision = false;
+    game.state.player_states[0].current_decision = Some(Decision::Stop);
+    game.state.player_states[0].is_ready = true;
+
+    let mut manager = FootballGameManager::new();
+    manager.update(&mut game, 0.0);
+
+    // Decision must remain Stop (not overwritten)
+    assert!(matches!(game.state.player_states[0].current_decision, Some(Decision::Stop)));
 }

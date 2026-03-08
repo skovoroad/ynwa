@@ -54,7 +54,7 @@ player_setup = { ["kick off"] = f, ... }  -- takes priority over team_setup
 
 **Possession states**: `"i_have_ball"`, `"ball_is_free"`, `"team_has_ball"`, `"opponent_has_ball"`.
 
-**Setup reasons**: `"kick off"` (game start and after goal), `"throw_in"`, `"goal_kick"`, `"corner"`. Unknown reasons fall back to `default_get_setup_position`.
+**Setup reasons**: `"kick off"` (game start and after goal), `"throw in"`, `"goal kick"`, `"corner"`. Unknown reasons are treated as errors — the player receives no decision and `PlayerState::last_error` is set.
 
 **Note**: Setup reasons (above) are the strings emitted by `FootballGameManager` and used as keys in `team_setup`/`player_setup`. They differ from the `[set_piece_positions]` keys in `tactical.toml` (16 keys: `"kick off own"`, `"kick off opp"`, `"goal kick own"`, `"goal kick opp"`, `"corner own left"`, etc.) — those are positional data used by the engine to place players, not dispatch keys.
 
