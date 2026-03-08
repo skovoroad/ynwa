@@ -5,4 +5,12 @@ attack  = "R35"
 defence = "R15"
 
 [set_piece_positions]
-"kick off" = "R18"
+"kick off"                  = "R18"
+"throw in own left own half"  = "R18"
+"throw in own left opp half"  = "R18"
+"throw in own right own half" = "R18"
+"throw in own right opp half" = "R18"
+"throw in opp left own half"  = "R18"
+"throw in opp left opp half"  = "R18"
+"throw in opp right own half" = "R18"
+"throw in opp right opp half" = "R18"
