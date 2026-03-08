@@ -56,6 +56,8 @@ player_setup = { ["kick off"] = f, ... }  -- takes priority over team_setup
 
 **Setup reasons**: `"kick off"` (game start and after goal), `"throw_in"`, `"goal_kick"`, `"corner"`. Unknown reasons fall back to `default_get_setup_position`.
 
+**Note**: Setup reasons (above) are the strings emitted by `FootballGameManager` and used as keys in `team_setup`/`player_setup`. They differ from the `[set_piece_positions]` keys in `tactical.toml` (16 keys: `"kick off own"`, `"kick off opp"`, `"goal kick own"`, `"goal kick opp"`, `"corner own left"`, etc.) — those are positional data used by the engine to place players, not dispatch keys.
+
 A player script with no `player_play`/`player_setup` defined uses team tactics entirely. An empty script `''` is valid.
 
 ### 2.2 Input Data: `context` Structure
@@ -475,6 +477,9 @@ team_play = {
 }
 team_setup = {
     ["kick off"] = run_to_start_position,
+    throw_in     = run_to_start_position,
+    goal_kick    = run_to_start_position,
+    corner       = run_to_start_position,
 }
 ```
 
@@ -514,11 +519,27 @@ attack  = "N9"
 defence = "N1"
 
 [set_piece_positions]
-"kick off" = "N3"
-"goal kick own" = "K7"
+"kick off own"                = "N18"   # on_ball for the designated taker; position for others
+"kick off opp"                = "N3"    # also registered as REGION_START_POSITION ("start") for initial placement
+"goal kick own"               = "on_ball"  # example: goalkeeper is the taker
+"goal kick opp"               = "N5"
+"corner own left"             = "N34"
+"corner own right"            = "N34"
+"corner opp left"             = "N3"
+"corner opp right"            = "N3"
+"throw in own left own half"  = "G3"
+"throw in own left opp half"  = "G3"
+"throw in own right own half" = "T3"
+"throw in own right opp half" = "T3"
+"throw in opp left own half"  = "G3"
+"throw in opp left opp half"  = "G3"
+"throw in opp right own half" = "T3"
+"throw in opp right opp half" = "T3"
 ```
 
-`"kick off"` is also registered as `"start"` — the region used by core for initial player placement.
+All 16 keys are mandatory for every player. Value is either a grid notation string (e.g. `"K7"`) or the special marker `"on_ball"` (only allowed for `own` keys; exactly one player per team per key must use it).
+
+`"kick off opp"` is also registered as `"start"` (`REGION_START_POSITION`) — the region used by core for initial player placement.
 
 **Coordinate transformation for Team B**:
 

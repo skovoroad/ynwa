@@ -74,8 +74,10 @@ fn build_player_defs(
                     continue;
                 }
                 let region = flip(parse(pos)?)?;
-                if key == "kick off" {
-                    // "kick off" doubles as the start position used by core for initial placement.
+                if key == "kick off opp" {
+                    // "kick off opp" is used as the generic start position for core's initial
+                    // placement: every player waits in this position before the game begins.
+                    // Task 2.x will introduce proper kick-off team selection and replace this.
                     regions.insert(REGION_START_POSITION.to_string(), region.clone());
                 }
                 regions.insert(key.clone(), region);
@@ -100,8 +102,59 @@ fn build_player_defs(
         .collect()
 }
 
-/// Validates that for every set-piece key present in any player's `set_piece_positions`,
-/// exactly one player per team has the value `"on_ball"` for that key.
+/// Complete set of set-piece keys every player must declare in `[set_piece_positions]`.
+/// Keys mirror the setup reasons emitted by `FootballGameManager`, with own/opp and
+/// left/right variants so the engine can pick the exact region for each situation.
+pub const SET_PIECE_KEYS: &[&str] = &[
+    "kick off own",
+    "kick off opp",
+    "goal kick own",
+    "goal kick opp",
+    "corner own left",
+    "corner own right",
+    "corner opp left",
+    "corner opp right",
+    "throw in own left own half",
+    "throw in own left opp half",
+    "throw in own right own half",
+    "throw in own right opp half",
+    "throw in opp left own half",
+    "throw in opp left opp half",
+    "throw in opp right own half",
+    "throw in opp right opp half",
+];
+
+fn validate_set_piece_keys(team_record: &TeamRecord, team_label: &str) -> Result<(), String> {
+    for player in &team_record.players {
+        for key in SET_PIECE_KEYS {
+            if !player.tactical.set_piece_positions.contains_key(*key) {
+                return Err(format!(
+                    "team {}: player {}: missing set-piece key '{}'",
+                    team_label, player.tactical.number, key
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Keys for which exactly one player must have `"on_ball"` — the 8 set-piece situations
+/// where *our* team takes the ball.  All `opp` keys are purely positional (the ball
+/// belongs to the opponent), so `"on_ball"` is forbidden there.
+const ON_BALL_REQUIRED_KEYS: &[&str] = &[
+    "kick off own",
+    "goal kick own",
+    "corner own left",
+    "corner own right",
+    "throw in own left own half",
+    "throw in own left opp half",
+    "throw in own right own half",
+    "throw in own right opp half",
+];
+
+/// Validates on_ball assignments:
+/// - every `own` key must have exactly one `on_ball` player
+/// - every `opp` key must have zero `on_ball` players
 fn validate_on_ball(team_record: &TeamRecord, team_label: &str) -> Result<(), String> {
     let mut counts: std::collections::HashMap<&str, usize> = std::collections::HashMap::new();
     for player in &team_record.players {
@@ -111,15 +164,21 @@ fn validate_on_ball(team_record: &TeamRecord, team_label: &str) -> Result<(), St
             }
         }
     }
-    // Collect all distinct keys across all players to detect missing on_ball.
-    let all_keys: std::collections::HashSet<&str> = team_record.players.iter()
-        .flat_map(|p| p.tactical.set_piece_positions.keys().map(|k| k.as_str()))
-        .collect();
-    for key in all_keys {
+    // Every own key must have exactly one on_ball player.
+    for key in ON_BALL_REQUIRED_KEYS {
         let count = counts.get(key).copied().unwrap_or(0);
         if count != 1 {
             return Err(format!(
                 "team {}: set-piece '{}' has {} on_ball players, expected exactly 1",
+                team_label, key, count
+            ));
+        }
+    }
+    // No opp key may carry on_ball — the ball belongs to the opponent.
+    for (key, &count) in &counts {
+        if !ON_BALL_REQUIRED_KEYS.contains(key) && count > 0 {
+            return Err(format!(
+                "team {}: set-piece '{}' has {} on_ball player(s), expected 0 for opp key",
                 team_label, key, count
             ));
         }
@@ -170,6 +229,8 @@ pub fn create_football_world(
 
     validate_on_ball(&team_a_record, "team_a")?;
     validate_on_ball(&team_b_record, "team_b")?;
+    validate_set_piece_keys(&team_a_record, "team_a")?;
+    validate_set_piece_keys(&team_b_record, "team_b")?;
 
     let team_a_players = build_player_defs(Team::A, &team_a_record, grid_dims)?;
     let team_b_players = build_player_defs(Team::B, &team_b_record, grid_dims)?;
@@ -333,7 +394,8 @@ mod tests {
                 ("defence".to_string(), "A1".to_string()),
             ].into(),
             set_piece_positions: [
-                ("kick off".to_string(),        "A1".to_string()),
+                ("kick off own".to_string(),    "A1".to_string()),
+                ("kick off opp".to_string(),    "B1".to_string()),
                 ("goal kick own".to_string(),   "B2".to_string()),
                 ("corner own left".to_string(), "C3".to_string()),
             ].into(),
@@ -355,12 +417,18 @@ mod tests {
         assert!(defs[0].regions.contains_key("defence"));
 
         // set_piece_positions: present keys are registered as-is
-        assert!(defs[0].regions.contains_key("kick off"));
+        assert!(defs[0].regions.contains_key("kick off own"));
+        assert!(defs[0].regions.contains_key("kick off opp"));
         assert!(defs[0].regions.contains_key("goal kick own"));
         assert!(defs[0].regions.contains_key("corner own left"));
 
-        // "kick off" also registers REGION_START_POSITION for core
+        // only "kick off opp" registers REGION_START_POSITION
         assert!(defs[0].regions.contains_key(REGION_START_POSITION));
+        assert_eq!(
+            defs[0].regions[REGION_START_POSITION],
+            defs[0].regions["kick off opp"],
+            "REGION_START_POSITION must alias kick off opp"
+        );
 
         // absent keys produce no region
         assert!(!defs[0].regions.contains_key("goal kick opp"));
@@ -490,31 +558,91 @@ mod tests {
 
     #[test]
     fn validate_on_ball_ok() {
-        let record = make_team_record(&[
-            &[("kick off", "on_ball"), ("goal kick own", "A1")],
-            &[("kick off", "A1"),     ("goal kick own", "on_ball")],
-        ]);
+        // Player 0 has on_ball for all 8 own keys; player 1 has grid cells for everything.
+        // All opp keys are purely positional (no on_ball).
+        let opp_keys = SET_PIECE_KEYS.iter()
+            .filter(|k| !ON_BALL_REQUIRED_KEYS.contains(*k));
+        let required: Vec<(&str, &str)> = ON_BALL_REQUIRED_KEYS.iter()
+            .map(|k| (*k, "on_ball"))
+            .chain(opp_keys.clone().map(|k| (*k, "A1")))
+            .collect();
+        let positional: Vec<(&str, &str)> = ON_BALL_REQUIRED_KEYS.iter()
+            .map(|k| (*k, "A1"))
+            .chain(opp_keys.map(|k| (*k, "A1")))
+            .collect();
+        let record = make_team_record(&[&required, &positional]);
         assert!(validate_on_ball(&record, "team_a").is_ok());
     }
 
     #[test]
     fn validate_on_ball_duplicate() {
         let record = make_team_record(&[
-            &[("kick off", "on_ball")],
-            &[("kick off", "on_ball")],
+            &[("kick off own", "on_ball"), ("kick off opp", "A1")],
+            &[("kick off own", "on_ball"), ("kick off opp", "A1")],
         ]);
         let err = validate_on_ball(&record, "team_a").unwrap_err();
-        assert!(err.contains("kick off"), "error should mention the key: {}", err);
+        assert!(err.contains("kick off own"), "error should mention the key: {}", err);
         assert!(err.contains("team_a"), "error should mention the team: {}", err);
     }
 
     #[test]
     fn validate_on_ball_missing() {
         let record = make_team_record(&[
-            &[("kick off", "A1")],
-            &[("kick off", "A1")],
+            &[("kick off own", "A1"), ("kick off opp", "A1")],
+            &[("kick off own", "A1"), ("kick off opp", "A1")],
         ]);
         let err = validate_on_ball(&record, "team_a").unwrap_err();
-        assert!(err.contains("kick off"), "error should mention the key: {}", err);
+        assert!(err.contains("kick off own"), "error should mention the key: {}", err);
+    }
+
+    #[test]
+    fn validate_on_ball_opp_key_must_not_have_on_ball() {
+        // Any opp key with on_ball is an error.
+        // Build a record with all own keys valid, then add goal kick opp = on_ball.
+        let with_opp_on_ball: Vec<(&str, &str)> = ON_BALL_REQUIRED_KEYS.iter()
+            .map(|k| (*k, "on_ball"))
+            .chain(std::iter::once(("goal kick opp", "on_ball")))  // forbidden
+            .collect();
+        let positional: Vec<(&str, &str)> = ON_BALL_REQUIRED_KEYS.iter()
+            .map(|k| (*k, "A1"))
+            .chain(std::iter::once(("goal kick opp", "A1")))
+            .collect();
+        let record = make_team_record(&[&with_opp_on_ball, &positional]);
+        let err = validate_on_ball(&record, "team_a").unwrap_err();
+        assert!(err.contains("goal kick opp"), "error should mention the opp key: {}", err);
+    }
+
+    /// Build a team record where every player has all 16 SET_PIECE_KEYS.
+    /// The first player has `on_ball` for every key; the rest have a grid cell.
+    fn make_complete_set_piece_record() -> TeamRecord {
+        let all_keys_player_0: Vec<(&str, &str)> = SET_PIECE_KEYS.iter()
+            .map(|k| (*k, "on_ball"))
+            .collect();
+        let all_keys_player_1: Vec<(&str, &str)> = SET_PIECE_KEYS.iter()
+            .map(|k| (*k, "A1"))
+            .collect();
+        make_team_record(&[&all_keys_player_0, &all_keys_player_1])
+    }
+
+    #[test]
+    fn validate_set_piece_keys_ok() {
+        let record = make_complete_set_piece_record();
+        assert!(validate_set_piece_keys(&record, "team_a").is_ok());
+    }
+
+    #[test]
+    fn validate_set_piece_keys_missing_key() {
+        // Build a record that has all keys except "goal kick opp" for player #2.
+        let all_keys_player_0: Vec<(&str, &str)> = SET_PIECE_KEYS.iter()
+            .map(|k| (*k, "on_ball"))
+            .collect();
+        let incomplete: Vec<(&str, &str)> = SET_PIECE_KEYS.iter()
+            .filter(|k| **k != "goal kick opp")
+            .map(|k| (*k, "A1"))
+            .collect();
+        let record = make_team_record(&[&all_keys_player_0, &incomplete]);
+        let err = validate_set_piece_keys(&record, "team_a").unwrap_err();
+        assert!(err.contains("goal kick opp"), "error should mention the missing key: {}", err);
+        assert!(err.contains("team_a"), "error should mention the team: {}", err);
     }
 }
