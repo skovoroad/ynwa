@@ -41,11 +41,11 @@ Goal: provide a set of reusable functions for writing AI players in Lua without 
 ```lua
 -- In team preamble (team_a.lua / team_b.lua):
 team_play  = { i_have_ball = f, ball_is_free = f, team_has_ball = f, opponent_has_ball = f }
-team_setup = { start = f, after_goal = f }
+team_setup = { ["kick off"] = f, throw_in = f, goal_kick = f, corner = f }
 
 -- In player script (optional override):
 player_play  = { i_have_ball = f, ... }   -- takes priority over team_play
-player_setup = { start = f, ... }         -- takes priority over team_setup
+player_setup = { ["kick off"] = f, ... }  -- takes priority over team_setup
 ```
 
 `make_decision()` determines possession state and dispatches: `player_play[state]` → `team_play[state]` → `error()`.
@@ -54,7 +54,7 @@ player_setup = { start = f, ... }         -- takes priority over team_setup
 
 **Possession states**: `"i_have_ball"`, `"ball_is_free"`, `"team_has_ball"`, `"opponent_has_ball"`.
 
-**Setup reasons**: `"start"`, `"after_goal"` (handled by team); unknown reasons fall back to `default_get_setup_position`.
+**Setup reasons**: `"kick off"` (game start and after goal), `"throw_in"`, `"goal_kick"`, `"corner"`. Unknown reasons fall back to `default_get_setup_position`.
 
 A player script with no `player_play`/`player_setup` defined uses team tactics entirely. An empty script `''` is valid.
 
@@ -128,8 +128,8 @@ context = {
     -- Game time
     game = {
         elapsed_time = 125.5,  -- Seconds since game start
-        setup_reason = "start" -- Present only during Setup stage: reason for setup
-                               -- Values: "start", "after_goal", "throw_in", "set_piece"
+        setup_reason = "kick off" -- Present only during Setup stage: reason for setup
+                               -- Values: "kick off", "throw_in", "goal_kick", "corner"
     }
 }
 ```
@@ -473,8 +473,7 @@ team_play = {
     opponent_has_ball = press_or_defend,
 }
 team_setup = {
-    start      = run_to_start_position,
-    after_goal = run_to_start_position,
+    ["kick off"] = run_to_start_position,
 }
 ```
 

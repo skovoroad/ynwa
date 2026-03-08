@@ -78,7 +78,7 @@ function get_teammate_by_number(n)
     return nil
 end
 
--- Returns {x, z} of the restart point, or nil if setup_info is absent (start/after_goal).
+-- Returns {x, z} of the restart point, or nil if setup_info is absent (kick off).
 function get_restart_position()
     if not context.game.setup_info then return nil end
     return {x = context.game.setup_info.restart_x, z = context.game.setup_info.restart_z}

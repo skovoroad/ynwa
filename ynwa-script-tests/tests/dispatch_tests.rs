@@ -66,15 +66,9 @@ fn test_dispatch_opponent_has_ball() {
 // --- Setup stage: reason routing ---
 
 #[test]
-fn test_dispatch_setup_start() {
-    let (decision, reason) = run_spy(GameStage::Setup("start".to_string()), None, None);
-    assert_eq!(reason.as_deref(), Some("spy:setup_start"), "decision={:?}", decision);
-}
-
-#[test]
-fn test_dispatch_setup_after_goal() {
-    let (_, reason) = run_spy(GameStage::Setup("after_goal".to_string()), None, None);
-    assert_eq!(reason.as_deref(), Some("spy:setup_after_goal"));
+fn test_dispatch_setup_kick_off() {
+    let (decision, reason) = run_spy(GameStage::Setup("kick off".to_string()), None, None);
+    assert_eq!(reason.as_deref(), Some("spy:setup_kick_off"), "decision={:?}", decision);
 }
 
 #[test]

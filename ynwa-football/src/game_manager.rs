@@ -11,13 +11,13 @@
 //! - Ball placed at `GameState::restart_position` if set, otherwise at `ball.initial_position`
 //!
 //! Setup reasons and restart rules:
-//! - `"start"` / `"after_goal"` — `restart_position = None` (ball at center)
+//! - `"kick off"` — `restart_position = None` (ball at center); used for game start and after goal
 //! - `"throw_in"` — ball at crossing point; `restart_team` = opponent of last touch
 //! - `"corner"` — ball at nearest corner; `restart_team` = attacking team (last touch)
 //! - `"goal_kick"` — ball at goal area (5.5m from goal line); `restart_team` = defending team (last touch)
 //!
 //! Design decisions:
-//! - `Game::new()` uses `GameStage::default()` = `Setup("start")`
+//! - `Game::new()` uses `GameStage::default()` = `Setup("kick off")`
 //! - Tests use `Game::with_stage()` to set stage explicitly
 //! - `restart_position` and `restart_team` are set in `handle_event` (before Setup ticks begin)
 //!   so they survive the `last_possessing_team = None` reset that happens each Setup tick
@@ -99,7 +99,7 @@ impl FootballGameManager {
                 }
                 game.state.restart_position = None;
                 game.state.restart_team = Some(team); // team that conceded restarts from center
-                game.state.stage = GameStage::Setup("after_goal".to_string());
+                game.state.stage = GameStage::Setup("kick off".to_string());
             }
             FootballEvent::Touchline(position, last_team) => {
                 for player_state in game.state.player_states.iter_mut() {

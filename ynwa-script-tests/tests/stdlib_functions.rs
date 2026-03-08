@@ -120,7 +120,7 @@ end
 
     let mut game = create_test_game_with_full_preambles_and_stage(
         script,
-        GameStage::Setup("start".to_string()),
+        GameStage::Setup("kick off".to_string()),
     );
 
     request_decisions_for_all(&mut game);
@@ -267,8 +267,8 @@ player_play = {
 
 #[test]
 fn test_setup_dispatch_by_reason() {
-    // team_setup.start → run_to_start_position → Run
-    let state = run_dispatch_test("", GameStage::Setup("start".to_string()));
+    // team_setup["kick off"] → run_to_start_position → Run
+    let state = run_dispatch_test("", GameStage::Setup("kick off".to_string()));
     assert!(
         state.last_error.is_none(),
         "setup dispatch error: {:?}",
@@ -822,11 +822,11 @@ function make_decision() return {action = "stop"} end
 
 #[test]
 fn test_setup_info_absent_for_start_stage() {
-    // "start" has no restart_position → setup_info must be absent in context
+    // "kick off" has no restart_position → setup_info must be absent in context
     let script = r#"
 function get_setup_position(reason)
     assert(context.game.setup_info == nil,
-        "setup_info must be absent for 'start', got: " .. tostring(context.game.setup_info))
+        "setup_info must be absent for 'kick off', got: " .. tostring(context.game.setup_info))
     return {action = "stop"}
 end
 function make_decision() return {action = "stop"} end
@@ -835,7 +835,7 @@ function make_decision() return {action = "stop"} end
     let mut game = make_setup_info_game(
         script,
         ynwa_core::team::Team::A,
-        GameStage::Setup("start".to_string()),
+        GameStage::Setup("kick off".to_string()),
     );
     run_setup_info_game(&mut game);
     assert!(game.state().player_states[0].last_error.is_none(),
@@ -922,7 +922,7 @@ function make_decision() return {action = "stop"} end
     let mut game = make_setup_info_game(
         script,
         ynwa_core::team::Team::A,
-        GameStage::Setup("start".to_string()),
+        GameStage::Setup("kick off".to_string()),
     );
     run_setup_info_game(&mut game);
     assert!(game.state().player_states[0].last_error.is_none(),

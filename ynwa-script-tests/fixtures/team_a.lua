@@ -9,8 +9,7 @@ team_play = {
 }
 
 team_setup = {
-    start      = run_to_start_position,
-    after_goal = run_to_start_position,
+    ["kick off"] = run_to_start_position,
     throw_in   = run_to_start_position,
     goal_kick  = run_to_start_position,
     corner     = run_to_start_position,

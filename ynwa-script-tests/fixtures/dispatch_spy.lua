@@ -10,6 +10,5 @@ team_play = {
 }
 
 team_setup = {
-    start      = function() return {action = "stop", reason = "spy:setup_start"} end,
-    after_goal = function() return {action = "stop", reason = "spy:setup_after_goal"} end,
+    ["kick off"] = function() return {action = "stop", reason = "spy:setup_kick_off"} end,
 }

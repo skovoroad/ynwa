@@ -219,7 +219,7 @@ fn test_game_resumes_after_event_triggered_setup() {
     manager.update(&mut game, 0.0);
     match &game.state.stage {
         GameStage::Setup(reason) => {
-            assert_eq!(reason, "after_goal", "Should transition to after_goal setup");
+            assert_eq!(reason, "kick off", "Should transition to kick off setup");
         }
         _ => panic!("Expected Setup stage after goal, got {:?}", game.state.stage),
     }
@@ -286,7 +286,7 @@ fn test_ball_resets_to_initial_position_in_setup() {
         initial_ball_position.x.get::<meter>()
     );
 
-    game.state.stage = GameStage::Setup("after_goal".to_string());
+    game.state.stage = GameStage::Setup("kick off".to_string());
 
     let mut manager = FootballGameManager::new();
     manager.update(&mut game, 0.0);
@@ -324,7 +324,7 @@ fn test_ball_ownership_resets_in_setup_stage() {
     assert_eq!(game.state.ball_state.possessed_by, Some(0));
     assert_eq!(game.state.ball_state.last_possessing_team, Some(Team::A));
 
-    game.state.stage = GameStage::Setup("after_goal".to_string());
+    game.state.stage = GameStage::Setup("kick off".to_string());
 
     let mut manager = FootballGameManager::new();
     manager.update(&mut game, 0.0);
@@ -639,7 +639,7 @@ fn test_setup_tick_places_ball_at_restart_position() {
 }
 
 #[test]
-fn test_after_goal_has_no_restart_position() {
+fn test_kick_off_has_no_restart_position() {
     let mut game = create_standard_game();
     let mut manager = FootballGameManager::new();
     let field_width = game.config().field.width().get::<meter>();
@@ -647,6 +647,6 @@ fn test_after_goal_has_no_restart_position() {
     set_ball_pos(&mut game, field_width / 2.0, -0.5);
     manager.update(&mut game, 0.0);
 
-    assert_eq!(game.state.stage, GameStage::Setup("after_goal".to_string()));
+    assert_eq!(game.state.stage, GameStage::Setup("kick off".to_string()));
     assert!(game.state.restart_position.is_none());
 }

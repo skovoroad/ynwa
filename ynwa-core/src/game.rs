@@ -213,7 +213,7 @@ pub enum GameStage {
 
 impl Default for GameStage {
     fn default() -> Self {
-        GameStage::Setup("start".to_string())
+        GameStage::Setup("kick off".to_string())
     }
 }
 
