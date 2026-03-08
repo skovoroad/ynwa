@@ -73,7 +73,7 @@ function forward_with_ball()
         return kick_to_opponent_goal()
     end
     -- In attack position → shoot
-    local pos = my_regions()["attack position"]
+    local pos = my_regions()["attack"]
     if pos and is_in_region_obj(pos) then
         return kick_to_opponent_goal()
     end

@@ -3,9 +3,9 @@ use crate::region::GridCell;
 
 fn make_regions(start: Region, attack: Region, defence: Region) -> HashMap<String, Region> {
     HashMap::from([
-        ("start position".to_string(), start),
-        ("attack position".to_string(), attack),
-        ("defence position".to_string(), defence),
+        (REGION_START_POSITION.to_string(), start),
+        ("attack".to_string(), attack),
+        ("defence".to_string(), defence),
     ])
 }
 

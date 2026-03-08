@@ -1,4 +1,8 @@
 number = 10
-start_position = "N18"
-attack_position = "N35"
-defence_position = "N15"
+
+[play_positions]
+attack  = "N35"
+defence = "N15"
+
+[set_piece_positions]
+"kick off" = "N18"

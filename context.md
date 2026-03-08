@@ -83,7 +83,7 @@ teams/
     players/
       NN/            # player directory, zero-padded number
         static.toml    # immutable attributes: name, reaction_rate, speed_rate, tackle_rate, shot_power, shot_accuracy
-        tactical.toml  # tactical attributes: number, start_position, attack_position, defence_position; optional: goal_kick_own_position, goal_kick_opp_position, corner_own_left, corner_own_right, corner_opp_left, corner_opp_right
+        tactical.toml  # tactical attributes: number; [play_positions]: attack, defence; [set_piece_positions]: "kick off" and sport-specific keys
         script.lua     # optional player script: player_play / player_setup overrides
 ```
 
@@ -106,9 +106,9 @@ The following aspects are considered in the design but implementation is postpon
 - Poll-based model: client owns the game loop
 - API design: `state()` provides access to state
 - `GameState` has `restart_position: Option<Point3D>` and `restart_team: Option<Team>` — set by `FootballGameManager::handle_event` on each Setup transition; used by scripting layer and ball placement in Setup tick
-- When `restart_position` is `Some`, `ScriptedDecisionMaker` adds `setup_info` to `context.game` in the Setup branch: `{ restart_x, restart_z, restarting_team }`. Coordinates are transformed for the player's team perspective (Team B sees flipped). Field is absent when `restart_position` is `None` (e.g. `"start"`, `"after_goal"`).
+- When `restart_position` is `Some`, `ScriptedDecisionMaker` adds `setup_info` to `context.game` in the Setup branch: `{ restart_x, restart_z, restarting_team }`. Coordinates are transformed for the player's team perspective (Team B sees flipped). Field is absent when `restart_position` is `None` (e.g. `"kick off"`).
 - `stdlib.lua` provides `get_restart_position()` → `{x, z}` or `nil`, `is_my_team_restarting()` → `bool` or `nil`, and `run_to_restart_position()` → run action to the restart point or `nil` — wrappers over `setup_info` that follow the no-direct-`context`-access rule.
-- `stdlib.lua` provides `default_goal_kick_setup()` — reusable handler for `team_setup.goal_kick`: restarting team goes to `"goal kick own position"` (fallback: `run_to_start_position()`); defending team goes to `"goal kick opp position"` (fallback: `run_to_defence_position()`). Team preambles reference it directly: `goal_kick = default_goal_kick_setup`.
+- `stdlib.lua` provides `default_goal_kick_setup()` — reusable handler for `team_setup.goal_kick`: restarting team goes to `"goal kick own"` (fallback: `run_to_start_position()`); defending team goes to `"goal kick opp"` (fallback: `run_to_defence_position()`). Team preambles reference it directly: `goal_kick = default_goal_kick_setup`.
 - Determinism through fixed timestep (controlled by client)
 
 **Statistics (`StatSet` in `game.rs`):**
@@ -122,7 +122,7 @@ The following aspects are considered in the design but implementation is postpon
 - Separation of Config (immutable) / State (mutable per-frame)
 - Entities: Player, Ball, Referee — separate types (not traits), as they are processed by different systems
 - Indices: `config.players[i]` ↔ `state.player_states[i]` — O(1) access
-- `PlayerDef::new(team, number, name, script, regions: HashMap<String, Region>)` — the last argument is a map of named regions; game-specific callers (e.g. `ynwa-football`) populate it; core only reads the key `REGION_START_POSITION` (`"start position"`) to place the player at game start. `REGION_START_POSITION` is the contract between core and game-specific layers — core does not know any other region names.
+- `PlayerDef::new(team, number, name, script, regions: HashMap<String, Region>)` — the last argument is a map of named regions; game-specific callers (e.g. `ynwa-football`) populate it; core only reads the key `REGION_START_POSITION` (`"start"`) to place the player at game start. `REGION_START_POSITION` is the contract between core and game-specific layers — core does not know any other region names.
 
 **World & Systems (`world.rs`, `system.rs`):**
 - World coordinates the game loop, contains Game and a list of systems

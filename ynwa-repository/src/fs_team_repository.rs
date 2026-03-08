@@ -16,9 +16,8 @@ struct StaticToml {
 #[derive(Debug, Deserialize)]
 struct TacticalToml {
     number: u32,
-    start_position: String,
-    attack_position: String,
-    defence_position: String,
+    #[serde(default)]
+    play_positions: std::collections::HashMap<String, String>,
     #[serde(default)]
     set_piece_positions: std::collections::HashMap<String, String>,
 }
@@ -55,9 +54,7 @@ fn load_player(dir: &Path) -> Result<PlayerRecord, String> {
         },
         tactical: PlayerTactical {
             number: t.number,
-            start_position: t.start_position,
-            attack_position: t.attack_position,
-            defence_position: t.defence_position,
+            play_positions: t.play_positions,
             set_piece_positions: t.set_piece_positions,
         },
         script,

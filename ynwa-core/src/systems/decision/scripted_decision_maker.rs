@@ -423,7 +423,7 @@ mod tests {
     use super::*;
     use std::collections::HashMap;
     use crate::field::Field;
-    use crate::game::{BallDef, GameConfig, PlayerDef, RefereeDef};
+    use crate::game::{BallDef, GameConfig, PlayerDef, RefereeDef, REGION_START_POSITION};
     use crate::region::{GridCell};
 
     fn create_test_game_with_script(script: &str) -> Game {
@@ -439,7 +439,7 @@ mod tests {
                 1,
                 "Test Player".to_string(),
                 script.to_string(),
-                HashMap::from([("start position".to_string(), start_region)]),
+                HashMap::from([(REGION_START_POSITION.to_string(), start_region)]),
             )],
             ball: BallDef::default(),
             referees: vec![RefereeDef::default()],
@@ -618,7 +618,7 @@ mod tests {
         let config = GameConfig {
             field,
             players: vec![PlayerDef::new(Team::A, 1, "Test Player".to_string(), "function make_decision() return {action = 'run', target_type = 'cell', target = 'A1'} end".to_string(),
-                HashMap::from([("start position".to_string(), start_region)]),
+                HashMap::from([(REGION_START_POSITION.to_string(), start_region)]),
             )],
             ball: BallDef::default(),
             referees: vec![RefereeDef::default()],
@@ -664,7 +664,7 @@ mod tests {
                 1,
                 "Test Player A".to_string(),
                 script.to_string(),
-                HashMap::from([("start position".to_string(), start_region)]),
+                HashMap::from([(REGION_START_POSITION.to_string(), start_region)]),
             )],
             ball: BallDef::default(),
             referees: vec![RefereeDef::default()],
@@ -676,7 +676,7 @@ mod tests {
         // Build context and check region boundaries
         let context = ScriptedDecisionMaker::build_context(&game, 0).unwrap();
         let regions = context["me"]["regions"].as_object().unwrap();
-        let start_pos = regions.get("start position").unwrap();
+        let start_pos = regions.get("start").unwrap();
 
         // Expected boundaries for Team A (no transformation):
         // cell_size = 60 / 26 = 2.307...
@@ -738,7 +738,7 @@ mod tests {
                 1,
                 "Test Player B".to_string(),
                 script.to_string(),
-                HashMap::from([("start position".to_string(), start_region)]),
+                HashMap::from([(REGION_START_POSITION.to_string(), start_region)]),
             )],
             ball: BallDef::default(),
             referees: vec![RefereeDef::default()],
@@ -750,7 +750,7 @@ mod tests {
         // Build context and check region boundaries
         let context = ScriptedDecisionMaker::build_context(&game, 0).unwrap();
         let regions = context["me"]["regions"].as_object().unwrap();
-        let start_pos = regions.get("start position").unwrap();
+        let start_pos = regions.get("start").unwrap();
 
         // Pre-flip (Team A frame):
         // cell_size = 60 / 26
@@ -828,7 +828,7 @@ mod tests {
                 1,
                 "tester".to_string(),
                 script.to_string(),
-                HashMap::from([("start position".to_string(), start_region)]),
+                HashMap::from([(REGION_START_POSITION.to_string(), start_region)]),
             )],
             ball: BallDef::default(),
             referees: vec![RefereeDef::default()],
@@ -837,7 +837,7 @@ mod tests {
         let game = Game::new(config);
 
         let ctx = ScriptedDecisionMaker::build_context(&game, 0).unwrap();
-        let sp = &ctx["me"]["regions"]["start position"];
+        let sp = &ctx["me"]["regions"]["start"];
 
         let json_cx = ((sp["min_x"].as_f64().unwrap() + sp["max_x"].as_f64().unwrap()) / 2.0) as f32;
         let json_cz = ((sp["min_z"].as_f64().unwrap() + sp["max_z"].as_f64().unwrap()) / 2.0) as f32;
@@ -886,7 +886,7 @@ mod tests {
                 1,
                 "tester".to_string(),
                 script.to_string(),
-                HashMap::from([("start position".to_string(), start_region)]),
+                HashMap::from([(REGION_START_POSITION.to_string(), start_region)]),
             )],
             ball: BallDef::default(),
             referees: vec![RefereeDef::default()],
@@ -895,7 +895,7 @@ mod tests {
         let game = Game::new(config);
 
         let ctx = ScriptedDecisionMaker::build_context(&game, 0).unwrap();
-        let sp = &ctx["me"]["regions"]["start position"];
+        let sp = &ctx["me"]["regions"]["start"];
 
         let json_cx = ((sp["min_x"].as_f64().unwrap() + sp["max_x"].as_f64().unwrap()) / 2.0) as f32;
         let json_cz = ((sp["min_z"].as_f64().unwrap() + sp["max_z"].as_f64().unwrap()) / 2.0) as f32;
@@ -951,7 +951,7 @@ mod tests {
                 1,
                 "Test Player".to_string(),
                 script,
-                HashMap::from([("start position".to_string(), start_region)]),
+                HashMap::from([(REGION_START_POSITION.to_string(), start_region)]),
             )],
             ball: BallDef::default(),
             referees: vec![RefereeDef::default()],
@@ -1029,7 +1029,7 @@ mod tests {
                 1,
                 "Test Player".to_string(),
                 script,
-                HashMap::from([("start position".to_string(), start_region)]),
+                HashMap::from([(REGION_START_POSITION.to_string(), start_region)]),
             )],
             ball: BallDef::default(),
             referees: vec![RefereeDef::default()],
@@ -1108,7 +1108,7 @@ mod tests {
                 1,
                 "Test Player".to_string(),
                 "function make_decision() return {action='stop'} end".to_string(),
-                HashMap::from([("start position".to_string(), start_region)]),
+                HashMap::from([(REGION_START_POSITION.to_string(), start_region)]),
             )],
             ball: BallDef::default(),
             referees: vec![RefereeDef::default()],

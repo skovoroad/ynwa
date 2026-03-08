@@ -14,7 +14,7 @@ pub mod game_manager;
 use field_builder::create_football_field;
 use game_manager::FootballGameManager;
 use ynwa_core::field::zones::ZoneGeometry;
-use ynwa_core::game::{BallDef, Game, GameConfig, GameStage, PlayerDef, RefereeDef, ScriptingConfig};
+use ynwa_core::game::{BallDef, Game, GameConfig, GameStage, PlayerDef, RefereeDef, ScriptingConfig, REGION_START_POSITION};
 use ynwa_core::region::Region;
 use ynwa_core::repository::{TeamRecord, TeamRepository};
 use ynwa_core::systems::decision::ScriptedDecisionMaker;
@@ -49,10 +49,6 @@ fn build_player_defs(
                     .map_err(|e| format!("Invalid position '{}': {}", s, e))
             };
 
-            let start = parse(&p.tactical.start_position)?;
-            let attack = parse(&p.tactical.attack_position)?;
-            let defence = parse(&p.tactical.defence_position)?;
-
             // Team B positions are in own orientation; flip to absolute field coordinates.
             let flip = |r: Region| {
                 if team == Team::B {
@@ -66,12 +62,18 @@ fn build_player_defs(
             let script = p.script.clone().unwrap_or_default();
 
             let mut regions = std::collections::HashMap::new();
-            regions.insert("start position".to_string(), flip(start)?);
-            regions.insert("attack position".to_string(), flip(attack)?);
-            regions.insert("defence position".to_string(), flip(defence)?);
+
+            for (key, pos) in &p.tactical.play_positions {
+                regions.insert(key.clone(), flip(parse(pos)?)?);
+            }
 
             for (key, pos) in &p.tactical.set_piece_positions {
-                regions.insert(key.clone(), flip(parse(pos)?)?);
+                let region = flip(parse(pos)?)?;
+                if key == "kick off" {
+                    // "kick off" doubles as the start position used by core for initial placement.
+                    regions.insert(REGION_START_POSITION.to_string(), region.clone());
+                }
+                regions.insert(key.clone(), region);
             }
 
             let def = PlayerDef::new(
@@ -192,7 +194,7 @@ mod tests {
                 i + 1,
                 format!("Player A{}", i + 1),
                 "function make_decision() return {} end".to_string(),
-                std::collections::HashMap::from([("start position".to_string(), start_region)]),
+                std::collections::HashMap::from([(REGION_START_POSITION.to_string(), start_region)]),
             ));
         }
         for i in 0..11 {
@@ -209,7 +211,7 @@ mod tests {
                 i + 1,
                 format!("Player B{}", i + 1),
                 "function make_decision() return {} end".to_string(),
-                std::collections::HashMap::from([("start position".to_string(), start_region)]),
+                std::collections::HashMap::from([(REGION_START_POSITION.to_string(), start_region)]),
             ));
         }
 
@@ -287,12 +289,14 @@ mod tests {
 
         let tactical = PlayerTactical {
             number: 1,
-            start_position:   "A1".to_string(),
-            attack_position:  "A1".to_string(),
-            defence_position: "A1".to_string(),
+            play_positions: [
+                ("attack".to_string(),  "A1".to_string()),
+                ("defence".to_string(), "A1".to_string()),
+            ].into(),
             set_piece_positions: [
-                ("goal kick own position".to_string(), "B2".to_string()),
-                ("corner own left".to_string(),        "C3".to_string()),
+                ("kick off".to_string(),        "A1".to_string()),
+                ("goal kick own".to_string(),   "B2".to_string()),
+                ("corner own left".to_string(), "C3".to_string()),
             ].into(),
         };
         let record = TeamRecord {
@@ -306,9 +310,21 @@ mod tests {
         };
 
         let defs = build_player_defs(Team::A, &record, grid_dims).unwrap();
-        assert!(defs[0].regions.contains_key("goal kick own position"));
-        assert!(!defs[0].regions.contains_key("goal kick opp position"));
+
+        // play_positions: keys inserted as-is ("attack", "defence")
+        assert!(defs[0].regions.contains_key("attack"));
+        assert!(defs[0].regions.contains_key("defence"));
+
+        // set_piece_positions: present keys are registered as-is
+        assert!(defs[0].regions.contains_key("kick off"));
+        assert!(defs[0].regions.contains_key("goal kick own"));
         assert!(defs[0].regions.contains_key("corner own left"));
+
+        // "kick off" also registers REGION_START_POSITION for core
+        assert!(defs[0].regions.contains_key(REGION_START_POSITION));
+
+        // absent keys produce no region
+        assert!(!defs[0].regions.contains_key("goal kick opp"));
         assert!(!defs[0].regions.contains_key("corner own right"));
     }
 
@@ -324,11 +340,13 @@ mod tests {
 
         let tactical = PlayerTactical {
             number: 1,
-            start_position:   "A1".to_string(),
-            attack_position:  "A1".to_string(),
-            defence_position: "A1".to_string(),
+            play_positions: [
+                ("attack".to_string(),  "A1".to_string()),
+                ("defence".to_string(), "A1".to_string()),
+            ].into(),
             set_piece_positions: [
-                ("goal kick own position".to_string(), "C5".to_string()),
+                ("kick off".to_string(),        "A1".to_string()),
+                ("goal kick own".to_string(),   "C5".to_string()),
             ].into(),
         };
         let record = TeamRecord {
@@ -344,8 +362,14 @@ mod tests {
         let defs_a = build_player_defs(Team::A, &record, grid_dims).unwrap();
         let defs_b = build_player_defs(Team::B, &record, grid_dims).unwrap();
 
-        let ra = &defs_a[0].regions["goal kick own position"];
-        let rb = &defs_b[0].regions["goal kick own position"];
+        // play_positions are present in both
+        assert!(defs_a[0].regions.contains_key("attack"));
+        assert!(defs_a[0].regions.contains_key("defence"));
+        assert!(defs_b[0].regions.contains_key("attack"));
+        assert!(defs_b[0].regions.contains_key("defence"));
+
+        let ra = &defs_a[0].regions["goal kick own"];
+        let rb = &defs_b[0].regions["goal kick own"];
 
         // flip_orientation swaps: min_x ↔ (field_width - max_x), min_z ↔ (field_length - max_z)
         let cell_size = field_width / grid_dims.columns as f32;

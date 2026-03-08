@@ -14,7 +14,7 @@ pub mod world;
 pub use field::zones::{Point3D, Velocity3D};
 pub use game::{
     BallDef, BallState, Decision, DecisionTarget, Game, GameConfig, GameStage, GameState,
-    PlayerDef, PlayerState, RefereeDef, RefereeState, StatSet,
+    PlayerDef, PlayerState, RefereeDef, RefereeState, StatSet, REGION_START_POSITION,
 };
 
 pub use orientation::{

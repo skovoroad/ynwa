@@ -1,7 +1,9 @@
 number = 2
-start_position         = "K16"
-attack_position        = "K16"
-defence_position       = "K16"
+
+[play_positions]
+attack  = "K16"
+defence = "K16"
 
 [set_piece_positions]
-"goal kick own position" = "K30"
+"kick off" = "K16"
+"goal kick own" = "K30"

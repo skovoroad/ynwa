@@ -1,7 +1,7 @@
 use crate::game_manager::FootballGameManager;
 use ynwa_core::field::zones::{Point3D, Rectangle, ZoneGeometry};
 use ynwa_core::field::{Field, FieldBuilder, Zone};
-use ynwa_core::game::{BallDef, Decision, Game, GameConfig, GameStage, PlayerDef, RefereeDef};
+use ynwa_core::game::{BallDef, Decision, Game, GameConfig, GameStage, PlayerDef, RefereeDef, REGION_START_POSITION};
 use ynwa_core::region::{GridCell, Region};
 use ynwa_core::system::System;
 use ynwa_core::team::Team;
@@ -10,7 +10,7 @@ use uom::si::length::meter;
 use std::collections::HashMap;
 
 fn start_regions(r: Region) -> HashMap<String, Region> {
-    HashMap::from([("start position".to_string(), r)])
+    HashMap::from([(REGION_START_POSITION.to_string(), r)])
 }
 
 fn create_test_game_setup() -> Game {

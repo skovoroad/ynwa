@@ -1,4 +1,8 @@
 number = 6
-start_position = "F13"
-attack_position = "F25"
-defence_position = "F9"
+
+[play_positions]
+attack  = "F25"
+defence = "F9"
+
+[set_piece_positions]
+"kick off" = "F13"

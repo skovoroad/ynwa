@@ -2,13 +2,13 @@
 // This module is used by integration tests
 
 use ynwa_core::field::Field;
-use ynwa_core::game::{BallDef, Game, GameConfig, GameStage, PlayerDef, RefereeDef};
+use ynwa_core::game::{BallDef, Game, GameConfig, GameStage, PlayerDef, RefereeDef, REGION_START_POSITION};
 use ynwa_core::region::{GridCell, Region};
 use ynwa_core::team::Team;
 use std::collections::HashMap;
 
 pub fn start_regions(r: Region) -> HashMap<String, Region> {
-    HashMap::from([("start position".to_string(), r)])
+    HashMap::from([(REGION_START_POSITION.to_string(), r)])
 }
 
 /// Create a simple test game with one player using the given script

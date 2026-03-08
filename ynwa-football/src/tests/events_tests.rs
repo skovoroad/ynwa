@@ -5,7 +5,7 @@ use crate::events::{
 use crate::field_builder::{FIELD_WIDTH, GOAL_DEPTH, GOAL_WIDTH};
 use ynwa_core::field::zones::{Point3D, Rectangle, ZoneGeometry};
 use ynwa_core::field::{FieldBuilder, Zone};
-use ynwa_core::game::{BallDef, Game, GameConfig, GameStage, PlayerDef};
+use ynwa_core::game::{BallDef, Game, GameConfig, GameStage, PlayerDef, REGION_START_POSITION};
 use ynwa_core::region::{GridCell, Region};
 use ynwa_core::team::Team;
 use uom::si::f32::Length;
@@ -13,7 +13,7 @@ use uom::si::length::meter;
 use std::collections::HashMap;
 
 fn start_regions(r: Region) -> HashMap<String, Region> {
-    HashMap::from([("start position".to_string(), r)])
+    HashMap::from([(REGION_START_POSITION.to_string(), r)])
 }
 
 // Derived from production constants: goal centered on the field width

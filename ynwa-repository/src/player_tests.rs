@@ -52,12 +52,10 @@ mod tests {
                     assert!((10..=100).contains(&val), "{team_id} #{}: {label}={val} out of 10-100", t.number);
                 }
                 assert!((1..=99).contains(&t.number), "{team_id}: number {} out of range", t.number);
-                for (label, pos) in [
-                    ("start_position",   &t.start_position),
-                    ("attack_position",  &t.attack_position),
-                    ("defence_position", &t.defence_position),
-                ] {
-                    assert!(is_valid_grid_notation(pos), "{team_id} #{}: {label}={pos:?} is not valid grid notation", t.number);
+                for (label, pos) in t.play_positions.iter().chain(t.set_piece_positions.iter()) {
+                    if pos != "on_ball" {
+                        assert!(is_valid_grid_notation(pos), "{team_id} #{}: {label}={pos:?} is not valid grid notation", t.number);
+                    }
                 }
             }
         }
@@ -162,7 +160,7 @@ mod tests {
             let player_dir = tmp.path().join(format!("t/players/{dir}"));
             fs::create_dir_all(&player_dir).unwrap();
             let tactical = format!(
-                "number = {number}\nstart_position = \"A1\"\nattack_position = \"A1\"\ndefence_position = \"A1\""
+                "number = {number}\n\n[play_positions]\nattack = \"A1\"\ndefence = \"A1\"\n\n[set_piece_positions]\n\"kick off\" = \"A1\""
             );
             fs::write(player_dir.join("static.toml"), static_toml_content()).unwrap();
             fs::write(player_dir.join("tactical.toml"), tactical).unwrap();
@@ -179,7 +177,7 @@ mod tests {
     }
 
     fn tactical_toml_content() -> &'static str {
-        "number = 1\nstart_position = \"A1\"\nattack_position = \"A1\"\ndefence_position = \"A1\""
+        "number = 1\n\n[play_positions]\nattack = \"A1\"\ndefence = \"A1\"\n\n[set_piece_positions]\n\"kick off\" = \"A1\""
     }
 
     #[test]
@@ -190,7 +188,7 @@ mod tests {
         fs::create_dir_all(&player_dir).unwrap();
         fs::write(tmp.path().join("t/preamble.lua"), "-- x").unwrap();
         fs::write(player_dir.join("static.toml"), static_toml_content()).unwrap();
-        fs::write(player_dir.join("tactical.toml"), tactical_toml_content()).unwrap();
+        fs::write(player_dir.join("tactical.toml"), "number = 1").unwrap();
 
         let team = FsTeamRepository::new(tmp.path()).load_team("t").unwrap();
         assert!(team.players[0].tactical.set_piece_positions.is_empty());
@@ -205,21 +203,22 @@ mod tests {
         fs::write(player_dir.join("static.toml"), static_toml_content()).unwrap();
         let tactical = r#"
 number = 1
-start_position = "A1"
-attack_position = "A1"
-defence_position = "A1"
+
+[play_positions]
+attack = "A1"
+defence = "A1"
 
 [set_piece_positions]
-"goal kick own position" = "B2"
-"goal kick opp position" = "C3"
+"goal kick own" = "B2"
+"goal kick opp" = "C3"
 "corner own left" = "D4"
 "#;
         fs::write(player_dir.join("tactical.toml"), tactical).unwrap();
 
         let team = FsTeamRepository::new(tmp.path()).load_team("t").unwrap();
         let spp = &team.players[0].tactical.set_piece_positions;
-        assert_eq!(spp.get("goal kick own position").map(String::as_str), Some("B2"));
-        assert_eq!(spp.get("goal kick opp position").map(String::as_str), Some("C3"));
+        assert_eq!(spp.get("goal kick own").map(String::as_str), Some("B2"));
+        assert_eq!(spp.get("goal kick opp").map(String::as_str), Some("C3"));
         assert_eq!(spp.get("corner own left").map(String::as_str),        Some("D4"));
         assert!(!spp.contains_key("corner own right"));
     }

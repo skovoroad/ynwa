@@ -47,7 +47,7 @@ pub enum Decision {
 
 /// Region key required in `PlayerDef::regions` when starting in `GameStage::Play`.
 /// Contract between core and game-specific layers (e.g. `ynwa-football`).
-pub const REGION_START_POSITION: &str = "start position";
+pub const REGION_START_POSITION: &str = "start";
 
 #[derive(Debug, Clone)]
 pub struct PlayerDef {
@@ -273,7 +273,7 @@ impl Game {
                         let start_region = config.players[idx]
                             .regions
                             .get(REGION_START_POSITION)
-                            .expect("Player must have 'start position' region");
+                            .expect("Player must have 'start' region");
                         start_region.center(
                             config.field.grid_dimensions(),
                             config.field.width().get::<meter>(),

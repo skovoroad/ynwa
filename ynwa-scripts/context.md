@@ -75,9 +75,9 @@ context = {
             z = 25.0          -- Z coordinate (meters)
         },
         regions = {
-            -- Named regions assigned to this player (e.g., start position, zone of responsibility)
+            -- Named regions assigned to this player (e.g., start region, zone of responsibility)
             -- Coordinates are already transformed for Team B (see section 2.2.2)
-            ["start position"] = {
+            ["start"] = {
                 min_x = 10.0,     -- Minimum X coordinate of region (meters)
                 max_x = 15.0,     -- Maximum X coordinate of region (meters)
                 min_z = 20.0,     -- Minimum Z coordinate of region (meters)
@@ -202,7 +202,7 @@ context.me.regions = {
 4. **Access via `my_regions()`**:
    ```lua
    local regions = my_regions()
-   local start = regions["start position"]
+   local start = regions["start"]
    if start then
        local center_x = (start.min_x + start.max_x) / 2
        local center_z = (start.min_z + start.max_z) / 2
@@ -418,7 +418,8 @@ Before executing user script, three preamble levels are loaded in the following 
 
 **Action functions** (use in dispatch tables):
 - `chase_ball()` — run to ball; reason: `"chase_ball"`
-- `run_to_attack_position()`, `run_to_defence_position()`, `run_to_start_position()` — run to named region center; reason: `"run_to_<region>:M3"` or `"run_to_<region>:A1:B2"` using `display_notation` from context
+- `run_to_attack_position()`, `run_to_defence_position()` — run to `"attack"` / `"defence"` region center (from `[play_positions]` in tactical.toml); reason: `"run_to_<region>:M3"`
+- `run_to_start_position()` — run to `"start"` region center (= `"kick off"` from `[set_piece_positions]`); reason: `"run_to_start_position:M3"`
 - `pass_to_teammate(tm)` — pass to a specific teammate object (from `get_teammate_by_number`); reason: `"pass_to_#N"`
 - `pass_to_players_by_numbers(numbers)` — pass to nearest teammate whose number is in `numbers`, else kick to opponent goal; reason: `"pass_to_#N"`
 - `kick_to_opponent_goal()` — kick to center of opponent goal; reason: `"kick_to_goal(x,z)"` with target coordinates
@@ -436,7 +437,7 @@ Before executing user script, three preamble levels are loaded in the following 
 **Dispatcher functions** (defined here, NOT in team/player scripts):
 - `make_decision()` — Play stage dispatcher; reads possession state, calls `player_play[state]` → `team_play[state]` → `error()`
 - `get_setup_position(reason)` — Setup stage dispatcher; calls `player_setup[reason]` → `team_setup[reason]` → `default_get_setup_position(reason)`
-- `default_get_setup_position(reason)` — fallback; runs to center of `"start position"` region
+- `default_get_setup_position(reason)` — fallback; runs to center of `"start"` region
 
 **Helper functions**:
 - `am_i_ball_owner()`, `distance(pos1, pos2)`
@@ -505,20 +506,19 @@ Each region in `context.me.regions` is a table with exact boundaries in meters:
 
 **How regions are defined**:
 
-In game configuration (TOML), regions are defined using grid notation:
+In `tactical.toml`, play-phase positions are in `[play_positions]` and set-piece positions in `[set_piece_positions]`:
 
 ```toml
-# Player definition in config
-[[players]]
-team = "A"
-number = 5
-start_position = "D3:E4"  # Region from cell D3 to cell E4
+[play_positions]
+attack  = "N9"
+defence = "N1"
+
+[set_piece_positions]
+"kick off" = "N3"
+"goal kick own" = "K7"
 ```
 
-The core automatically converts grid notation to metric boundaries based on:
-1. Field dimensions (width, length)
-2. Grid dimensions (number of columns and rows)
-3. Cell size = field_width / num_columns
+`"kick off"` is also registered as `"start"` — the region used by core for initial player placement.
 
 **Coordinate transformation for Team B**:
 

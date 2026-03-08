@@ -1,6 +1,6 @@
 // Integration tests: verify stdlib functions
 
-use ynwa_core::game::{Decision, GameStage};
+use ynwa_core::game::{Decision, GameStage, REGION_START_POSITION};
 use ynwa_core::systems::decision::{DecisionSystem, ScriptedDecisionMaker};
 use ynwa_core::System;
 use ynwa_script_tests::{
@@ -108,7 +108,7 @@ test_distance()
 fn test_get_setup_position_runs_to_start_region() {
     // During Setup stage, get_setup_position() from the team preamble calls
     // default_get_setup_position() from stdlib and returns a Run decision
-    // towards the center of the "start position" region.
+    // towards the center of the "start" region.
     // The test game places the player's start_region at cells (10,10)-(11,11).
 
     // Script has no get_setup_position() — team preamble definition is used.
@@ -524,7 +524,7 @@ fn test_region_notation_in_context() {
     // The test game uses Team A, so display_notation is plain.
     let script = r#"
 function make_decision()
-    local r = my_regions()["start position"]
+    local r = my_regions()["start"]
     if not r then error("no start position") end
     if not r.display_notation then error("display_notation field missing") end
     if type(r.display_notation) ~= "string" then error("display_notation must be a string") end
@@ -566,7 +566,7 @@ fn make_is_in_region_obj_game(player_x: f32, player_z: f32, assert_inside: bool)
         ("assert(not is_in_region_obj(pos), \"expected outside attack region\")", "outside")
     };
     let script = format!(
-        "function make_decision()\n    local pos = my_regions()[\"attack position\"]\n    {}\n    return {{action = \"stop\"}}\nend",
+        "function make_decision()\n    local pos = my_regions()[\"attack\"]\n    {}\n    return {{action = \"stop\"}}\nend",
         assert_expr
     );
 
@@ -576,8 +576,8 @@ fn make_is_in_region_obj_game(player_x: f32, player_z: f32, assert_inside: bool)
 
     let player = PlayerDef::new(ynwa_core::team::Team::A, 1, msg.to_string(), script, {
         let mut r = std::collections::HashMap::new();
-        r.insert("start position".to_string(), start_region);
-        r.insert("attack position".to_string(), attack_region);
+        r.insert(REGION_START_POSITION.to_string(), start_region);
+        r.insert("attack".to_string(), attack_region);
         r
     });
     let mut game = ynwa_core::game::Game::with_stage(GameConfig {
@@ -643,9 +643,9 @@ fn test_pass_to_players_by_numbers_found() {
 
     let caller = PlayerDef::new(ynwa_core::team::Team::A, 7, "Caller".to_string(),
         "function make_decision() return pass_to_players_by_numbers({10, 11}) end".to_string(),
-        std::collections::HashMap::from([("start position".to_string(), region.clone())]));
+        std::collections::HashMap::from([(REGION_START_POSITION.to_string(), region.clone())]));
     let target = PlayerDef::new(ynwa_core::team::Team::A, 10, "Target".to_string(), String::new(),
-        std::collections::HashMap::from([("start position".to_string(), region.clone())]));
+        std::collections::HashMap::from([(REGION_START_POSITION.to_string(), region.clone())]));
 
     let mut game = ynwa_core::game::Game::with_stage(GameConfig {
         field,
@@ -732,7 +732,7 @@ end
     let start_region = grid_dims.create_region(GridCell::new(1,1).unwrap(), GridCell::new(2,2).unwrap()).unwrap();
     let player = ynwa_core::game::PlayerDef::new(
         ynwa_core::team::Team::B, 1, "GK B".to_string(), script.to_string(),
-        std::collections::HashMap::from([("start position".to_string(), start_region)]),
+        std::collections::HashMap::from([(REGION_START_POSITION.to_string(), start_region)]),
     );
     let mut game = create_test_game_with_all_preambles(vec![player]);
     game.state.player_states[0].needs_decision = true;
@@ -764,7 +764,7 @@ fn make_setup_info_game(script: &str, team: ynwa_core::team::Team, stage: GameSt
     let config = GameConfig {
         field,
         players: vec![PlayerDef::new(team, 1, "P".to_string(), script.to_string(),
-            std::collections::HashMap::from([("start position".to_string(), start_region)]))],
+            std::collections::HashMap::from([(REGION_START_POSITION.to_string(), start_region)]))],
         ball: BallDef::default(),
         referees: vec![RefereeDef::default()],
         scripting: ynwa_core::game::ScriptingConfig {
@@ -1051,7 +1051,7 @@ fn test_goalkeeper_cover_position_clamps_to_goal() {
     let script = r#"
 function make_decision()
     local goal = get_own_goal()
-    local defence = my_regions()["defence position"]
+    local defence = my_regions()["defence"]
     local defence_z = (defence.min_z + defence.max_z) / 2
 
     -- Ball at extreme left: target X must clamp to goal.min_x
@@ -1091,8 +1091,8 @@ end
     let player = ynwa_core::game::PlayerDef::new(
         ynwa_core::team::Team::A, 1, "GK".to_string(), script.to_string(), {
             let mut r = std::collections::HashMap::new();
-            r.insert("start position".to_string(), start_region);
-            r.insert("defence position".to_string(), defence_region);
+            r.insert(REGION_START_POSITION.to_string(), start_region);
+            r.insert("defence".to_string(), defence_region);
             r
         },
     );
@@ -1110,8 +1110,8 @@ end
 #[test]
 fn test_default_goal_kick_setup() {
     // Lua verifies both branches of default_goal_kick_setup() directly:
-    // - opponent restarting + "goal kick opp position" set → run to that region
-    // - opponent restarting + no "goal kick opp position"  → run to defence position (fallback)
+    // - opponent restarting + "goal kick opp" set → run to that region
+    // - opponent restarting + no "goal kick opp"  → run to defence position (fallback)
     let script = r#"
 function make_decision()
     -- Simulate opponent restarting by patching setup_info
@@ -1120,7 +1120,7 @@ function make_decision()
     local d = default_goal_kick_setup()
     assert(d.action == "run", "expected run, got " .. d.action)
 
-    local opp_r = my_regions()["goal kick opp position"]
+    local opp_r = my_regions()["goal kick opp"]
     local expected_x = (opp_r.min_x + opp_r.max_x) / 2
     local expected_z = (opp_r.min_z + opp_r.max_z) / 2
     assert(math.abs(d.target.x - expected_x) < 0.01,
@@ -1129,11 +1129,11 @@ function make_decision()
         "z mismatch: " .. d.target.z .. " vs " .. expected_z)
 
     -- Fallback: remove opp position, should run to defence position
-    local saved = my_regions()["goal kick opp position"]
-    context.me.regions["goal kick opp position"] = nil
+    local saved = my_regions()["goal kick opp"]
+    context.me.regions["goal kick opp"] = nil
     local d2 = default_goal_kick_setup()
     assert(d2.action == "run", "fallback expected run, got " .. d2.action)
-    context.me.regions["goal kick opp position"] = saved
+    context.me.regions["goal kick opp"] = saved
 
     return {action = "stop"}
 end
@@ -1149,9 +1149,9 @@ end
     let player = ynwa_core::game::PlayerDef::new(
         Team::A, 1, "P".to_string(), script.to_string(),
         std::collections::HashMap::from([
-            ("start position".to_string(),         mk(13, 16)),
-            ("defence position".to_string(),       mk(13, 16)),
-            ("goal kick opp position".to_string(), mk(13, 25)),
+            (REGION_START_POSITION.to_string(),        mk(13, 16)),
+            ("defence".to_string(),           mk(13, 16)),
+            ("goal kick opp".to_string(),     mk(13, 25)),
         ]),
     );
 

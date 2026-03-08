@@ -15,11 +15,9 @@ pub struct PlayerStatic {
 pub struct PlayerTactical {
     /// Tactical number (1–N, contiguous within the team).
     pub number: u32,
-    /// Grid notation, e.g. `"N3"`.
-    pub start_position: String,
-    pub attack_position: String,
-    pub defence_position: String,
-    /// Sport-specific set-piece positions. Keys and their meaning are defined by the sport layer.
+    /// Positions in Play phase. Keys are sport-specific (e.g. `"attack"`, `"defence"`).
+    pub play_positions: std::collections::HashMap<String, String>,
+    /// Set-piece positions. Keys and their meaning are defined by the sport layer.
     /// Value is a grid notation string (e.g. `"K7"`) or the special marker `"on_ball"`.
     pub set_piece_positions: std::collections::HashMap<String, String>,
 }

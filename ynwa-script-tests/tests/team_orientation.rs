@@ -1,7 +1,7 @@
 /// Integration tests for team orientation coordinate conversion.
 /// Tests that Team B decisions are correctly converted from Team B's perspective
 /// (right-to-left) to display orientation (Team A's left-to-right perspective).
-use ynwa_core::game::{BallDef, Decision, DecisionTarget, Game, GameConfig, PlayerDef, RefereeDef};
+use ynwa_core::game::{BallDef, Decision, DecisionTarget, Game, GameConfig, PlayerDef, RefereeDef, REGION_START_POSITION};
 use ynwa_core::region::GridCell;
 use ynwa_core::system::System;
 use ynwa_core::systems::decision::{DecisionSystem, ScriptedDecisionMaker};
@@ -26,7 +26,7 @@ fn create_game_with_team_script(team: Team, script: String) -> Game {
     };
 
     let player = PlayerDef::new(team, 1, format!("Player {:?}1", team), script,
-        std::collections::HashMap::from([("start position".to_string(), start_region)]))
+        std::collections::HashMap::from([(REGION_START_POSITION.to_string(), start_region)]))
         .with_reaction_rate(100); // Fast reaction rate
 
     let config = GameConfig {

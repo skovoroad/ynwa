@@ -184,21 +184,21 @@ end
 -- Tactical actions  (use my_regions() or tactical profile)
 -- -----------------------------------------------------------------------------
 
--- Action: run to center of "start position" region
+-- Action: run to center of "start" region
 function run_to_start_position()
     return default_get_setup_position(nil)
 end
 
--- Action: run to center of "attack position" region
+-- Action: run to center of "attack" region
 function run_to_attack_position()
-    local pos = my_regions()["attack position"]
+    local pos = my_regions()["attack"]
     if pos == nil then return stop("no_attack_position") end
     return run_to_region_obj(pos, "run_to_attack_position")
 end
 
--- Action: run to center of "defence position" region
+-- Action: run to center of "defence" region
 function run_to_defence_position()
-    local pos = my_regions()["defence position"]
+    local pos = my_regions()["defence"]
     if pos == nil then return stop("no_defence_position") end
     return run_to_region_obj(pos, "run_to_defence_position")
 end
@@ -217,9 +217,9 @@ function run_to_opponent_penalty_area()
     return run_to_region_obj(pa, "run_to_opponent_penalty_area")
 end
 
--- Action: stay on the goal line at defence_position Z, tracking ball X clamped to goal width.
+-- Action: stay on the goal line at defence Z, tracking ball X clamped to goal width.
 function default_goalkeeper_cover_position()
-    local defence = my_regions()["defence position"]
+    local defence = my_regions()["defence"]
     if defence == nil then return run_to_defence_position() end
     local goal = get_own_goal()
     local target_z = (defence.min_z + defence.max_z) / 2
@@ -238,9 +238,9 @@ end
 -- Setup stage
 -- -----------------------------------------------------------------------------
 
--- Fallback: run to "start position" region; used by get_setup_position when no handler matches.
+-- Fallback: run to "start" region; used by get_setup_position when no handler matches.
 function default_get_setup_position(reason)
-    local start_pos = my_regions()["start position"]
+    local start_pos = my_regions()["start"]
 
     if start_pos == nil then
         return stop("no_start_position")
@@ -270,16 +270,16 @@ function get_setup_position(reason)
 end
 
 -- Default goal kick setup: uses tactical profile regions when available.
--- Restarting team: go to "goal kick own position" or start position.
--- Defending team:  go to "goal kick opp position" or defence position.
+-- Restarting team: go to "goal kick own" or start.
+-- Defending team:  go to "goal kick opp" or defence.
 function default_goal_kick_setup()
     if is_my_team_restarting() then
-        local r = my_regions()["goal kick own position"]
-        if r then return run_to_region_obj(r, "goal_kick_own_position") end
+        local r = my_regions()["goal kick own"]
+        if r then return run_to_region_obj(r, "goal_kick_own") end
         return run_to_start_position()
     else
-        local r = my_regions()["goal kick opp position"]
-        if r then return run_to_region_obj(r, "goal_kick_opp_position") end
+        local r = my_regions()["goal kick opp"]
+        if r then return run_to_region_obj(r, "goal_kick_opp") end
         return run_to_defence_position()
     end
 end
