@@ -41,7 +41,75 @@ pub struct PlayerTactical {
 
 ---
 
-### Задача 0.2. Добавить `set_piece_roles: HashSet<String>` в `PlayerDef`
+### Задача 0.2. Объединить `"start"` и `"after_goal"` в единый reason `"kick off"`
+
+**Проблема:** движок использует два разных строковых reason для семантически одинакового события — мяч в центр, расстановка одинаковая:
+- `"start"` — при старте игры (`Game::new()`)
+- `"after_goal"` — после гола (`FootballGameManager::handle_event`)
+
+Это приводит к дублированию в данных (два ключа в `tactical.toml` с одинаковым значением) и в Lua (`team_setup = { start = f, after_goal = f }`).
+
+**Решение:** заменить оба на единый reason `"kick off"`:
+- В `Game::new()` / `GameStage::default()`: `Setup("kick off")`
+- В `FootballGameManager` при голе: `Setup("kick off")`
+- В `game_manager.rs` doc-comment: обновить описание reasons
+- В `teams/*/preamble.lua`: `team_setup = { ["kick off"] = run_to_start_position }`
+- В `ynwa-scripts/preambles/stdlib.lua`: обновить `default_get_setup_position` и комментарии
+- В тестах: заменить `"start"` / `"after_goal"` на `"kick off"` везде, где они фигурируют как reason
+
+**Затрагивает:**
+- `ynwa-football/src/game_manager.rs` — замена строк `"start"` и `"after_goal"`
+- `ynwa-core/src/game.rs` — `GameStage::default()` если задан там
+- `teams/team_a/preamble.lua`, `teams/team_b/preamble.lua`
+- `ynwa-scripts/preambles/stdlib.lua`
+- `ynwa-script-tests/fixtures/dispatch_spy.lua`, `team_a.lua`, `team_b.lua`
+- `ynwa-script-tests/tests/dispatch_tests.rs`, `stdlib_functions.rs`
+- `ynwa-football/src/tests/game_manager_tests.rs`
+
+---
+
+### Задача 0.3. Перенести `start_position` в `set_piece_positions`; выделить `play_positions`
+
+**Проблема:** `start_position`, `attack_position`, `defence_position` — три разнородных поля с именованными строками. `start_position` семантически является стандартным положением (начальный удар) и должна лежать в `set_piece_positions` наравне с goal_kick и corner. `attack_position` и `defence_position` — игровые позиции, не связанные со стандартами, и логично объединить их в отдельный контейнер.
+
+**Решение:**
+
+```rust
+// ynwa-core/src/repository.rs
+pub struct PlayerTactical {
+    pub number: u32,
+    /// Позиции в фазе Play. Ключи: "attack", "defence". Определяются видом спорта.
+    pub play_positions: HashMap<String, String>,
+    /// Позиции при стандартных положениях. Значение — grid notation или "on_ball".
+    pub set_piece_positions: HashMap<String, String>,
+}
+```
+
+В TOML:
+```toml
+[play_positions]
+attack = "K7"
+defence = "B3"
+
+[set_piece_positions]
+"kick off" = "K7"
+"goal kick own position" = "K7"
+# ...
+```
+
+Маркер `"on_ball"` допустим только в `set_piece_positions`, не в `play_positions`.
+
+**Затрагивает:**
+- `ynwa-core/src/repository.rs` — структура `PlayerTactical`
+- `ynwa-repository/src/fs_team_repository.rs` — структура `TacticalToml`, функция `load_player`
+- `ynwa-football/src/lib.rs` — `build_player_defs`: читать `attack`/`defence` из `play_positions`; добавить `"kick off"` в `set_piece_positions`
+- `ynwa-decisions` / `scripted_decision_maker.rs` — обновить сериализацию в Lua-контекст (было `context.me.attack_position` / `context.me.defence_position`)
+- все `tactical.toml` в `teams/` и `ynwa-script-tests/scenarios/`
+- `ynwa-repository/src/player_tests.rs` — обновить тесты
+
+---
+
+### Задача 0.4. Добавить `set_piece_roles: HashSet<String>` в `PlayerDef`
 
 **Проблема:** нет способа представить в ядре, что игрок является исполнителем стандарта, не смешивая это с регионами позиционирования.
 
@@ -66,6 +134,8 @@ pub struct PlayerDef {
 - тестовые хелперы в `ynwa-script-tests/src/lib.rs`, создающие `PlayerDef` напрямую — добавить пустой `HashSet` как дефолт
 
 На данном этапе `set_piece_roles` заполняется, но нигде не используется — подготовка для этапа 2.
+
+> Зависит от задачи 0.3: `"kick off"` теперь находится в `set_piece_positions`, поэтому `build_player_defs` обработает его в том же цикле, что и остальные стандарты.
 
 ---
 
@@ -105,9 +175,9 @@ throw in opp right opp half
 
 Добавить в `FsTeamRepository` (`ynwa-repository/src/fs_team_repository.rs`) проверку при загрузке: все ожидаемые ключи в `[set_piece_positions]` должны присутствовать. Отсутствие ключа — ошибка загрузки.
 
-Список обязательных ключей определяется в `ynwa-football` (константы или перечисление) и передаётся при валидации.
+Список обязательных ключей определяется в `ynwa-football` (константы или перечисление) и передаётся при валидации. После выполнения задачи 0.3 этот список включает в том числе `"kick off"`.
 
-**Затрагивает данные:** все `tactical.toml` в `teams/` должны содержать полный набор ключей для всех стандартов.
+**Затрагивает данные:** все `tactical.toml` в `teams/` должны содержать полный набор ключей для всех стандартов, включая начальный удар.
 
 > ⚠️ Тестовые сценарии в `ynwa-script-tests/scenarios/` на этом этапе могут быть сломаны — их обновление в задаче 2.2.
 

@@ -70,18 +70,8 @@ fn build_player_defs(
             regions.insert("attack position".to_string(), flip(attack)?);
             regions.insert("defence position".to_string(), flip(defence)?);
 
-            let optional_regions: &[(&str, &Option<String>)] = &[
-                ("goal kick own position", &p.tactical.goal_kick_own_position),
-                ("goal kick opp position", &p.tactical.goal_kick_opp_position),
-                ("corner own left",        &p.tactical.corner_own_left),
-                ("corner own right",       &p.tactical.corner_own_right),
-                ("corner opp left",        &p.tactical.corner_opp_left),
-                ("corner opp right",       &p.tactical.corner_opp_right),
-            ];
-            for (key, maybe_pos) in optional_regions {
-                if let Some(pos) = maybe_pos {
-                    regions.insert(key.to_string(), flip(parse(pos)?)?);
-                }
+            for (key, pos) in &p.tactical.set_piece_positions {
+                regions.insert(key.clone(), flip(parse(pos)?)?);
             }
 
             let def = PlayerDef::new(
@@ -297,15 +287,13 @@ mod tests {
 
         let tactical = PlayerTactical {
             number: 1,
-            start_position:         "A1".to_string(),
-            attack_position:        "A1".to_string(),
-            defence_position:       "A1".to_string(),
-            goal_kick_own_position: Some("B2".to_string()),
-            goal_kick_opp_position: None,
-            corner_own_left:        Some("C3".to_string()),
-            corner_own_right:       None,
-            corner_opp_left:        None,
-            corner_opp_right:       None,
+            start_position:   "A1".to_string(),
+            attack_position:  "A1".to_string(),
+            defence_position: "A1".to_string(),
+            set_piece_positions: [
+                ("goal kick own position".to_string(), "B2".to_string()),
+                ("corner own left".to_string(),        "C3".to_string()),
+            ].into(),
         };
         let record = TeamRecord {
             preamble: String::new(),
@@ -318,10 +306,10 @@ mod tests {
         };
 
         let defs = build_player_defs(Team::A, &record, grid_dims).unwrap();
-        assert!(defs[0].regions.contains_key("goal kick own position"), "goal kick own position must be set");
-        assert!(!defs[0].regions.contains_key("goal kick opp position"), "goal kick opp position must be absent");
-        assert!(defs[0].regions.contains_key("corner own left"), "corner own left must be set");
-        assert!(!defs[0].regions.contains_key("corner own right"), "corner own right must be absent");
+        assert!(defs[0].regions.contains_key("goal kick own position"));
+        assert!(!defs[0].regions.contains_key("goal kick opp position"));
+        assert!(defs[0].regions.contains_key("corner own left"));
+        assert!(!defs[0].regions.contains_key("corner own right"));
     }
 
     #[test]
@@ -336,13 +324,12 @@ mod tests {
 
         let tactical = PlayerTactical {
             number: 1,
-            start_position:         "A1".to_string(),
-            attack_position:        "A1".to_string(),
-            defence_position:       "A1".to_string(),
-            goal_kick_own_position: Some("C5".to_string()),
-            goal_kick_opp_position: None,
-            corner_own_left: None, corner_own_right: None,
-            corner_opp_left: None, corner_opp_right: None,
+            start_position:   "A1".to_string(),
+            attack_position:  "A1".to_string(),
+            defence_position: "A1".to_string(),
+            set_piece_positions: [
+                ("goal kick own position".to_string(), "C5".to_string()),
+            ].into(),
         };
         let record = TeamRecord {
             preamble: String::new(),
@@ -371,9 +358,9 @@ mod tests {
         let b_min_z = (rb.top_left.row     - 1) as f32 * cell_size;
         let b_max_z =  rb.bottom_right.row      as f32 * cell_size;
 
-        assert!((b_min_x - (field_width  - a_max_x)).abs() < 0.01, "b_min_x={b_min_x} expected {}", field_width  - a_max_x);
-        assert!((b_max_x - (field_width  - a_min_x)).abs() < 0.01, "b_max_x={b_max_x} expected {}", field_width  - a_min_x);
-        assert!((b_min_z - (field_length - a_max_z)).abs() < 0.01, "b_min_z={b_min_z} expected {}", field_length - a_max_z);
-        assert!((b_max_z - (field_length - a_min_z)).abs() < 0.01, "b_max_z={b_max_z} expected {}", field_length - a_min_z);
+        assert!((b_min_x - (field_width  - a_max_x)).abs() < 0.01);
+        assert!((b_max_x - (field_width  - a_min_x)).abs() < 0.01);
+        assert!((b_min_z - (field_length - a_max_z)).abs() < 0.01);
+        assert!((b_max_z - (field_length - a_min_z)).abs() < 0.01);
     }
 }

@@ -183,8 +183,8 @@ mod tests {
     }
 
     #[test]
-    fn optional_tactical_fields_default_to_none() {
-        // tactical.toml without new fields must parse without error; all Option fields are None.
+    fn set_piece_positions_default_to_empty() {
+        // tactical.toml without [set_piece_positions] section parses without error.
         let tmp = tempfile::tempdir().unwrap();
         let player_dir = tmp.path().join("t/players/01");
         fs::create_dir_all(&player_dir).unwrap();
@@ -193,17 +193,11 @@ mod tests {
         fs::write(player_dir.join("tactical.toml"), tactical_toml_content()).unwrap();
 
         let team = FsTeamRepository::new(tmp.path()).load_team("t").unwrap();
-        let t = &team.players[0].tactical;
-        assert!(t.goal_kick_own_position.is_none());
-        assert!(t.goal_kick_opp_position.is_none());
-        assert!(t.corner_own_left.is_none());
-        assert!(t.corner_own_right.is_none());
-        assert!(t.corner_opp_left.is_none());
-        assert!(t.corner_opp_right.is_none());
+        assert!(team.players[0].tactical.set_piece_positions.is_empty());
     }
 
     #[test]
-    fn optional_tactical_fields_parsed_when_present() {
+    fn set_piece_positions_parsed_when_present() {
         let tmp = tempfile::tempdir().unwrap();
         let player_dir = tmp.path().join("t/players/01");
         fs::create_dir_all(&player_dir).unwrap();
@@ -214,22 +208,19 @@ number = 1
 start_position = "A1"
 attack_position = "A1"
 defence_position = "A1"
-goal_kick_own_position = "B2"
-goal_kick_opp_position = "C3"
-corner_own_left = "D4"
-corner_own_right = "E5"
-corner_opp_left = "F6"
-corner_opp_right = "G7"
+
+[set_piece_positions]
+"goal kick own position" = "B2"
+"goal kick opp position" = "C3"
+"corner own left" = "D4"
 "#;
         fs::write(player_dir.join("tactical.toml"), tactical).unwrap();
 
         let team = FsTeamRepository::new(tmp.path()).load_team("t").unwrap();
-        let t = &team.players[0].tactical;
-        assert_eq!(t.goal_kick_own_position.as_deref(), Some("B2"));
-        assert_eq!(t.goal_kick_opp_position.as_deref(), Some("C3"));
-        assert_eq!(t.corner_own_left.as_deref(),        Some("D4"));
-        assert_eq!(t.corner_own_right.as_deref(),       Some("E5"));
-        assert_eq!(t.corner_opp_left.as_deref(),        Some("F6"));
-        assert_eq!(t.corner_opp_right.as_deref(),       Some("G7"));
+        let spp = &team.players[0].tactical.set_piece_positions;
+        assert_eq!(spp.get("goal kick own position").map(String::as_str), Some("B2"));
+        assert_eq!(spp.get("goal kick opp position").map(String::as_str), Some("C3"));
+        assert_eq!(spp.get("corner own left").map(String::as_str),        Some("D4"));
+        assert!(!spp.contains_key("corner own right"));
     }
 }

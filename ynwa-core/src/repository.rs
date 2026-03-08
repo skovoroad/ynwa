@@ -19,12 +19,9 @@ pub struct PlayerTactical {
     pub start_position: String,
     pub attack_position: String,
     pub defence_position: String,
-    pub goal_kick_own_position: Option<String>,
-    pub goal_kick_opp_position: Option<String>,
-    pub corner_own_left: Option<String>,
-    pub corner_own_right: Option<String>,
-    pub corner_opp_left: Option<String>,
-    pub corner_opp_right: Option<String>,
+    /// Sport-specific set-piece positions. Keys and their meaning are defined by the sport layer.
+    /// Value is a grid notation string (e.g. `"K7"`) or the special marker `"on_ball"`.
+    pub set_piece_positions: std::collections::HashMap<String, String>,
 }
 
 /// All data needed to build one player.
