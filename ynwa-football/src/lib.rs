@@ -259,7 +259,7 @@ pub fn create_football_world(
         },
     };
 
-    let game = Game::with_stage(game_config, GameStage::Setup("start".to_string()));
+    let game = Game::with_stage(game_config, GameStage::Setup("kick off".to_string()));
     let mut world = World::new(game);
     add_football_systems(&mut world);
     Ok(world)

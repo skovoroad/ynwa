@@ -5,7 +5,7 @@ attack  = "K18"
 defence = "K5"
 
 [set_piece_positions]
-"kick off own"                = "K17"
+"kick off own"                = "K7"
 "kick off opp"                = "K7"
 "goal kick own"               = "K7"
 "goal kick opp"               = "K25"

@@ -63,41 +63,10 @@ fn test_dispatch_opponent_has_ball() {
     assert_eq!(reason.as_deref(), Some("spy:opponent_has_ball"));
 }
 
-// --- Setup stage: reason routing ---
+// --- Setup stage ---
 
-#[test]
-fn test_dispatch_setup_kick_off() {
-    let (decision, reason) = run_spy(GameStage::Setup("kick off".to_string()), None, None);
-    assert_eq!(reason.as_deref(), Some("spy:setup_kick_off"), "decision={:?}", decision);
-}
-
-#[test]
-fn test_dispatch_setup_unknown_reason_falls_back_to_default() {
-    // Unknown reason → default_get_setup_position → Run (no spy tag)
-    let script = load_test_script("dispatch_spy.lua");
-    let mut game = create_test_game_with_full_preambles_and_stage(
-        &script,
-        GameStage::Setup("throw_in".to_string()),
-    );
-    request_decisions_for_all(&mut game);
-    let decision_maker = ScriptedDecisionMaker::new(&game).expect("ScriptedDecisionMaker");
-    let mut decision_system = DecisionSystem::new().with_decision_maker(Box::new(decision_maker));
-    decision_system.update(&mut game, 1.0);
-
-    let state = &game.state().player_states[0];
-    assert!(state.last_error.is_none(), "{:?}", state.last_error);
-    assert!(
-        matches!(state.current_decision, Some(Decision::Run(_))),
-        "Expected Run from fallback, got: {:?}",
-        state.current_decision
-    );
-    // reason is not "spy:*" — default handler was used
-    assert!(
-        state.decision_reason.as_deref().map_or(true, |r| !r.starts_with("spy:")),
-        "Expected fallback (non-spy) reason, got: {:?}",
-        state.decision_reason
-    );
-}
+// Setup decisions are assigned by FootballGameManager, not by Lua scripts.
+// ScriptedDecisionMaker returns an error if called during Setup (see scripted_decision_maker.rs).
 
 // --- Priority: player_play overrides team_play ---
 

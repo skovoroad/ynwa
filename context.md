@@ -34,7 +34,7 @@ The project is divided into independent modules using Rust workspace:
 - **Scripts (`ynwa-scripts`)** - Lua scripts library (data only, no Rust code)
   - `preambles/` - core.lua (elementary functions), stdlib.lua (utilities + dispatch)
   - Three-level preamble system: core → stdlib → team → user script
-  - **Dispatch model**: `make_decision()` and `get_setup_position(reason)` are defined in stdlib and dispatch to `team_play`/`team_setup` (team preamble) or `player_play`/`player_setup` (player script). Player tables override team tables. Player script (`script.lua`) is optional per player; if absent, player uses team tactics entirely.
+  - **Dispatch model**: `make_decision()` is defined in stdlib and dispatches to `team_play` (team preamble) or `player_play` (player script). Player tables override team tables. Player script (`script.lua`) is optional per player; if absent, player uses team tactics entirely. Setup stage decisions are assigned directly by the engine — Lua scripts are not called during Setup.
   - See `ynwa-scripts/context.md` for full scripting API documentation
   
 - **Repository (`ynwa-repository`)** - filesystem implementation of `TeamRepository` trait from `ynwa-core`
@@ -105,10 +105,8 @@ The following aspects are considered in the design but implementation is postpon
 **Game API (`game.rs`):**
 - Poll-based model: client owns the game loop
 - API design: `state()` provides access to state
-- `GameState` has `restart_position: Option<Point3D>` and `restart_team: Option<Team>` — set by `FootballGameManager::handle_event` on each Setup transition; used by scripting layer and ball placement in Setup tick
-- When `restart_position` is `Some`, `ScriptedDecisionMaker` adds `setup_info` to `context.game` in the Setup branch: `{ restart_x, restart_z, restarting_team }`. Coordinates are transformed for the player's team perspective (Team B sees flipped). Field is absent when `restart_position` is `None` (e.g. `"kick off"`).
-- `stdlib.lua` provides `get_restart_position()` → `{x, z}` or `nil`, `is_my_team_restarting()` → `bool` or `nil`, and `run_to_restart_position()` → run action to the restart point or `nil` — wrappers over `setup_info` that follow the no-direct-`context`-access rule.
-- `FootballGameManager` assigns setup decisions directly (without calling Lua scripts) in `assign_setup_decisions`, called at the start of every Setup tick before readiness checks. For each player with `needs_decision == true`: resolves the SET_PIECE_KEY via `resolve_set_piece_key(reason, player_team, restart_team, restart_position, field_dims)` (algorithm, not data), then sends the taker to `restart_position` (or ball center for kick-off) and all others to their region for that key. Unknown reason or missing region → `last_error` set, player stays put.
+- `GameState` has `restart_position: Option<Point3D>` and `restart_team: Option<Team>` — set by `FootballGameManager::handle_event` on each Setup transition; used by ball placement in Setup tick
+- `FootballGameManager` assigns setup decisions directly (without calling Lua scripts) in `assign_setup_decisions`, called at the start of every Setup tick before readiness checks. For each player with `current_decision == None`: resolves the SET_PIECE_KEY via `resolve_set_piece_key(reason, player_team, restart_team, restart_position, field_dims)` (algorithm, not data), then sends the taker to `restart_position` (or ball center for kick-off) and all others to their region for that key. Unknown reason or missing region → `last_error` set, player stays put.
 - `resolve_set_piece_key` maps reason × runtime state → SET_PIECE_KEY: own/opp by `restart_team == player_team`; left/right by ball x vs field midline (team-perspective); own/opp half by ball z vs field midline (team-perspective). Team A's left = low x; Team B's left = high x.
 - Setup reasons use spaces: `"kick off"`, `"goal kick"`, `"throw in"`, `"corner"` — matching SET_PIECE_KEYS style.
 - `ynwa-football` exposes `SET_PIECE_KEYS` (16 mandatory set-piece keys every player must declare) and `ON_BALL_REQUIRED_KEYS` (8 own-keys where exactly one player must have `"on_ball"`). `create_football_world` validates both via `validate_set_piece_keys` and `validate_on_ball` before building the world.
@@ -155,7 +153,7 @@ System execution order (important for correct operation):
 1. **FootballGameManager** (`ynwa-football`) - manages game stage transitions (Setup → Play), manages football-specific game logic for determining events. Players are marked ready when their `current_decision` is `Stop` (arrival detected by DecisionSystem); game transitions to Play once all players are ready.
 2. **PlayerReactionSystem** - determines when player is ready to accept new decision based on reaction_rate. During Setup stage: sets `needs_decision` when player has no decision yet, suppresses it otherwise (early filter; DecisionSystem is the final guard for arrived players). During Play: fires when reaction interval elapsed.
 3. **BallPossessionSystem** - determines which player possesses the ball (see Ball Possession System section). Skipped entirely during Setup stage (ball is fixed, possession is meaningless).
-4. **DecisionSystem** - creates decisions (Decision) for players using DecisionMaker trait. During Setup stage: (a) on every tick checks if the player has reached their Run target (within 0.5m); if so, overrides the decision with Stop without calling the script; (b) if the player's decision is already Stop, suppresses any re-poll regardless of `needs_decision`.
+4. **DecisionSystem** - creates decisions (Decision) for players using DecisionMaker trait. During Setup stage: on every tick checks if the player has reached their Run target (within 0.5m); if so, overrides the decision with Stop without calling the script. All other script invocations are skipped entirely during Setup — `ScriptedDecisionMaker::make_decision` returns `Err` if called in Setup (caller bug guard).
 5. **ActionSystem** - transforms decisions into velocity (applies speed_rate)
 6. **PhysicsSystem** - applies velocity to position using kinematics: position += velocity × delta_time
 
@@ -190,7 +188,6 @@ System execution order (important for correct operation):
 - Can be published separately and reused in other games
 - `LuaExecutor::execute(script, fn, context)` — calls Lua function with no positional args
 - `LuaExecutor::execute_with_args(script, fn, context, args)` — calls Lua function with positional args; `execute` delegates to this with `()`
-- `DecisionEngine::get_setup_position` extracts `setup_reason` from context and passes it as the first positional argument to the Lua `get_setup_position(reason)` function
 - See `ynwa-decisions/src/lib.rs` `//!` doc for sandbox, timeout, and architecture details
 
 ## Development Principles
@@ -224,7 +221,7 @@ System execution order (important for correct operation):
 ### Lua Scripting Rules
 
 1. **No direct `context`/`GAME_DATA` access** outside `core.lua`: team preambles and player scripts must use wrapper functions (`my_position()`, `get_own_goal()`, etc.). Direct access to raw JSON couples scripts to engine internals and breaks portability between teams.
-2. **No `make_decision()` / `get_setup_position()` redefinition** in team or player scripts — these are owned by stdlib.
+2. **No `make_decision()` redefinition** in team or player scripts — it is owned by stdlib.
 3. **No raw action tables in tactic scripts**: use stdlib functions instead of constructing `{action = "..."}` tables directly. When a stdlib function exists (`stop()`, `chase_ball()`, `run_to_start_position()`, etc.) — use it.
 4. **Prefer point-free style for dispatch tables**: assign function references directly instead of wrapping them in lambdas. Write `team_has_ball = chase_ball` instead of `team_has_ball = function() return chase_ball() end`.
 

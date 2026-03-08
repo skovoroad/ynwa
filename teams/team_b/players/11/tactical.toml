@@ -5,8 +5,8 @@ attack  = "R35"
 defence = "R15"
 
 [set_piece_positions]
-"kick off own"                = "R23"
 "kick off opp"                = "R18"
+"kick off own"                = "R18"
 "goal kick own"               = "R22"
 "goal kick opp"               = "R10"
 "corner own left"             = "R7"

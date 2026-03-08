@@ -25,7 +25,7 @@ fn create_test_game() -> Game {
         scripting: crate::game::ScriptingConfig::empty(),
     };
 
-    Game::new(config)
+    Game::with_stage(config, GameStage::Play)
 }
 
 #[test]

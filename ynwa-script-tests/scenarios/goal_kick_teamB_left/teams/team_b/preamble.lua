@@ -10,7 +10,4 @@ team_play = {
     opponent_has_ball = chase_ball,
 }
 
-team_setup = {
-    start     = run_to_start_position,
-    goal_kick = default_goal_kick_setup,
-}
+

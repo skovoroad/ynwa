@@ -78,18 +78,6 @@ function get_teammate_by_number(n)
     return nil
 end
 
--- Returns {x, z} of the restart point, or nil if setup_info is absent (kick off).
-function get_restart_position()
-    if not context.game.setup_info then return nil end
-    return {x = context.game.setup_info.restart_x, z = context.game.setup_info.restart_z}
-end
-
--- Returns true if my team initiates the restart, nil if setup_info is absent.
-function is_my_team_restarting()
-    if not context.game.setup_info then return nil end
-    return context.game.setup_info.restarting_team == my_team_name()
-end
-
 -- -----------------------------------------------------------------------------
 -- Primitive actions  (no tactical regions)
 -- -----------------------------------------------------------------------------
@@ -186,7 +174,12 @@ end
 
 -- Action: run to center of "start" region
 function run_to_start_position()
-    return default_get_setup_position(nil)
+    local start_pos = my_regions()["start"]
+    if start_pos == nil then return stop("no_start_position") end
+    local cx = (start_pos.min_x + start_pos.max_x) / 2
+    local cz = (start_pos.min_z + start_pos.max_z) / 2
+    return {action = "run", target_type = "point", target = {x = cx, z = cz, y = 0},
+            reason = "run_to_start_position:" .. start_pos.display_notation}
 end
 
 -- Action: run to center of "attack" region
@@ -201,14 +194,6 @@ function run_to_defence_position()
     local pos = my_regions()["defence"]
     if pos == nil then return stop("no_defence_position") end
     return run_to_region_obj(pos, "run_to_defence_position")
-end
-
--- Action: run to the restart point; nil if setup_info is absent.
-function run_to_restart_position()
-    local rp = get_restart_position()
-    if rp == nil then return nil end
-    return {action = "run", target_type = "point", target = {x = rp.x, z = rp.z, y = 0},
-            reason = "run_to_restart_position"}
 end
 
 -- Run to center of opponent penalty area.
@@ -232,56 +217,6 @@ function default_goalkeeper_cover_position()
         target = {x = clamped_x, z = target_z, y = 0},
         reason = "goalkeeper_cover"
     }
-end
-
--- -----------------------------------------------------------------------------
--- Setup stage
--- -----------------------------------------------------------------------------
-
--- Fallback: run to "start" region; used by get_setup_position when no handler matches.
-function default_get_setup_position(reason)
-    local start_pos = my_regions()["start"]
-
-    if start_pos == nil then
-        return stop("no_start_position")
-    end
-
-    local center_x = (start_pos.min_x + start_pos.max_x) / 2
-    local center_z = (start_pos.min_z + start_pos.max_z) / 2
-
-    return {
-        action = "run",
-        target_type = "point",
-        target = {x = center_x, z = center_z, y = 0},
-        reason = "run_to_start_position:" .. start_pos.display_notation
-    }
-end
-
--- Dispatcher for Setup stage.
--- Priority: player_setup[reason] -> team_setup[reason] -> default_get_setup_position(reason)
-function get_setup_position(reason)
-    if player_setup and player_setup[reason] then
-        return player_setup[reason]()
-    end
-    if team_setup and team_setup[reason] then
-        return team_setup[reason]()
-    end
-    return default_get_setup_position(reason)
-end
-
--- Default goal kick setup: uses tactical profile regions when available.
--- Restarting team: go to "goal kick own" or start.
--- Defending team:  go to "goal kick opp" or defence.
-function default_goal_kick_setup()
-    if is_my_team_restarting() then
-        local r = my_regions()["goal kick own"]
-        if r then return run_to_region_obj(r, "goal_kick_own") end
-        return run_to_start_position()
-    else
-        local r = my_regions()["goal kick opp"]
-        if r then return run_to_region_obj(r, "goal_kick_opp") end
-        return run_to_defence_position()
-    end
 end
 
 -- -----------------------------------------------------------------------------

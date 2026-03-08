@@ -384,30 +384,15 @@ impl DecisionMaker for ScriptedDecisionMaker {
                 .engine
                 .make_decision(player_index, &context)
                 .map_err(|e| DecisionError::RuntimeError(format!("Engine error: {}", e)))?,
-            crate::game::GameStage::Setup(reason) => {
-                let mut ctx = context;
-                ctx["game"]["setup_reason"] = serde_json::Value::String(reason.clone());
-                if let Some(restart_pos) = game.state().restart_position {
-                    let config = game.config();
-                    let field_width = config.field.width().get::<meter>();
-                    let field_length = config.field.length().get::<meter>();
-                    let player_team = config.players[player_index].team;
-                    let pos_json =
-                        Self::position_to_json(&restart_pos, player_team, field_width, field_length);
-                    let restarting_team = game
-                        .state()
-                        .restart_team
-                        .map(|t| format!("{:?}", t))
-                        .unwrap_or_default();
-                    ctx["game"]["setup_info"] = json!({
-                        "restart_x": pos_json["x"],
-                        "restart_z": pos_json["z"],
-                        "restarting_team": restarting_team
-                    });
-                }
-                self.engine
-                    .get_setup_position(player_index, &ctx)
-                    .map_err(|e| DecisionError::RuntimeError(format!("Engine error: {}", e)))?
+            crate::game::GameStage::Setup(_) => {
+                // DecisionSystem must never call make_decision during Setup — it should
+                // skip scripted decisions entirely (see the is_setup guard in decision_system.rs).
+                // Reaching this branch means a caller bug: fail loudly instead of hiding it.
+                return Err(DecisionError::RuntimeError(
+                    "ScriptedDecisionMaker::make_decision called during Setup stage; \
+                     Setup decisions must be assigned by FootballGameManager, not by scripts"
+                        .to_string(),
+                ));
             }
             crate::game::GameStage::GameOver => {
                 return Ok((Decision::Stop, None));
@@ -519,125 +504,6 @@ mod tests {
 
         assert!(decision.is_ok());
         let (decision_value, _) = decision.unwrap();
-        assert!(matches!(decision_value, Decision::Stop));
-    }
-
-    #[test]
-    fn test_get_setup_position_in_play_stage() {
-        let mut game = create_test_game_with_script(
-            r#"
-            function make_decision()
-                return {action = "stop"}
-            end
-
-            function get_setup_position(reason)
-                return {action = "run", target_type = "cell", target = "B2"}
-            end
-            "#,
-        );
-
-        game.state.stage = crate::game::GameStage::Play;
-        let mut maker = ScriptedDecisionMaker::new(&game).unwrap();
-        let decision = maker.make_decision(&game, 0);
-
-        assert!(decision.is_ok());
-        // In Play stage, should call make_decision, not get_setup_position
-        let (decision_value, _) = decision.unwrap();
-        assert!(matches!(decision_value, Decision::Stop));
-    }
-
-    #[test]
-    fn test_get_setup_position_in_setup_stage() {
-        let mut game = create_test_game_with_script(
-            r#"
-            function make_decision()
-                return {action = "stop"}
-            end
-
-            function get_setup_position(reason)
-                return {action = "run", target_type = "cell", target = "B2"}
-            end
-            "#,
-        );
-
-        game.state.stage = crate::game::GameStage::Setup("kickoff".to_string());
-        let mut maker = ScriptedDecisionMaker::new(&game).unwrap();
-        let decision = maker.make_decision(&game, 0);
-
-        assert!(decision.is_ok());
-        let (decision_value, _) = decision.unwrap();
-        match decision_value {
-            Decision::Run(target) => match target {
-                crate::game::DecisionTarget::GridCell(cell) => {
-                    assert_eq!(cell.col, 2);
-                    assert_eq!(cell.row, 2);
-                }
-                _ => panic!("Expected GridCell target"),
-            },
-            _ => panic!("Expected Run decision"),
-        }
-    }
-
-    #[test]
-    fn test_get_setup_position_receives_reason() {
-        let mut game = create_test_game_with_script(
-            r#"
-            function make_decision()
-                return {action = "stop"}
-            end
-
-            function get_setup_position(reason)
-                -- reason comes via context.game.setup_reason
-                return {action = "stop", reason = context.game.setup_reason}
-            end
-            "#,
-        );
-
-        game.state.stage = crate::game::GameStage::Setup("after_goal".to_string());
-        let mut maker = ScriptedDecisionMaker::new(&game).unwrap();
-        let decision = maker.make_decision(&game, 0);
-
-        assert!(decision.is_ok());
-        let (decision_value, _) = decision.unwrap();
-        assert!(matches!(decision_value, Decision::Stop));
-    }
-
-    #[test]
-    fn test_get_setup_position_default_from_stdlib() {
-        let field = Field::from_meters(100.0, 60.0, 26, 44);
-        let grid_dims = field.grid_dimensions();
-
-        let start_region = grid_dims.create_region(GridCell::new(10, 10).unwrap(), GridCell::new(11, 11).unwrap()).unwrap();
-
-        let stdlib_preamble = r#"
-            function get_setup_position(reason)
-                return {action = "stop"}
-            end
-        "#;
-
-        let config = GameConfig {
-            field,
-            players: vec![PlayerDef::new(Team::A, 1, "Test Player".to_string(), "function make_decision() return {action = 'run', target_type = 'cell', target = 'A1'} end".to_string(),
-                HashMap::from([(REGION_START_POSITION.to_string(), start_region)]),
-            )],
-            ball: BallDef::default(),
-            referees: vec![RefereeDef::default()],
-            scripting: crate::game::ScriptingConfig {
-                core_preamble: String::new(),
-                stdlib_preamble: stdlib_preamble.to_string(),
-                team_a_preamble: String::new(),
-                team_b_preamble: String::new(),
-            },
-        };
-
-        let mut game = Game::new(config);
-        game.state.stage = crate::game::GameStage::Setup("kickoff".to_string());
-
-        let mut maker = ScriptedDecisionMaker::new(&game).unwrap();
-        let decision = maker.make_decision(&game, 0);
-
-        assert!(decision.is_ok());
-        let (decision_value, _reason) = decision.unwrap();
         assert!(matches!(decision_value, Decision::Stop));
     }
 

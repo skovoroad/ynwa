@@ -40,25 +40,19 @@ Goal: provide a set of reusable functions for writing AI players in Lua without 
 
 ```lua
 -- In team preamble (team_a.lua / team_b.lua):
-team_play  = { i_have_ball = f, ball_is_free = f, team_has_ball = f, opponent_has_ball = f }
-team_setup = { ["kick off"] = f, throw_in = f, goal_kick = f, corner = f }
+team_play = { i_have_ball = f, ball_is_free = f, team_has_ball = f, opponent_has_ball = f }
 
 -- In player script (optional override):
-player_play  = { i_have_ball = f, ... }   -- takes priority over team_play
-player_setup = { ["kick off"] = f, ... }  -- takes priority over team_setup
+player_play = { i_have_ball = f, ... }   -- takes priority over team_play
 ```
 
 `make_decision()` determines possession state and dispatches: `player_play[state]` → `team_play[state]` → `error()`.
 
-`get_setup_position(reason)` dispatches: `player_setup[reason]` → `team_setup[reason]` → `default_get_setup_position(reason)`.
-
 **Possession states**: `"i_have_ball"`, `"ball_is_free"`, `"team_has_ball"`, `"opponent_has_ball"`.
 
-**Setup reasons**: `"kick off"` (game start and after goal), `"throw in"`, `"goal kick"`, `"corner"`. Unknown reasons are treated as errors — the player receives no decision and `PlayerState::last_error` is set.
+**During Setup stage**, player positions are assigned directly by `FootballGameManager::assign_setup_decisions()` — Lua scripts are not called. Scripts do not define `team_setup`/`player_setup` tables.
 
-**Note**: Setup reasons (above) are the strings emitted by `FootballGameManager` and used as keys in `team_setup`/`player_setup`. They differ from the `[set_piece_positions]` keys in `tactical.toml` (16 keys: `"kick off own"`, `"kick off opp"`, `"goal kick own"`, `"goal kick opp"`, `"corner own left"`, etc.) — those are positional data used by the engine to place players, not dispatch keys.
-
-A player script with no `player_play`/`player_setup` defined uses team tactics entirely. An empty script `''` is valid.
+A player script with no `player_play` defined uses team tactics entirely. An empty script `''` is valid.
 
 ### 2.2 Input Data: `context` Structure
 
@@ -129,9 +123,7 @@ context = {
     
     -- Game time
     game = {
-        elapsed_time = 125.5,  -- Seconds since game start
-        setup_reason = "kick off" -- Present only during Setup stage: reason for setup
-                               -- Values: "kick off", "throw_in", "goal_kick", "corner"
+        elapsed_time = 125.5  -- Seconds since game start
     }
 }
 ```
@@ -438,8 +430,6 @@ Before executing user script, three preamble levels are loaded in the following 
 
 **Dispatcher functions** (defined here, NOT in team/player scripts):
 - `make_decision()` — Play stage dispatcher; reads possession state, calls `player_play[state]` → `team_play[state]` → `error()`
-- `get_setup_position(reason)` — Setup stage dispatcher; calls `player_setup[reason]` → `team_setup[reason]` → `default_get_setup_position(reason)`
-- `default_get_setup_position(reason)` — fallback; runs to center of `"start"` region
 
 **Helper functions**:
 - `am_i_ball_owner()`, `distance(pos1, pos2)`
@@ -475,15 +465,9 @@ team_play = {
     team_has_ball     = press_or_attack,
     opponent_has_ball = press_or_defend,
 }
-team_setup = {
-    ["kick off"] = run_to_start_position,
-    throw_in     = run_to_start_position,
-    goal_kick    = run_to_start_position,
-    corner       = run_to_start_position,
-}
 ```
 
-**Rule**: Team preamble defines `team_play`/`team_setup` tables only. Do NOT define `make_decision()` or `get_setup_position()` here — they live in stdlib.
+**Rule**: Team preamble defines `team_play` table only. Do NOT define `make_decision()` here — it lives in stdlib.
 
 ## 3.4 Player Regions: Detailed Description
 
@@ -549,7 +533,7 @@ Important: Team B sees the field from the opposite side. The core automatically 
 
 **Files**: In game configuration (TOML), `script` field for each player
 
-**Purpose**: Optional per-player behavior override via `player_play`/`player_setup` tables.
+**Purpose**: Optional per-player behavior override via `player_play` table.
 
 An empty script `''` is valid — the player uses team tactics entirely.
 
@@ -647,7 +631,7 @@ cargo test --package ynwa-script-tests --test stdlib_functions
 
 **`create_test_game_with_full_preambles_and_stage(script: &str, stage: GameStage)`**
 - Creates game with core + stdlib + team A preambles at a specific stage
-- Use for tests that require dispatch tables (`team_play`/`team_setup`)
+- Use for tests that require dispatch tables (`team_play`)
 
 **`create_test_game_football_field_with_preambles(script: &str)`**
 - Creates game with full football field (real zones including `goal_a`/`goal_b`) and core + stdlib preambles

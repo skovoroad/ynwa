@@ -80,10 +80,3 @@ team_play = {
     team_has_ball     = press_or_attack,
     opponent_has_ball = press_or_defend,
 }
-
-team_setup = {
-    ["kick off"] = run_to_start_position,
-    throw_in   = run_to_start_position,
-    goal_kick  = run_to_start_position,
-    corner     = run_to_start_position,
-}

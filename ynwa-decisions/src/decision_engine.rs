@@ -123,20 +123,6 @@ impl DecisionEngine {
         self.execute_function(player_index, "make_decision", context)
     }
 
-    pub fn get_setup_position(
-        &self,
-        player_index: usize,
-        context: &JsonValue,
-    ) -> Result<JsonValue, DecisionEngineError> {
-        let reason = context
-            .get("game")
-            .and_then(|g| g.get("setup_reason"))
-            .and_then(|r| r.as_str())
-            .unwrap_or("")
-            .to_string();
-        self.execute_function_with_args(player_index, "get_setup_position", context, reason)
-    }
-
     /// Execute a function for a player
     fn execute_function(
         &self,
@@ -489,50 +475,6 @@ mod tests {
             decision_b.get("debug_team").and_then(|v| v.as_str()),
             Some("team_b")
         );
-    }
-
-    #[test]
-    fn test_decision_engine_get_setup_position() {
-        let config = create_test_config(
-            r#"
-            function get_setup_position(reason)
-                return {action = "stop"}
-            end
-            "#,
-        );
-
-        let engine = DecisionEngine::new(&config, "", "").unwrap();
-        let context = json!({"me": {"number": 1}});
-        let decision = engine.get_setup_position(0, &context);
-
-        assert!(decision.is_ok());
-        let dec = decision.unwrap();
-        assert_eq!(dec.get("action").and_then(|a| a.as_str()), Some("stop"));
-    }
-
-    #[test]
-    fn test_decision_engine_get_setup_position_from_stdlib() {
-        let stdlib_preamble = r#"
-            function get_setup_position(reason)
-                return {action = "stop"}
-            end
-        "#;
-
-        let config = create_test_config(
-            r#"
-            function make_decision()
-                return {action = "run", target_type = "point", target = {x = 10.0, z = 20.0}}
-            end
-            "#,
-        );
-
-        let engine = DecisionEngine::new(&config, "", stdlib_preamble).unwrap();
-        let context = json!({"me": {"number": 1}});
-
-        let decision = engine.get_setup_position(0, &context);
-        assert!(decision.is_ok());
-        let dec = decision.unwrap();
-        assert_eq!(dec.get("action").and_then(|a| a.as_str()), Some("stop"));
     }
 
     #[test]

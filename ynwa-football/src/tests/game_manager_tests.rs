@@ -785,7 +785,6 @@ fn test_assign_setup_decisions_sends_non_taker_to_region() {
         matches!(game.state.player_states[0].current_decision, Some(Decision::Run(_))),
         "non-taker should get a Run decision"
     );
-    assert!(!game.state.player_states[0].needs_decision);
 }
 
 #[test]

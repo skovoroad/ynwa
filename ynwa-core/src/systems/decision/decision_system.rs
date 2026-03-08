@@ -155,10 +155,10 @@ impl System for DecisionSystem {
                 }
             }
 
-            // In Setup, a player with Stop has already arrived — don't re-poll the script
-            // regardless of what other systems wrote into needs_decision.
+            // In Setup, decisions are assigned by FootballGameManager (assign_setup_decisions),
+            // not by scripts. Only the arrival check above applies here.
             let is_setup = matches!(game.state.stage, GameStage::Setup(_));
-            if is_setup && matches!(current_decision, Some(Decision::Stop)) {
+            if is_setup {
                 game.state.player_states[player_index].needs_decision = false;
                 continue;
             }

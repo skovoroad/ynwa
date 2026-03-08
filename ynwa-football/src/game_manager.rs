@@ -18,7 +18,7 @@
 //!
 //! Setup decision assignment (`assign_setup_decisions`):
 //! - Called before `check_player_readiness` on every Setup tick
-//! - For each player with `needs_decision == true`, resolves the SET_PIECE_KEY for their team/position
+//! - For each player with `current_decision == None`, resolves the SET_PIECE_KEY for their team/position
 //!   using `resolve_set_piece_key`, then assigns `Decision::Run` to the restart point (if taker) or
 //!   to the player's region for that key. Missing region → `last_error` set, player stays put.
 //! - For "kick off", taker runs to ball initial_position (center), not to restart_position (None).
@@ -103,7 +103,7 @@ impl FootballGameManager {
         let player_count = game.config().players.len();
 
         for i in 0..player_count {
-            if !game.state.player_states[i].needs_decision {
+            if game.state.player_states[i].current_decision.is_some() {
                 continue;
             }
 
@@ -142,7 +142,7 @@ impl FootballGameManager {
             };
 
             game.state.player_states[i].current_decision = Some(decision);
-            game.state.player_states[i].needs_decision = false;
+            game.state.player_states[i].decision_processed = false;
         }
     }
 
