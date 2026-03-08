@@ -62,12 +62,17 @@ fn build_player_defs(
             let script = p.script.clone().unwrap_or_default();
 
             let mut regions = std::collections::HashMap::new();
+            let mut set_piece_roles = std::collections::HashSet::new();
 
             for (key, pos) in &p.tactical.play_positions {
                 regions.insert(key.clone(), flip(parse(pos)?)?);
             }
 
             for (key, pos) in &p.tactical.set_piece_positions {
+                if pos == "on_ball" {
+                    set_piece_roles.insert(key.clone());
+                    continue;
+                }
                 let region = flip(parse(pos)?)?;
                 if key == "kick off" {
                     // "kick off" doubles as the start position used by core for initial placement.
@@ -87,7 +92,8 @@ fn build_player_defs(
             .with_speed_rate(p.static_data.speed_rate)
             .with_tackle_rate(p.static_data.tackle_rate)
             .with_shot_power(p.static_data.shot_power)
-            .with_shot_accuracy(p.static_data.shot_accuracy);
+            .with_shot_accuracy(p.static_data.shot_accuracy)
+            .with_set_piece_roles(set_piece_roles);
 
             Ok(def)
         })
@@ -326,6 +332,46 @@ mod tests {
         // absent keys produce no region
         assert!(!defs[0].regions.contains_key("goal kick opp"));
         assert!(!defs[0].regions.contains_key("corner own right"));
+
+        // set_piece_roles is empty when no "on_ball" values present
+        assert!(defs[0].set_piece_roles.is_empty());
+    }
+
+    #[test]
+    fn build_player_defs_on_ball_goes_to_roles_not_regions() {
+        use ynwa_core::repository::{PlayerRecord, PlayerStatic, PlayerTactical, TeamRecord};
+
+        let field = create_football_field();
+        let grid_dims = field.grid_dimensions();
+
+        let tactical = PlayerTactical {
+            number: 9,
+            play_positions: [("attack".to_string(), "A1".to_string())].into(),
+            set_piece_positions: [
+                ("kick off".to_string(),      "A1".to_string()),
+                ("goal kick own".to_string(), "on_ball".to_string()),
+                ("corner own left".to_string(), "B2".to_string()),
+            ].into(),
+        };
+        let record = TeamRecord {
+            preamble: String::new(),
+            players: vec![PlayerRecord {
+                static_data: PlayerStatic { name: "P".to_string(), reaction_rate: 50,
+                    speed_rate: 50, tackle_rate: 50, shot_power: 50, shot_accuracy: 50 },
+                tactical,
+                script: None,
+            }],
+        };
+
+        let defs = build_player_defs(Team::A, &record, grid_dims).unwrap();
+
+        // "on_ball" value → key in set_piece_roles, not in regions
+        assert!(defs[0].set_piece_roles.contains("goal kick own"));
+        assert!(!defs[0].regions.contains_key("goal kick own"));
+
+        // other set_piece entries still go to regions
+        assert!(defs[0].regions.contains_key("corner own left"));
+        assert!(defs[0].set_piece_roles.is_empty() || !defs[0].set_piece_roles.contains("corner own left"));
     }
 
     #[test]

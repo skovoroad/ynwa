@@ -10,7 +10,7 @@
 
 Цель: устранить архитектурные нарушения в модели данных до начала основной работы.
 
-### Задача 0.1. Заменить именованные set-piece поля на `HashMap` в `PlayerTactical`
+### Задача 0.1. Заменить именованные set-piece поля на `HashMap` в `PlayerTactical` ✅
 
 **Проблема:** `PlayerTactical` в `ynwa-core/src/repository.rs` содержит поля `goal_kick_own_position`, `corner_own_left` и т.д. — это football-специфичные знания в sport-agnostic слое ядра.
 
@@ -41,7 +41,7 @@ pub struct PlayerTactical {
 
 ---
 
-### Задача 0.2. Объединить `"start"` и `"after_goal"` в единый reason `"kick off"`
+### Задача 0.2. Объединить `"start"` и `"after_goal"` в единый reason `"kick off"` ✅
 
 **Проблема:** движок использует два разных строковых reason для семантически одинакового события — мяч в центр, расстановка одинаковая:
 - `"start"` — при старте игры (`Game::new()`)
@@ -68,7 +68,7 @@ pub struct PlayerTactical {
 
 ---
 
-### Задача 0.3. Перенести `start_position` в `set_piece_positions`; выделить `play_positions`
+### Задача 0.3. Перенести `start_position` в `set_piece_positions`; выделить `play_positions` ✅
 
 **Проблема:** `start_position`, `attack_position`, `defence_position` — три разнородных поля с именованными строками. `start_position` семантически является стандартным положением (начальный удар) и должна лежать в `set_piece_positions` наравне с goal_kick и corner. `attack_position` и `defence_position` — игровые позиции, не связанные со стандартами, и логично объединить их в отдельный контейнер.
 
@@ -88,16 +88,19 @@ pub struct PlayerTactical {
 В TOML:
 ```toml
 [play_positions]
-attack = "K7"
+attack  = "K7"
 defence = "B3"
 
 [set_piece_positions]
-"kick off" = "K7"
-"goal kick own position" = "K7"
+"kick off"      = "K7"
+"goal kick own" = "K7"
 # ...
 ```
 
 Маркер `"on_ball"` допустим только в `set_piece_positions`, не в `play_positions`.
+
+Ключи из `play_positions` поступают в `PlayerDef.regions` как есть (`"attack"`, `"defence"`).
+Ключи из `set_piece_positions` тоже поступают как есть; специальный случай: `"kick off"` дополнительно регистрируется под константой `REGION_START_POSITION` (`"start"`) — контракт с ядром для начального размещения игрока.
 
 **Затрагивает:**
 - `ynwa-core/src/repository.rs` — структура `PlayerTactical`
@@ -109,7 +112,7 @@ defence = "B3"
 
 ---
 
-### Задача 0.4. Добавить `set_piece_roles: HashSet<String>` в `PlayerDef`
+### ✅ Задача 0.4. Добавить `set_piece_roles: HashSet<String>` в `PlayerDef`
 
 **Проблема:** нет способа представить в ядре, что игрок является исполнителем стандарта, не смешивая это с регионами позиционирования.
 
@@ -120,7 +123,7 @@ pub struct PlayerDef {
     // ...существующие поля...
     pub regions: HashMap<String, Region>,
     /// Set-piece types for which this player is the designated taker (goes to the ball).
-    /// Keys match the setup reason string (e.g. "goal_kick", "corner own left").
+    /// Keys match the setup reason string (e.g. "goal kick own", "corner own left").
     /// Populated by the sport layer (e.g. ynwa-football); core treats this as opaque data.
     pub set_piece_roles: HashSet<String>,
 }

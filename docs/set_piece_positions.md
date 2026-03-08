@@ -40,11 +40,11 @@
 
 ### Рефакторинг 2. Объединить `start_position` со стандартами; выделить `play_positions`
 
-`start_position` семантически является стандартным положением (начальный удар) и переносится в `set_piece_positions` под ключами `"kick off"` и `"after goal"`. `attack_position` и `defence_position` — позиции для фазы игры, не связанные со стандартами; они объединяются в отдельный контейнер `play_positions: HashMap<String, String>`. Маркер `"on_ball"` допустим только в `set_piece_positions`.
+`start_position` семантически является стандартным положением (начальный удар) и переносится в `set_piece_positions` под ключом `"kick off"` (единый reason для старта игры и возобновления после гола — задача 0.2). `attack_position` и `defence_position` — позиции для фазы игры, не связанные со стандартами; они объединяются в отдельный контейнер `play_positions: HashMap<String, String>`. Маркер `"on_ball"` допустим только в `set_piece_positions`.
 
 После этого рефакторинга `PlayerTactical` содержит два однородных контейнера:
-- `play_positions` — ключи `"attack"`, `"defence"` (и возможные будущие игровые режимы)
-- `set_piece_positions` — ключи для всех стандартных положений, включая начальный удар
+- `play_positions` — ключи `"attack"`, `"defence"` (и возможные будущие игровые режимы); попадают в `PlayerDef.regions` как есть
+- `set_piece_positions` — ключи для всех стандартных положений, включая `"kick off"`; попадают в `PlayerDef.regions` как есть; специальный случай: `"kick off"` дополнительно регистрируется под `REGION_START_POSITION` (`"start"`) — контракт с ядром для начального размещения
 
 ### Рефакторинг 3. Разделение позиций и ролей исполнителя в `PlayerDef`
 

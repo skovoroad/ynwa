@@ -2,7 +2,7 @@ use crate::field::zones::{Point3D, Velocity3D};
 use crate::field::Field;
 use crate::region::{GridCell, Region};
 use crate::team::Team;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use uom::si::length::meter;
 
 /// Named numeric statistics. Keys are game-specific (defined by game managers, not core).
@@ -61,6 +61,8 @@ pub struct PlayerDef {
     pub shot_accuracy: u32,
     pub script: String,
     pub regions: HashMap<String, Region>,
+    /// Set-piece types this player is the designated taker for (e.g. `"goal kick own"`).
+    pub set_piece_roles: HashSet<String>,
 }
 
 impl PlayerDef {
@@ -82,6 +84,7 @@ impl PlayerDef {
             shot_accuracy: 50,
             script,
             regions,
+            set_piece_roles: HashSet::new(),
         }
     }
 
@@ -107,6 +110,11 @@ impl PlayerDef {
 
     pub fn with_shot_accuracy(mut self, accuracy: u32) -> Self {
         self.shot_accuracy = accuracy;
+        self
+    }
+
+    pub fn with_set_piece_roles(mut self, roles: HashSet<String>) -> Self {
+        self.set_piece_roles = roles;
         self
     }
 }

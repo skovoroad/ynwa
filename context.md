@@ -123,6 +123,7 @@ The following aspects are considered in the design but implementation is postpon
 - Entities: Player, Ball, Referee — separate types (not traits), as they are processed by different systems
 - Indices: `config.players[i]` ↔ `state.player_states[i]` — O(1) access
 - `PlayerDef::new(team, number, name, script, regions: HashMap<String, Region>)` — the last argument is a map of named regions; game-specific callers (e.g. `ynwa-football`) populate it; core only reads the key `REGION_START_POSITION` (`"start"`) to place the player at game start. `REGION_START_POSITION` is the contract between core and game-specific layers — core does not know any other region names.
+- `PlayerDef::set_piece_roles: HashSet<String>` — set-piece types this player is the designated taker for (e.g. `"goal kick own"`). Populated by `ynwa-football` when a player has `"on_ball"` as the value in `set_piece_positions`. Core does not interpret this field.
 
 **World & Systems (`world.rs`, `system.rs`):**
 - World coordinates the game loop, contains Game and a list of systems
