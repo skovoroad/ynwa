@@ -4,7 +4,3 @@ player_play = {
     ball_is_free      = function() return run_to_region("K40", "K40") end,
     opponent_has_ball = function() return run_to_region("K40", "K40") end,
 }
-
-player_setup = {
-    goal_kick = default_goal_kick_setup,
-}
