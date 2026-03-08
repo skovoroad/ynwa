@@ -100,6 +100,33 @@ fn build_player_defs(
         .collect()
 }
 
+/// Validates that for every set-piece key present in any player's `set_piece_positions`,
+/// exactly one player per team has the value `"on_ball"` for that key.
+fn validate_on_ball(team_record: &TeamRecord, team_label: &str) -> Result<(), String> {
+    let mut counts: std::collections::HashMap<&str, usize> = std::collections::HashMap::new();
+    for player in &team_record.players {
+        for (key, val) in &player.tactical.set_piece_positions {
+            if val == "on_ball" {
+                *counts.entry(key.as_str()).or_insert(0) += 1;
+            }
+        }
+    }
+    // Collect all distinct keys across all players to detect missing on_ball.
+    let all_keys: std::collections::HashSet<&str> = team_record.players.iter()
+        .flat_map(|p| p.tactical.set_piece_positions.keys().map(|k| k.as_str()))
+        .collect();
+    for key in all_keys {
+        let count = counts.get(key).copied().unwrap_or(0);
+        if count != 1 {
+            return Err(format!(
+                "team {}: set-piece '{}' has {} on_ball players, expected exactly 1",
+                team_label, key, count
+            ));
+        }
+    }
+    Ok(())
+}
+
 fn add_football_systems(world: &mut World) {
     world.add_system(Box::new(FootballGameManager::new()));
     world.add_system(Box::new(PlayerReactionSystem));
@@ -141,8 +168,14 @@ pub fn create_football_world(
     let team_a_record = repo.load_team("team_a")?;
     let team_b_record = repo.load_team("team_b")?;
 
-    let mut players = build_player_defs(Team::A, &team_a_record, grid_dims)?;
-    players.extend(build_player_defs(Team::B, &team_b_record, grid_dims)?);
+    validate_on_ball(&team_a_record, "team_a")?;
+    validate_on_ball(&team_b_record, "team_b")?;
+
+    let team_a_players = build_player_defs(Team::A, &team_a_record, grid_dims)?;
+    let team_b_players = build_player_defs(Team::B, &team_b_record, grid_dims)?;
+
+    let mut players = team_a_players;
+    players.extend(team_b_players);
 
     let load_preamble = |name: &str| {
         let path = preambles_path.join(name);
@@ -432,5 +465,56 @@ mod tests {
         assert!((b_max_x - (field_width  - a_min_x)).abs() < 0.01);
         assert!((b_min_z - (field_length - a_max_z)).abs() < 0.01);
         assert!((b_max_z - (field_length - a_min_z)).abs() < 0.01);
+    }
+
+    fn make_team_record(players_positions: &[&[(&str, &str)]]) -> TeamRecord {
+        use ynwa_core::repository::{PlayerRecord, PlayerStatic, PlayerTactical, TeamRecord};
+        TeamRecord {
+            preamble: String::new(),
+            players: players_positions.iter().enumerate().map(|(i, positions)| {
+                PlayerRecord {
+                    static_data: PlayerStatic { name: "P".to_string(), reaction_rate: 50,
+                        speed_rate: 50, tackle_rate: 50, shot_power: 50, shot_accuracy: 50 },
+                    tactical: PlayerTactical {
+                        number: i as u32 + 1,
+                        play_positions: Default::default(),
+                        set_piece_positions: positions.iter()
+                            .map(|(k, v)| (k.to_string(), v.to_string()))
+                            .collect(),
+                    },
+                    script: None,
+                }
+            }).collect(),
+        }
+    }
+
+    #[test]
+    fn validate_on_ball_ok() {
+        let record = make_team_record(&[
+            &[("kick off", "on_ball"), ("goal kick own", "A1")],
+            &[("kick off", "A1"),     ("goal kick own", "on_ball")],
+        ]);
+        assert!(validate_on_ball(&record, "team_a").is_ok());
+    }
+
+    #[test]
+    fn validate_on_ball_duplicate() {
+        let record = make_team_record(&[
+            &[("kick off", "on_ball")],
+            &[("kick off", "on_ball")],
+        ]);
+        let err = validate_on_ball(&record, "team_a").unwrap_err();
+        assert!(err.contains("kick off"), "error should mention the key: {}", err);
+        assert!(err.contains("team_a"), "error should mention the team: {}", err);
+    }
+
+    #[test]
+    fn validate_on_ball_missing() {
+        let record = make_team_record(&[
+            &[("kick off", "A1")],
+            &[("kick off", "A1")],
+        ]);
+        let err = validate_on_ball(&record, "team_a").unwrap_err();
+        assert!(err.contains("kick off"), "error should mention the key: {}", err);
     }
 }

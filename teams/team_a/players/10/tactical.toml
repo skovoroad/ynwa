@@ -5,7 +5,7 @@ attack  = "N35"
 defence = "N15"
 
 [set_piece_positions]
-"kick off"                  = "N18"
+"kick off"                  = "on_ball"
 "throw in own left own half"  = "N18"
 "throw in own left opp half"  = "N18"
 "throw in own right own half" = "N18"
