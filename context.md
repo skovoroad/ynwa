@@ -46,8 +46,6 @@ The project is divided into independent modules using Rust workspace:
 
 - **Clients** - applications using the core:
   - `ynwa-player` - local client, depends on `ynwa-core` + `ynwa-football` + `ynwa-repository`, simulates the game locally and interacts with the player. Creates `FsTeamRepository` and passes it to `create_football_world()`. Default paths: `teams/` and `ynwa-scripts/preambles/`; overridable via CLI: `ynwa-player [teams_path] [preambles_path]`.
-  - Game server (future) - simulates multiple games, transmits data over network
-  - `ynwa-simulator` - local client, simulates the game locally and write the game to the file
   
 - **Test suites:**
   - `ynwa-script-tests` - integration tests for Lua scripts, depends on `ynwa-core` + `ynwa-football`
@@ -56,11 +54,9 @@ The project is divided into independent modules using Rust workspace:
   - `fixtures/dispatch_spy.lua` — reusable spy script for dispatch testing; loaded via `load_test_script()`
 
 - **Visual test scenarios (`ynwa-script-tests/scenarios/`):**
-  - Minimal two-player team configurations for visual verification of specific game situations
-  - Each scenario is a self-contained `teams/` directory that replaces the standard `teams/` path
+  - Minimal team configurations for visual verification of specific game situations
+  - Each scenario is a self-contained `teams/` directory
   - Launched via `./run_scenario.sh <scenario_name>` (root-level script) — passes `ynwa-script-tests/scenarios/<name>/teams` and `ynwa-scripts/preambles` to `ynwa-player`
-  - Current scenarios:
-    - `goal_kick_teamA_left` — Team A player runs down left flank and kicks past goal line → verifies goal_kick Setup restart: Team B (restarting) walks to ball; Team A retreats 25m from center
 
 ### Universality (optional requirement)
 
@@ -91,25 +87,11 @@ Read access is intended to go through a `TeamRepository` trait (`ynwa-core/src/r
 
 **Player number semantics**: `tactical.toml` field `number` is the tactical number (1–N, contiguous within the team). Individual jersey numbers are a separate concept and will be introduced when players are decoupled from tactics.
 
-**Status**: data files in `teams/`; `TeamRepository` trait in `ynwa-core/src/repository.rs`; `FsTeamRepository` in `ynwa-repository`; integrated into `ynwa-football` and `ynwa-player`.
-
-### Deferred Aspects
-
-The following aspects are considered in the design but implementation is postponed:
-- Data storage logic
-- Network play
-- Server architecture for multiple games
-
 ### Implemented Components
 
 **Game API (`game.rs`):**
 - Poll-based model: client owns the game loop
 - API design: `state()` provides access to state
-- `GameState` has `restart_position: Option<Point3D>` and `restart_team: Option<Team>` — set by `FootballGameManager::handle_event` on each Setup transition; used by ball placement in Setup tick
-- `FootballGameManager` assigns setup decisions directly (without calling Lua scripts) in `assign_setup_decisions`, called at the start of every Setup tick before readiness checks. For each player with `current_decision == None`: resolves the SET_PIECE_KEY via `resolve_set_piece_key(reason, player_team, restart_team, restart_position, field_dims)` (algorithm, not data), then sends the taker to `restart_position` (or ball center for kick-off) and all others to their region for that key. Unknown reason or missing region → `last_error` set, player stays put.
-- `resolve_set_piece_key` maps reason × runtime state → SET_PIECE_KEY: own/opp by `restart_team == player_team`; left/right by ball x vs field midline (team-perspective); own/opp half by ball z vs field midline (team-perspective). Team A's left = low x; Team B's left = high x.
-- Setup reasons use spaces: `"kick off"`, `"goal kick"`, `"throw in"`, `"corner"` — matching SET_PIECE_KEYS style.
-- `ynwa-football` exposes `SET_PIECE_KEYS` (16 mandatory set-piece keys every player must declare) and `ON_BALL_REQUIRED_KEYS` (8 own-keys where exactly one player must have `"on_ball"`). `create_football_world` validates both via `validate_set_piece_keys` and `validate_on_ball` before building the world.
 - Determinism through fixed timestep (controlled by client)
 
 **Statistics (`StatSet` in `game.rs`):**
@@ -123,7 +105,7 @@ The following aspects are considered in the design but implementation is postpon
 - Separation of Config (immutable) / State (mutable per-frame)
 - Entities: Player, Ball, Referee — separate types (not traits), as they are processed by different systems
 - Indices: `config.players[i]` ↔ `state.player_states[i]` — O(1) access
-- `PlayerDef::new(team, number, name, script, regions: HashMap<String, Region>)` — the last argument is a map of named regions; game-specific callers (e.g. `ynwa-football`) populate it; core only reads the key `REGION_START_POSITION` (`"start"`) to place the player at game start. `REGION_START_POSITION` is the contract between core and game-specific layers — core does not know any other region names. In `ynwa-football`, `REGION_START_POSITION` is aliased from `"kick off opp"` in `tactical.toml` (the positional region when the opponent kicks off, used as generic start placement until proper kick-off team selection is implemented in task 2.x).
+- `PlayerDef::new(team, number, name, script, regions: HashMap<String, Region>)` — the last argument is a map of named regions; game-specific callers (e.g. `ynwa-football`) populate it; core only reads the key `REGION_START_POSITION` (`"start"`) to place the player at game start. `REGION_START_POSITION` is the contract between core and game-specific layers — core does not know any other region names. In `ynwa-football`, `REGION_START_POSITION` is aliased from `"kick off opp"` in `tactical.toml`.
 - `PlayerDef::set_piece_roles: HashSet<String>` — set-piece types this player is the designated taker for (e.g. `"goal kick own"`). Populated by `ynwa-football` when a player has `"on_ball"` as the value in `set_piece_positions`. Core does not interpret this field.
 
 **World & Systems (`world.rs`, `system.rs`):**
@@ -150,10 +132,10 @@ The following aspects are considered in the design but implementation is postpon
 
 **Game Systems:**
 System execution order (important for correct operation):
-1. **FootballGameManager** (`ynwa-football`) - manages game stage transitions (Setup → Play), manages football-specific game logic for determining events. Players are marked ready when their `current_decision` is `Stop` (arrival detected by DecisionSystem); game transitions to Play once all players are ready.
+1. **FootballGameManager** (`ynwa-football`) - manages game stage transitions (like Setup → Play), manages football-specific game logic for determining events. `FootballGameManager` assigns setup decisions directly (without calling Lua scripts) in `assign_setup_decisions`, called at the start of every Setup tick before readiness checks; game transitions to Play once all players are ready.
 2. **PlayerReactionSystem** - determines when player is ready to accept new decision based on reaction_rate. During Setup stage: sets `needs_decision` when player has no decision yet, suppresses it otherwise (early filter; DecisionSystem is the final guard for arrived players). During Play: fires when reaction interval elapsed.
 3. **BallPossessionSystem** - determines which player possesses the ball (see Ball Possession System section). Skipped entirely during Setup stage (ball is fixed, possession is meaningless).
-4. **DecisionSystem** - creates decisions (Decision) for players using DecisionMaker trait. During Setup stage: on every tick checks if the player has reached their Run target (within 0.5m); if so, overrides the decision with Stop without calling the script. All other script invocations are skipped entirely during Setup — `ScriptedDecisionMaker::make_decision` returns `Err` if called in Setup (caller bug guard).
+4. **DecisionSystem** - creates decisions (Decision) for players using DecisionMaker trait. 
 5. **ActionSystem** - transforms decisions into velocity (applies speed_rate)
 6. **PhysicsSystem** - applies velocity to position using kinematics: position += velocity × delta_time
 
@@ -168,7 +150,7 @@ System execution order (important for correct operation):
 - Each decision is processed exactly once (decision_processed flag)
 
 **DecisionMaker trait:**
-- Public interface for creating AI players
+- Public interface for creating AI players. 
 - `make_decision(&mut self, game: &Game, player_index: usize) -> Result<Decision, DecisionError>`
 - DecisionSystem::with_decision_maker() for dependency injection
 - Implementations:
@@ -177,6 +159,7 @@ System execution order (important for correct operation):
 - **Design principle:** Decision system is independent - uses ynwa-decisions crate for Lua support
 
 **Scripted Decision System (`systems/decision/scripted_decision_maker.rs`):**
+- human player is expected to write scripts for players
 - Adapter between ynwa-core domain types and ynwa-decisions JSON API
 - One isolated Lua VM per player via `DecisionEngine`
 - Team B coordinates flipped on input; decisions flipped back on output (parser does NOT flip)
@@ -286,7 +269,7 @@ See `orientation.rs` `//!` doc for concept, functions, and usage.
 
 ## Region System (`region.rs`)
 
-Grid-based field area addressing. Format: `"A1:B2"` (TopLeft:BottomRight), 1-based columns (A=1...).
+Grid-based field area addressing. Format: `"A1:B2"` (BottomLeft:TopRight), 1-based columns (A=1...).
 See `region.rs` `//!` doc for types and indexing details.
 
 Construction API:
