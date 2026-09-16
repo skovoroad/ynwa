@@ -3,4 +3,4 @@
 Это текст для копи-паста человеком. ИИ его игнорирует.
 
 Ознакомься с документом context/procedure.md
-Выполни шаг номер 1 для задачи context/task_1_randomizer/task.md
+Выполни шаг номер 2 для задачи context/task_1_randomizer/task.md
