@@ -10,6 +10,7 @@
 //! - Only opponents can contest ball from current possessor (teammates never steal)
 //! - Free ball: all players within radius can claim it
 //! - Probabilistic selection: Score = `tackle_rate × random_multiplier`, multiplier ∈ [0.5, 1.5]
+//!   at temperature = 1.0; the spread shrinks proportionally at lower temperatures
 //! - Possession change triggers `needs_decision = true` for all players
 //!
 //! Ball state fields:
@@ -17,7 +18,9 @@
 //! - `last_possessing_team: Option<Team>` - persists during passes to track ownership,
 //!   reset to None on Setup stage transition, available in Lua as `context.ball.owner_team`
 //!
-//! Design: custom RNG via `with_rng()` for deterministic testing.
+//! Design: randomness is delegated to the central `RngManager` via `Game`.
+//! At temperature=0.0 all scores are proportional to `tackle_rate`; ties are broken
+//! in favour of the lower index (stable sort).
 
 use crate::game::Game;
 use crate::physics_util::distance_length;
@@ -28,96 +31,67 @@ use uom::si::length::meter;
 const POSSESSION_RADIUS: f32 = 1.0; // meters
 const POSSESSION_COOLDOWN: f32 = 1.0; // seconds - minimum time between possession changes
 
-/// Ball possession system - determines which player owns the ball
-pub struct BallPossessionSystem {
-    /// Optional random number generator for testing (0.0 to 1.0)
-    /// If None, uses rand::random()
-    rng: Option<Box<dyn Fn() -> f32 + Send>>,
-}
+/// Ball possession system
+pub struct BallPossessionSystem;
 
 impl BallPossessionSystem {
     pub fn new() -> Self {
-        Self { rng: None }
+        Self
     }
 
-    /// Create a system with a custom RNG for testing
-    pub fn with_rng<F>(rng: F) -> Self
-    where
-        F: Fn() -> f32 + Send + 'static,
-    {
-        Self {
-            rng: Some(Box::new(rng)),
-        }
-    }
-
-    fn get_random(&self) -> f32 {
-        if let Some(ref rng) = self.rng {
-            rng()
-        } else {
-            rand::random()
-        }
-    }
-
-    /// Find players within possession radius of the ball
-    /// If ball is possessed, only returns opponents of the current owner
-    fn find_nearby_players(&self, game: &Game) -> Vec<usize> {
-        let ball_pos = &game.state.ball_state.position;
-        let radius = Length::new::<meter>(POSSESSION_RADIUS);
-
-        // Determine if we should filter by team
-        let owner_team = game
-            .state
-            .ball_state
-            .possessed_by
-            .map(|owner_idx| game.config().players[owner_idx].team);
-
-        game.state
-            .player_states
-            .iter()
-            .enumerate()
-            .filter_map(|(idx, player_state)| {
-                let distance = distance_length(&player_state.position, ball_pos);
-                if distance <= radius {
-                    // If ball has owner, only include opponents
-                    if let Some(owner_team) = owner_team {
-                        let player_team = game.config().players[idx].team;
-                        if player_team == owner_team {
-                            return None; // Skip teammates
-                        }
-                    }
-                    Some(idx)
-                } else {
-                    None
-                }
-            })
-            .collect()
-    }
-
-    /// Select winner based on tackle_rate with probabilistic selection
-    /// Uses weighted random selection where tackle_rate determines probability
+    /// Select winner based on tackle_rate with probabilistic selection.
     fn select_winner(&self, game: &Game, candidates: &[usize]) -> usize {
         if candidates.len() == 1 {
             return candidates[0];
         }
 
-        // Calculate weighted scores: tackle_rate * random_multiplier
-        // This ensures even weak players have a chance, though small
         let mut scores: Vec<(usize, f32)> = candidates
             .iter()
             .map(|&idx| {
                 let tackle_rate = game.config().players[idx].tackle_rate as f32;
-                // Random multiplier between 0.5 and 1.5 gives variation
-                // while keeping tackle_rate as the primary factor
-                let random_multiplier = 0.5 + self.get_random();
-                let score = tackle_rate * random_multiplier;
+                let score = game.rng_manager().randomize(tackle_rate, 0.5);
                 (idx, score)
             })
             .collect();
 
-        // Find player with highest score
         scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
         scores[0].0
     }
+}
+
+/// Find players within possession radius of the ball.
+/// If ball is possessed, only returns opponents of the current owner.
+fn find_nearby_players(game: &Game) -> Vec<usize> {
+    let ball_pos = &game.state.ball_state.position;
+    let radius = Length::new::<meter>(POSSESSION_RADIUS);
+
+    // Determine if we should filter by team
+    let owner_team = game
+        .state
+        .ball_state
+        .possessed_by
+        .map(|owner_idx| game.config().players[owner_idx].team);
+
+    game.state
+        .player_states
+        .iter()
+        .enumerate()
+        .filter_map(|(idx, player_state)| {
+            let distance = distance_length(&player_state.position, ball_pos);
+            if distance <= radius {
+                // If ball has owner, only include opponents
+                if let Some(owner_team) = owner_team {
+                    let player_team = game.config().players[idx].team;
+                    if player_team == owner_team {
+                        return None; // Skip teammates
+                    }
+                }
+                Some(idx)
+            } else {
+                None
+            }
+        })
+        .collect()
 }
 
 impl System for BallPossessionSystem {
@@ -133,7 +107,7 @@ impl System for BallPossessionSystem {
         }
 
         // Find players near the ball (opponents only if ball is possessed)
-        let nearby_players = self.find_nearby_players(game);
+        let nearby_players = find_nearby_players(game);
 
         // Determine new possession
         let new_possession = match nearby_players.len() {

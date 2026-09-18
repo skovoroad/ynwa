@@ -11,18 +11,35 @@ pub mod events;
 pub mod field_builder;
 pub mod game_manager;
 
+#[cfg(test)]
+mod test_utils;
+
 use field_builder::create_football_field;
 use game_manager::FootballGameManager;
 use ynwa_core::field::zones::ZoneGeometry;
-use ynwa_core::game::{BallDef, Game, GameConfig, GameStage, PlayerDef, RefereeDef, ScriptingConfig, REGION_START_POSITION};
+use ynwa_core::game::{
+    BallDef, Game, GameConfig, GameStage, PlayerDef, RefereeDef, ScriptingConfig,
+    REGION_START_POSITION,
+};
 use ynwa_core::region::Region;
 use ynwa_core::repository::{TeamRecord, TeamRepository};
+use ynwa_core::rng::{DefaultRngManager, RngConfig, RngManager};
 use ynwa_core::systems::decision::ScriptedDecisionMaker;
 use ynwa_core::systems::{
     ActionSystem, BallPossessionSystem, DecisionSystem, PhysicsSystem, PlayerReactionSystem,
 };
 use ynwa_core::team::Team;
 use ynwa_core::world::World;
+
+/// Non-determinism temperature of the playable game (stage 1: hardcoded, not yet configurable).
+const PLAYER_RNG_TEMPERATURE: f32 = 0.7;
+
+fn create_player_rng_manager() -> Box<dyn RngManager> {
+    Box::new(DefaultRngManager::new(RngConfig::new(
+        PLAYER_RNG_TEMPERATURE,
+        None,
+    )))
+}
 
 fn get_ball_initial_position(field: &ynwa_core::field::Field) -> ynwa_core::field::zones::Point3D {
     let center_spot_zone = field
@@ -259,17 +276,23 @@ pub fn create_football_world(
         },
     };
 
-    let game = Game::with_stage(game_config, GameStage::Setup("kick off".to_string()));
+    let game = Game::with_stage(
+        game_config,
+        GameStage::Setup("kick off".to_string()),
+        create_player_rng_manager(),
+    );
     let mut world = World::new(game);
     add_football_systems(&mut world);
     Ok(world)
 }
 
 #[cfg(test)]
-    #[path = "tests/field_builder_tests.rs"]
-    mod field_builder_tests;#[cfg(test)]
+#[path = "tests/field_builder_tests.rs"]
+mod field_builder_tests;
+#[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_utils::deterministic_rng;
     use uom::si::length::meter;
     use ynwa_core::region::*;
     use ynwa_core::team::Team;
@@ -294,7 +317,10 @@ mod tests {
                 i + 1,
                 format!("Player A{}", i + 1),
                 "function make_decision() return {} end".to_string(),
-                std::collections::HashMap::from([(REGION_START_POSITION.to_string(), start_region)]),
+                std::collections::HashMap::from([(
+                    REGION_START_POSITION.to_string(),
+                    start_region,
+                )]),
             ));
         }
         for i in 0..11 {
@@ -311,7 +337,10 @@ mod tests {
                 i + 1,
                 format!("Player B{}", i + 1),
                 "function make_decision() return {} end".to_string(),
-                std::collections::HashMap::from([(REGION_START_POSITION.to_string(), start_region)]),
+                std::collections::HashMap::from([(
+                    REGION_START_POSITION.to_string(),
+                    start_region,
+                )]),
             ));
         }
 
@@ -328,7 +357,11 @@ mod tests {
 
     pub fn create_test_world() -> World {
         let game_config = create_football_game_config();
-        let game = Game::with_stage(game_config, GameStage::Setup("Prepare".to_string()));
+        let game = Game::with_stage(
+            game_config,
+            GameStage::Setup("Prepare".to_string()),
+            deterministic_rng(),
+        );
         let mut world = World::new(game);
         add_football_systems(&mut world);
         world
@@ -359,9 +392,18 @@ mod tests {
         };
 
         let ball_position = &game.state().ball_state.position;
-        assert_eq!(ball_position.x.get::<meter>(), expected_position.x.get::<meter>());
-        assert_eq!(ball_position.y.get::<meter>(), expected_position.y.get::<meter>());
-        assert_eq!(ball_position.z.get::<meter>(), expected_position.z.get::<meter>());
+        assert_eq!(
+            ball_position.x.get::<meter>(),
+            expected_position.x.get::<meter>()
+        );
+        assert_eq!(
+            ball_position.y.get::<meter>(),
+            expected_position.y.get::<meter>()
+        );
+        assert_eq!(
+            ball_position.z.get::<meter>(),
+            expected_position.z.get::<meter>()
+        );
     }
 
     #[test]
@@ -390,21 +432,29 @@ mod tests {
         let tactical = PlayerTactical {
             number: 1,
             play_positions: [
-                ("attack".to_string(),  "A1".to_string()),
+                ("attack".to_string(), "A1".to_string()),
                 ("defence".to_string(), "A1".to_string()),
-            ].into(),
+            ]
+            .into(),
             set_piece_positions: [
-                ("kick off own".to_string(),    "A1".to_string()),
-                ("kick off opp".to_string(),    "B1".to_string()),
-                ("goal kick own".to_string(),   "B2".to_string()),
+                ("kick off own".to_string(), "A1".to_string()),
+                ("kick off opp".to_string(), "B1".to_string()),
+                ("goal kick own".to_string(), "B2".to_string()),
                 ("corner own left".to_string(), "C3".to_string()),
-            ].into(),
+            ]
+            .into(),
         };
         let record = TeamRecord {
             preamble: String::new(),
             players: vec![PlayerRecord {
-                static_data: PlayerStatic { name: "P".to_string(), reaction_rate: 50,
-                    speed_rate: 50, tackle_rate: 50, shot_power: 50, shot_accuracy: 50 },
+                static_data: PlayerStatic {
+                    name: "P".to_string(),
+                    reaction_rate: 50,
+                    speed_rate: 50,
+                    tackle_rate: 50,
+                    shot_power: 50,
+                    shot_accuracy: 50,
+                },
                 tactical,
                 script: None,
             }],
@@ -425,8 +475,7 @@ mod tests {
         // only "kick off opp" registers REGION_START_POSITION
         assert!(defs[0].regions.contains_key(REGION_START_POSITION));
         assert_eq!(
-            defs[0].regions[REGION_START_POSITION],
-            defs[0].regions["kick off opp"],
+            defs[0].regions[REGION_START_POSITION], defs[0].regions["kick off opp"],
             "REGION_START_POSITION must alias kick off opp"
         );
 
@@ -449,16 +498,23 @@ mod tests {
             number: 9,
             play_positions: [("attack".to_string(), "A1".to_string())].into(),
             set_piece_positions: [
-                ("kick off".to_string(),      "A1".to_string()),
+                ("kick off".to_string(), "A1".to_string()),
                 ("goal kick own".to_string(), "on_ball".to_string()),
                 ("corner own left".to_string(), "B2".to_string()),
-            ].into(),
+            ]
+            .into(),
         };
         let record = TeamRecord {
             preamble: String::new(),
             players: vec![PlayerRecord {
-                static_data: PlayerStatic { name: "P".to_string(), reaction_rate: 50,
-                    speed_rate: 50, tackle_rate: 50, shot_power: 50, shot_accuracy: 50 },
+                static_data: PlayerStatic {
+                    name: "P".to_string(),
+                    reaction_rate: 50,
+                    speed_rate: 50,
+                    tackle_rate: 50,
+                    shot_power: 50,
+                    shot_accuracy: 50,
+                },
                 tactical,
                 script: None,
             }],
@@ -472,35 +528,46 @@ mod tests {
 
         // other set_piece entries still go to regions
         assert!(defs[0].regions.contains_key("corner own left"));
-        assert!(defs[0].set_piece_roles.is_empty() || !defs[0].set_piece_roles.contains("corner own left"));
+        assert!(
+            defs[0].set_piece_roles.is_empty()
+                || !defs[0].set_piece_roles.contains("corner own left")
+        );
     }
 
     #[test]
     fn build_player_defs_optional_regions_flipped_for_team_b() {
-        use ynwa_core::repository::{PlayerRecord, PlayerStatic, PlayerTactical, TeamRecord};
         use uom::si::length::meter;
+        use ynwa_core::repository::{PlayerRecord, PlayerStatic, PlayerTactical, TeamRecord};
 
         let field = create_football_field();
         let grid_dims = field.grid_dimensions();
-        let field_width  = field.width().get::<meter>();
+        let field_width = field.width().get::<meter>();
         let field_length = field.length().get::<meter>();
 
         let tactical = PlayerTactical {
             number: 1,
             play_positions: [
-                ("attack".to_string(),  "A1".to_string()),
+                ("attack".to_string(), "A1".to_string()),
                 ("defence".to_string(), "A1".to_string()),
-            ].into(),
+            ]
+            .into(),
             set_piece_positions: [
-                ("kick off".to_string(),        "A1".to_string()),
-                ("goal kick own".to_string(),   "C5".to_string()),
-            ].into(),
+                ("kick off".to_string(), "A1".to_string()),
+                ("goal kick own".to_string(), "C5".to_string()),
+            ]
+            .into(),
         };
         let record = TeamRecord {
             preamble: String::new(),
             players: vec![PlayerRecord {
-                static_data: PlayerStatic { name: "P".to_string(), reaction_rate: 50,
-                    speed_rate: 50, tackle_rate: 50, shot_power: 50, shot_accuracy: 50 },
+                static_data: PlayerStatic {
+                    name: "P".to_string(),
+                    reaction_rate: 50,
+                    speed_rate: 50,
+                    tackle_rate: 50,
+                    shot_power: 50,
+                    shot_accuracy: 50,
+                },
                 tactical,
                 script: None,
             }],
@@ -520,17 +587,17 @@ mod tests {
 
         // flip_orientation swaps: min_x ↔ (field_width - max_x), min_z ↔ (field_length - max_z)
         let cell_size = field_width / grid_dims.columns as f32;
-        let a_min_x = (ra.top_left.col     - 1) as f32 * cell_size;
-        let a_max_x =  ra.bottom_right.col      as f32 * cell_size;
-        let a_min_z = (ra.top_left.row     - 1) as f32 * cell_size;
-        let a_max_z =  ra.bottom_right.row      as f32 * cell_size;
-        let b_min_x = (rb.top_left.col     - 1) as f32 * cell_size;
-        let b_max_x =  rb.bottom_right.col      as f32 * cell_size;
-        let b_min_z = (rb.top_left.row     - 1) as f32 * cell_size;
-        let b_max_z =  rb.bottom_right.row      as f32 * cell_size;
+        let a_min_x = (ra.top_left.col - 1) as f32 * cell_size;
+        let a_max_x = ra.bottom_right.col as f32 * cell_size;
+        let a_min_z = (ra.top_left.row - 1) as f32 * cell_size;
+        let a_max_z = ra.bottom_right.row as f32 * cell_size;
+        let b_min_x = (rb.top_left.col - 1) as f32 * cell_size;
+        let b_max_x = rb.bottom_right.col as f32 * cell_size;
+        let b_min_z = (rb.top_left.row - 1) as f32 * cell_size;
+        let b_max_z = rb.bottom_right.row as f32 * cell_size;
 
-        assert!((b_min_x - (field_width  - a_max_x)).abs() < 0.01);
-        assert!((b_max_x - (field_width  - a_min_x)).abs() < 0.01);
+        assert!((b_min_x - (field_width - a_max_x)).abs() < 0.01);
+        assert!((b_max_x - (field_width - a_min_x)).abs() < 0.01);
         assert!((b_min_z - (field_length - a_max_z)).abs() < 0.01);
         assert!((b_max_z - (field_length - a_min_z)).abs() < 0.01);
     }
@@ -539,20 +606,29 @@ mod tests {
         use ynwa_core::repository::{PlayerRecord, PlayerStatic, PlayerTactical, TeamRecord};
         TeamRecord {
             preamble: String::new(),
-            players: players_positions.iter().enumerate().map(|(i, positions)| {
-                PlayerRecord {
-                    static_data: PlayerStatic { name: "P".to_string(), reaction_rate: 50,
-                        speed_rate: 50, tackle_rate: 50, shot_power: 50, shot_accuracy: 50 },
+            players: players_positions
+                .iter()
+                .enumerate()
+                .map(|(i, positions)| PlayerRecord {
+                    static_data: PlayerStatic {
+                        name: "P".to_string(),
+                        reaction_rate: 50,
+                        speed_rate: 50,
+                        tackle_rate: 50,
+                        shot_power: 50,
+                        shot_accuracy: 50,
+                    },
                     tactical: PlayerTactical {
                         number: i as u32 + 1,
                         play_positions: Default::default(),
-                        set_piece_positions: positions.iter()
+                        set_piece_positions: positions
+                            .iter()
                             .map(|(k, v)| (k.to_string(), v.to_string()))
                             .collect(),
                     },
                     script: None,
-                }
-            }).collect(),
+                })
+                .collect(),
         }
     }
 
@@ -560,13 +636,16 @@ mod tests {
     fn validate_on_ball_ok() {
         // Player 0 has on_ball for all 8 own keys; player 1 has grid cells for everything.
         // All opp keys are purely positional (no on_ball).
-        let opp_keys = SET_PIECE_KEYS.iter()
+        let opp_keys = SET_PIECE_KEYS
+            .iter()
             .filter(|k| !ON_BALL_REQUIRED_KEYS.contains(*k));
-        let required: Vec<(&str, &str)> = ON_BALL_REQUIRED_KEYS.iter()
+        let required: Vec<(&str, &str)> = ON_BALL_REQUIRED_KEYS
+            .iter()
             .map(|k| (*k, "on_ball"))
             .chain(opp_keys.clone().map(|k| (*k, "A1")))
             .collect();
-        let positional: Vec<(&str, &str)> = ON_BALL_REQUIRED_KEYS.iter()
+        let positional: Vec<(&str, &str)> = ON_BALL_REQUIRED_KEYS
+            .iter()
             .map(|k| (*k, "A1"))
             .chain(opp_keys.map(|k| (*k, "A1")))
             .collect();
@@ -581,8 +660,16 @@ mod tests {
             &[("kick off own", "on_ball"), ("kick off opp", "A1")],
         ]);
         let err = validate_on_ball(&record, "team_a").unwrap_err();
-        assert!(err.contains("kick off own"), "error should mention the key: {}", err);
-        assert!(err.contains("team_a"), "error should mention the team: {}", err);
+        assert!(
+            err.contains("kick off own"),
+            "error should mention the key: {}",
+            err
+        );
+        assert!(
+            err.contains("team_a"),
+            "error should mention the team: {}",
+            err
+        );
     }
 
     #[test]
@@ -592,35 +679,43 @@ mod tests {
             &[("kick off own", "A1"), ("kick off opp", "A1")],
         ]);
         let err = validate_on_ball(&record, "team_a").unwrap_err();
-        assert!(err.contains("kick off own"), "error should mention the key: {}", err);
+        assert!(
+            err.contains("kick off own"),
+            "error should mention the key: {}",
+            err
+        );
     }
 
     #[test]
     fn validate_on_ball_opp_key_must_not_have_on_ball() {
         // Any opp key with on_ball is an error.
         // Build a record with all own keys valid, then add goal kick opp = on_ball.
-        let with_opp_on_ball: Vec<(&str, &str)> = ON_BALL_REQUIRED_KEYS.iter()
+        let with_opp_on_ball: Vec<(&str, &str)> = ON_BALL_REQUIRED_KEYS
+            .iter()
             .map(|k| (*k, "on_ball"))
-            .chain(std::iter::once(("goal kick opp", "on_ball")))  // forbidden
+            .chain(std::iter::once(("goal kick opp", "on_ball"))) // forbidden
             .collect();
-        let positional: Vec<(&str, &str)> = ON_BALL_REQUIRED_KEYS.iter()
+        let positional: Vec<(&str, &str)> = ON_BALL_REQUIRED_KEYS
+            .iter()
             .map(|k| (*k, "A1"))
             .chain(std::iter::once(("goal kick opp", "A1")))
             .collect();
         let record = make_team_record(&[&with_opp_on_ball, &positional]);
         let err = validate_on_ball(&record, "team_a").unwrap_err();
-        assert!(err.contains("goal kick opp"), "error should mention the opp key: {}", err);
+        assert!(
+            err.contains("goal kick opp"),
+            "error should mention the opp key: {}",
+            err
+        );
     }
 
     /// Build a team record where every player has all 16 SET_PIECE_KEYS.
     /// The first player has `on_ball` for every key; the rest have a grid cell.
     fn make_complete_set_piece_record() -> TeamRecord {
-        let all_keys_player_0: Vec<(&str, &str)> = SET_PIECE_KEYS.iter()
-            .map(|k| (*k, "on_ball"))
-            .collect();
-        let all_keys_player_1: Vec<(&str, &str)> = SET_PIECE_KEYS.iter()
-            .map(|k| (*k, "A1"))
-            .collect();
+        let all_keys_player_0: Vec<(&str, &str)> =
+            SET_PIECE_KEYS.iter().map(|k| (*k, "on_ball")).collect();
+        let all_keys_player_1: Vec<(&str, &str)> =
+            SET_PIECE_KEYS.iter().map(|k| (*k, "A1")).collect();
         make_team_record(&[&all_keys_player_0, &all_keys_player_1])
     }
 
@@ -633,16 +728,24 @@ mod tests {
     #[test]
     fn validate_set_piece_keys_missing_key() {
         // Build a record that has all keys except "goal kick opp" for player #2.
-        let all_keys_player_0: Vec<(&str, &str)> = SET_PIECE_KEYS.iter()
-            .map(|k| (*k, "on_ball"))
-            .collect();
-        let incomplete: Vec<(&str, &str)> = SET_PIECE_KEYS.iter()
+        let all_keys_player_0: Vec<(&str, &str)> =
+            SET_PIECE_KEYS.iter().map(|k| (*k, "on_ball")).collect();
+        let incomplete: Vec<(&str, &str)> = SET_PIECE_KEYS
+            .iter()
             .filter(|k| **k != "goal kick opp")
             .map(|k| (*k, "A1"))
             .collect();
         let record = make_team_record(&[&all_keys_player_0, &incomplete]);
         let err = validate_set_piece_keys(&record, "team_a").unwrap_err();
-        assert!(err.contains("goal kick opp"), "error should mention the missing key: {}", err);
-        assert!(err.contains("team_a"), "error should mention the team: {}", err);
+        assert!(
+            err.contains("goal kick opp"),
+            "error should mention the missing key: {}",
+            err
+        );
+        assert!(
+            err.contains("team_a"),
+            "error should mention the team: {}",
+            err
+        );
     }
 }

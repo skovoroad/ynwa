@@ -31,7 +31,6 @@ fn test_distance_diagonal() {
 fn test_distance_3d() {
     let a = Point3D::from_meters(1.0, 2.0, 3.0);
     let b = Point3D::from_meters(4.0, 6.0, 8.0);
-    // sqrt((4-1)^2 + (6-2)^2 + (8-3)^2) = sqrt(9 + 16 + 25) = sqrt(50) ≈ 7.071
     assert!((distance(&a, &b) - 7.071).abs() < 0.01);
 }
 
@@ -48,48 +47,6 @@ fn test_distance_length_returns_length_type() {
     let b = Point3D::from_meters(10.0, 0.0, 0.0);
     let dist = distance_length(&a, &b);
     assert!((dist.get::<meter>() - 10.0).abs() < 0.001);
-}
-
-#[test]
-fn test_kick_velocity_base_calculation() {
-    // shot_power=100, no variation (rng=0.5)
-    let velocity = calculate_kick_velocity(100, 0.5);
-    let expected = 100.0 / KICK_POWER_DIVISOR; // Base speed without variation
-    assert!((velocity - expected).abs() < 0.001);
-
-    // shot_power=50, no variation
-    let velocity = calculate_kick_velocity(50, 0.5);
-    let expected = 50.0 / KICK_POWER_DIVISOR;
-    assert!((velocity - expected).abs() < 0.001);
-}
-
-#[test]
-fn test_kick_velocity_min_variation() {
-    // shot_power=100, min variation (rng=0.0)
-    let velocity = calculate_kick_velocity(100, 0.0);
-    let expected = (100.0 / KICK_POWER_DIVISOR) * KICK_POWER_VARIATION_MIN;
-    assert!((velocity - expected).abs() < 0.001);
-}
-
-#[test]
-fn test_kick_velocity_max_variation() {
-    // shot_power=100, max variation (rng=1.0)
-    let velocity = calculate_kick_velocity(100, 1.0);
-    let expected = (100.0 / KICK_POWER_DIVISOR) * KICK_POWER_VARIATION_MAX;
-    assert!((velocity - expected).abs() < 0.001);
-}
-
-#[test]
-fn test_kick_direction_perfect_accuracy_no_deviation() {
-    let ball = Point3D::from_meters(50.0, 30.0, 0.0);
-    let target = Point3D::from_meters(60.0, 30.0, 0.0); // Straight along X axis
-
-    // Perfect accuracy (100), no random deviation (0.5)
-    let (dx, dz) = calculate_kick_direction_with_accuracy(&target, &ball, 100, 0.5);
-
-    // Should point straight along X axis
-    assert!((dx - 1.0).abs() < 0.001);
-    assert!(dz.abs() < 0.001);
 }
 
 #[test]
@@ -114,7 +71,6 @@ fn test_distance_2d_along_z() {
 
 #[test]
 fn test_distance_2d_ignores_y() {
-    // Two points at the same X/Z but different Y — 2D distance must be 0
     let a = Point3D::from_meters(5.0, 0.0, 5.0);
     let b = Point3D::from_meters(5.0, 100.0, 5.0);
     assert_eq!(distance_2d(&a, &b), 0.0);
@@ -124,7 +80,6 @@ fn test_distance_2d_ignores_y() {
 fn test_distance_2d_differs_from_3d_when_y_differs() {
     let a = Point3D::from_meters(0.0, 0.0, 0.0);
     let b = Point3D::from_meters(3.0, 4.0, 0.0);
-    // 3D distance = 5.0 (3-4-5), 2D distance = 3.0 (Y ignored)
     assert!((distance(&a, &b) - 5.0).abs() < 0.001);
     assert!((distance_2d(&a, &b) - 3.0).abs() < 0.001);
 }
@@ -133,7 +88,6 @@ fn test_distance_2d_differs_from_3d_when_y_differs() {
 fn test_distance_2d_diagonal() {
     let a = Point3D::from_meters(0.0, 99.0, 0.0);
     let b = Point3D::from_meters(3.0, 0.0, 4.0);
-    // sqrt(3^2 + 4^2) = 5, Y is irrelevant
     assert!((distance_2d(&a, &b) - 5.0).abs() < 0.001);
 }
 
@@ -143,40 +97,59 @@ fn test_distance_2d_symmetric() {
     let b = Point3D::from_meters(4.0, 5.0, 6.0);
     assert_eq!(distance_2d(&a, &b), distance_2d(&b, &a));
 }
+
 #[test]
-fn test_kick_direction_perfect_accuracy_max_deviation() {
-    let ball = Point3D::from_meters(50.0, 30.0, 0.0);
-    let target = Point3D::from_meters(60.0, 30.0, 0.0); // Straight along X axis
-
-    // Perfect accuracy (100), max deviation (rng=1.0) → +5 degrees
-    let (dx, dz) = calculate_kick_direction_with_accuracy(&target, &ball, 100, 1.0);
-
-    // 5 degrees rotation: cos(5°)≈0.996, sin(5°)≈0.087
-    assert!((dx - 0.996).abs() < 0.01);
-    assert!((dz - 0.087).abs() < 0.01);
+fn test_kick_speed_from_power() {
+    assert_eq!(kick_speed(100), 20.0);
+    assert_eq!(kick_speed(50), 10.0);
+    assert_eq!(kick_speed(0), 0.0);
 }
 
 #[test]
-fn test_kick_direction_poor_accuracy_max_deviation() {
+fn test_max_kick_deviation_bounds() {
+    assert_eq!(max_kick_deviation(100).get::<degree>(), 5.0);
+    assert_eq!(max_kick_deviation(10).get::<degree>(), 45.0);
+    assert_eq!(max_kick_deviation(55).get::<degree>(), 25.0);
+}
+
+#[test]
+fn test_rotate_kick_direction_no_deviation() {
     let ball = Point3D::from_meters(50.0, 30.0, 0.0);
-    let target = Point3D::from_meters(60.0, 30.0, 0.0); // Straight along X axis
+    let target = Point3D::from_meters(60.0, 30.0, 0.0);
 
-    // Poor accuracy (10), max deviation (rng=1.0) → +45 degrees
-    let (dx, dz) = calculate_kick_direction_with_accuracy(&target, &ball, 10, 1.0);
+    let (dx, dz) = rotate_kick_direction(&target, &ball, Angle::new::<degree>(0.0));
 
-    // 45 degrees rotation: cos(45°)≈0.707, sin(45°)≈0.707
+    assert!((dx - 1.0).abs() < 0.001);
+    assert!(dz.abs() < 0.001);
+}
+
+#[test]
+fn test_rotate_kick_direction_along_z() {
+    let ball = Point3D::from_meters(50.0, 30.0, 0.0);
+    let target = Point3D::from_meters(50.0, 30.0, 10.0);
+
+    let (dx, dz) = rotate_kick_direction(&target, &ball, Angle::new::<degree>(0.0));
+
+    assert!(dx.abs() < 0.001);
+    assert!((dz - 1.0).abs() < 0.001);
+}
+
+#[test]
+fn test_rotate_kick_direction_45_degrees() {
+    let ball = Point3D::from_meters(50.0, 30.0, 0.0);
+    let target = Point3D::from_meters(60.0, 30.0, 0.0);
+
+    let (dx, dz) = rotate_kick_direction(&target, &ball, Angle::new::<degree>(45.0));
+
     assert!((dx - 0.707).abs() < 0.01);
     assert!((dz - 0.707).abs() < 0.01);
 }
 
 #[test]
-fn test_kick_direction_degenerate_case() {
+fn test_rotate_kick_direction_degenerate_target_equals_ball() {
     let ball = Point3D::from_meters(50.0, 30.0, 0.0);
-    let target = Point3D::from_meters(50.0, 30.0, 0.0); // Same position
 
-    // Should return default direction (1, 0) when target == ball
-    let (dx, dz) = calculate_kick_direction_with_accuracy(&target, &ball, 50, 0.5);
+    let (dx, dz) = rotate_kick_direction(&ball, &ball, Angle::new::<degree>(30.0));
 
-    assert!((dx - 1.0).abs() < 0.001);
-    assert!(dz.abs() < 0.001);
+    assert_eq!((dx, dz), (1.0, 0.0));
 }

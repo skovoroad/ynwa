@@ -1,10 +1,13 @@
-use std::collections::HashMap;
 use super::*;
 use crate::field::zones::{Point3D, Velocity3D};
 use crate::field::Field;
-use crate::game::{BallDef, GameConfig, GameStage, PlayerDef, PlayerState, RefereeDef, REGION_START_POSITION};
-use crate::region::{GridCell};
+use crate::game::{
+    BallDef, GameConfig, GameStage, PlayerDef, PlayerState, RefereeDef, REGION_START_POSITION,
+};
+use crate::region::GridCell;
 use crate::team::Team;
+use crate::test_utils::{deterministic_rng, SequenceRngManager};
+use std::collections::HashMap;
 
 fn create_test_field() -> Field {
     Field::from_meters(100.0, 60.0, 20, 40)
@@ -12,7 +15,16 @@ fn create_test_field() -> Field {
 
 // Possession tests need Play stage — the system is a no-op in Setup.
 fn make_play_game(config: GameConfig) -> Game {
-    Game::with_stage(config, GameStage::Play)
+    Game::with_stage(config, GameStage::Play, deterministic_rng())
+}
+
+/// Play-stage game whose RNG draws raw values from `sequence` (repeated cyclically).
+fn make_play_game_with(config: GameConfig, sequence: Vec<f32>) -> Game {
+    Game::with_stage(
+        config,
+        GameStage::Play,
+        Box::new(SequenceRngManager::new(sequence)),
+    )
 }
 
 fn create_test_player(
@@ -22,7 +34,9 @@ fn create_test_player(
     position: Point3D,
 ) -> (PlayerDef, PlayerState) {
     let grid_dims = create_test_field().grid_dimensions();
-    let start_region = grid_dims.create_region(GridCell::new(1, 1).unwrap(), GridCell::new(1, 1).unwrap()).unwrap();
+    let start_region = grid_dims
+        .create_region(GridCell::new(1, 1).unwrap(), GridCell::new(1, 1).unwrap())
+        .unwrap();
 
     let player_def = PlayerDef::new(
         team,
@@ -145,10 +159,8 @@ fn test_two_players_deterministic_selection() {
     game.state.player_states = vec![player1_state, player2_state];
     game.state.ball_state.possessed_by = None;
 
-    // Use RNG=1.0 (max multiplier 1.5)
-    // Player 0: 80 * 1.5 = 120.0
-    // Player 1: 40 * 1.5 = 60.0
-    let mut system = BallPossessionSystem::with_rng(|| 1.0);
+    // Default RNG (temperature 0): scores equal tackle rates, so player 0 (80) wins over player 1 (40)
+    let mut system = BallPossessionSystem::new();
     system.update(&mut game, 0.0);
 
     // Player 0 (tackle_rate=80) should win
@@ -185,25 +197,12 @@ fn test_two_players_probabilistic_upset() {
         scripting: crate::game::ScriptingConfig::empty(),
     };
 
-    let mut game = make_play_game(config);
+    let mut game = make_play_game_with(config, vec![0.0, 1.0]);
     game.state.ball_state.position = ball_pos;
     game.state.player_states = vec![player1_state, player2_state];
     game.state.ball_state.possessed_by = None;
 
-    // Use RNG that gives advantage to weaker player
-    // Player 0: 80 * 0.5 = 40.0 (unlucky)
-    // Player 1: 40 * 1.5 = 60.0 (lucky) - wins despite lower tackle_rate!
-    use std::cell::Cell;
-    let call_count = Cell::new(0);
-    let mut system = BallPossessionSystem::with_rng(move || {
-        let count = call_count.get();
-        call_count.set(count + 1);
-        if count == 0 {
-            0.0
-        } else {
-            1.0
-        } // First gets min (0.5x), second gets max (1.5x)
-    });
+    let mut system = BallPossessionSystem::new();
     system.update(&mut game, 0.0);
 
     // Player 1 (index 1) should win due to lucky roll
@@ -240,25 +239,12 @@ fn test_extreme_difference_weak_can_still_win() {
         scripting: crate::game::ScriptingConfig::empty(),
     };
 
-    let mut game = make_play_game(config);
+    let mut game = make_play_game_with(config, vec![0.0, 1.0]);
     game.state.ball_state.position = ball_pos;
     game.state.player_states = vec![player1_state, player2_state];
     game.state.ball_state.possessed_by = None;
 
-    // Player 0: 100 * 0.5 = 50.0 (very unlucky)
-    // Player 1: 10 * 1.5 = 15.0 (very lucky, but still loses)
-    // Even with extreme luck, 10 vs 100 is too much
-    use std::cell::Cell;
-    let call_count = Cell::new(0);
-    let mut system = BallPossessionSystem::with_rng(move || {
-        let count = call_count.get();
-        call_count.set(count + 1);
-        if count == 0 {
-            0.0
-        } else {
-            1.0
-        }
-    });
+    let mut system = BallPossessionSystem::new();
     system.update(&mut game, 0.0);
 
     // Player 0 still wins (50 > 15)
@@ -295,24 +281,12 @@ fn test_moderate_difference_upset_possible() {
         scripting: crate::game::ScriptingConfig::empty(),
     };
 
-    let mut game = make_play_game(config);
+    let mut game = make_play_game_with(config, vec![0.0, 1.0]);
     game.state.ball_state.position = ball_pos;
     game.state.player_states = vec![player1_state, player2_state];
     game.state.ball_state.possessed_by = None;
 
-    // Player 0: 60 * 0.5 = 30.0 (unlucky)
-    // Player 1: 45 * 1.5 = 67.5 (lucky) - upset!
-    use std::cell::Cell;
-    let call_count = Cell::new(0);
-    let mut system = BallPossessionSystem::with_rng(move || {
-        let count = call_count.get();
-        call_count.set(count + 1);
-        if count == 0 {
-            0.0
-        } else {
-            1.0
-        }
-    });
+    let mut system = BallPossessionSystem::new();
     system.update(&mut game, 0.0);
 
     // Player 1 wins with lucky roll
@@ -346,7 +320,7 @@ fn test_possession_cooldown_prevents_immediate_change() {
     game.state.player_states = vec![player1_state, player2_state];
     game.state.ball_state.possessed_by = None;
 
-    let mut system = BallPossessionSystem::with_rng(|| 0.5);
+    let mut system = BallPossessionSystem::new();
 
     // First update at t=0.0 - should assign possession
     system.update(&mut game, 0.0);
@@ -396,22 +370,9 @@ fn test_possession_cooldown_allows_change_after_timeout() {
     game.state.player_states = vec![player1_state, player2_state];
     game.state.ball_state.possessed_by = None;
 
-    // Use RNG that will cause different winners at different times
-    use std::cell::Cell;
-    let call_count = Cell::new(0);
-    let mut system = BallPossessionSystem::with_rng(move || {
-        let count = call_count.get();
-        call_count.set(count + 1);
-        // First determination: player 0 wins (both get 0.5)
-        // Second determination: player 1 wins (0 gets 0.0, 1 gets 1.0)
-        if count < 2 {
-            0.5
-        } else if count == 2 {
-            0.0
-        } else {
-            1.0
-        }
-    });
+    // First determination: player 0 wins (higher tackle rate, temperature 0)
+    // Second determination: only the opponent is a candidate, so player 1 wins
+    let mut system = BallPossessionSystem::new();
 
     // First update at t=0.0 - assign to player 0
     system.update(&mut game, 0.0);
@@ -510,7 +471,7 @@ fn test_possession_change_triggers_all_players_decision() {
     game.state.player_states = vec![player1_state, player2_state, player3_state];
     game.state.ball_state.possessed_by = None;
 
-    let mut system = BallPossessionSystem::with_rng(|| 0.5);
+    let mut system = BallPossessionSystem::new();
 
     // First update - possession changes from None to Some
     system.update(&mut game, 0.0);
@@ -561,7 +522,7 @@ fn test_no_possession_change_no_decision_trigger() {
     game.state.player_states = vec![player1_state, player2_state];
     game.state.ball_state.possessed_by = None;
 
-    let mut system = BallPossessionSystem::with_rng(|| 0.5);
+    let mut system = BallPossessionSystem::new();
 
     // First update - player 0 gets possession
     system.update(&mut game, 0.0);
@@ -617,21 +578,9 @@ fn test_possession_transfer_triggers_decision() {
     game.state.player_states = vec![player1_state, player2_state];
     game.state.ball_state.possessed_by = None;
 
-    // Use RNG that changes results over time
-    use std::cell::Cell;
-    let call_count = Cell::new(0);
-    let mut system = BallPossessionSystem::with_rng(move || {
-        let count = call_count.get();
-        call_count.set(count + 1);
-        // First: player 0 wins, Second: player 1 wins
-        if count < 2 {
-            0.5
-        } else if count == 2 {
-            0.0
-        } else {
-            1.0
-        }
-    });
+    // First: player 0 wins (higher tackle rate, temperature 0), then only the
+    // opponent remains a candidate, so player 1 wins
+    let mut system = BallPossessionSystem::new();
 
     // First update - player 0 gets possession
     system.update(&mut game, 0.0);
@@ -697,7 +646,7 @@ fn test_teammates_dont_steal_from_each_other() {
     game.state.ball_state.possessed_by = Some(0);
     game.state.ball_state.last_possession_change_time = 0.0;
 
-    let mut system = BallPossessionSystem::with_rng(|| 0.5);
+    let mut system = BallPossessionSystem::new();
 
     // Update after cooldown - should NOT change (all teammates)
     system.update(&mut game, 2.0);
@@ -740,8 +689,7 @@ fn test_opponents_can_steal_from_owner() {
     game.state.ball_state.possessed_by = Some(0);
     game.state.ball_state.last_possession_change_time = 0.0;
 
-    // Use RNG that favors player 1
-    let mut system = BallPossessionSystem::with_rng(|| 1.0);
+    let mut system = BallPossessionSystem::new();
 
     // Update after cooldown - opponent can steal
     system.update(&mut game, 2.0);
@@ -788,7 +736,7 @@ fn test_teammates_nearby_opponent_far_keeps_possession() {
     game.state.ball_state.possessed_by = Some(0);
     game.state.ball_state.last_possession_change_time = 0.0;
 
-    let mut system = BallPossessionSystem::with_rng(|| 0.5);
+    let mut system = BallPossessionSystem::new();
 
     // Update after cooldown
     system.update(&mut game, 2.0);
@@ -819,15 +767,25 @@ fn test_skipped_during_setup_stage() {
         scripting: crate::game::ScriptingConfig::empty(),
     };
 
-    let mut game = Game::with_stage(config, GameStage::Setup("start".to_string()));
+    let mut game = Game::with_stage(
+        config,
+        GameStage::Setup("start".to_string()),
+        deterministic_rng(),
+    );
     game.state.ball_state.position = ball_pos;
     game.state.player_states = vec![player_state];
 
     let mut system = BallPossessionSystem::new();
     system.update(&mut game, 0.0);
 
-    assert_eq!(game.state.ball_state.possessed_by, None, "possession must not be assigned in Setup");
-    assert!(!game.state.player_states[0].needs_decision, "needs_decision must not be set in Setup");
+    assert_eq!(
+        game.state.ball_state.possessed_by, None,
+        "possession must not be assigned in Setup"
+    );
+    assert!(
+        !game.state.player_states[0].needs_decision,
+        "needs_decision must not be set in Setup"
+    );
 }
 
 #[test]
@@ -907,7 +865,7 @@ fn test_last_possessing_team_changes_on_interception() {
     game.state.ball_state.last_possession_change_time = 0.0;
     game.state.ball_state.last_possessing_team = Some(Team::A);
 
-    let mut system = BallPossessionSystem::with_rng(|| 1.0);
+    let mut system = BallPossessionSystem::new();
 
     // Update after cooldown - Team B can intercept
     system.update(&mut game, 2.0);

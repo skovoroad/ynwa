@@ -1,5 +1,6 @@
 use super::*;
 use crate::region::GridCell;
+use crate::test_utils::deterministic_rng;
 
 fn make_regions(start: Region, attack: Region, defence: Region) -> HashMap<String, Region> {
     HashMap::from([
@@ -13,7 +14,7 @@ fn make_regions(start: Region, attack: Region, defence: Region) -> HashMap<Strin
 fn test_game_initializes_player_stats_parallel_to_players() {
     let config = create_test_config();
     let player_count = config.players.len();
-    let game = Game::new(config);
+    let game = Game::new(config, deterministic_rng());
     assert_eq!(game.state.player_stats.len(), player_count);
 }
 
@@ -21,27 +22,69 @@ fn create_test_config() -> GameConfig {
     let field = Field::from_meters(100.0, 60.0, 26, 44);
     let grid_dims = field.grid_dimensions();
 
-    let start_region_a1 = grid_dims.create_region(GridCell::new(1, 1).unwrap(), GridCell::new(2, 2).unwrap()).unwrap();
-    let start_region_a2 = grid_dims.create_region(GridCell::new(3, 3).unwrap(), GridCell::new(4, 4).unwrap()).unwrap();
-    let start_region_b  = grid_dims.create_region(GridCell::new(20, 20).unwrap(), GridCell::new(21, 21).unwrap()).unwrap();
+    let start_region_a1 = grid_dims
+        .create_region(GridCell::new(1, 1).unwrap(), GridCell::new(2, 2).unwrap())
+        .unwrap();
+    let start_region_a2 = grid_dims
+        .create_region(GridCell::new(3, 3).unwrap(), GridCell::new(4, 4).unwrap())
+        .unwrap();
+    let start_region_b = grid_dims
+        .create_region(
+            GridCell::new(20, 20).unwrap(),
+            GridCell::new(21, 21).unwrap(),
+        )
+        .unwrap();
 
-    let attack_region_a1 = grid_dims.create_region(GridCell::new(1, 1).unwrap(), GridCell::new(2, 2).unwrap()).unwrap();
-    let attack_region_a2 = grid_dims.create_region(GridCell::new(3, 3).unwrap(), GridCell::new(4, 4).unwrap()).unwrap();
-    let attack_region_b  = grid_dims.create_region(GridCell::new(20, 20).unwrap(), GridCell::new(21, 21).unwrap()).unwrap();
+    let attack_region_a1 = grid_dims
+        .create_region(GridCell::new(1, 1).unwrap(), GridCell::new(2, 2).unwrap())
+        .unwrap();
+    let attack_region_a2 = grid_dims
+        .create_region(GridCell::new(3, 3).unwrap(), GridCell::new(4, 4).unwrap())
+        .unwrap();
+    let attack_region_b = grid_dims
+        .create_region(
+            GridCell::new(20, 20).unwrap(),
+            GridCell::new(21, 21).unwrap(),
+        )
+        .unwrap();
 
-    let defence_region_a1 = grid_dims.create_region(GridCell::new(1, 3).unwrap(), GridCell::new(2, 4).unwrap()).unwrap();
-    let defence_region_a2 = grid_dims.create_region(GridCell::new(3, 5).unwrap(), GridCell::new(4, 6).unwrap()).unwrap();
-    let defence_region_b  = grid_dims.create_region(GridCell::new(20, 22).unwrap(), GridCell::new(21, 23).unwrap()).unwrap();
+    let defence_region_a1 = grid_dims
+        .create_region(GridCell::new(1, 3).unwrap(), GridCell::new(2, 4).unwrap())
+        .unwrap();
+    let defence_region_a2 = grid_dims
+        .create_region(GridCell::new(3, 5).unwrap(), GridCell::new(4, 6).unwrap())
+        .unwrap();
+    let defence_region_b = grid_dims
+        .create_region(
+            GridCell::new(20, 22).unwrap(),
+            GridCell::new(21, 23).unwrap(),
+        )
+        .unwrap();
 
     GameConfig {
         field,
         players: vec![
-            PlayerDef::new(Team::A, 1, "Player A1".to_string(), "function make_decision() return {} end".to_string(),
-                make_regions(start_region_a1, attack_region_a1, defence_region_a1)),
-            PlayerDef::new(Team::A, 2, "Player A2".to_string(), "function make_decision() return {} end".to_string(),
-                make_regions(start_region_a2, attack_region_a2, defence_region_a2)),
-            PlayerDef::new(Team::B, 1, "Player B1".to_string(), "function make_decision() return {} end".to_string(),
-                make_regions(start_region_b, attack_region_b, defence_region_b)),
+            PlayerDef::new(
+                Team::A,
+                1,
+                "Player A1".to_string(),
+                "function make_decision() return {} end".to_string(),
+                make_regions(start_region_a1, attack_region_a1, defence_region_a1),
+            ),
+            PlayerDef::new(
+                Team::A,
+                2,
+                "Player A2".to_string(),
+                "function make_decision() return {} end".to_string(),
+                make_regions(start_region_a2, attack_region_a2, defence_region_a2),
+            ),
+            PlayerDef::new(
+                Team::B,
+                1,
+                "Player B1".to_string(),
+                "function make_decision() return {} end".to_string(),
+                make_regions(start_region_b, attack_region_b, defence_region_b),
+            ),
         ],
         ball: BallDef::default(),
         referees: vec![RefereeDef::default()],
@@ -54,7 +97,7 @@ fn test_state_indices_match_config() {
     let config = create_test_config();
     let player_count = config.players.len();
 
-    let game = Game::new(config);
+    let game = Game::new(config, deterministic_rng());
 
     assert_eq!(game.state().player_states.len(), player_count);
 }
@@ -62,7 +105,7 @@ fn test_state_indices_match_config() {
 #[test]
 fn test_step_updates_time() {
     let config = create_test_config();
-    let mut game = Game::new(config);
+    let mut game = Game::new(config, deterministic_rng());
 
     game.step(0.016);
     assert!((game.state().elapsed_time - 0.016).abs() < 0.001);
@@ -71,7 +114,7 @@ fn test_step_updates_time() {
 #[test]
 fn test_player_initial_position_from_start_region() {
     let config = create_test_config();
-    let game = Game::with_stage(config, GameStage::Play);
+    let game = Game::with_stage(config, GameStage::Play, deterministic_rng());
 
     let cell_width =
         game.config().field.width().get::<meter>() / game.config().field.grid_columns() as f32;
@@ -115,7 +158,11 @@ fn test_player_initial_position_from_start_region() {
 fn test_player_initial_position_in_setup_stage() {
     let config = create_test_config();
     let field_length = config.field.length().get::<meter>();
-    let game = Game::with_stage(config, GameStage::Setup("start".to_string()));
+    let game = Game::with_stage(
+        config,
+        GameStage::Setup("start".to_string()),
+        deterministic_rng(),
+    );
 
     let expected_x = -5.0;
     let expected_z = field_length / 2.0;

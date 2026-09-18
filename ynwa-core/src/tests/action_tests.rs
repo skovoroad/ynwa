@@ -1,25 +1,28 @@
-use std::collections::HashMap;
 use super::*;
 use crate::field::Field;
 use crate::game::{BallDef, GameConfig, PlayerDef, RefereeDef, REGION_START_POSITION};
 use crate::region::GridCell;
 use crate::team::Team;
+use crate::test_utils::{deterministic_rng, SequenceRngManager};
+use std::collections::HashMap;
 
 fn create_test_game() -> Game {
     create_test_game_with_player_stats(100, 50, 50, 50, 50)
 }
 
-fn create_test_game_with_player_stats(
+fn create_test_game_config(
     reaction_rate: u32,
     speed_rate: u32,
     tackle_rate: u32,
     shot_power: u32,
     shot_accuracy: u32,
-) -> Game {
+) -> GameConfig {
     let field = Field::from_meters(100.0, 60.0, 26, 11);
     let grid_dims = field.grid_dimensions();
 
-    let start_region = grid_dims.create_region(GridCell::new(1, 1).unwrap(), GridCell::new(1, 1).unwrap()).unwrap();
+    let start_region = grid_dims
+        .create_region(GridCell::new(1, 1).unwrap(), GridCell::new(1, 1).unwrap())
+        .unwrap();
 
     let players = vec![PlayerDef::new(
         Team::A,
@@ -34,22 +37,45 @@ fn create_test_game_with_player_stats(
     .with_shot_power(shot_power)
     .with_shot_accuracy(shot_accuracy)];
 
-    let config = GameConfig {
+    GameConfig {
         field,
         players,
         ball: BallDef::default(),
         referees: vec![RefereeDef::default()],
         scripting: crate::game::ScriptingConfig::empty(),
-    };
+    }
+}
 
-    Game::new(config)
+fn create_test_game_with_player_stats(
+    reaction_rate: u32,
+    speed_rate: u32,
+    tackle_rate: u32,
+    shot_power: u32,
+    shot_accuracy: u32,
+) -> Game {
+    let config = create_test_game_config(
+        reaction_rate,
+        speed_rate,
+        tackle_rate,
+        shot_power,
+        shot_accuracy,
+    );
+    Game::new(config, deterministic_rng())
+}
+
+/// Star-player game whose RNG draws raw values from `sequence` (repeated cyclically).
+fn create_test_game_with_rng(shot_power: u32, shot_accuracy: u32, sequence: Vec<f32>) -> Game {
+    let config = create_test_game_config(100, 50, 50, shot_power, shot_accuracy);
+    Game::new(config, Box::new(SequenceRngManager::new(sequence)))
 }
 
 fn create_test_game_with_two_players() -> Game {
     let field = Field::from_meters(100.0, 60.0, 26, 11);
     let grid_dims = field.grid_dimensions();
 
-    let start_region = grid_dims.create_region(GridCell::new(1, 1).unwrap(), GridCell::new(1, 1).unwrap()).unwrap();
+    let start_region = grid_dims
+        .create_region(GridCell::new(1, 1).unwrap(), GridCell::new(1, 1).unwrap())
+        .unwrap();
 
     let players = vec![
         PlayerDef::new(
@@ -76,7 +102,7 @@ fn create_test_game_with_two_players() -> Game {
         scripting: crate::game::ScriptingConfig::empty(),
     };
 
-    Game::new(config)
+    Game::new(config, deterministic_rng())
 }
 
 #[test]
@@ -252,8 +278,7 @@ fn test_kick_with_perfect_accuracy_no_variation() {
     game.state.player_states[0].current_decision = Some(Decision::Kick(target));
     game.state.player_states[0].decision_processed = false;
 
-    // Use RNG with no variation (0.5)
-    let mut system = ActionSystem::with_rng(|| 0.5);
+    let mut system = ActionSystem::new();
     system.update(&mut game, 0.0);
 
     // Check ball velocity
@@ -263,7 +288,7 @@ fn test_kick_with_perfect_accuracy_no_variation() {
 
     // shot_power=100, rng=0.5 → base velocity (no variation)
     // shot_accuracy=100, rng=0.5 → no deviation, straight along X
-    let expected_velocity = 100.0 / KICK_POWER_DIVISOR;
+    let expected_velocity = kick_speed(100);
     assert!((vx - expected_velocity).abs() < 0.01);
     assert!(vz.abs() < 0.01);
 
@@ -276,7 +301,8 @@ fn test_kick_with_perfect_accuracy_no_variation() {
 
 #[test]
 fn test_kick_with_min_power_variation() {
-    let mut game = create_test_game_with_player_stats(100, 50, 50, 100, 100);
+    // Raw RNG values: first call for power (0.0 = min), second for accuracy (0.5 = no deviation)
+    let mut game = create_test_game_with_rng(100, 100, vec![0.0, 0.5]);
 
     game.state.ball_state.possessed_by = Some(0);
     game.state.ball_state.position = Point3D::from_meters(50.0, 30.0, 0.0);
@@ -285,32 +311,22 @@ fn test_kick_with_min_power_variation() {
     game.state.player_states[0].current_decision = Some(Decision::Kick(target));
     game.state.player_states[0].decision_processed = false;
 
-    // First call for power (0.0 = min), second for accuracy (0.5 = no deviation)
-    use std::cell::Cell;
-    let call_count = Cell::new(0);
-    let mut system = ActionSystem::with_rng(move || {
-        let count = call_count.get();
-        call_count.set(count + 1);
-        if count == 0 {
-            0.0
-        } else {
-            0.5
-        }
-    });
+    let mut system = ActionSystem::new();
     system.update(&mut game, 0.0);
 
     let ball_vel = &game.state.ball_state.velocity;
     let vx = ball_vel.x.get::<meter_per_second>();
 
-    // shot_power=100, rng=0.0 → min variation
-    let expected_velocity = (100.0 / KICK_POWER_DIVISOR) * KICK_POWER_VARIATION_MIN;
+    // shot_power=100, variation_pct=0.25, rand=0.0 → -25%
+    let expected_velocity = kick_speed(100) * 0.75;
     assert!((vx - expected_velocity).abs() < 0.01);
     assert_eq!(game.state.ball_state.possessed_by, None);
 }
 
 #[test]
 fn test_kick_with_max_power_variation() {
-    let mut game = create_test_game_with_player_stats(100, 50, 50, 100, 100);
+    // Raw RNG values: first call for power (1.0 = max), second for accuracy (0.5 = no deviation)
+    let mut game = create_test_game_with_rng(100, 100, vec![1.0, 0.5]);
 
     game.state.ball_state.possessed_by = Some(0);
     game.state.ball_state.position = Point3D::from_meters(50.0, 30.0, 0.0);
@@ -319,32 +335,23 @@ fn test_kick_with_max_power_variation() {
     game.state.player_states[0].current_decision = Some(Decision::Kick(target));
     game.state.player_states[0].decision_processed = false;
 
-    // First call for power (1.0 = max), second for accuracy (0.5 = no deviation)
-    use std::cell::Cell;
-    let call_count = Cell::new(0);
-    let mut system = ActionSystem::with_rng(move || {
-        let count = call_count.get();
-        call_count.set(count + 1);
-        if count == 0 {
-            1.0
-        } else {
-            0.5
-        }
-    });
+    let mut system = ActionSystem::new();
     system.update(&mut game, 0.0);
 
     let ball_vel = &game.state.ball_state.velocity;
     let vx = ball_vel.x.get::<meter_per_second>();
 
-    // shot_power=100, rng=1.0 → max variation
-    let expected_velocity = (100.0 / KICK_POWER_DIVISOR) * KICK_POWER_VARIATION_MAX;
+    // shot_power=100, variation_pct=0.25, rand=1.0 → +25%
+    let expected_velocity = kick_speed(100) * 1.25;
     assert!((vx - expected_velocity).abs() < 0.01);
     assert_eq!(game.state.ball_state.possessed_by, None);
 }
 
 #[test]
 fn test_kick_with_poor_accuracy_max_deviation() {
-    let mut game = create_test_game_with_player_stats(100, 50, 50, 100, 10);
+    // Raw RNG values: first call for power (0.5 = no variation),
+    // second for accuracy (1.0 = max positive deviation)
+    let mut game = create_test_game_with_rng(100, 10, vec![0.5, 1.0]);
 
     game.state.ball_state.possessed_by = Some(0);
     game.state.ball_state.position = Point3D::from_meters(50.0, 30.0, 0.0);
@@ -353,18 +360,7 @@ fn test_kick_with_poor_accuracy_max_deviation() {
     game.state.player_states[0].current_decision = Some(Decision::Kick(target));
     game.state.player_states[0].decision_processed = false;
 
-    // First call for power (0.5), second for accuracy (1.0 = max positive deviation)
-    use std::cell::Cell;
-    let call_count = Cell::new(0);
-    let mut system = ActionSystem::with_rng(move || {
-        let count = call_count.get();
-        call_count.set(count + 1);
-        if count == 0 {
-            0.5
-        } else {
-            1.0
-        }
-    });
+    let mut system = ActionSystem::new();
     system.update(&mut game, 0.0);
 
     let ball_vel = &game.state.ball_state.velocity;
@@ -373,7 +369,7 @@ fn test_kick_with_poor_accuracy_max_deviation() {
 
     // shot_accuracy=10, rng=1.0 → +45 degrees deviation
     // 45° rotation: cos(45°)≈0.707, sin(45°)≈0.707
-    let base_velocity = 100.0 / KICK_POWER_DIVISOR;
+    let base_velocity = kick_speed(100);
     let expected_vx = base_velocity * 0.707;
     let expected_vz = base_velocity * 0.707;
     assert!((vx - expected_vx).abs() < 0.1);
@@ -394,7 +390,7 @@ fn test_kick_without_possession_ignored() {
     game.state.player_states[0].current_decision = Some(Decision::Kick(target));
     game.state.player_states[0].decision_processed = false;
 
-    let mut system = ActionSystem::with_rng(|| 0.5);
+    let mut system = ActionSystem::new();
     system.update(&mut game, 0.0);
 
     // Ball velocity should not change (kick ignored)
@@ -420,7 +416,7 @@ fn test_kick_by_different_player_ignored() {
     game.state.player_states[1].current_decision = Some(Decision::Kick(target));
     game.state.player_states[1].decision_processed = false;
 
-    let mut system = ActionSystem::with_rng(|| 0.5);
+    let mut system = ActionSystem::new();
     system.update(&mut game, 0.0);
 
     // Ball velocity should not change (player 1 doesn't own ball)
@@ -452,7 +448,7 @@ fn test_kick_preserves_player_velocity() {
     game.state.player_states[0].current_decision = Some(Decision::Kick(target));
     game.state.player_states[0].decision_processed = false;
 
-    let mut system = ActionSystem::with_rng(|| 0.5);
+    let mut system = ActionSystem::new();
     system.update(&mut game, 0.0);
 
     // Ball should move
@@ -505,7 +501,7 @@ fn test_kick_resets_possession_cooldown_timer() {
     game.state.player_states[0].decision_processed = false;
 
     let kick_timestamp = 5.0_f32;
-    let mut system = ActionSystem::with_rng(|| 0.5);
+    let mut system = ActionSystem::new();
     system.update(&mut game, kick_timestamp);
 
     // Possession released
@@ -514,8 +510,7 @@ fn test_kick_resets_possession_cooldown_timer() {
     // Cooldown timer must equal the kick timestamp so BallPossessionSystem
     // won't re-assign the ball until at least POSSESSION_COOLDOWN seconds later.
     assert_eq!(
-        game.state.ball_state.last_possession_change_time,
-        kick_timestamp,
+        game.state.ball_state.last_possession_change_time, kick_timestamp,
         "last_possession_change_time must be updated on kick to prevent immediate re-possession"
     );
 }

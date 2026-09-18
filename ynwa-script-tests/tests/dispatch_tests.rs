@@ -11,7 +11,7 @@ use ynwa_script_tests::{
 /// Run the spy script under given ball state configuration and return (decision, reason).
 fn run_spy(
     stage: GameStage,
-    possessed_by: Option<usize>,       // global player index owning the ball
+    possessed_by: Option<usize>, // global player index owning the ball
     last_possessing_team: Option<Team>, // team last owning the ball
 ) -> (Option<Decision>, Option<String>) {
     let script = load_test_script("dispatch_spy.lua");
@@ -30,7 +30,10 @@ fn run_spy(
         "dispatch error: {:?}",
         state.last_error
     );
-    (state.current_decision.clone(), state.decision_reason.clone())
+    (
+        state.current_decision.clone(),
+        state.decision_reason.clone(),
+    )
 }
 
 // --- Play stage: possession state routing ---

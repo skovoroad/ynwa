@@ -42,10 +42,12 @@ pub fn draw_control_panel(
 
 fn draw_score(x: f32, y: f32, game_state: &GameState) {
     use ynwa_core::team::Team;
-    let score_a = game_state.team_stats
+    let score_a = game_state
+        .team_stats
         .get(&Team::A)
         .map_or(0.0, |s| s.get("score")) as u32;
-    let score_b = game_state.team_stats
+    let score_b = game_state
+        .team_stats
         .get(&Team::B)
         .map_or(0.0, |s| s.get("score")) as u32;
     draw_text(
@@ -57,9 +59,7 @@ fn draw_score(x: f32, y: f32, game_state: &GameState) {
     );
 }
 
-fn player_decision_text(
-    player_state: &ynwa_core::game::PlayerState,
-) -> String {
+fn player_decision_text(player_state: &ynwa_core::game::PlayerState) -> String {
     match &player_state.current_decision {
         Some(Decision::Run(target)) => match target {
             DecisionTarget::Region(region) => {
@@ -109,7 +109,13 @@ fn draw_player_column(
         let player_state = &game_state.player_states[*i];
 
         draw_text(&player_def.number.to_string(), x, y, 20.0, text_color);
-        draw_text(&player_decision_text(player_state), x + 36.0, y, 20.0, text_color);
+        draw_text(
+            &player_decision_text(player_state),
+            x + 36.0,
+            y,
+            20.0,
+            text_color,
+        );
         y += line_height;
 
         let time_str = if player_state.current_decision.is_some() {

@@ -28,11 +28,8 @@ impl System for PlayerReactionSystem {
                 // In Setup: request a decision only when the player has none yet.
                 // Suppresses needs_decision for players already moving or arrived
                 // (DecisionSystem is the final guard for the arrived-Stop case).
-                if game.state.player_states[i].current_decision.is_none() {
-                    game.state.player_states[i].needs_decision = true;
-                } else {
-                    game.state.player_states[i].needs_decision = false;
-                }
+                game.state.player_states[i].needs_decision =
+                    game.state.player_states[i].current_decision.is_none();
             } else {
                 let reaction_rate = game.config().players[i].reaction_rate;
                 let interval = Self::reaction_interval(reaction_rate);

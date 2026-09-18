@@ -1,7 +1,7 @@
+use uom::si::length::meter;
 use ynwa_core::field::zones::Point3D;
 use ynwa_core::game::Game;
 use ynwa_core::team::Team;
-use uom::si::length::meter;
 
 /// Football game events
 #[derive(Debug, Clone, PartialEq)]
@@ -47,7 +47,11 @@ pub fn check_touchline(game: &Game) -> Option<FootballEvent> {
     if ball_pos.x.get::<meter>() + BALL_RADIUS < 0.0
         || ball_pos.x.get::<meter>() - BALL_RADIUS > field_width
     {
-        let last_team = game.state.ball_state.last_possessing_team.unwrap_or(Team::A);
+        let last_team = game
+            .state
+            .ball_state
+            .last_possessing_team
+            .unwrap_or(Team::A);
         return Some(FootballEvent::Touchline(*ball_pos, last_team));
     }
 
@@ -75,7 +79,11 @@ pub fn check_goal_line(game: &Game) -> Option<FootballEvent> {
         return None;
     }
 
-    let last_team = game.state.ball_state.last_possessing_team.unwrap_or(Team::A);
+    let last_team = game
+        .state
+        .ball_state
+        .last_possessing_team
+        .unwrap_or(Team::A);
     Some(FootballEvent::GoalLine(*ball_pos, last_team))
 }
 
@@ -132,11 +140,7 @@ pub fn check_events(game: &Game) -> Option<FootballEvent> {
     None
 }
 
-fn is_ball_in_goal(
-    ball_pos: &Point3D,
-    zone: &ynwa_core::field::Zone,
-    ball_radius: f32,
-) -> bool {
+fn is_ball_in_goal(ball_pos: &Point3D, zone: &ynwa_core::field::Zone, ball_radius: f32) -> bool {
     use ynwa_core::field::zones::ZoneGeometry;
 
     match &zone.geometry {

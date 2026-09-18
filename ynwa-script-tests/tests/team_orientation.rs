@@ -1,12 +1,15 @@
 /// Integration tests for team orientation coordinate conversion.
 /// Tests that Team B decisions are correctly converted from Team B's perspective
 /// (right-to-left) to display orientation (Team A's left-to-right perspective).
-use ynwa_core::game::{BallDef, Decision, DecisionTarget, Game, GameConfig, PlayerDef, RefereeDef, REGION_START_POSITION};
+use ynwa_core::game::{
+    BallDef, Decision, DecisionTarget, Game, GameConfig, PlayerDef, RefereeDef,
+    REGION_START_POSITION,
+};
 use ynwa_core::region::GridCell;
 use ynwa_core::system::System;
 use ynwa_core::systems::decision::{DecisionSystem, ScriptedDecisionMaker};
 use ynwa_core::team::Team;
-use ynwa_script_tests::request_decisions_for_all;
+use ynwa_script_tests::{deterministic_rng, request_decisions_for_all};
 
 /// Helper function to create a test game with a specific script for a team.
 /// Uses a standard football field (68×104.6m, 26×40 grid) without zones — zones are not needed here.
@@ -17,17 +20,24 @@ fn create_game_with_team_script(team: Team, script: String) -> Game {
     // For Team A, start near their goal (left side)
     // For Team B, start near their goal (right side, but in Team B coordinates = left in their view)
     let start_region = if team == Team::A {
-        grid_dims.create_region(GridCell::new(1, 20).unwrap(), GridCell::new(1, 20).unwrap())
-        .unwrap()
+        grid_dims
+            .create_region(GridCell::new(1, 20).unwrap(), GridCell::new(1, 20).unwrap())
+            .unwrap()
     } else {
         // Team B starts at A20 in Team B coordinates (which is their left side)
-        grid_dims.create_region(GridCell::new(1, 20).unwrap(), GridCell::new(1, 20).unwrap())
-        .unwrap()
+        grid_dims
+            .create_region(GridCell::new(1, 20).unwrap(), GridCell::new(1, 20).unwrap())
+            .unwrap()
     };
 
-    let player = PlayerDef::new(team, 1, format!("Player {:?}1", team), script,
-        std::collections::HashMap::from([(REGION_START_POSITION.to_string(), start_region)]))
-        .with_reaction_rate(100); // Fast reaction rate
+    let player = PlayerDef::new(
+        team,
+        1,
+        format!("Player {:?}1", team),
+        script,
+        std::collections::HashMap::from([(REGION_START_POSITION.to_string(), start_region)]),
+    )
+    .with_reaction_rate(100); // Fast reaction rate
 
     let config = GameConfig {
         field,
@@ -37,7 +47,11 @@ fn create_game_with_team_script(team: Team, script: String) -> Game {
         scripting: ynwa_core::game::ScriptingConfig::empty(),
     };
 
-    Game::with_stage(config, ynwa_core::game::GameStage::Play)
+    Game::with_stage(
+        config,
+        ynwa_core::game::GameStage::Play,
+        deterministic_rng(),
+    )
 }
 
 #[test]

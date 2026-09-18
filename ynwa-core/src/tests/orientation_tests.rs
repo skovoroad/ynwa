@@ -33,7 +33,9 @@ fn test_flip_grid_cell_double_flip() {
 #[test]
 fn test_flip_region_orientation() {
     let grid_dims = GridDimensions::new(26, 44);
-    let region = grid_dims.create_region(GridCell::new(1, 1).unwrap(), GridCell::new(2, 2).unwrap()).unwrap();
+    let region = grid_dims
+        .create_region(GridCell::new(1, 1).unwrap(), GridCell::new(2, 2).unwrap())
+        .unwrap();
 
     let flipped = flip_region_orientation(&region, grid_dims).unwrap();
 
@@ -50,7 +52,9 @@ fn test_flip_region_orientation() {
 #[test]
 fn test_flip_region_double_flip() {
     let grid_dims = GridDimensions::new(26, 44);
-    let region = grid_dims.create_region(GridCell::new(5, 10).unwrap(), GridCell::new(8, 15).unwrap()).unwrap();
+    let region = grid_dims
+        .create_region(GridCell::new(5, 10).unwrap(), GridCell::new(8, 15).unwrap())
+        .unwrap();
 
     let flipped_once = flip_region_orientation(&region, grid_dims).unwrap();
     let flipped_twice = flip_region_orientation(&flipped_once, grid_dims).unwrap();

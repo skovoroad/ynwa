@@ -1,14 +1,23 @@
 // Test helpers for script testing
 // This module is used by integration tests
 
+use std::collections::HashMap;
 use ynwa_core::field::Field;
-use ynwa_core::game::{BallDef, Game, GameConfig, GameStage, PlayerDef, RefereeDef, REGION_START_POSITION};
+use ynwa_core::game::{
+    BallDef, Game, GameConfig, GameStage, PlayerDef, RefereeDef, REGION_START_POSITION,
+};
 use ynwa_core::region::{GridCell, Region};
 use ynwa_core::team::Team;
-use std::collections::HashMap;
 
 pub fn start_regions(r: Region) -> HashMap<String, Region> {
     HashMap::from([(REGION_START_POSITION.to_string(), r)])
+}
+
+/// Deterministic RNG for tests: temperature 0 (no variation), fixed seed.
+pub fn deterministic_rng() -> Box<dyn ynwa_core::rng::RngManager> {
+    Box::new(ynwa_core::rng::DefaultRngManager::new(
+        ynwa_core::rng::RngConfig::new(0.0, Some(42)),
+    ))
 }
 
 /// Create a simple test game with one player using the given script
@@ -21,8 +30,12 @@ pub fn create_test_game_with_script_and_stage(script: &str, stage: GameStage) ->
     let field = Field::from_meters(100.0, 60.0, 26, 44);
     let grid_dims = field.grid_dimensions();
 
-    let start_region = grid_dims.create_region(GridCell::new(10, 10).unwrap(), GridCell::new(11, 11).unwrap())
-    .unwrap();
+    let start_region = grid_dims
+        .create_region(
+            GridCell::new(10, 10).unwrap(),
+            GridCell::new(11, 11).unwrap(),
+        )
+        .unwrap();
 
     let config = GameConfig {
         field,
@@ -38,7 +51,7 @@ pub fn create_test_game_with_script_and_stage(script: &str, stage: GameStage) ->
         scripting: ynwa_core::game::ScriptingConfig::empty(),
     };
 
-    Game::with_stage(config, stage)
+    Game::with_stage(config, stage, deterministic_rng())
 }
 
 /// Sets `needs_decision = true` for all players, bypassing PlayerReactionSystem timing logic.
@@ -66,8 +79,12 @@ pub fn create_test_game_with_preambles_and_stage(script: &str, stage: GameStage)
     let field = Field::from_meters(100.0, 60.0, 26, 44);
     let grid_dims = field.grid_dimensions();
 
-    let start_region = grid_dims.create_region(GridCell::new(10, 10).unwrap(), GridCell::new(11, 11).unwrap())
-    .unwrap();
+    let start_region = grid_dims
+        .create_region(
+            GridCell::new(10, 10).unwrap(),
+            GridCell::new(11, 11).unwrap(),
+        )
+        .unwrap();
 
     // Load preambles from files (CARGO_MANIFEST_DIR points to ynwa-script-tests)
     let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set");
@@ -105,7 +122,7 @@ pub fn create_test_game_with_preambles_and_stage(script: &str, stage: GameStage)
         },
     };
 
-    Game::with_stage(config, stage)
+    Game::with_stage(config, stage, deterministic_rng())
 }
 
 /// Create a test game with core, stdlib, and team A preambles loaded, at a specific stage
@@ -154,7 +171,7 @@ pub fn create_test_game_with_full_preambles_and_stage(script: &str, stage: GameS
         },
     };
 
-    Game::with_stage(config, stage)
+    Game::with_stage(config, stage, deterministic_rng())
 }
 
 /// Create a test game using a full football field (with all zones including goals)
@@ -201,7 +218,7 @@ pub fn create_test_game_football_field_with_preambles(script: &str) -> Game {
         },
     };
 
-    Game::with_stage(config, GameStage::Play)
+    Game::with_stage(config, GameStage::Play, deterministic_rng())
 }
 
 /// Create a test game with core, stdlib, and both team preambles loaded,
@@ -225,12 +242,12 @@ pub fn create_test_game_with_all_preambles(players: Vec<PlayerDef>) -> Game {
         ball: BallDef::default(),
         referees: vec![RefereeDef::default()],
         scripting: ynwa_core::game::ScriptingConfig {
-            core_preamble:   load("ynwa-scripts/preambles/core.lua"),
+            core_preamble: load("ynwa-scripts/preambles/core.lua"),
             stdlib_preamble: load("ynwa-scripts/preambles/stdlib.lua"),
             team_a_preamble: load("ynwa-script-tests/fixtures/team_a.lua"),
             team_b_preamble: load("ynwa-script-tests/fixtures/team_b.lua"),
         },
     };
 
-    Game::with_stage(config, GameStage::Play)
+    Game::with_stage(config, GameStage::Play, deterministic_rng())
 }

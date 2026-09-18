@@ -1,7 +1,9 @@
 use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
-use ynwa_core::repository::{PlayerRecord, PlayerStatic, PlayerTactical, TeamRecord, TeamRepository};
+use ynwa_core::repository::{
+    PlayerRecord, PlayerStatic, PlayerTactical, TeamRecord, TeamRepository,
+};
 
 #[derive(Debug, Deserialize)]
 struct StaticToml {
@@ -25,8 +27,7 @@ struct TacticalToml {
 fn read_toml<T: for<'de> Deserialize<'de>>(path: &Path) -> Result<T, String> {
     let content = std::fs::read_to_string(path)
         .map_err(|e| format!("Cannot read '{}': {}", path.display(), e))?;
-    toml::from_str(&content)
-        .map_err(|e| format!("Cannot parse '{}': {}", path.display(), e))
+    toml::from_str(&content).map_err(|e| format!("Cannot parse '{}': {}", path.display(), e))
 }
 
 fn load_player(dir: &Path) -> Result<PlayerRecord, String> {

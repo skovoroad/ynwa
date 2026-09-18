@@ -30,12 +30,13 @@ async fn main() {
     let args: Vec<String> = env::args().collect();
     let teams_path = PathBuf::from(args.get(1).map(String::as_str).unwrap_or("teams"));
     let preambles_path = PathBuf::from(
-        args.get(2).map(String::as_str).unwrap_or("ynwa-scripts/preambles"),
+        args.get(2)
+            .map(String::as_str)
+            .unwrap_or("ynwa-scripts/preambles"),
     );
 
     let repo = FsTeamRepository::new(&teams_path);
-    let mut world = create_football_world(&repo, &preambles_path)
-        .expect("Failed to load game");
+    let mut world = create_football_world(&repo, &preambles_path).expect("Failed to load game");
 
     println!(
         "Loaded game with {} players",

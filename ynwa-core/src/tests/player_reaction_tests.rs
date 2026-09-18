@@ -1,15 +1,21 @@
-use std::collections::HashMap;
 use super::*;
 use crate::field::Field;
-use crate::game::{BallDef, GameConfig, GameStage, PlayerDef, RefereeDef, Decision, DecisionTarget, REGION_START_POSITION};
+use crate::game::{
+    BallDef, Decision, DecisionTarget, GameConfig, GameStage, PlayerDef, RefereeDef,
+    REGION_START_POSITION,
+};
 use crate::region::GridCell;
 use crate::team::Team;
+use crate::test_utils::deterministic_rng;
+use std::collections::HashMap;
 
 fn create_test_game() -> Game {
     let field = Field::from_meters(100.0, 60.0, 26, 11);
     let grid_dims = field.grid_dimensions();
 
-    let start_region = grid_dims.create_region(GridCell::new(1, 1).unwrap(), GridCell::new(1, 1).unwrap()).unwrap();
+    let start_region = grid_dims
+        .create_region(GridCell::new(1, 1).unwrap(), GridCell::new(1, 1).unwrap())
+        .unwrap();
 
     let players = vec![
         PlayerDef::new(
@@ -46,7 +52,7 @@ fn create_test_game() -> Game {
         scripting: crate::game::ScriptingConfig::empty(),
     };
 
-    Game::with_stage(config, crate::game::GameStage::Play)
+    Game::with_stage(config, crate::game::GameStage::Play, deterministic_rng())
 }
 
 #[test]
@@ -148,7 +154,11 @@ fn make_setup_game() -> Game {
         scripting: crate::game::ScriptingConfig::empty(),
     };
 
-    Game::with_stage(config, GameStage::Setup("start".to_string()))
+    Game::with_stage(
+        config,
+        GameStage::Setup("start".to_string()),
+        deterministic_rng(),
+    )
 }
 
 #[test]
@@ -239,7 +249,11 @@ fn test_setup_ignores_reaction_rate_interval() {
         referees: vec![RefereeDef::default()],
         scripting: crate::game::ScriptingConfig::empty(),
     };
-    let mut game = Game::with_stage(config, GameStage::Setup("start".to_string()));
+    let mut game = Game::with_stage(
+        config,
+        GameStage::Setup("start".to_string()),
+        deterministic_rng(),
+    );
     let mut system = PlayerReactionSystem::new();
 
     game.state.player_states[0].current_decision = None;

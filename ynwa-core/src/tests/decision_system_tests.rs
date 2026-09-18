@@ -1,17 +1,20 @@
-use std::collections::HashMap;
 use super::*;
 use crate::field::Field;
 use crate::game::{BallDef, GameConfig, GameStage, PlayerDef, RefereeDef, REGION_START_POSITION};
 use crate::region::GridCell;
 use crate::team::Team;
+use crate::test_utils::{deterministic_rng, SequenceRngManager};
+use std::collections::HashMap;
 
-fn create_test_game() -> Game {
+fn create_test_config() -> GameConfig {
     let field = Field::from_meters(100.0, 60.0, 26, 44);
     let grid_dims = field.grid_dimensions();
 
-    let start_region = grid_dims.create_region(GridCell::new(1, 1).unwrap(), GridCell::new(2, 2).unwrap()).unwrap();
+    let start_region = grid_dims
+        .create_region(GridCell::new(1, 1).unwrap(), GridCell::new(2, 2).unwrap())
+        .unwrap();
 
-    let config = GameConfig {
+    GameConfig {
         field,
         players: vec![PlayerDef::new(
             Team::A,
@@ -23,9 +26,20 @@ fn create_test_game() -> Game {
         ball: BallDef::default(),
         referees: vec![RefereeDef::default()],
         scripting: crate::game::ScriptingConfig::empty(),
-    };
+    }
+}
 
-    Game::with_stage(config, GameStage::Play)
+fn create_test_game() -> Game {
+    Game::with_stage(create_test_config(), GameStage::Play, deterministic_rng())
+}
+
+/// Game whose RNG draws raw values from `sequence` (repeated cyclically).
+fn create_test_game_with_rng(sequence: Vec<f32>) -> Game {
+    Game::with_stage(
+        create_test_config(),
+        GameStage::Play,
+        Box::new(SequenceRngManager::new(sequence)),
+    )
 }
 
 #[test]
@@ -91,10 +105,7 @@ fn test_decision_system_preserves_previous_decision() {
 
     system.update(&mut game, 2.0);
 
-    assert!(matches!(
-        game.state.player_states[0].current_decision,
-        Some(_)
-    ));
+    assert!(game.state.player_states[0].current_decision.is_some());
     assert!(game.state.player_states[0].decision_processed);
 }
 
@@ -114,6 +125,36 @@ fn test_placeholder_decision_maker() {
         _ => panic!("Expected Run decision with GridCell target"),
     }
     assert_eq!(reason, None); // Placeholder doesn't provide reasons
+}
+
+#[test]
+fn test_placeholder_decision_maker_maps_raw_value_to_cell() {
+    // Grid is 26 columns × 44 rows; raw values map uniformly onto 1..=26 and 1..=44.
+    let cases = [
+        (vec![0.0_f32, 0.0_f32], (1, 1)),
+        (vec![0.5, 0.5], (14, 23)),
+        (vec![0.999, 0.999], (26, 44)),
+    ];
+
+    for (sequence, (expected_col, expected_row)) in cases {
+        let game = create_test_game_with_rng(sequence.clone());
+        let mut maker = PlaceholderDecisionMaker::new();
+
+        let (decision, _) = maker.make_decision(&game, 0).expect("Should not error");
+
+        match decision {
+            Decision::Run(DecisionTarget::GridCell(cell)) => assert_eq!(
+                (cell.col, cell.row),
+                (expected_col, expected_row),
+                "wrong cell for raw values {:?}",
+                sequence
+            ),
+            other => panic!(
+                "Expected Run decision with GridCell target, got {:?}",
+                other
+            ),
+        }
+    }
 }
 
 // Test error handling
@@ -379,7 +420,6 @@ fn test_error_cleared_on_successful_decision() {
 
     assert!(game.state.player_states[0].last_error.is_some());
 
-
     // Now: switch to working decision maker
     let mut system = DecisionSystem::new();
     game.state.player_states[0].needs_decision = true;
@@ -414,7 +454,11 @@ fn make_setup_game_with_player_at(x: f32, z: f32) -> Game {
         scripting: crate::game::ScriptingConfig::empty(),
     };
 
-    let mut game = Game::with_stage(config, GameStage::Setup("start".to_string()));
+    let mut game = Game::with_stage(
+        config,
+        GameStage::Setup("start".to_string()),
+        deterministic_rng(),
+    );
     game.state.player_states[0].position = crate::field::zones::Point3D::from_meters(x, 0.0, z);
     game
 }
@@ -436,7 +480,10 @@ fn test_setup_arrival_check_stops_player_when_close_to_target() {
     system.update(&mut game, 1.0);
 
     assert!(
-        matches!(game.state.player_states[0].current_decision, Some(Decision::Stop)),
+        matches!(
+            game.state.player_states[0].current_decision,
+            Some(Decision::Stop)
+        ),
         "Expected Stop when player is within arrival threshold"
     );
 }
@@ -493,9 +540,10 @@ fn test_setup_arrival_check_skipped_when_decision_is_stop() {
 
     system.update(&mut game, 1.0);
 
-    assert!(
-        matches!(game.state.player_states[0].current_decision, Some(Decision::Stop))
-    );
+    assert!(matches!(
+        game.state.player_states[0].current_decision,
+        Some(Decision::Stop)
+    ));
 }
 
 #[test]
@@ -522,7 +570,7 @@ fn test_play_stage_arrival_check_fires_and_stops_player() {
         scripting: crate::game::ScriptingConfig::empty(),
     };
 
-    let mut game = Game::with_stage(config, GameStage::Play);
+    let mut game = Game::with_stage(config, GameStage::Play, deterministic_rng());
     let target = crate::field::zones::Point3D::from_meters(30.0, 0.0, 20.0);
     // Put player right on top of the target
     game.state.player_states[0].position =
@@ -566,14 +614,16 @@ fn test_setup_arrival_check_does_not_call_script() {
         Some(Decision::Run(DecisionTarget::Point(target)));
     game.state.player_states[0].needs_decision = false;
 
-    let mut system =
-        DecisionSystem::new().with_decision_maker(Box::new(ErrorDecisionMaker));
+    let mut system = DecisionSystem::new().with_decision_maker(Box::new(ErrorDecisionMaker));
 
     system.update(&mut game, 1.0);
 
     // Arrival check fired → Stop; ErrorDecisionMaker was NOT called
     assert!(
-        matches!(game.state.player_states[0].current_decision, Some(Decision::Stop)),
+        matches!(
+            game.state.player_states[0].current_decision,
+            Some(Decision::Stop)
+        ),
         "Arrival check must override to Stop without calling the script"
     );
     // No error must have been recorded
@@ -594,9 +644,18 @@ fn test_setup_stop_blocks_script_even_when_needs_decision_true() {
 
     // Script must not have been called — decision stays Stop, no error recorded
     assert!(
-        matches!(game.state.player_states[0].current_decision, Some(Decision::Stop)),
+        matches!(
+            game.state.player_states[0].current_decision,
+            Some(Decision::Stop)
+        ),
         "Stop must be preserved"
     );
-    assert!(game.state.player_states[0].last_error.is_none(), "script must not have been called");
-    assert!(!game.state.player_states[0].needs_decision, "needs_decision must be cleared");
+    assert!(
+        game.state.player_states[0].last_error.is_none(),
+        "script must not have been called"
+    );
+    assert!(
+        !game.state.player_states[0].needs_decision,
+        "needs_decision must be cleared"
+    );
 }

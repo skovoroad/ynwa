@@ -18,7 +18,12 @@ fn test_resolve_target_point_from_point() {
     let target = crate::field::zones::Point3D::from_meters(30.0, 0.0, 20.0);
     let decision = Decision::Run(DecisionTarget::Point(target));
 
-    let result = resolve_target_point(&decision, field.width().get::<meter>(), field.grid_dimensions(), &make_ball_state());
+    let result = resolve_target_point(
+        &decision,
+        field.width().get::<meter>(),
+        field.grid_dimensions(),
+        &make_ball_state(),
+    );
 
     assert!(result.is_some());
     let p = result.unwrap();
@@ -32,7 +37,12 @@ fn test_resolve_target_point_from_grid_cell() {
     let cell = GridCell::new(1, 1).unwrap();
     let decision = Decision::Run(DecisionTarget::GridCell(cell));
 
-    let result = resolve_target_point(&decision, field.width().get::<meter>(), field.grid_dimensions(), &make_ball_state());
+    let result = resolve_target_point(
+        &decision,
+        field.width().get::<meter>(),
+        field.grid_dimensions(),
+        &make_ball_state(),
+    );
 
     // Cell (1,1) center must be inside the field
     assert!(result.is_some());
@@ -50,7 +60,12 @@ fn test_resolve_target_point_from_region() {
     let region = grid_dims.create_region(cell_a, cell_b).unwrap();
     let decision = Decision::Run(DecisionTarget::Region(region));
 
-    let result = resolve_target_point(&decision, field.width().get::<meter>(), grid_dims, &make_ball_state());
+    let result = resolve_target_point(
+        &decision,
+        field.width().get::<meter>(),
+        grid_dims,
+        &make_ball_state(),
+    );
 
     assert!(result.is_some());
 }
@@ -60,7 +75,12 @@ fn test_resolve_target_point_stop_returns_none() {
     let field = make_field();
     let decision = Decision::Stop;
 
-    let result = resolve_target_point(&decision, field.width().get::<meter>(), field.grid_dimensions(), &make_ball_state());
+    let result = resolve_target_point(
+        &decision,
+        field.width().get::<meter>(),
+        field.grid_dimensions(),
+        &make_ball_state(),
+    );
 
     assert!(result.is_none());
 }
@@ -71,7 +91,12 @@ fn test_resolve_target_point_kick_returns_none() {
     let target = crate::field::zones::Point3D::from_meters(50.0, 0.0, 30.0);
     let decision = Decision::Kick(target);
 
-    let result = resolve_target_point(&decision, field.width().get::<meter>(), field.grid_dimensions(), &make_ball_state());
+    let result = resolve_target_point(
+        &decision,
+        field.width().get::<meter>(),
+        field.grid_dimensions(),
+        &make_ball_state(),
+    );
 
     assert!(result.is_none());
 }
@@ -88,8 +113,20 @@ fn test_resolve_target_point_grid_cell_center_consistent_with_region() {
     let region = grid_dims.create_region(cell, cell).unwrap();
     let decision_region = Decision::Run(DecisionTarget::Region(region));
 
-    let point_from_cell = resolve_target_point(&decision_cell, field.width().get::<meter>(), grid_dims, &make_ball_state()).unwrap();
-    let point_from_region = resolve_target_point(&decision_region, field.width().get::<meter>(), grid_dims, &make_ball_state()).unwrap();
+    let point_from_cell = resolve_target_point(
+        &decision_cell,
+        field.width().get::<meter>(),
+        grid_dims,
+        &make_ball_state(),
+    )
+    .unwrap();
+    let point_from_region = resolve_target_point(
+        &decision_region,
+        field.width().get::<meter>(),
+        grid_dims,
+        &make_ball_state(),
+    )
+    .unwrap();
 
     assert!((point_from_cell.x.get::<meter>() - point_from_region.x.get::<meter>()).abs() < 0.001);
     assert!((point_from_cell.z.get::<meter>() - point_from_region.z.get::<meter>()).abs() < 0.001);
@@ -102,7 +139,12 @@ fn test_resolve_target_point_ball_returns_ball_position() {
     ball_state.position = crate::field::zones::Point3D::from_meters(42.0, 0.0, 37.5);
 
     let decision = Decision::Run(DecisionTarget::Ball);
-    let result = resolve_target_point(&decision, field.width().get::<meter>(), field.grid_dimensions(), &ball_state);
+    let result = resolve_target_point(
+        &decision,
+        field.width().get::<meter>(),
+        field.grid_dimensions(),
+        &ball_state,
+    );
 
     assert!(result.is_some());
     let p = result.unwrap();

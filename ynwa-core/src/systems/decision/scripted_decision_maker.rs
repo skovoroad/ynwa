@@ -406,16 +406,22 @@ impl DecisionMaker for ScriptedDecisionMaker {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashMap;
     use crate::field::Field;
     use crate::game::{BallDef, GameConfig, PlayerDef, RefereeDef, REGION_START_POSITION};
-    use crate::region::{GridCell};
+    use crate::region::GridCell;
+    use crate::test_utils::deterministic_rng;
+    use std::collections::HashMap;
 
     fn create_test_game_with_script(script: &str) -> Game {
         let field = Field::from_meters(100.0, 60.0, 26, 44);
         let grid_dims = field.grid_dimensions();
 
-        let start_region = grid_dims.create_region(GridCell::new(10, 10).unwrap(), GridCell::new(11, 11).unwrap()).unwrap();
+        let start_region = grid_dims
+            .create_region(
+                GridCell::new(10, 10).unwrap(),
+                GridCell::new(11, 11).unwrap(),
+            )
+            .unwrap();
 
         let config = GameConfig {
             field,
@@ -431,7 +437,7 @@ mod tests {
             scripting: crate::game::ScriptingConfig::empty(),
         };
 
-        Game::with_stage(config, crate::game::GameStage::Play)
+        Game::with_stage(config, crate::game::GameStage::Play, deterministic_rng())
     }
 
     #[test]
@@ -515,7 +521,12 @@ mod tests {
         let grid_dims = field.grid_dimensions();
 
         // Region: columns 10-12 → X axis, rows 20-22 → Z axis
-        let start_region = grid_dims.create_region(GridCell::new(10, 20).unwrap(), GridCell::new(12, 22).unwrap()).unwrap();
+        let start_region = grid_dims
+            .create_region(
+                GridCell::new(10, 20).unwrap(),
+                GridCell::new(12, 22).unwrap(),
+            )
+            .unwrap();
 
         let script = r#"
             function make_decision()
@@ -537,7 +548,7 @@ mod tests {
             scripting: crate::game::ScriptingConfig::empty(),
         };
 
-        let game = Game::new(config);
+        let game = Game::new(config, deterministic_rng());
 
         // Build context and check region boundaries
         let context = ScriptedDecisionMaker::build_context(&game, 0).unwrap();
@@ -589,7 +600,12 @@ mod tests {
         let grid_dims = field.grid_dimensions();
 
         // Region: columns 10-12 → X axis, rows 20-22 → Z axis
-        let start_region = grid_dims.create_region(GridCell::new(10, 20).unwrap(), GridCell::new(12, 22).unwrap()).unwrap();
+        let start_region = grid_dims
+            .create_region(
+                GridCell::new(10, 20).unwrap(),
+                GridCell::new(12, 22).unwrap(),
+            )
+            .unwrap();
 
         let script = r#"
             function make_decision()
@@ -611,7 +627,7 @@ mod tests {
             scripting: crate::game::ScriptingConfig::empty(),
         };
 
-        let game = Game::new(config);
+        let game = Game::new(config, deterministic_rng());
 
         // Build context and check region boundaries
         let context = ScriptedDecisionMaker::build_context(&game, 0).unwrap();
@@ -700,13 +716,15 @@ mod tests {
             referees: vec![RefereeDef::default()],
             scripting: crate::game::ScriptingConfig::empty(),
         };
-        let game = Game::new(config);
+        let game = Game::new(config, deterministic_rng());
 
         let ctx = ScriptedDecisionMaker::build_context(&game, 0).unwrap();
         let sp = &ctx["me"]["regions"]["start"];
 
-        let json_cx = ((sp["min_x"].as_f64().unwrap() + sp["max_x"].as_f64().unwrap()) / 2.0) as f32;
-        let json_cz = ((sp["min_z"].as_f64().unwrap() + sp["max_z"].as_f64().unwrap()) / 2.0) as f32;
+        let json_cx =
+            ((sp["min_x"].as_f64().unwrap() + sp["max_x"].as_f64().unwrap()) / 2.0) as f32;
+        let json_cz =
+            ((sp["min_z"].as_f64().unwrap() + sp["max_z"].as_f64().unwrap()) / 2.0) as f32;
 
         assert!(
             (json_cx - expected_cx).abs() < 0.01,
@@ -758,13 +776,15 @@ mod tests {
             referees: vec![RefereeDef::default()],
             scripting: crate::game::ScriptingConfig::empty(),
         };
-        let game = Game::new(config);
+        let game = Game::new(config, deterministic_rng());
 
         let ctx = ScriptedDecisionMaker::build_context(&game, 0).unwrap();
         let sp = &ctx["me"]["regions"]["start"];
 
-        let json_cx = ((sp["min_x"].as_f64().unwrap() + sp["max_x"].as_f64().unwrap()) / 2.0) as f32;
-        let json_cz = ((sp["min_z"].as_f64().unwrap() + sp["max_z"].as_f64().unwrap()) / 2.0) as f32;
+        let json_cx =
+            ((sp["min_x"].as_f64().unwrap() + sp["max_x"].as_f64().unwrap()) / 2.0) as f32;
+        let json_cz =
+            ((sp["min_z"].as_f64().unwrap() + sp["max_z"].as_f64().unwrap()) / 2.0) as f32;
 
         assert!(
             (json_cx - expected_cx).abs() < 0.01,
@@ -790,7 +810,9 @@ mod tests {
             .build();
 
         let grid_dims = field.grid_dimensions();
-        let start_region = grid_dims.create_region(GridCell::new(1, 1).unwrap(), GridCell::new(2, 2).unwrap()).unwrap();
+        let start_region = grid_dims
+            .create_region(GridCell::new(1, 1).unwrap(), GridCell::new(2, 2).unwrap())
+            .unwrap();
 
         let test_logic = r#"
             local zone = GAME_DATA.zones.test_zone_a
@@ -824,7 +846,7 @@ mod tests {
             scripting: crate::game::ScriptingConfig::empty(),
         };
 
-        let game = Game::with_stage(config, crate::game::GameStage::Play);
+        let game = Game::with_stage(config, crate::game::GameStage::Play, deterministic_rng());
         let mut maker = ScriptedDecisionMaker::new(&game).unwrap();
         let decision = maker.make_decision(&game, 0);
 
@@ -875,7 +897,12 @@ mod tests {
         let field = Field::from_meters(100.0, 60.0, 26, 44);
         let grid_dims = field.grid_dimensions();
 
-        let start_region = grid_dims.create_region(GridCell::new(13, 22).unwrap(), GridCell::new(13, 22).unwrap()).unwrap();
+        let start_region = grid_dims
+            .create_region(
+                GridCell::new(13, 22).unwrap(),
+                GridCell::new(13, 22).unwrap(),
+            )
+            .unwrap();
 
         // Script that returns ball owner_team
         let script = r#"
@@ -902,7 +929,7 @@ mod tests {
             scripting: crate::game::ScriptingConfig::empty(),
         };
 
-        let mut game = Game::with_stage(config, crate::game::GameStage::Play);
+        let mut game = Game::with_stage(config, crate::game::GameStage::Play, deterministic_rng());
 
         // Test 1: Neutral ball (None)
         game.state.ball_state.last_possessing_team = None;
@@ -981,7 +1008,7 @@ mod tests {
             scripting: crate::game::ScriptingConfig::empty(),
         };
 
-        let game = Game::with_stage(config, crate::game::GameStage::Play);
+        let game = Game::with_stage(config, crate::game::GameStage::Play, deterministic_rng());
         let config_json = ScriptedDecisionMaker::build_config(&game);
 
         let field_data = config_json

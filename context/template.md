@@ -3,4 +3,11 @@
 Это текст для копи-паста человеком. ИИ его игнорирует.
 
 Ознакомься с документом context/procedure.md
-Выполни шаг номер 2 для задачи context/task_1_randomizer/task.md
+Выполни шаг номер 4 для задачи context/task_1_randomizer/task.md
+
+
+Ознакомься с документом context/procedure.md
+Начато выполнение шага номер 4 для задачи context/task_1_randomizer/task.md. Код написан, но собираемость проекта не достигнута. Добейся собираемости проекта.
+
+
+Для задачи context/task_1_randomizer/task.md написан код.

@@ -1,17 +1,16 @@
 use crate::field::zones::{Point3D, Velocity3D};
 use crate::game::{Decision, DecisionTarget, Game};
-use crate::physics_util::{calculate_kick_direction_with_accuracy, calculate_kick_velocity};
+use crate::physics_util::{kick_speed, max_kick_deviation, rotate_kick_direction};
 use crate::region::Region;
 use crate::system::System;
+use uom::si::angle::degree;
+use uom::si::f32::Angle;
 use uom::si::length::meter;
 
 #[cfg(test)]
 use uom::si::velocity::meter_per_second;
 
-#[cfg(test)]
-use crate::physics_util::{KICK_POWER_DIVISOR, KICK_POWER_VARIATION_MAX, KICK_POWER_VARIATION_MIN};
-
-// Maximum player speed when speed_rate = 100 (roughly 36 km/h, realistic for professional football)
+/// Maximum player speed when speed_rate = 100 (roughly 36 km/h, realistic for professional football)
 const MAX_SPEED_METERS_PER_SECOND: f32 = 10.0;
 
 // Design: ActionSystem translates decisions into physical actions (velocity changes).
@@ -69,34 +68,11 @@ fn calculate_velocity(
     )
 }
 
-pub struct ActionSystem {
-    /// Optional random number generator for testing (0.0 to 1.0)
-    /// If None, uses rand::random()
-    rng: Option<Box<dyn Fn() -> f32 + Send>>,
-}
+pub struct ActionSystem;
 
 impl ActionSystem {
     pub fn new() -> Self {
-        Self { rng: None }
-    }
-
-    /// Create a system with a custom RNG for testing
-    #[cfg(test)]
-    pub fn with_rng<F>(rng: F) -> Self
-    where
-        F: Fn() -> f32 + Send + 'static,
-    {
-        Self {
-            rng: Some(Box::new(rng)),
-        }
-    }
-
-    fn get_random(&self) -> f32 {
-        if let Some(ref rng) = self.rng {
-            rng()
-        } else {
-            rand::random()
-        }
+        Self
     }
 }
 
@@ -133,27 +109,25 @@ impl System for ActionSystem {
                         Decision::Kick(target_point) => {
                             // Only process kick if player owns the ball
                             if game.state.ball_state.possessed_by == Some(player_index) {
-                                let player_def = &game.config().players[player_index];
+                                let shot_power = game.config().players[player_index].shot_power;
+                                let shot_accuracy =
+                                    game.config().players[player_index].shot_accuracy;
                                 let ball_position = game.state.ball_state.position;
 
-                                let rng_power = self.get_random();
-                                let rng_accuracy = self.get_random();
+                                let speed =
+                                    game.rng_manager().randomize(kick_speed(shot_power), 0.25);
 
-                                let kick_speed =
-                                    calculate_kick_velocity(player_def.shot_power, rng_power);
+                                let max_deviation_degrees =
+                                    max_kick_deviation(shot_accuracy).get::<degree>();
+                                let deviation_degrees =
+                                    game.rng_manager().randomize_range(max_deviation_degrees);
+                                let deviation = Angle::new::<degree>(deviation_degrees);
 
-                                let (dx, dz) = calculate_kick_direction_with_accuracy(
-                                    &target_point,
-                                    &ball_position,
-                                    player_def.shot_accuracy,
-                                    rng_accuracy,
-                                );
+                                let (dx, dz) =
+                                    rotate_kick_direction(&target_point, &ball_position, deviation);
 
-                                game.state.ball_state.velocity = Velocity3D::from_meters_per_second(
-                                    dx * kick_speed,
-                                    0.0,
-                                    dz * kick_speed,
-                                );
+                                game.state.ball_state.velocity =
+                                    Velocity3D::from_meters_per_second(dx * speed, 0.0, dz * speed);
 
                                 // Release possession and reset cooldown timer so
                                 // BallPossessionSystem won't immediately re-assign

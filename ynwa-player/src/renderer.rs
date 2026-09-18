@@ -40,7 +40,13 @@ pub fn render_field(
     draw_center_line(&to_screen_x, &to_screen_y, field_width, field_length, white);
     draw_zones(&to_screen_x, &to_screen_y, field, scale, white);
     draw_goal_nets(&to_screen_x, &to_screen_y, field_width, field_length, scale);
-    draw_corner_flags(&to_screen_x, &to_screen_y, field_width, field_length, game_state.elapsed_time);
+    draw_corner_flags(
+        &to_screen_x,
+        &to_screen_y,
+        field_width,
+        field_length,
+        game_state.elapsed_time,
+    );
     draw_players(&to_screen_x, &to_screen_y, game_config, game_state);
     draw_ball(&to_screen_x, &to_screen_y, game_state);
 }
@@ -172,39 +178,45 @@ fn draw_goal_nets(
     let net_color = Color::new(1.0, 1.0, 1.0, 0.30);
 
     // Number of net cells: ~0.5m spacing
-    let cols = 14;  // vertical lines inside goal width  (7.32 / 0.5 ≈ 14)
-    let rows = 5;   // horizontal lines across goal depth (2.5  / 0.5 =  5)
+    let cols = 14; // vertical lines inside goal width  (7.32 / 0.5 ≈ 14)
+    let rows = 5; // horizontal lines across goal depth (2.5  / 0.5 =  5)
 
     // --- Team A goal: z from -goal_depth to 0 (above field on screen) ---
     {
-        let z_near = 0.0_f32;        // goal line (field boundary)
-        let z_far  = -goal_depth;    // back of net
+        let z_near = 0.0_f32; // goal line (field boundary)
+        let z_far = -goal_depth; // back of net
 
         // Background fill: take top/bottom from actual screen coords
-        let sx  = to_screen_x(x_min);
-        let sw  = (x_max - x_min) * scale;
+        let sx = to_screen_x(x_min);
+        let sw = (x_max - x_min) * scale;
         let sy1 = to_screen_y(z_near);
         let sy2 = to_screen_y(z_far);
         let top = sy1.min(sy2);
-        let sh  = (sy1 - sy2).abs();
+        let sh = (sy1 - sy2).abs();
         draw_rectangle(sx, top, sw, sh, Color::new(0.0, 0.0, 0.0, 0.25));
 
         // Vertical lines (parallel to goal depth, spaced along width)
         for i in 0..=cols {
             let x = x_min + (goal_width / cols as f32) * i as f32;
             draw_line(
-                to_screen_x(x), to_screen_y(z_near),
-                to_screen_x(x), to_screen_y(z_far),
-                1.0, net_color,
+                to_screen_x(x),
+                to_screen_y(z_near),
+                to_screen_x(x),
+                to_screen_y(z_far),
+                1.0,
+                net_color,
             );
         }
         // Horizontal lines (parallel to goal line, spaced along depth)
         for j in 0..=rows {
             let z = z_near + (z_far - z_near) / rows as f32 * j as f32;
             draw_line(
-                to_screen_x(x_min), to_screen_y(z),
-                to_screen_x(x_max), to_screen_y(z),
-                1.0, net_color,
+                to_screen_x(x_min),
+                to_screen_y(z),
+                to_screen_x(x_max),
+                to_screen_y(z),
+                1.0,
+                net_color,
             );
         }
     }
@@ -212,30 +224,36 @@ fn draw_goal_nets(
     // --- Team B goal: z from field_length to field_length + goal_depth (below field on screen) ---
     {
         let z_near = field_length;
-        let z_far  = field_length + goal_depth;
+        let z_far = field_length + goal_depth;
 
-        let sx  = to_screen_x(x_min);
-        let sw  = (x_max - x_min) * scale;
+        let sx = to_screen_x(x_min);
+        let sw = (x_max - x_min) * scale;
         let sy1 = to_screen_y(z_near);
         let sy2 = to_screen_y(z_far);
         let top = sy1.min(sy2);
-        let sh  = (sy1 - sy2).abs();
+        let sh = (sy1 - sy2).abs();
         draw_rectangle(sx, top, sw, sh, Color::new(0.0, 0.0, 0.0, 0.25));
 
         for i in 0..=cols {
             let x = x_min + (goal_width / cols as f32) * i as f32;
             draw_line(
-                to_screen_x(x), to_screen_y(z_near),
-                to_screen_x(x), to_screen_y(z_far),
-                1.0, net_color,
+                to_screen_x(x),
+                to_screen_y(z_near),
+                to_screen_x(x),
+                to_screen_y(z_far),
+                1.0,
+                net_color,
             );
         }
         for j in 0..=rows {
             let z = z_near + (z_far - z_near) / rows as f32 * j as f32;
             draw_line(
-                to_screen_x(x_min), to_screen_y(z),
-                to_screen_x(x_max), to_screen_y(z),
-                1.0, net_color,
+                to_screen_x(x_min),
+                to_screen_y(z),
+                to_screen_x(x_max),
+                to_screen_y(z),
+                1.0,
+                net_color,
             );
         }
     }
@@ -412,11 +430,11 @@ fn draw_player_sprite(
     has_ball: bool,
     number: u32,
 ) {
-    let skin_color  = Color::new(0.95, 0.78, 0.62, 1.0);
+    let skin_color = Color::new(0.95, 0.78, 0.62, 1.0);
     let shorts_color = Color::new(0.15, 0.15, 0.15, 1.0);
-    let sock_color  = Color::new(0.9, 0.9, 0.9, 1.0);
-    let shoe_color  = Color::new(0.1, 0.1, 0.1, 1.0);
-    let hair_color  = Color::new(0.2, 0.12, 0.05, 1.0);
+    let sock_color = Color::new(0.9, 0.9, 0.9, 1.0);
+    let shoe_color = Color::new(0.1, 0.1, 0.1, 1.0);
+    let hair_color = Color::new(0.2, 0.12, 0.05, 1.0);
 
     // Pixel size — all coordinates are multiples of P for chunky look
     let p = 2.0_f32;
@@ -444,19 +462,19 @@ fn draw_player_sprite(
     // anim_frame 2: right leg raised (1p up), left leg normal
     let leg_w = p * 2.0;
     let leg_h = p * 3.0;
-    let left_leg_x  = cx - p * 2.5;
+    let left_leg_x = cx - p * 2.5;
     let right_leg_x = cx + p * 0.5;
-    let base_leg_y  = shorts_y + shorts_h;
+    let base_leg_y = shorts_y + shorts_h;
 
     let (left_leg_y, right_leg_y) = match anim_frame {
-        1 => (base_leg_y - p, base_leg_y),      // left raised
-        2 => (base_leg_y, base_leg_y - p),       // right raised
-        _ => (base_leg_y, base_leg_y),           // standing
+        1 => (base_leg_y - p, base_leg_y), // left raised
+        2 => (base_leg_y, base_leg_y - p), // right raised
+        _ => (base_leg_y, base_leg_y),     // standing
     };
 
     // Shoes: 2x1 under each leg
     let shoe_h = p;
-    let left_shoe_y  = left_leg_y  + leg_h;
+    let left_shoe_y = left_leg_y + leg_h;
     let right_shoe_y = right_leg_y + leg_h;
 
     // --- Draw ---
@@ -466,8 +484,8 @@ fn draw_player_sprite(
     let arm_h = p * 2.0;
     let arm_y = torso_y + p * 0.5;
     let (left_arm_offset, right_arm_offset) = match anim_frame {
-        1 => (p * 0.5, -p * 0.5),   // left arm back, right arm forward
-        2 => (-p * 0.5, p * 0.5),   // right arm back, left arm forward
+        1 => (p * 0.5, -p * 0.5), // left arm back, right arm forward
+        2 => (-p * 0.5, p * 0.5), // right arm back, left arm forward
         _ => (0.0, 0.0),
     };
 
@@ -494,16 +512,28 @@ fn draw_player_sprite(
     }
 
     // Left arm
-    draw_rectangle(torso_x - arm_w, arm_y + left_arm_offset, arm_w, arm_h, skin_color);
+    draw_rectangle(
+        torso_x - arm_w,
+        arm_y + left_arm_offset,
+        arm_w,
+        arm_h,
+        skin_color,
+    );
     // Right arm
-    draw_rectangle(torso_x + torso_w, arm_y + right_arm_offset, arm_w, arm_h, skin_color);
+    draw_rectangle(
+        torso_x + torso_w,
+        arm_y + right_arm_offset,
+        arm_w,
+        arm_h,
+        skin_color,
+    );
 
     // Left leg
-    draw_rectangle(left_leg_x,  left_leg_y,  leg_w, leg_h, sock_color);
+    draw_rectangle(left_leg_x, left_leg_y, leg_w, leg_h, sock_color);
     // Right leg
     draw_rectangle(right_leg_x, right_leg_y, leg_w, leg_h, sock_color);
     // Left shoe
-    draw_rectangle(left_leg_x,  left_shoe_y,  leg_w, shoe_h, shoe_color);
+    draw_rectangle(left_leg_x, left_shoe_y, leg_w, shoe_h, shoe_color);
     // Right shoe
     draw_rectangle(right_leg_x, right_shoe_y, leg_w, shoe_h, shoe_color);
 
@@ -522,8 +552,20 @@ fn draw_player_sprite(
     // Eyes (front only)
     if !facing_back {
         let eye_y = head_y + p;
-        draw_rectangle(head_x + p * 0.5, eye_y, p * 0.5, p * 0.5, Color::new(0.1, 0.1, 0.1, 1.0));
-        draw_rectangle(head_x + p * 2.0, eye_y, p * 0.5, p * 0.5, Color::new(0.1, 0.1, 0.1, 1.0));
+        draw_rectangle(
+            head_x + p * 0.5,
+            eye_y,
+            p * 0.5,
+            p * 0.5,
+            Color::new(0.1, 0.1, 0.1, 1.0),
+        );
+        draw_rectangle(
+            head_x + p * 2.0,
+            eye_y,
+            p * 0.5,
+            p * 0.5,
+            Color::new(0.1, 0.1, 0.1, 1.0),
+        );
     }
 
     // Number — readable size, semi-transparent, shown next to the sprite

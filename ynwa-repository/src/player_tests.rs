@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
-    use std::fs;
     use crate::FsTeamRepository;
+    use std::fs;
     use ynwa_core::repository::TeamRepository;
 
     fn repo() -> FsTeamRepository {
@@ -44,17 +44,29 @@ mod tests {
                 assert!(!s.name.is_empty(), "{team_id}: empty name");
                 for (label, val) in [
                     ("reaction_rate", s.reaction_rate),
-                    ("speed_rate",    s.speed_rate),
-                    ("tackle_rate",   s.tackle_rate),
-                    ("shot_power",    s.shot_power),
+                    ("speed_rate", s.speed_rate),
+                    ("tackle_rate", s.tackle_rate),
+                    ("shot_power", s.shot_power),
                     ("shot_accuracy", s.shot_accuracy),
                 ] {
-                    assert!((10..=100).contains(&val), "{team_id} #{}: {label}={val} out of 10-100", t.number);
+                    assert!(
+                        (10..=100).contains(&val),
+                        "{team_id} #{}: {label}={val} out of 10-100",
+                        t.number
+                    );
                 }
-                assert!((1..=99).contains(&t.number), "{team_id}: number {} out of range", t.number);
+                assert!(
+                    (1..=99).contains(&t.number),
+                    "{team_id}: number {} out of range",
+                    t.number
+                );
                 for (label, pos) in t.play_positions.iter().chain(t.set_piece_positions.iter()) {
                     if pos != "on_ball" {
-                        assert!(is_valid_grid_notation(pos), "{team_id} #{}: {label}={pos:?} is not valid grid notation", t.number);
+                        assert!(
+                            is_valid_grid_notation(pos),
+                            "{team_id} #{}: {label}={pos:?} is not valid grid notation",
+                            t.number
+                        );
                     }
                 }
             }
@@ -69,7 +81,10 @@ mod tests {
             let mut numbers: Vec<u32> = team.players.iter().map(|p| p.tactical.number).collect();
             numbers.sort();
             let expected: Vec<u32> = (1..=numbers.len() as u32).collect();
-            assert_eq!(numbers, expected, "{team_id}: numbers must be 1..N with no gaps");
+            assert_eq!(
+                numbers, expected,
+                "{team_id}: numbers must be 1..N with no gaps"
+            );
         }
     }
 
@@ -219,7 +234,7 @@ defence = "A1"
         let spp = &team.players[0].tactical.set_piece_positions;
         assert_eq!(spp.get("goal kick own").map(String::as_str), Some("B2"));
         assert_eq!(spp.get("goal kick opp").map(String::as_str), Some("C3"));
-        assert_eq!(spp.get("corner own left").map(String::as_str),        Some("D4"));
+        assert_eq!(spp.get("corner own left").map(String::as_str), Some("D4"));
         assert!(!spp.contains_key("corner own right"));
     }
 }

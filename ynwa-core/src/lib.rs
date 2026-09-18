@@ -6,10 +6,14 @@ pub mod orientation;
 pub mod physics_util;
 pub mod region;
 pub mod repository;
+pub mod rng;
 pub mod system;
 pub mod systems;
 pub mod team;
 pub mod world;
+
+#[cfg(test)]
+mod test_utils;
 
 pub use field::zones::{Point3D, Velocity3D};
 pub use game::{
@@ -22,12 +26,13 @@ pub use orientation::{
 };
 pub use physics_util::{distance, distance_length};
 pub use region::{GridCell, GridDimensions, Region, RegionError};
+pub use repository::{PlayerRecord, PlayerStatic, PlayerTactical, TeamRecord, TeamRepository};
+pub use rng::{DefaultRngManager, RngConfig, RngManager};
 pub use system::System;
 pub use systems::{
     ActionSystem, DecisionMaker, DecisionSystem, PhysicsSystem, PlaceholderDecisionMaker,
     PlayerReactionSystem,
 };
-pub use repository::{PlayerRecord, PlayerStatic, PlayerTactical, TeamRecord, TeamRepository};
 pub use world::World;
 
 pub fn version() -> &'static str {

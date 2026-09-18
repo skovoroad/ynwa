@@ -29,11 +29,11 @@
 //! - `restart_position` and `restart_team` are set in `handle_event` (before Setup ticks begin)
 //!   so they survive the `last_possessing_team = None` reset that happens each Setup tick
 
+use uom::si::length::meter;
 use ynwa_core::field::zones::{Point3D, Velocity3D};
 use ynwa_core::game::{Decision, DecisionTarget, Game, GameStage};
 use ynwa_core::system::System;
 use ynwa_core::team::Team;
-use uom::si::length::meter;
 
 use crate::events::{check_events, FootballEvent};
 
@@ -83,7 +83,10 @@ impl FootballGameManager {
             if player_state.is_ready {
                 continue;
             }
-            if matches!(player_state.current_decision, Some(ynwa_core::game::Decision::Stop)) {
+            if matches!(
+                player_state.current_decision,
+                Some(ynwa_core::game::Decision::Stop)
+            ) {
                 player_state.is_ready = true;
             }
         }
@@ -153,7 +156,8 @@ impl FootballGameManager {
             }
             FootballEvent::Goal(team) => {
                 // `team` is the owner of the goal that was scored into — the scorer is the opponent
-                game.state.team_stats
+                game.state
+                    .team_stats
                     .entry(team.opposite())
                     .or_default()
                     .increment("score", 1.0);
@@ -187,7 +191,11 @@ impl FootballGameManager {
                 let ball_z = position.z.get::<meter>();
 
                 // Team B attacks toward z=0 (Team A's goal); Team A attacks toward z=field_length.
-                let attacking_team = if ball_z < field_length / 2.0 { Team::B } else { Team::A };
+                let attacking_team = if ball_z < field_length / 2.0 {
+                    Team::B
+                } else {
+                    Team::A
+                };
 
                 if last_team == attacking_team {
                     let goal_kick_z = if ball_z < field_length / 2.0 {
@@ -195,15 +203,13 @@ impl FootballGameManager {
                     } else {
                         field_length - GOAL_KICK_OFFSET
                     };
-                    game.state.restart_position = Some(Point3D::from_meters(
-                        field_width / 2.0,
-                        0.0,
-                        goal_kick_z,
-                    ));
+                    game.state.restart_position =
+                        Some(Point3D::from_meters(field_width / 2.0, 0.0, goal_kick_z));
                     game.state.restart_team = Some(last_team.opposite()); // defending team takes goal kick
                     game.state.stage = GameStage::Setup("goal kick".to_string());
                 } else {
-                    game.state.restart_position = Some(nearest_corner(position, field_width, field_length));
+                    game.state.restart_position =
+                        Some(nearest_corner(position, field_width, field_length));
                     game.state.restart_team = Some(attacking_team); // attacking team takes corner
                     game.state.stage = GameStage::Setup("corner".to_string());
                 }
@@ -235,8 +241,16 @@ pub(crate) fn resolve_set_piece_key(
     let is_own = restart_team.map(|t| t == player_team).unwrap_or(false);
 
     match reason {
-        "kick off" => Some(if is_own { "kick off own" } else { "kick off opp" }),
-        "goal kick" => Some(if is_own { "goal kick own" } else { "goal kick opp" }),
+        "kick off" => Some(if is_own {
+            "kick off own"
+        } else {
+            "kick off opp"
+        }),
+        "goal kick" => Some(if is_own {
+            "goal kick own"
+        } else {
+            "goal kick opp"
+        }),
         "corner" => {
             let pos = restart_position.unwrap_or_default();
             let ball_x = pos.x.get::<meter>();
@@ -246,9 +260,9 @@ pub(crate) fn resolve_set_piece_key(
                 ball_x >= field_width / 2.0
             };
             Some(match (is_own, is_left) {
-                (true,  true)  => "corner own left",
-                (true,  false) => "corner own right",
-                (false, true)  => "corner opp left",
+                (true, true) => "corner own left",
+                (true, false) => "corner own right",
+                (false, true) => "corner opp left",
                 (false, false) => "corner opp right",
             })
         }
@@ -269,13 +283,13 @@ pub(crate) fn resolve_set_piece_key(
                 ball_z >= field_length / 2.0
             };
             Some(match (is_own, is_left, is_own_half) {
-                (true,  true,  true)  => "throw in own left own half",
-                (true,  true,  false) => "throw in own left opp half",
-                (true,  false, true)  => "throw in own right own half",
-                (true,  false, false) => "throw in own right opp half",
-                (false, true,  true)  => "throw in opp left own half",
-                (false, true,  false) => "throw in opp left opp half",
-                (false, false, true)  => "throw in opp right own half",
+                (true, true, true) => "throw in own left own half",
+                (true, true, false) => "throw in own left opp half",
+                (true, false, true) => "throw in own right own half",
+                (true, false, false) => "throw in own right opp half",
+                (false, true, true) => "throw in opp left own half",
+                (false, true, false) => "throw in opp left opp half",
+                (false, false, true) => "throw in opp right own half",
                 (false, false, false) => "throw in opp right opp half",
             })
         }

@@ -2,7 +2,6 @@ use crate::game::{Decision, DecisionTarget, Game, GameStage};
 use crate::physics_util::distance_2d;
 use crate::region::GridCell;
 use crate::system::System;
-use rand::Rng;
 use std::fmt;
 use uom::si::length::meter;
 
@@ -54,6 +53,11 @@ impl PlaceholderDecisionMaker {
     }
 }
 
+/// Maps a raw random value in `[0, 1]` to a uniform 1-based index in `1..=count`.
+fn raw_value_to_index(value: f32, count: u32) -> u32 {
+    ((value * count as f32) as u32 + 1).clamp(1, count)
+}
+
 impl DecisionMaker for PlaceholderDecisionMaker {
     fn make_decision(
         &mut self,
@@ -61,10 +65,9 @@ impl DecisionMaker for PlaceholderDecisionMaker {
         _player_index: usize,
     ) -> Result<(Decision, Option<String>), DecisionError> {
         let grid_dims = game.config().field.grid_dimensions();
-        let mut rng = rand::rng();
-
-        let col = rng.random_range(1..=grid_dims.columns);
-        let row = rng.random_range(1..=grid_dims.rows);
+        let rng = game.rng_manager();
+        let col = raw_value_to_index(rng.next(), grid_dims.columns);
+        let row = raw_value_to_index(rng.next(), grid_dims.rows);
         let cell =
             GridCell::new(col, row).map_err(|e| DecisionError::RuntimeError(e.to_string()))?;
 
@@ -127,14 +130,18 @@ impl System for DecisionSystem {
             let grid_dims = game.config().field.grid_dimensions();
             let player_team = game.config().players[player_index].team;
             let player_pos = game.state.player_states[player_index].position;
-            let current_decision = game.state.player_states[player_index].current_decision.clone();
+            let current_decision = game.state.player_states[player_index]
+                .current_decision
+                .clone();
 
             // Arrival check: runs every tick regardless of stage or reaction timer.
             // When the player reaches the target of their Run decision, immediately
             // override with Stop — without calling the script. This prevents overshooting
             // caused by the gap between reaction-rate ticks (up to 3 s at low reaction_rate).
             if let Some(decision) = &current_decision {
-                if let Some(target) = resolve_target_point(decision, field_width, grid_dims, &game.state.ball_state) {
+                if let Some(target) =
+                    resolve_target_point(decision, field_width, grid_dims, &game.state.ball_state)
+                {
                     if distance_2d(&player_pos, &target) < ARRIVAL_THRESHOLD_METERS {
                         let stop = convert_decision_to_display_orientation(
                             &Decision::Stop,

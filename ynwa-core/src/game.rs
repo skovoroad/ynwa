@@ -254,14 +254,19 @@ pub struct GameState {
 pub struct Game {
     config: GameConfig,
     pub state: GameState,
+    rng_manager: Box<dyn crate::rng::RngManager>,
 }
 
 impl Game {
-    pub fn new(config: GameConfig) -> Self {
-        Self::with_stage(config, GameStage::default())
+    pub fn new(config: GameConfig, rng_manager: Box<dyn crate::rng::RngManager>) -> Self {
+        Self::with_stage(config, GameStage::default(), rng_manager)
     }
 
-    pub fn with_stage(config: GameConfig, stage: GameStage) -> Self {
+    pub fn with_stage(
+        config: GameConfig,
+        stage: GameStage,
+        rng_manager: Box<dyn crate::rng::RngManager>,
+    ) -> Self {
         let player_states = config
             .players
             .iter()
@@ -271,11 +276,7 @@ impl Game {
                     GameStage::Setup(_) => {
                         // Players start off the side of the field (x = -5), centered along field length (Z axis)
                         let field_length = config.field.length().get::<meter>();
-                        Point3D::from_meters(
-                            -5.0,
-                            0.0,
-                            field_length / 2.0,
-                        )
+                        Point3D::from_meters(-5.0, 0.0, field_length / 2.0)
                     }
                     GameStage::Play | GameStage::GameOver => {
                         let start_region = config.players[idx]
@@ -336,7 +337,12 @@ impl Game {
                 restart_team: None,
             },
             config,
+            rng_manager,
         }
+    }
+
+    pub fn rng_manager(&self) -> &dyn crate::rng::RngManager {
+        self.rng_manager.as_ref()
     }
 
     pub fn step(&mut self, delta_time: f32) {

@@ -2,24 +2,28 @@ use crate::events::{
     check_events, check_game_end, check_goal, check_goal_line, check_touchline, FootballEvent,
     BALL_RADIUS, GAME_DURATION,
 };
-use crate::field_builder::{FIELD_WIDTH, GOAL_DEPTH, GOAL_WIDTH};
+use crate::field_builder::{GOAL_DEPTH, GOAL_WIDTH};
+use crate::test_utils::deterministic_rng;
+use std::collections::HashMap;
+use uom::si::f32::Length;
+use uom::si::length::meter;
 use ynwa_core::field::zones::{Point3D, Rectangle, ZoneGeometry};
 use ynwa_core::field::{FieldBuilder, Zone};
 use ynwa_core::game::{BallDef, Game, GameConfig, GameStage, PlayerDef, REGION_START_POSITION};
 use ynwa_core::region::{GridCell, Region};
 use ynwa_core::team::Team;
-use uom::si::f32::Length;
-use uom::si::length::meter;
-use std::collections::HashMap;
 
 fn start_regions(r: Region) -> HashMap<String, Region> {
     HashMap::from([(REGION_START_POSITION.to_string(), r)])
 }
 
-// Derived from production constants: goal centered on the field width
-const GOAL_X_MIN: f32 = (FIELD_WIDTH - GOAL_WIDTH) / 2.0;
+// Matches the production field width (DEFAULT_WIDTH in field_builder)
+const TEST_FIELD_WIDTH: f32 = 68.0;
+
+// Derived from test field dimensions: goal centered on the field width
+const GOAL_X_MIN: f32 = (TEST_FIELD_WIDTH - GOAL_WIDTH) / 2.0;
 const GOAL_X_MAX: f32 = GOAL_X_MIN + GOAL_WIDTH;
-const GOAL_X_CENTER: f32 = FIELD_WIDTH / 2.0;
+const GOAL_X_CENTER: f32 = TEST_FIELD_WIDTH / 2.0;
 const BALL_R: f32 = BALL_RADIUS;
 
 // Test field length — intentionally round number, distinct from DEFAULT_LENGTH (101.538m)
@@ -28,16 +32,26 @@ const TEAM_B_GOAL_Z: f32 = TEST_FIELD_LENGTH; // z where Team B goal line sits
 
 /// Standard football field: goals at z=0 (Team A) and z=TEST_FIELD_LENGTH (Team B), centered on X axis
 fn create_test_game() -> Game {
-    let field = FieldBuilder::from_meters(FIELD_WIDTH, TEST_FIELD_LENGTH, 26, 44)
+    let field = FieldBuilder::from_meters(TEST_FIELD_WIDTH, TEST_FIELD_LENGTH, 26, 44)
         .with_zone(Zone::new(
             "goal",
             Some(Team::A),
-            ZoneGeometry::Rectangle(Rectangle::from_meters(GOAL_X_MIN, -GOAL_DEPTH, GOAL_X_MAX, 0.0)),
+            ZoneGeometry::Rectangle(Rectangle::from_meters(
+                GOAL_X_MIN,
+                -GOAL_DEPTH,
+                GOAL_X_MAX,
+                0.0,
+            )),
         ))
         .with_zone(Zone::new(
             "goal",
             Some(Team::B),
-            ZoneGeometry::Rectangle(Rectangle::from_meters(GOAL_X_MIN, TEAM_B_GOAL_Z, GOAL_X_MAX, TEAM_B_GOAL_Z + GOAL_DEPTH)),
+            ZoneGeometry::Rectangle(Rectangle::from_meters(
+                GOAL_X_MIN,
+                TEAM_B_GOAL_Z,
+                GOAL_X_MAX,
+                TEAM_B_GOAL_Z + GOAL_DEPTH,
+            )),
         ))
         .build();
 
@@ -49,14 +63,18 @@ fn create_test_game() -> Game {
     let config = GameConfig {
         field,
         players: vec![PlayerDef::new(
-            Team::A, 1, "Test".to_string(), String::new(), start_regions(start_region),
+            Team::A,
+            1,
+            "Test".to_string(),
+            String::new(),
+            start_regions(start_region),
         )],
         ball: BallDef::default(),
         referees: vec![],
         scripting: ynwa_core::game::ScriptingConfig::empty(),
     };
 
-    Game::with_stage(config, GameStage::Play)
+    Game::with_stage(config, GameStage::Play, deterministic_rng())
 }
 
 fn set_ball(game: &mut Game, x: f32, z: f32) {
@@ -229,7 +247,10 @@ fn test_goal_line_near_outside_post() {
     // Ball completely past z=0 outside the goalposts — GoalLine
     let mut game = create_test_game();
     set_ball(&mut game, GOAL_X_MIN - 1.0, -(BALL_R + 0.01));
-    assert!(matches!(check_goal_line(&game), Some(FootballEvent::GoalLine(_, _))));
+    assert!(matches!(
+        check_goal_line(&game),
+        Some(FootballEvent::GoalLine(_, _))
+    ));
 }
 
 #[test]
@@ -253,7 +274,10 @@ fn test_goal_line_fired_ball_just_past_boundary() {
     // Ball center at -(BALL_R + 0.001): far edge just past 0.0 — GoalLine
     let mut game = create_test_game();
     set_ball(&mut game, GOAL_X_MIN - 1.0, -(BALL_R + 0.001));
-    assert!(matches!(check_goal_line(&game), Some(FootballEvent::GoalLine(_, _))));
+    assert!(matches!(
+        check_goal_line(&game),
+        Some(FootballEvent::GoalLine(_, _))
+    ));
 }
 
 #[test]
@@ -261,7 +285,10 @@ fn test_goal_line_far_outside_post() {
     // Ball completely past z=TEAM_B_GOAL_Z outside the goalposts — GoalLine
     let mut game = create_test_game();
     set_ball(&mut game, GOAL_X_MAX + 1.0, TEAM_B_GOAL_Z + BALL_R + 0.01);
-    assert!(matches!(check_goal_line(&game), Some(FootballEvent::GoalLine(_, _))));
+    assert!(matches!(
+        check_goal_line(&game),
+        Some(FootballEvent::GoalLine(_, _))
+    ));
 }
 
 #[test]
@@ -285,7 +312,10 @@ fn test_goal_line_team_b_near_outside_post() {
     // Ball completely past z=TEAM_B_GOAL_Z just outside the near post — GoalLine
     let mut game = create_test_game();
     set_ball(&mut game, GOAL_X_MIN - 1.0, TEAM_B_GOAL_Z + BALL_R + 0.01);
-    assert!(matches!(check_goal_line(&game), Some(FootballEvent::GoalLine(_, _))));
+    assert!(matches!(
+        check_goal_line(&game),
+        Some(FootballEvent::GoalLine(_, _))
+    ));
 }
 
 #[test]
@@ -310,7 +340,10 @@ fn test_goal_line_not_fired_ball_touching_line() {
 fn test_touchline_left() {
     let mut game = create_test_game();
     set_ball(&mut game, -(BALL_R + 0.01), 50.0);
-    assert!(matches!(check_touchline(&game), Some(FootballEvent::Touchline(_, _))));
+    assert!(matches!(
+        check_touchline(&game),
+        Some(FootballEvent::Touchline(_, _))
+    ));
 }
 
 #[test]
@@ -334,14 +367,20 @@ fn test_touchline_fired_ball_just_past_boundary() {
     // Ball center at -(BALL_R + 0.001): right edge just past 0.0 — Touchline
     let mut game = create_test_game();
     set_ball(&mut game, -(BALL_R + 0.001), 50.0);
-    assert!(matches!(check_touchline(&game), Some(FootballEvent::Touchline(_, _))));
+    assert!(matches!(
+        check_touchline(&game),
+        Some(FootballEvent::Touchline(_, _))
+    ));
 }
 
 #[test]
 fn test_touchline_right() {
     let mut game = create_test_game();
-    set_ball(&mut game, FIELD_WIDTH + BALL_R + 0.01, 50.0);
-    assert!(matches!(check_touchline(&game), Some(FootballEvent::Touchline(_, _))));
+    set_ball(&mut game, TEST_FIELD_WIDTH + BALL_R + 0.01, 50.0);
+    assert!(matches!(
+        check_touchline(&game),
+        Some(FootballEvent::Touchline(_, _))
+    ));
 }
 
 #[test]
@@ -413,7 +452,13 @@ fn test_touchline_carries_last_team() {
     let mut game = create_test_game();
     set_ball(&mut game, -(BALL_R + 0.01), 50.0);
     set_last_team(&mut game, Some(Team::B));
-    assert_eq!(check_touchline(&game), Some(FootballEvent::Touchline(game.state.ball_state.position, Team::B)));
+    assert_eq!(
+        check_touchline(&game),
+        Some(FootballEvent::Touchline(
+            game.state.ball_state.position,
+            Team::B
+        ))
+    );
 }
 
 #[test]
@@ -421,7 +466,10 @@ fn test_touchline_default_team_when_none() {
     let mut game = create_test_game();
     set_ball(&mut game, -(BALL_R + 0.01), 50.0);
     set_last_team(&mut game, None);
-    assert!(matches!(check_touchline(&game), Some(FootballEvent::Touchline(_, Team::A))));
+    assert!(matches!(
+        check_touchline(&game),
+        Some(FootballEvent::Touchline(_, Team::A))
+    ));
 }
 
 #[test]
@@ -429,7 +477,10 @@ fn test_goal_line_carries_last_team() {
     let mut game = create_test_game();
     set_ball(&mut game, GOAL_X_MIN - 1.0, -(BALL_R + 0.01));
     set_last_team(&mut game, Some(Team::B));
-    assert!(matches!(check_goal_line(&game), Some(FootballEvent::GoalLine(_, Team::B))));
+    assert!(matches!(
+        check_goal_line(&game),
+        Some(FootballEvent::GoalLine(_, Team::B))
+    ));
 }
 
 #[test]
@@ -437,5 +488,8 @@ fn test_goal_line_default_team_when_none() {
     let mut game = create_test_game();
     set_ball(&mut game, GOAL_X_MIN - 1.0, -(BALL_R + 0.01));
     set_last_team(&mut game, None);
-    assert!(matches!(check_goal_line(&game), Some(FootballEvent::GoalLine(_, Team::A))));
+    assert!(matches!(
+        check_goal_line(&game),
+        Some(FootballEvent::GoalLine(_, Team::A))
+    ));
 }

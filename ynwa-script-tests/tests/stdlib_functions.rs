@@ -4,9 +4,9 @@ use ynwa_core::game::{Decision, GameStage, REGION_START_POSITION};
 use ynwa_core::systems::decision::{DecisionSystem, ScriptedDecisionMaker};
 use ynwa_core::System;
 use ynwa_script_tests::{
-    create_test_game_with_all_preambles,
-    create_test_game_football_field_with_preambles, create_test_game_with_full_preambles_and_stage,
-    create_test_game_with_preambles, request_decisions_for_all,
+    create_test_game_football_field_with_preambles, create_test_game_with_all_preambles,
+    create_test_game_with_full_preambles_and_stage, create_test_game_with_preambles,
+    deterministic_rng, request_decisions_for_all,
 };
 
 // Stub make_decision() that does nothing - required by game engine
@@ -172,7 +172,10 @@ fn test_kick_to_opponent_goal() {
 
 // --- Dispatch table tests ---
 
-fn run_dispatch_test(player_script: &str, stage: ynwa_core::game::GameStage) -> ynwa_core::game::PlayerState {
+fn run_dispatch_test(
+    player_script: &str,
+    stage: ynwa_core::game::GameStage,
+) -> ynwa_core::game::PlayerState {
     use ynwa_core::systems::decision::{DecisionSystem, ScriptedDecisionMaker};
     use ynwa_core::System;
     let mut game = create_test_game_with_full_preambles_and_stage(player_script, stage);
@@ -240,13 +243,17 @@ function make_decision()
 end
 "#;
     let mut game = create_test_game_with_preambles(script);
-    game.state.player_states[0].position = ynwa_core::field::zones::Point3D::from_meters(50.0, 0.0, 30.0);
+    game.state.player_states[0].position =
+        ynwa_core::field::zones::Point3D::from_meters(50.0, 0.0, 30.0);
     request_decisions_for_all(&mut game);
     let dm = ScriptedDecisionMaker::new(&game).unwrap();
     let mut ds = DecisionSystem::new().with_decision_maker(Box::new(dm));
     ds.update(&mut game, 1.0);
     assert!(
-        matches!(game.state().player_states[0].current_decision, Some(Decision::Stop)),
+        matches!(
+            game.state().player_states[0].current_decision,
+            Some(Decision::Stop)
+        ),
         "Expected Stop (inside region), got: {:?}",
         game.state().player_states[0].current_decision
     );
@@ -265,13 +272,17 @@ function make_decision()
 end
 "#;
     let mut game = create_test_game_with_preambles(script);
-    game.state.player_states[0].position = ynwa_core::field::zones::Point3D::from_meters(1.0, 0.0, 1.0);
+    game.state.player_states[0].position =
+        ynwa_core::field::zones::Point3D::from_meters(1.0, 0.0, 1.0);
     request_decisions_for_all(&mut game);
     let dm = ScriptedDecisionMaker::new(&game).unwrap();
     let mut ds = DecisionSystem::new().with_decision_maker(Box::new(dm));
     ds.update(&mut game, 1.0);
     assert!(
-        matches!(game.state().player_states[0].current_decision, Some(Decision::Kick(_))),
+        matches!(
+            game.state().player_states[0].current_decision,
+            Some(Decision::Kick(_))
+        ),
         "Expected Kick (outside region), got: {:?}",
         game.state().player_states[0].current_decision
     );
@@ -290,7 +301,10 @@ end
     let mut ds = DecisionSystem::new().with_decision_maker(Box::new(dm));
     ds.update(&mut game, 1.0);
     assert!(
-        matches!(game.state().player_states[0].current_decision, Some(Decision::Run(_))),
+        matches!(
+            game.state().player_states[0].current_decision,
+            Some(Decision::Run(_))
+        ),
         "Expected Run, got: {:?}",
         game.state().player_states[0].current_decision
     );
@@ -347,7 +361,10 @@ fn test_is_in_region_min_boundary_inclusive() {
     let cell_w = 100.0_f32 / 26.0;
     let cell_h = 60.0_f32 / 44.0;
     // Exactly at min_x, min_z — must be inside (inclusive)
-    assert!(matches!(check_m20_n25(12.0 * cell_w, 19.0 * cell_h), Some(Decision::Stop)));
+    assert!(matches!(
+        check_m20_n25(12.0 * cell_w, 19.0 * cell_h),
+        Some(Decision::Stop)
+    ));
 }
 
 #[test]
@@ -355,7 +372,10 @@ fn test_is_in_region_max_boundary_exclusive() {
     let cell_w = 100.0_f32 / 26.0;
     let cell_h = 60.0_f32 / 44.0;
     // One epsilon past max_x and max_z — must be outside regardless of float precision
-    assert!(matches!(check_m20_n25(14.0 * cell_w + 0.001, 25.0 * cell_h + 0.001), Some(Decision::Kick(_))));
+    assert!(matches!(
+        check_m20_n25(14.0 * cell_w + 0.001, 25.0 * cell_h + 0.001),
+        Some(Decision::Kick(_))
+    ));
 }
 
 #[test]
@@ -419,7 +439,8 @@ assert(not ok2, "parse_notation('') must error")
     let mut ds = DecisionSystem::new().with_decision_maker(Box::new(dm));
     ds.update(&mut game, 1.0);
     assert!(game.state().player_states[0].last_error.is_none());
-}#[test]
+}
+#[test]
 fn test_parse_notation() {
     let script = format!(
         r#"
@@ -472,11 +493,15 @@ end
 
 // --- is_in_region_obj ---
 
-fn make_is_in_region_obj_game(player_x: f32, player_z: f32, assert_inside: bool) -> ynwa_core::game::Game {
+fn make_is_in_region_obj_game(
+    player_x: f32,
+    player_z: f32,
+    assert_inside: bool,
+) -> ynwa_core::game::Game {
     use ynwa_core::field::zones::Point3D;
-    use ynwa_core::region::GridCell;
     use ynwa_core::field::Field;
     use ynwa_core::game::{BallDef, GameConfig, GameStage, PlayerDef, RefereeDef};
+    use ynwa_core::region::GridCell;
 
     let field = Field::from_meters(100.0, 60.0, 26, 44);
     let grid_dims = field.grid_dimensions();
@@ -488,9 +513,15 @@ fn make_is_in_region_obj_game(player_x: f32, player_z: f32, assert_inside: bool)
         .unwrap();
 
     let (assert_expr, msg) = if assert_inside {
-        ("assert(is_in_region_obj(pos), \"expected inside attack region\")", "inside")
+        (
+            "assert(is_in_region_obj(pos), \"expected inside attack region\")",
+            "inside",
+        )
     } else {
-        ("assert(not is_in_region_obj(pos), \"expected outside attack region\")", "outside")
+        (
+            "assert(not is_in_region_obj(pos), \"expected outside attack region\")",
+            "outside",
+        )
     };
     let script = format!(
         "function make_decision()\n    local pos = my_regions()[\"attack\"]\n    {}\n    return {{action = \"stop\"}}\nend",
@@ -507,18 +538,22 @@ fn make_is_in_region_obj_game(player_x: f32, player_z: f32, assert_inside: bool)
         r.insert("attack".to_string(), attack_region);
         r
     });
-    let mut game = ynwa_core::game::Game::with_stage(GameConfig {
-        field,
-        players: vec![player],
-        ball: BallDef::default(),
-        referees: vec![RefereeDef::default()],
-        scripting: ynwa_core::game::ScriptingConfig {
-            core_preamble:   load("ynwa-scripts/preambles/core.lua"),
-            stdlib_preamble: load("ynwa-scripts/preambles/stdlib.lua"),
-            team_a_preamble: String::new(),
-            team_b_preamble: String::new(),
+    let mut game = ynwa_core::game::Game::with_stage(
+        GameConfig {
+            field,
+            players: vec![player],
+            ball: BallDef::default(),
+            referees: vec![RefereeDef::default()],
+            scripting: ynwa_core::game::ScriptingConfig {
+                core_preamble: load("ynwa-scripts/preambles/core.lua"),
+                stdlib_preamble: load("ynwa-scripts/preambles/stdlib.lua"),
+                team_a_preamble: String::new(),
+                team_b_preamble: String::new(),
+            },
         },
-    }, GameStage::Play);
+        GameStage::Play,
+        deterministic_rng(),
+    );
     game.state.player_states[0].position = Point3D::from_meters(player_x, 0.0, player_z);
     game
 }
@@ -533,8 +568,11 @@ fn test_is_in_region_obj_inside() {
     let dm = ScriptedDecisionMaker::new(&game).unwrap();
     let mut ds = DecisionSystem::new().with_decision_maker(Box::new(dm));
     ds.update(&mut game, 1.0);
-    assert!(game.state().player_states[0].last_error.is_none(),
-        "{:?}", game.state().player_states[0].last_error);
+    assert!(
+        game.state().player_states[0].last_error.is_none(),
+        "{:?}",
+        game.state().player_states[0].last_error
+    );
 }
 
 #[test]
@@ -544,8 +582,11 @@ fn test_is_in_region_obj_outside() {
     let dm = ScriptedDecisionMaker::new(&game).unwrap();
     let mut ds = DecisionSystem::new().with_decision_maker(Box::new(dm));
     ds.update(&mut game, 1.0);
-    assert!(game.state().player_states[0].last_error.is_none(),
-        "{:?}", game.state().player_states[0].last_error);
+    assert!(
+        game.state().player_states[0].last_error.is_none(),
+        "{:?}",
+        game.state().player_states[0].last_error
+    );
 }
 
 // --- pass_to_players_by_numbers ---
@@ -555,32 +596,54 @@ fn test_pass_to_players_by_numbers_found() {
     // Two players: player 0 (caller) + player 1 (number 10, teammate).
     // pass_to_players_by_numbers({10,11}) should kick to player 1.
     use ynwa_core::field::zones::Point3D;
-    use ynwa_core::game::{BallDef, GameConfig, GameStage, PlayerDef, RefereeDef};
     use ynwa_core::field::Field;
+    use ynwa_core::game::{BallDef, GameConfig, GameStage, PlayerDef, RefereeDef};
     use ynwa_core::region::GridCell;
 
     let field = Field::from_meters(100.0, 60.0, 26, 44);
     let grid_dims = field.grid_dimensions();
-    let region = grid_dims.create_region(GridCell::new(1,1).unwrap(), GridCell::new(2,2).unwrap()).unwrap();
+    let region = grid_dims
+        .create_region(GridCell::new(1, 1).unwrap(), GridCell::new(2, 2).unwrap())
+        .unwrap();
 
     let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set");
     let workspace_root = std::path::Path::new(&manifest_dir).parent().unwrap();
-    let core_preamble = std::fs::read_to_string(workspace_root.join("ynwa-scripts/preambles/core.lua")).unwrap();
-    let stdlib_preamble = std::fs::read_to_string(workspace_root.join("ynwa-scripts/preambles/stdlib.lua")).unwrap();
+    let core_preamble =
+        std::fs::read_to_string(workspace_root.join("ynwa-scripts/preambles/core.lua")).unwrap();
+    let stdlib_preamble =
+        std::fs::read_to_string(workspace_root.join("ynwa-scripts/preambles/stdlib.lua")).unwrap();
 
-    let caller = PlayerDef::new(ynwa_core::team::Team::A, 7, "Caller".to_string(),
+    let caller = PlayerDef::new(
+        ynwa_core::team::Team::A,
+        7,
+        "Caller".to_string(),
         "function make_decision() return pass_to_players_by_numbers({10, 11}) end".to_string(),
-        std::collections::HashMap::from([(REGION_START_POSITION.to_string(), region.clone())]));
-    let target = PlayerDef::new(ynwa_core::team::Team::A, 10, "Target".to_string(), String::new(),
-        std::collections::HashMap::from([(REGION_START_POSITION.to_string(), region.clone())]));
+        std::collections::HashMap::from([(REGION_START_POSITION.to_string(), region.clone())]),
+    );
+    let target = PlayerDef::new(
+        ynwa_core::team::Team::A,
+        10,
+        "Target".to_string(),
+        String::new(),
+        std::collections::HashMap::from([(REGION_START_POSITION.to_string(), region.clone())]),
+    );
 
-    let mut game = ynwa_core::game::Game::with_stage(GameConfig {
-        field,
-        players: vec![caller, target],
-        ball: BallDef::default(),
-        referees: vec![RefereeDef::default()],
-        scripting: ynwa_core::game::ScriptingConfig { core_preamble, stdlib_preamble, team_a_preamble: String::new(), team_b_preamble: String::new() },
-    }, GameStage::Play);
+    let mut game = ynwa_core::game::Game::with_stage(
+        GameConfig {
+            field,
+            players: vec![caller, target],
+            ball: BallDef::default(),
+            referees: vec![RefereeDef::default()],
+            scripting: ynwa_core::game::ScriptingConfig {
+                core_preamble,
+                stdlib_preamble,
+                team_a_preamble: String::new(),
+                team_b_preamble: String::new(),
+            },
+        },
+        GameStage::Play,
+        deterministic_rng(),
+    );
     game.state.player_states[1].position = Point3D::from_meters(30.0, 0.0, 30.0);
     // Only player 0 needs a decision; player 1 has no make_decision defined
     game.state.player_states[0].needs_decision = true;
@@ -589,7 +652,11 @@ fn test_pass_to_players_by_numbers_found() {
     ds.update(&mut game, 1.0);
     let state = &game.state().player_states[0];
     assert!(state.last_error.is_none(), "{:?}", state.last_error);
-    assert!(matches!(state.current_decision, Some(Decision::Kick(_))), "expected kick, got {:?}", state.current_decision);
+    assert!(
+        matches!(state.current_decision, Some(Decision::Kick(_))),
+        "expected kick, got {:?}",
+        state.current_decision
+    );
     assert_eq!(state.decision_reason.as_deref(), Some("pass_to_#10"));
 }
 
@@ -629,8 +696,11 @@ end
     let dm = ScriptedDecisionMaker::new(&game).unwrap();
     let mut ds = DecisionSystem::new().with_decision_maker(Box::new(dm));
     ds.update(&mut game, 1.0);
-    assert!(game.state().player_states[0].last_error.is_none(),
-        "{:?}", game.state().player_states[0].last_error);
+    assert!(
+        game.state().player_states[0].last_error.is_none(),
+        "{:?}",
+        game.state().player_states[0].last_error
+    );
 }
 
 #[test]
@@ -656,9 +726,14 @@ end
 
     let field = ynwa_football::field_builder::create_football_field();
     let grid_dims = field.grid_dimensions();
-    let start_region = grid_dims.create_region(GridCell::new(1,1).unwrap(), GridCell::new(2,2).unwrap()).unwrap();
+    let start_region = grid_dims
+        .create_region(GridCell::new(1, 1).unwrap(), GridCell::new(2, 2).unwrap())
+        .unwrap();
     let player = ynwa_core::game::PlayerDef::new(
-        ynwa_core::team::Team::B, 1, "GK B".to_string(), script.to_string(),
+        ynwa_core::team::Team::B,
+        1,
+        "GK B".to_string(),
+        script.to_string(),
         std::collections::HashMap::from([(REGION_START_POSITION.to_string(), start_region)]),
     );
     let mut game = create_test_game_with_all_preambles(vec![player]);
@@ -666,8 +741,11 @@ end
     let dm = ScriptedDecisionMaker::new(&game).unwrap();
     let mut ds = DecisionSystem::new().with_decision_maker(Box::new(dm));
     ds.update(&mut game, 1.0);
-    assert!(game.state().player_states[0].last_error.is_none(),
-        "{:?}", game.state().player_states[0].last_error);
+    assert!(
+        game.state().player_states[0].last_error.is_none(),
+        "{:?}",
+        game.state().player_states[0].last_error
+    );
 }
 
 #[test]
@@ -710,12 +788,20 @@ end
 
     let field = ynwa_football::field_builder::create_football_field();
     let grid_dims = field.grid_dimensions();
-    let start_region = grid_dims.create_region(GridCell::new(1,1).unwrap(), GridCell::new(2,2).unwrap()).unwrap();
+    let start_region = grid_dims
+        .create_region(GridCell::new(1, 1).unwrap(), GridCell::new(2, 2).unwrap())
+        .unwrap();
     // defence position: row 1 (goal line area)
-    let defence_region = grid_dims.create_region(GridCell::new(13,1).unwrap(), GridCell::new(14,2).unwrap()).unwrap();
+    let defence_region = grid_dims
+        .create_region(GridCell::new(13, 1).unwrap(), GridCell::new(14, 2).unwrap())
+        .unwrap();
 
     let player = ynwa_core::game::PlayerDef::new(
-        ynwa_core::team::Team::A, 1, "GK".to_string(), script.to_string(), {
+        ynwa_core::team::Team::A,
+        1,
+        "GK".to_string(),
+        script.to_string(),
+        {
             let mut r = std::collections::HashMap::new();
             r.insert(REGION_START_POSITION.to_string(), start_region);
             r.insert("defence".to_string(), defence_region);
@@ -729,6 +815,9 @@ end
     let dm = ScriptedDecisionMaker::new(&game).unwrap();
     let mut ds = DecisionSystem::new().with_decision_maker(Box::new(dm));
     ds.update(&mut game, 1.0);
-    assert!(game.state().player_states[0].last_error.is_none(),
-        "{:?}", game.state().player_states[0].last_error);
+    assert!(
+        game.state().player_states[0].last_error.is_none(),
+        "{:?}",
+        game.state().player_states[0].last_error
+    );
 }

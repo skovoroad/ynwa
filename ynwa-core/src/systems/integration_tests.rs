@@ -2,7 +2,9 @@
 mod tests {
     use crate::field::zones::Velocity3D;
     use crate::field::Field;
-    use crate::game::{BallDef, Decision, DecisionTarget, Game, GameConfig, PlayerDef, REGION_START_POSITION};
+    use crate::game::{
+        BallDef, Decision, DecisionTarget, Game, GameConfig, PlayerDef, REGION_START_POSITION,
+    };
     use crate::physics_util::distance;
     use crate::region::GridCell;
     use crate::systems::decision::DecisionError;
@@ -10,6 +12,7 @@ mod tests {
         ActionSystem, DecisionMaker, DecisionSystem, PhysicsSystem, PlayerReactionSystem,
     };
     use crate::team::Team;
+    use crate::test_utils::deterministic_rng;
     use crate::world::World;
     use std::collections::HashMap;
     use uom::si::length::meter;
@@ -65,8 +68,9 @@ mod tests {
         let grid_dims = field.grid_dimensions();
 
         // Player 0: fast and reactive
-        let start_region_0 = grid_dims.create_region(GridCell::new(1, 1).unwrap(), GridCell::new(1, 1).unwrap())
-        .unwrap();
+        let start_region_0 = grid_dims
+            .create_region(GridCell::new(1, 1).unwrap(), GridCell::new(1, 1).unwrap())
+            .unwrap();
 
         let player_0 = PlayerDef::new(
             Team::A,
@@ -79,8 +83,9 @@ mod tests {
         .with_speed_rate(100); // speed_rate = 100 (full speed)
 
         // Player 1: slow and less reactive
-        let start_region_1 = grid_dims.create_region(GridCell::new(5, 1).unwrap(), GridCell::new(5, 1).unwrap())
-        .unwrap();
+        let start_region_1 = grid_dims
+            .create_region(GridCell::new(5, 1).unwrap(), GridCell::new(5, 1).unwrap())
+            .unwrap();
 
         let player_1 = PlayerDef::new(
             Team::A,
@@ -100,7 +105,7 @@ mod tests {
             scripting: crate::game::ScriptingConfig::empty(),
         };
 
-        Game::with_stage(config, crate::game::GameStage::Play)
+        Game::with_stage(config, crate::game::GameStage::Play, deterministic_rng())
     }
 
     #[test]
@@ -130,8 +135,12 @@ mod tests {
         // Player 1 will run to a specific region, then stop
         let grid_dims = game.config().field.grid_dimensions();
 
-        let target_region = grid_dims.create_region(GridCell::new(15, 15).unwrap(), GridCell::new(20, 20).unwrap())
-        .unwrap();
+        let target_region = grid_dims
+            .create_region(
+                GridCell::new(15, 15).unwrap(),
+                GridCell::new(20, 20).unwrap(),
+            )
+            .unwrap();
 
         let decision_maker = ScriptedDecisionMaker::new(vec![
             (
@@ -383,7 +392,7 @@ mod tests {
             scripting: crate::game::ScriptingConfig::empty(),
         };
 
-        let game = Game::with_stage(config, crate::game::GameStage::Play);
+        let game = Game::with_stage(config, crate::game::GameStage::Play, deterministic_rng());
 
         // Create ScriptedDecisionMaker
         let scripted_maker =
@@ -398,14 +407,14 @@ mod tests {
         world.add_system(Box::new(ActionSystem::new()));
         world.add_system(Box::new(PhysicsSystem::new()));
 
-        let initial_pos = world.game().state.player_states[0].position.clone();
+        let initial_pos = world.game().state.player_states[0].position;
 
         // Run simulation for 2 seconds
         for _ in 0..120 {
             world.step(1.0 / 60.0);
         }
 
-        let final_pos = world.game().state.player_states[0].position.clone();
+        let final_pos = world.game().state.player_states[0].position;
 
         // Player should have moved towards A1 (col=1, row=1)
         // A1 is in the corner, so both x and z should decrease
@@ -425,8 +434,12 @@ mod tests {
         let field = Field::from_meters(100.0, 60.0, 26, 44);
         let grid_dims = field.grid_dimensions();
 
-        let start_region = grid_dims.create_region(GridCell::new(13, 22).unwrap(), GridCell::new(13, 22).unwrap())
-        .unwrap();
+        let start_region = grid_dims
+            .create_region(
+                GridCell::new(13, 22).unwrap(),
+                GridCell::new(13, 22).unwrap(),
+            )
+            .unwrap();
 
         // Player with buggy Lua script
         let config = GameConfig {
@@ -448,13 +461,13 @@ mod tests {
             scripting: crate::game::ScriptingConfig::empty(),
         };
 
-        let game = Game::with_stage(config, crate::game::GameStage::Play);
+        let game = Game::with_stage(config, crate::game::GameStage::Play, deterministic_rng());
 
         let scripted_maker =
             ScriptedDecisionMaker::new(&game).expect("Failed to create ScriptedDecisionMaker");
 
         let mut world = World::new(game);
-        world.add_system(Box::new(PlayerReactionSystem));
+        world.add_system(Box::new(PlayerReactionSystem::new()));
         world.add_system(Box::new(
             DecisionSystem::new().with_decision_maker(Box::new(scripted_maker)),
         )); // Run simulation - should not crash despite error

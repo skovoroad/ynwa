@@ -31,7 +31,9 @@ struct LuaPointTarget {
 /// Parse JSON decision value into domain Decision type and optional reason
 /// Returns a tuple of (Decision, Option<String>) where the second element is
 /// the short explanation of why this decision was made
-pub fn parse_decision(value: &serde_json::Value) -> Result<(Decision, Option<String>), DecisionError> {
+pub fn parse_decision(
+    value: &serde_json::Value,
+) -> Result<(Decision, Option<String>), DecisionError> {
     let action = value
         .get("action")
         .and_then(|a| a.as_str())

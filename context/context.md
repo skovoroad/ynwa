@@ -90,6 +90,8 @@ ynwa-player ──> ynwa-football ──> ynwa-core ──> ynwa-decisions
 - **Гибридный ECS-подобный подход**: `config.players[i]` (неизменяемое) ↔ `state.player_states[i]`
   (изменяемое) — параллельные массивы, доступ O(1). Внешних ECS-библиотек нет.
 - **Config / State разделены** явно: `GameConfig` не меняется во время матча.
+- **Единый источник случайности**: вся случайность идёт через `RngManager`, внедрённый в `Game`;
+  системы не хранят собственных RNG (см. «`rng.rs`» ниже).
 - **Player/Ball/Referee — отдельные типы, не trait**: их обрабатывают разные системы, общий trait
   не дал бы выигрыша.
 - **Poll-модель**: игровой цикл принадлежит клиенту, ядро предоставляет `World::step(delta_time)`.
@@ -116,9 +118,11 @@ ynwa-player ──> ynwa-football ──> ynwa-core ──> ynwa-decisions
 
 Центральный модуль модели: конфигурация, состояние и типы решений.
 
-- `Game` — контейнер `GameConfig` (приватный, доступ через `config()`) + публичный `state`.
+- `Game` — контейнер `GameConfig` (приватный, доступ через `config()`) + публичный `state` +
+  принадлежащий ему менеджер случайности (`Box<dyn RngManager>`, доступ через `rng_manager()`).
   `Game::new` стартует со стадии по умолчанию `Setup("kick off")`; `Game::with_stage` задаёт
-  стадию явно. При старте в `Setup` игроки ставятся **за пределами поля** в точку
+  стадию явно; оба конструктора принимают менеджер случайности параметром. При старте в `Setup`
+  игроки ставятся **за пределами поля** в точку
   `(-5, 0, length/2)`; при старте в `Play`/`GameOver` — в центр своего региона
   `REGION_START_POSITION`.
 - `GameConfig { field, players: Vec<PlayerDef>, ball: BallDef, referees, scripting }`.
@@ -179,14 +183,33 @@ ynwa-player ──> ynwa-football ──> ynwa-core ──> ynwa-decisions
 `flip_grid_cell_orientation`, `flip_region_orientation`. При отражении региона углы меняются
 местами, чтобы сохранить инвариант `top_left <= bottom_right`.
 
+#### `rng.rs` — `RngConfig`, `RngManager`, `DefaultRngManager`
+
+Единственный источник случайности в ядре — системы своих RNG не хранят.
+
+- `RngManager` — trait с тремя методами: `next()` (сырое значение `[0, 1]`),
+  `randomize(base, variation_pct)` (базовое значение с относительным разбросом: `0.25` — это ±25 %)
+  и `randomize_range(max)` (симметричное отклонение `[-max, +max]`). Клиент не знает формул
+  рандомизации — он передаёт базовое значение и диапазон. Методы принимают `&self`: реализация
+  обеспечивает внутреннюю мутабельность, поэтому вызов идёт через `game.rng_manager()`.
+- **`temperature`** (0.0–1.0) — «температура» недетерминированности: `0.0` даёт полностью
+  воспроизводимый результат (`next()` всегда `0.5`), `1.0` — полный разброс, промежуточные значения
+  масштабируют его линейно.
+- `RngConfig { temperature, seed }` — неизменяемая конфигурация, создаётся через `RngConfig::new`
+  (валидирует температуру). `seed = Some(…)` — воспроизводимая последовательность (тесты),
+  `None` — энтропийный сид (игра).
+- `DefaultRngManager` (`StdRng`) — рабочая реализация; `Sequence`/`Replay`/`Record`-менеджеры
+  запланированы, но не реализованы.
+
 #### `physics_util.rs`
 
-Формулы движения и удара, используемые системами:
+Формулы движения и удара, используемые системами (разброс и отклонение считает `RngManager`):
 
 - скорость игрока: `speed_rate / 100 * 10 м/с` (максимум ≈ 36 км/ч);
-- `calculate_kick_velocity(shot_power, rng)` = `shot_power / 5` м/с с разбросом ±25 %;
-- `calculate_kick_direction_with_accuracy(...)` — отклонение направления от ±5° при точности 100
-  до ±45° при точности 10; `rng = 0.5` означает «без отклонения»;
+- `kick_speed(shot_power)` = `shot_power / 5` м/с — базовая скорость удара;
+- `max_kick_deviation(shot_accuracy)` — максимальное отклонение направления: ±5° при точности 100,
+  ±45° при точности 10;
+- `rotate_kick_direction(target, ball, deviation)` — поворот нормализованного направления на угол;
 - `distance`, `distance_2d` (без Y), `distance_length`.
 
 #### `repository.rs` — `TeamRepository` и DTO
@@ -206,8 +229,8 @@ play_positions, set_piece_positions }`. Ключи в обеих картах п
 
 1. **Менеджер игры** (спорт-специфичный, для футбола — `FootballGameManager`) — стадии и события.
 2. **`PlayerReactionSystem`** — определяет, кому пора принимать решение (таймер реакции).
-3. **`BallPossessionSystem`** — владение мячом (борьба, кулдаун, антидребезг); `with_rng()` для
-   тестов.
+3. **`BallPossessionSystem`** — владение мячом (борьба, кулдаун, антидребезг); разброс борьбы
+   берётся из `game.rng_manager()`.
 4. **`DecisionSystem`** — координация принятия решений; стратегия внедряется через
    `trait DecisionMaker { make_decision(&mut self, game, player_index) ->
    Result<(Decision, Option<String>), DecisionError> }`. Реализации: `PlaceholderDecisionMaker`

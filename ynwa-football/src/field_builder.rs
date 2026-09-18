@@ -1,7 +1,7 @@
+use std::f32::consts::PI;
 use ynwa_core::field::zones::*;
 use ynwa_core::field::{Field, FieldBuilder, Zone};
 use ynwa_core::team::Team;
-use std::f32::consts::PI;
 
 // FIFA regulation dimensions (meters)
 // Square grid cells: 68m / 26 columns ≈ 2.6154m per cell
@@ -17,7 +17,6 @@ const CORNER_ARC_RADIUS: f32 = 1.0;
 const PENALTY_ARC_RADIUS: f32 = 9.15;
 pub(crate) const GOAL_DEPTH: f32 = 2.5;
 pub(crate) const GOAL_WIDTH: f32 = 7.32;
-pub(crate) const FIELD_WIDTH: f32 = DEFAULT_WIDTH;
 
 // Grid dimensions for football field
 const FOOTBALL_GRID_COLUMNS: u32 = 26; // A-Z
@@ -152,8 +151,8 @@ pub fn create_football_field_with_dimensions(
                 // Angles from +X axis: atan2(dz, ±dx). start < end so span is positive.
                 let dz = PENALTY_AREA_LENGTH - PENALTY_SPOT_DISTANCE;
                 let dx = (PENALTY_ARC_RADIUS * PENALTY_ARC_RADIUS - dz * dz).sqrt();
-                let start = dz.atan2(dx);           // right intersection ~34°
-                let end   = dz.atan2(-dx);          // left intersection  ~146°
+                let start = dz.atan2(dx); // right intersection ~34°
+                let end = dz.atan2(-dx); // left intersection  ~146°
                 ZoneGeometry::Arc(Arc::from_radians(
                     half_width,
                     PENALTY_SPOT_DISTANCE,
@@ -169,8 +168,8 @@ pub fn create_football_field_with_dimensions(
             Box::new(move || {
                 let dz = PENALTY_AREA_LENGTH - PENALTY_SPOT_DISTANCE;
                 let dx = (PENALTY_ARC_RADIUS * PENALTY_ARC_RADIUS - dz * dz).sqrt();
-                let start = (-dz).atan2(-dx);       // left intersection  ~-146°
-                let end   = (-dz).atan2(dx);        // right intersection ~-34°
+                let start = (-dz).atan2(-dx); // left intersection  ~-146°
+                let end = (-dz).atan2(dx); // right intersection ~-34°
                 ZoneGeometry::Arc(Arc::from_radians(
                     half_width,
                     length - PENALTY_SPOT_DISTANCE,
