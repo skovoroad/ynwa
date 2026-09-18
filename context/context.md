@@ -13,6 +13,11 @@
   события.
 - `protocols.md` — форматы и протоколы: JSON-контракт ядра с движком решений, формат данных
   команды на диске, что читает репозиторий.
+- `scripting_developer.md` — руководство разработчика Lua-скриптов: уровни скриптов
+  (`core.lua`, `stdlib.lua`, преамбула команды, скрипт игрока), правила написания, диспетчер
+  `make_decision()`, примеры.
+- `scripting_player.md` — справочник игрока по Lua-скриптам: характеристики и позиции, функции
+  стандартной библиотеки, структура `team_play`/`player_play`, регионы и зоны поля.
 
 ---
 
@@ -37,7 +42,7 @@
 | `ynwa-repository` | Файловая реализация `TeamRepository` из ядра (чтение `teams/`, см. `protocols.md` §3). |
 | `ynwa-script-tests` | Инфраструктура интеграционного тестирования скриптов и визуальные сценарии. |
 | `ynwa-player` | Локальный клиент (macroquad + egui). Не описывается. |
-| `ynwa-scripts` | Библиотека Lua-преамбул (данные, без Rust). Контракты описаны в разделе 7. |
+| `ynwa-scripts` | Библиотека Lua-преамбул (данные, без Rust). Контракты описаны в разделе 7 и документах `scripting_developer.md`, `scripting_player.md`. |
 | `teams/` | Данные команд (TOML + Lua). Формат — `protocols.md` §2. |
 
 Граф зависимостей (без циклов):
@@ -339,66 +344,26 @@ play_positions, set_piece_positions }`. Ключи в обеих картах п
 ## 7. Контракт Lua-скриптов
 
 Пользовательский ИИ игрока — это Lua-скрипт, работающий поверх двух библиотечных преамбул
-(`ynwa-scripts/preambles/`) и командной преамбулы. Раздел описывает, из чего складывается среда
-скрипта и какие функции ему доступны. Формат контекста (`context`, `GAME_DATA`) и формат
-возвращаемого решения — `protocols.md` §1.
+(`ynwa-scripts/preambles/`) и командной преамбулы. Среда скрипта складывается из четырёх уровней:
+`core.lua`, `stdlib.lua`, `preamble.lua` команды и `script.lua` игрока. За что отвечает каждый
+уровень, порядок загрузки, правила написания и примеры — в
+[`scripting_developer.md`](scripting_developer.md); справочник функций и структур для игрока — в
+[`scripting_player.md`](scripting_player.md).
 
-### Порядок загрузки
+Коротко:
 
-```
-core.lua  +  stdlib.lua  +  preamble.lua команды  +  script.lua игрока
-```
+- `core.lua` — элементарный доступ к состоянию (`my_position()`, `ball_position()`, …);
+- `stdlib.lua` — утилиты, запросы состояния, примитивные и тактические действия, диспетчер
+  `make_decision()`;
+- `preamble.lua` команды — тактика команды: таблица `team_play` и общие таблицы (например,
+  `goalkeeper_play`);
+- `script.lua` игрока — необязательное частичное переопределение через `player_play`.
 
-Преамбулы исполняются один раз при создании VM игрока, скрипт игрока перезагружается на каждом
-вызове. `GAME_DATA` выставляется один раз, `context` — перед каждым вызовом.
+`core.lua` и `stdlib.lua` — код проекта, команды их не изменяют; `preamble.lua` и `script.lua` —
+код команды.
 
-### Модель диспетчеризации
-
-`make_decision()` определён **в stdlib** и переопределять его нельзя. Он определяет состояние
-владения и вызывает обработчик:
-
-`player_play[state]` → `team_play[state]` → `error()`
-
-Состояния: `"i_have_ball"`, `"ball_is_free"`, `"team_has_ball"`, `"opponent_has_ball"`.
-Таблица `team_play` определяется в преамбуле команды, `player_play` — необязательное
-переопределение в скрипте игрока (частичное: неуказанные состояния падают в `team_play`).
-В стадии `Setup` Lua не вызывается вообще.
-
-Тонкость: `"ball_is_free"` возникает только когда `owner_team == "None"`, то есть на старте и
-после любого `Setup`. После передачи владение командой сохраняется, и состояние будет
-`"team_has_ball"`.
-
-### Правила написания скриптов
-
-1. Не обращаться к `context` и `GAME_DATA` напрямую вне `core.lua` — только через
-   функции-обёртки; прямой доступ по сырым ключам (`GAME_DATA.zones.goal_a`) непереносим между
-   командами.
-2. Не переопределять `make_decision()`.
-3. Не собирать таблицы `{action = ...}` вручную, если есть готовая функция stdlib.
-4. Предпочитать point-free стиль: `team_has_ball = chase_ball`, а не обёртку в лямбду.
-
-### `core.lua` — элементарный доступ к состоянию
-
-`my_position()`, `my_index()`, `my_team_name()`, `my_regions()`, `ball_position()`, `ball_owner()`,
-`get_ball_owner_team()`, `get_teammates()`, `get_own_goal()`, `get_opponent_goal()`,
-`get_opponent_penalty_area()`. Функции с «own/opponent» скрывают привязку к команде — благодаря им
-одна и та же тактика работает и за A, и за B.
-
-### `stdlib.lua` — утилиты, действия и диспетчер
-
-- Утилиты: `distance(p1,p2)` (2D), `parse_col(s)`, `parse_notation(n)`.
-- Запросы состояния: `am_i_ball_owner()`, `is_in_region_obj(r)`, `is_in_region(from,to)`,
-  `is_in_opponent_penalty_area()`, `get_teammate_by_number(n)`.
-- Примитивные действия: `stop(reason)`, `chase_ball()`, `run_to_region_obj(r, reason)`,
-  `run_to_region(from,to)`, `kick_to_cell(n)`, `kick_to_region(from,to)`,
-  `kick_to_opponent_goal()`, `pass_to_teammate(tm)`, `pass_to_players_by_numbers(numbers)`.
-- Тактические действия (используют именованные регионы игрока): `run_to_start_position()`,
-  `run_to_attack_position()`, `run_to_defence_position()`, `run_to_opponent_penalty_area()`,
-  `default_goalkeeper_cover_position()` (держит линию ворот по Z из региона `defence`, X следует
-  за мячом с зажимом по ширине ворот).
-- Диспетчер `make_decision()`.
-
-Все функции-действия сами заполняют `reason`.
+Формат контекста (`context`, `GAME_DATA`) и формат возвращаемого решения —
+[`protocols.md`](protocols.md) §1; формат данных команды на диске — [`protocols.md`](protocols.md) §2.
 
 ---
 
