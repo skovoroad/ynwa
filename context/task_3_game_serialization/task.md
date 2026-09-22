@@ -80,6 +80,10 @@
 
 # Архитектурное решение (шаг 2)
 
+> ✅ Ревью (шаг 3) пройдено. Замечание З-1 устранено по варианту A (контракт эквивалентности
+> replay, §2.5; DOD этапа 4). Остальные замечания (`arch_review.md`, М-1 … М-7) отложены до
+> кодирования (шаг 4).
+
 ## 1. Ключевые решения
 
 - **Модель записи отделена от кодирования.** Каноническая in-memory модель — `Record` в ядре;
@@ -216,6 +220,16 @@ impl JournalSink for NullJournalSink {
 | `DecisionsReset` | всем игрокам: `current_decision = None`, `is_ready = false`, `needs_decision = true`. |
 | `StatUpdate` | `state.team_stats[team].increment(key, delta)`. |
 | `External` | ядром игнорируется. |
+
+**Контракт эквивалентности replay (вариант A).** Replay воспроизводит только *физически
+значимое* состояние. Сравнению подлежат: позиции и скорости игроков, позиция и скорость мяча,
+`possessed_by`, `last_possessing_team`, `last_possession_change_time`, `stage`, `team_stats`,
+`restart_position`, `restart_team`, `elapsed_time`. Координационные флаги игроков
+(`needs_decision`, `is_ready`, `decision_reason`, `last_error`, `last_decision_time`,
+`decision_processed`) **не входят в контракт replay**: их значения в replay-мире не гарантируются
+и не сравниваются. Записи этих полей в таблице выше оставлены только для внутренней
+согласованности `ReplayDriver`; на физику они не влияют (в replay-мире нет систем, которые их
+читают).
 
 ## 3. Изменения `ynwa-football`
 
@@ -363,5 +377,9 @@ pub struct JsonRecordCodec;
 
 - `replay.rs`: `ReplayDriver`; `ynwa-football`: `ReplaySetupBallPlacer`,
   `create_football_replay_world`, `decode_football_events`.
-- **DOD**: интеграционный тест — исходный прогон и replay дают одинаковый конечный `GameState`
-  и одинаковую последовательность `FootballEvent`.
+- **DOD**: интеграционный тест — исходный прогон и replay дают одинаковое физически значимое
+  состояние (позиции и скорости игроков и мяча, владение, стадии, счёт, restart-поля,
+  `elapsed_time`) и одинаковую последовательность `FootballEvent`; сравнение — по контракту
+  эквивалентности из §2.5. Исходный прогон интеграционного теста запускается с детерминированной
+  RNG-конфигурацией (`temperature = 0.0` или фиксированный `seed`), чтобы сам тест был
+  воспроизводим.
