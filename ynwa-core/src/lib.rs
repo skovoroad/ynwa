@@ -7,6 +7,7 @@ pub mod physics_util;
 pub mod region;
 pub mod repository;
 pub mod rng;
+pub mod serde_adapters;
 pub mod system;
 pub mod systems;
 pub mod team;
@@ -14,6 +15,10 @@ pub mod world;
 
 #[cfg(test)]
 mod test_utils;
+
+#[cfg(test)]
+#[path = "tests/serde_tests.rs"]
+mod serde_tests;
 
 pub use field::zones::{Point3D, Velocity3D};
 pub use game::{

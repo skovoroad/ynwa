@@ -2,6 +2,7 @@ use crate::field::zones::{Point3D, Velocity3D};
 use crate::field::Field;
 use crate::region::{GridCell, Region};
 use crate::team::Team;
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use uom::si::length::meter;
 
@@ -29,7 +30,7 @@ impl StatSet {
 // Reason: Different systems handle them differently (physics, AI, rules). Shared trait would add
 // complexity without benefit since we iterate by type, not across all entities.
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum DecisionTarget {
     Region(Region),
     GridCell(GridCell),
@@ -38,7 +39,7 @@ pub enum DecisionTarget {
     Ball,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Decision {
     Run(DecisionTarget),
     Stop,
@@ -49,7 +50,7 @@ pub enum Decision {
 /// Contract between core and game-specific layers (e.g. `ynwa-football`).
 pub const REGION_START_POSITION: &str = "start";
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PlayerDef {
     pub team: Team,
     pub number: u32,
@@ -60,8 +61,10 @@ pub struct PlayerDef {
     pub shot_power: u32,
     pub shot_accuracy: u32,
     pub script: String,
+    #[serde(with = "crate::serde_adapters::sorted_map")]
     pub regions: HashMap<String, Region>,
     /// Set-piece types this player is the designated taker for (e.g. `"goal kick own"`).
+    #[serde(with = "crate::serde_adapters::sorted_set")]
     pub set_piece_roles: HashSet<String>,
 }
 
@@ -119,12 +122,12 @@ impl PlayerDef {
     }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct BallDef {
     pub initial_position: Point3D,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct RefereeDef {}
 
 #[derive(Debug, Clone)]
@@ -186,7 +189,7 @@ pub struct RefereeState {
     pub velocity: Velocity3D,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ScriptingConfig {
     pub core_preamble: String,
     pub stdlib_preamble: String,
@@ -212,7 +215,7 @@ impl ScriptingConfig {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum GameStage {
     Play,
     Setup(String),
@@ -225,7 +228,7 @@ impl Default for GameStage {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GameConfig {
     pub field: Field,
     pub players: Vec<PlayerDef>,

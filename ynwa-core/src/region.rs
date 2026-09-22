@@ -8,11 +8,12 @@
 //! Grid notation format: `"A1:B2"` (TopLeft:BottomRight)
 
 use crate::field::zones::Point3D;
+use serde::{Deserialize, Serialize};
 use std::fmt;
 use uom::si::length::meter;
 
 /// Grid dimensions for field regions
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GridDimensions {
     /// Number of columns (1-based: A=1, B=2, ..., Z=26, AA=27, etc.)
     pub columns: u32,
@@ -123,7 +124,7 @@ impl fmt::Display for RegionError {
 impl std::error::Error for RegionError {}
 
 /// A grid cell on the field, addressed by column (1-based) and row (1-based)
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GridCell {
     /// Column index (1-based: A=1, B=2, ..., Z=26, AA=27, etc.)
     pub col: u32,
@@ -239,7 +240,7 @@ impl GridCell {
 }
 
 /// Rectangular region on the field, defined by two grid cells.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Region {
     /// Top-left corner of the region
     pub top_left: GridCell,

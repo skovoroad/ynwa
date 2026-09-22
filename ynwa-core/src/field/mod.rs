@@ -15,6 +15,7 @@
 pub mod zones;
 
 use crate::team::Team;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::HashMap;
 use uom::si::f32::Length;
 use uom::si::length::meter;
@@ -27,7 +28,7 @@ use zones::ZoneGeometry;
 /// - O(1) lookup by (name, team) key
 /// - Self-contained Zone objects that can be passed around with full context
 /// - Memory overhead is negligible (~100-200 bytes total for 19 zones)
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Zone {
     pub name: String,
     pub team: Option<Team>,
@@ -51,12 +52,51 @@ impl Zone {
 /// self-contained and easy to pass to rendering/physics systems.
 ///
 /// Grid dimensions define how the field is divided for region addressing.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Field {
     width: Length,
     length: Length,
     grid_dims: crate::region::GridDimensions,
     zones: HashMap<(String, Option<Team>), Zone>,
+}
+
+/// Serialized form of [`Field`]: zones are written as a list sorted by `(name, team)`, so the
+/// output does not depend on `HashMap` iteration order.
+#[derive(Serialize, Deserialize)]
+struct FieldData {
+    width_meters: f32,
+    length_meters: f32,
+    grid_dims: crate::region::GridDimensions,
+    zones: Vec<Zone>,
+}
+
+impl Serialize for Field {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut zones: Vec<Zone> = self.zones.values().cloned().collect();
+        zones.sort_by(|a, b| (a.name.as_str(), a.team).cmp(&(b.name.as_str(), b.team)));
+        FieldData {
+            width_meters: self.width.get::<meter>(),
+            length_meters: self.length.get::<meter>(),
+            grid_dims: self.grid_dims,
+            zones,
+        }
+        .serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for Field {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let data = FieldData::deserialize(deserializer)?;
+        let mut field = Field::new(
+            Length::new::<meter>(data.width_meters),
+            Length::new::<meter>(data.length_meters),
+            data.grid_dims,
+        );
+        for zone in data.zones {
+            field.add_zone(zone);
+        }
+        Ok(field)
+    }
 }
 
 impl Field {
