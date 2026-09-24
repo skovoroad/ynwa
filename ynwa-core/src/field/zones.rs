@@ -8,15 +8,10 @@ use uom::si::velocity::meter_per_second;
 /// - X: field width (left-right)
 /// - Y: height (up)
 /// - Z: field length (team A to team B)
-///
-/// Serialized as `{x, y, z}` in meters.
 #[derive(Debug, Clone, Copy, PartialEq, Default, Serialize, Deserialize)]
 pub struct Point3D {
-    #[serde(with = "crate::serde_adapters::meters")]
     pub x: Length,
-    #[serde(with = "crate::serde_adapters::meters")]
     pub y: Length,
-    #[serde(with = "crate::serde_adapters::meters")]
     pub z: Length,
 }
 
@@ -24,15 +19,10 @@ pub struct Point3D {
 /// - X: velocity along field width (left-right)
 /// - Y: velocity along height (up-down)
 /// - Z: velocity along field length (team A to team B)
-///
-/// Serialized as `{x, y, z}` in meters per second.
 #[derive(Debug, Clone, Copy, PartialEq, Default, Serialize, Deserialize)]
 pub struct Velocity3D {
-    #[serde(with = "crate::serde_adapters::meters_per_second")]
     pub x: Velocity,
-    #[serde(with = "crate::serde_adapters::meters_per_second")]
     pub y: Velocity,
-    #[serde(with = "crate::serde_adapters::meters_per_second")]
     pub z: Velocity,
 }
 
@@ -104,7 +94,6 @@ impl Rectangle {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Circle {
     pub center: Point3D,
-    #[serde(with = "crate::serde_adapters::meters")]
     pub radius: Length,
 }
 
@@ -124,15 +113,12 @@ impl Circle {
     }
 }
 
-/// Arc segment - part of a circle. Angles are serialized in degrees.
+/// Arc segment - part of a circle
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Arc {
     pub center: Point3D,
-    #[serde(with = "crate::serde_adapters::meters")]
     pub radius: Length,
-    #[serde(with = "crate::serde_adapters::degrees")]
     pub start_angle: Angle,
-    #[serde(with = "crate::serde_adapters::degrees")]
     pub end_angle: Angle,
 }
 

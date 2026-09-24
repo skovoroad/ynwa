@@ -47,6 +47,10 @@ impl Zone {
 
 /// Playing field with dimensions and zones.
 ///
+/// Units convention: every quantity is written in base SI units — meters, meters per second,
+/// radians — exactly as `uom` keeps them in memory. No unit conversion happens on write, so a
+/// round trip is exact; the price is that angles are less readable in a record than degrees.
+///
 /// Zones are stored in a HashMap with (name, team) as the key for O(1) lookup.
 /// The name and team are also stored in the Zone struct itself to make zones
 /// self-contained and easy to pass to rendering/physics systems.
@@ -64,8 +68,8 @@ pub struct Field {
 /// output does not depend on `HashMap` iteration order.
 #[derive(Serialize, Deserialize)]
 struct FieldData {
-    width_meters: f32,
-    length_meters: f32,
+    width: Length,
+    length: Length,
     grid_dims: crate::region::GridDimensions,
     zones: Vec<Zone>,
 }
@@ -75,8 +79,8 @@ impl Serialize for Field {
         let mut zones: Vec<Zone> = self.zones.values().cloned().collect();
         zones.sort_by(|a, b| (a.name.as_str(), a.team).cmp(&(b.name.as_str(), b.team)));
         FieldData {
-            width_meters: self.width.get::<meter>(),
-            length_meters: self.length.get::<meter>(),
+            width: self.width,
+            length: self.length,
             grid_dims: self.grid_dims,
             zones,
         }
@@ -87,11 +91,7 @@ impl Serialize for Field {
 impl<'de> Deserialize<'de> for Field {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let data = FieldData::deserialize(deserializer)?;
-        let mut field = Field::new(
-            Length::new::<meter>(data.width_meters),
-            Length::new::<meter>(data.length_meters),
-            data.grid_dims,
-        );
+        let mut field = Field::new(data.width, data.length, data.grid_dims);
         for zone in data.zones {
             field.add_zone(zone);
         }

@@ -9,5 +9,6 @@ uom = { version = "0.36", features = ["f32"] }
 
 [dev-dependencies]
 ynwa-repository = { path = "../ynwa-repository" }
+serde_json = "1.0"
 
 [lib]

@@ -189,14 +189,18 @@ impl JournalSink for NullJournalSink {
 
 ### 2.4 Serde для доменных типов
 
-- Кастомные `Serialize`/`Deserialize` для uom-обёрток ([`Point3D`](ynwa-core/src/field/zones.rs:11),
-  [`Velocity3D`](ynwa-core/src/field/zones.rs:22)): сериализуются как `{x, y, z}` в метрах /
-  м/с; `Angle` — в градусах, `Length` — в метрах.
+- uom-величины сериализуются стандартной реализацией (фича `serde`): в записи хранятся **базовые
+  единицы СИ** (метр, м/с, радиан) без преобразования единиц, поэтому round-trip точен для любых
+  значений; `Point3D`/`Velocity3D` ([`Point3D`](ynwa-core/src/field/zones.rs:11),
+  [`Velocity3D`](ynwa-core/src/field/zones.rs:22)) пишутся как `{x, y, z}`, `Length` — метры,
+  `Angle` — радианы.
 - Derive для `Region`, `GridCell`, `Team`, `GameStage`, `Decision`, `DecisionTarget`, `PlayerDef`,
   `BallDef`, `RefereeDef`, `ScriptingConfig`, `GameConfig`, `JournalEntry`, `JournalEvent`.
-- Кастомная сериализация с **детерминированным порядком** для коллекций: зоны
+- **Детерминированный порядок** коллекций: при записи значения проходят через упорядоченные
+  аналоги (`BTreeMap`/`BTreeSet`) — зоны
   [`Field`](ynwa-core/src/field/mod.rs:55) (сортировка по `(name, team)`, запись как `Vec<Zone>`),
-  `PlayerDef.regions` (сортировка ключей), `set_piece_roles` (сортировка).
+  `PlayerDef.regions` (сортировка ключей), `set_piece_roles` (сортировка элементов). Типы полей при
+  этом остаются `HashMap`/`HashSet`; чтение принимает любой порядок.
 - Serde для `GameState`/`PlayerState`/`BallState`/`RefereeState`/`StatSet` в task_3 **не делается**:
   эти типы сериализуются только в снапшотах (task_4).
 

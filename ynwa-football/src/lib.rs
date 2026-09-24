@@ -290,6 +290,9 @@ pub fn create_football_world(
 #[path = "tests/field_builder_tests.rs"]
 mod field_builder_tests;
 #[cfg(test)]
+#[path = "tests/serde_tests.rs"]
+mod serde_tests;
+#[cfg(test)]
 mod tests {
     use super::*;
     use crate::test_utils::deterministic_rng;

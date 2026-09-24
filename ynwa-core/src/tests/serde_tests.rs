@@ -11,9 +11,6 @@ use crate::team::Team;
 use serde::{de::DeserializeOwned, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::f32::consts::PI;
-use uom::si::angle::degree;
-use uom::si::f32::{Angle, Length};
-use uom::si::length::meter;
 
 fn round_trip<T: Serialize + DeserializeOwned>(value: &T) -> T {
     let json = serde_json::to_string(value).expect("serialize to JSON");
@@ -27,24 +24,20 @@ where
     assert_eq!(round_trip(&value), value);
 }
 
-/// `Angle` keeps radians internally while the record keeps degrees, so a round trip may differ
-/// in the last bits; everything else has to survive bit-exactly.
-fn assert_angle_close(actual: Angle, expected: Angle) {
-    let diff = (actual.get::<degree>() - expected.get::<degree>()).abs();
-    assert!(
-        diff <= 1e-3,
-        "angle {} != {}",
-        actual.get::<degree>(),
-        expected.get::<degree>()
-    );
-}
-
 fn cell(col: u32, row: u32) -> GridCell {
     GridCell::new(col, row).expect("valid cell")
 }
 
 fn test_region() -> Region {
     Region::new(cell(1, 2), cell(3, 4))
+}
+
+/// Arc angles are derived with `atan2`, exactly as `field_builder` does, so the tests cover values
+/// that are not representable in degrees without loss.
+fn penalty_arc() -> Arc {
+    let dz = 18.307_69f32 - 11.0;
+    let dx = (9.15f32 * 9.15 - dz * dz).sqrt();
+    Arc::from_radians(34.0, 11.0, 9.15, dz.atan2(dx), dz.atan2(-dx))
 }
 
 fn test_field() -> Field {
@@ -68,6 +61,11 @@ fn test_field() -> Field {
             "kick_off",
             None,
             ZoneGeometry::Point(PointZone::from_meters(34.0, 52.3)),
+        ))
+        .with_zone(Zone::new(
+            "penalty_arc",
+            Some(Team::A),
+            ZoneGeometry::Arc(penalty_arc()),
         ))
         .build()
 }
@@ -150,35 +148,24 @@ fn circle_round_trip() {
 }
 
 #[test]
-fn arc_is_serialized_in_degrees() {
-    let arc = Arc::new(
-        Point3D::on_ground(10.0, 10.0),
-        Length::new::<meter>(5.0),
-        Angle::new::<degree>(30.0),
-        Angle::new::<degree>(120.0),
-    );
+fn arc_is_serialized_in_radians() {
+    let arc = Arc::from_radians(10.0, 10.0, 5.0, 0.5, 1.0);
 
     let json = serde_json::to_value(&arc).unwrap();
     assert_eq!(json["radius"], serde_json::json!(5.0));
-    assert!((json["start_angle"].as_f64().unwrap() - 30.0).abs() < 1e-3);
-    assert!((json["end_angle"].as_f64().unwrap() - 120.0).abs() < 1e-3);
-
-    let restored = round_trip(&arc);
-    assert_eq!(restored.center, arc.center);
-    assert_eq!(restored.radius, arc.radius);
-    assert_angle_close(restored.start_angle, arc.start_angle);
-    assert_angle_close(restored.end_angle, arc.end_angle);
+    assert_eq!(json["start_angle"].as_f64().unwrap() as f32, 0.5);
+    assert_eq!(json["end_angle"].as_f64().unwrap() as f32, 1.0);
+    assert_round_trip(arc);
 }
 
 #[test]
 fn arc_round_trip_from_radians() {
-    let arc = Arc::from_radians(0.0, 0.0, 5.0, 0.0, PI / 2.0);
+    assert_round_trip(Arc::from_radians(0.0, 0.0, 5.0, 0.0, PI / 2.0));
+}
 
-    let restored = round_trip(&arc);
-    assert_eq!(restored.center, arc.center);
-    assert_eq!(restored.radius, arc.radius);
-    assert_angle_close(restored.start_angle, arc.start_angle);
-    assert_angle_close(restored.end_angle, arc.end_angle);
+#[test]
+fn arc_round_trip_from_atan2_angles() {
+    assert_round_trip(penalty_arc());
 }
 
 #[test]
@@ -191,6 +178,7 @@ fn zone_geometry_variants_round_trip() {
     let geometries = [
         ZoneGeometry::Rectangle(Rectangle::from_meters(0.0, 0.0, 10.0, 20.0)),
         ZoneGeometry::Circle(Circle::from_meters(5.0, 5.0, 3.0)),
+        ZoneGeometry::Arc(penalty_arc()),
         ZoneGeometry::Point(PointZone::from_meters(1.0, 2.0)),
     ];
 
@@ -226,7 +214,7 @@ fn field_round_trip_preserves_dimensions_and_zones() {
     let restored = round_trip(&field);
 
     assert_eq!(restored, field);
-    assert_eq!(restored.zones().len(), 4);
+    assert_eq!(restored.zones().len(), 5);
     assert!(restored.get_zone("goal", Some(Team::B)).is_some());
 }
 
@@ -234,6 +222,11 @@ fn field_round_trip_preserves_dimensions_and_zones() {
 fn field_serialization_is_independent_of_zone_insertion_order() {
     let forward = test_field();
     let backward = FieldBuilder::from_meters(68.0, 104.6, 26, 40)
+        .with_zone(Zone::new(
+            "penalty_arc",
+            Some(Team::A),
+            ZoneGeometry::Arc(penalty_arc()),
+        ))
         .with_zone(Zone::new(
             "kick_off",
             None,

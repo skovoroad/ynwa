@@ -6,6 +6,25 @@ use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use uom::si::length::meter;
 
+/// Deterministic serialization of unordered collections: `HashMap`/`HashSet` iteration order
+/// differs between processes, so values are written through their ordered counterparts.
+/// Deserialization needs no counterpart — any order is accepted.
+mod sorted_collections {
+    use serde::{Serialize, Serializer};
+    use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+
+    pub fn map<V: Serialize, S: Serializer>(
+        value: &HashMap<String, V>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        BTreeMap::from_iter(value.iter()).serialize(serializer)
+    }
+
+    pub fn set<S: Serializer>(value: &HashSet<String>, serializer: S) -> Result<S::Ok, S::Error> {
+        BTreeSet::from_iter(value.iter()).serialize(serializer)
+    }
+}
+
 /// Named numeric statistics. Keys are game-specific (defined by game managers, not core).
 #[derive(Debug, Clone, Default)]
 pub struct StatSet {
@@ -61,10 +80,10 @@ pub struct PlayerDef {
     pub shot_power: u32,
     pub shot_accuracy: u32,
     pub script: String,
-    #[serde(with = "crate::serde_adapters::sorted_map")]
+    #[serde(serialize_with = "sorted_collections::map")]
     pub regions: HashMap<String, Region>,
     /// Set-piece types this player is the designated taker for (e.g. `"goal kick own"`).
-    #[serde(with = "crate::serde_adapters::sorted_set")]
+    #[serde(serialize_with = "sorted_collections::set")]
     pub set_piece_roles: HashSet<String>,
 }
 

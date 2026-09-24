@@ -7,7 +7,6 @@ pub mod physics_util;
 pub mod region;
 pub mod repository;
 pub mod rng;
-pub mod serde_adapters;
 pub mod system;
 pub mod systems;
 pub mod team;
