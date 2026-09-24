@@ -20,16 +20,7 @@
 
 `git diff master...HEAD` по коду содержит только `ynwa-core` (8 файлов, +569/−22).
 
-| Проверка | Результат |
-|---|---|
-| `cargo test --workspace` | все зелёные (226 + 103 + 48 + 23 + 13 + 12 + 6 + 5, 0 failed) |
-| `cargo clippy --workspace --all-targets -- -D warnings` | предупреждений нет |
-| `cargo fmt --all -- --check` | чисто |
-| Изменение поведения игры | отсутствует: коммит только добавляет impl/derive (`Serialize`, `Deserialize`, `PartialEq` у [`Field`](ynwa-core/src/field/mod.rs:55)) и новый модуль адаптеров |
-| Полнота покрытия типов этапа 1 | полная: адаптеры [`meters`](ynwa-core/src/serde_adapters.rs:12), [`meters_per_second`](ynwa-core/src/serde_adapters.rs:26), [`degrees`](ynwa-core/src/serde_adapters.rs:42), [`sorted_map`](ynwa-core/src/serde_adapters.rs:57), [`sorted_set`](ynwa-core/src/serde_adapters.rs:81); derive у [`Point3D`](ynwa-core/src/field/zones.rs:13), [`Velocity3D`](ynwa-core/src/field/zones.rs:29), [`Rectangle`](ynwa-core/src/field/zones.rs:76), [`Circle`](ynwa-core/src/field/zones.rs:104), [`Arc`](ynwa-core/src/field/zones.rs:128), [`PointZone`](ynwa-core/src/field/zones.rs:177), [`ZoneGeometry`](ynwa-core/src/field/zones.rs:195), [`Zone`](ynwa-core/src/field/mod.rs:31), [`GridDimensions`](ynwa-core/src/region.rs:16), [`GridCell`](ynwa-core/src/region.rs:127), [`Region`](ynwa-core/src/region.rs:243), [`Team`](ynwa-core/src/team.rs:3), [`PlayerDef`](ynwa-core/src/game.rs:53), [`BallDef`](ynwa-core/src/game.rs:125), [`RefereeDef`](ynwa-core/src/game.rs:130), [`ScriptingConfig`](ynwa-core/src/game.rs:192), [`GameStage`](ynwa-core/src/game.rs:218), [`Decision`/`DecisionTarget`](ynwa-core/src/game.rs:33) |
-| Детерминированный порядок | [`Field::serialize`](ynwa-core/src/field/mod.rs:73) сортирует зоны по `(name, team)`; [`PlayerDef`](ynwa-core/src/game.rs:64) — `sorted_map`/`sorted_set`; покрыто тестами на независимость от порядка вставки ([`field_serialization_is_independent_of_zone_insertion_order`](ynwa-core/src/tests/serde_tests.rs:234), [`player_def_serialization_is_independent_of_collection_order`](ynwa-core/src/tests/serde_tests.rs:332)) |
-| Соответствие формату из архитектурного решения | совпадает (примеры `{"Run":{"GridCell":{"col":13,"row":22}}}`, `{"Setup":"kick off"}` воспроизводятся) |
-| Точность `f32` при JSON-сериализации | побитово точна: скан 500 000 случайных `f32` через `serde_json::to_string`/`from_str` — 0 расхождений |
+... человек удалил лишний текст ...
 
 Формальная часть: этап 1 выполнен, поведение игры не изменилось, требования 5 и 6 из
 [`code_requirements.md`](context/code_requirements.md) соблюдены. Замечания ниже касаются не поведения
