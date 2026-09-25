@@ -2,8 +2,10 @@
 
 pub mod field;
 pub mod game;
+pub mod journal;
 pub mod orientation;
 pub mod physics_util;
+pub mod record;
 pub mod region;
 pub mod repository;
 pub mod rng;
@@ -16,6 +18,10 @@ pub mod world;
 mod test_utils;
 
 #[cfg(test)]
+#[path = "tests/journal_tests.rs"]
+mod journal_tests;
+
+#[cfg(test)]
 #[path = "tests/serde_tests.rs"]
 mod serde_tests;
 
@@ -24,6 +30,11 @@ pub use game::{
     BallDef, BallState, Decision, DecisionTarget, Game, GameConfig, GameStage, GameState,
     PlayerDef, PlayerState, RefereeDef, RefereeState, StatSet, REGION_START_POSITION,
 };
+pub use journal::{
+    CollectJournalRecorder, EventsCollection, JournalEntry, JournalEvent, JournalSink,
+    NullJournalSink,
+};
+pub use record::{Record, RecordHeader};
 
 pub use orientation::{
     flip_grid_cell_orientation, flip_point_orientation, flip_region_orientation,

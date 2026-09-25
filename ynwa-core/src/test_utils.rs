@@ -1,11 +1,23 @@
 //! Helpers shared by unit tests.
 
+use crate::game::Game;
+use crate::journal::{CollectJournalRecorder, EventsCollection};
 use crate::rng::{DefaultRngManager, RngConfig, RngManager};
 use std::cell::RefCell;
+use std::rc::Rc;
 
 /// Deterministic manager: zero variation, fixed seed.
 pub(crate) fn deterministic_rng() -> Box<dyn RngManager> {
     Box::new(DefaultRngManager::new(RngConfig::new(0.0, Some(42))))
+}
+
+/// Attaches an accumulating journal recorder to the game and returns its shared collection.
+pub(crate) fn attach_journal(game: &mut Game) -> Rc<RefCell<EventsCollection>> {
+    let collection = Rc::new(RefCell::new(EventsCollection::default()));
+    game.set_journal_sink(Box::new(CollectJournalRecorder::new(Rc::clone(
+        &collection,
+    ))));
+    collection
 }
 
 /// Draws raw values from a fixed sequence, repeated cyclically.

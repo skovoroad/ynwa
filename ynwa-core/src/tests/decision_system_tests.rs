@@ -1,9 +1,10 @@
 use super::*;
 use crate::field::Field;
 use crate::game::{BallDef, GameConfig, GameStage, PlayerDef, RefereeDef, REGION_START_POSITION};
+use crate::journal::JournalEvent;
 use crate::region::GridCell;
 use crate::team::Team;
-use crate::test_utils::{deterministic_rng, SequenceRngManager};
+use crate::test_utils::{attach_journal, deterministic_rng, SequenceRngManager};
 use std::collections::HashMap;
 
 fn create_test_config() -> GameConfig {
@@ -658,4 +659,93 @@ fn test_setup_stop_blocks_script_even_when_needs_decision_true() {
         !game.state.player_states[0].needs_decision,
         "needs_decision must be cleared"
     );
+}
+
+#[test]
+fn test_decision_system_records_assigned_decision() {
+    let mut game = create_test_game();
+    let collection = attach_journal(&mut game);
+
+    game.state.player_states[0].needs_decision = true;
+    let mut system = DecisionSystem::new();
+    system.update(&mut game, 1.0);
+
+    let entries = collection.borrow().entries().to_vec();
+    assert_eq!(entries.len(), 1);
+    assert_eq!(entries[0].timestamp, 1.0);
+    match &entries[0].event {
+        JournalEvent::DecisionAssigned {
+            player_index,
+            decision,
+            reason,
+        } => {
+            assert_eq!(*player_index, 0);
+            assert_eq!(
+                Some(decision.clone()),
+                game.state.player_states[0].current_decision
+            );
+            assert_eq!(*reason, None);
+        }
+        other => panic!("expected DecisionAssigned, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_decision_system_records_arrival_stop() {
+    let target = crate::field::zones::Point3D::from_meters(30.0, 0.0, 20.0);
+    let mut game = make_setup_game_with_player_at(30.0, 20.0);
+    let collection = attach_journal(&mut game);
+
+    game.state.player_states[0].current_decision =
+        Some(Decision::Run(DecisionTarget::Point(target)));
+    game.state.player_states[0].needs_decision = false;
+
+    let mut system = DecisionSystem::new();
+    system.update(&mut game, 1.0);
+
+    let entries = collection.borrow().entries().to_vec();
+    assert_eq!(
+        entries[0].event,
+        JournalEvent::DecisionAssigned {
+            player_index: 0,
+            decision: Decision::Stop,
+            reason: None,
+        }
+    );
+}
+
+#[test]
+fn test_decision_system_records_error_handler_fallback() {
+    let mut game = create_test_game();
+    let collection = attach_journal(&mut game);
+
+    let mut system = DecisionSystem::new()
+        .with_decision_maker(Box::new(ErrorDecisionMaker))
+        .with_error_handler(|_error, _idx| Some(Decision::Stop));
+
+    game.state.player_states[0].needs_decision = true;
+    system.update(&mut game, 1.0);
+
+    let entries = collection.borrow().entries().to_vec();
+    assert_eq!(entries.len(), 1);
+    assert_eq!(
+        entries[0].event,
+        JournalEvent::DecisionAssigned {
+            player_index: 0,
+            decision: Decision::Stop,
+            reason: None,
+        }
+    );
+}
+
+#[test]
+fn test_decision_system_records_nothing_when_error_has_no_fallback() {
+    let mut game = create_test_game();
+    let collection = attach_journal(&mut game);
+
+    let mut system = DecisionSystem::new().with_decision_maker(Box::new(ErrorDecisionMaker));
+    game.state.player_states[0].needs_decision = true;
+    system.update(&mut game, 1.0);
+
+    assert!(collection.borrow().entries().is_empty());
 }

@@ -1,10 +1,11 @@
+use serde::{Deserialize, Serialize};
 use uom::si::length::meter;
 use ynwa_core::field::zones::Point3D;
 use ynwa_core::game::Game;
 use ynwa_core::team::Team;
 
 /// Football game events
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum FootballEvent {
     /// Goal scored by a team
     Goal(Team),

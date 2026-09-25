@@ -1,5 +1,6 @@
 use crate::field::zones::{Point3D, Velocity3D};
 use crate::game::{Decision, DecisionTarget, Game};
+use crate::journal::JournalEvent;
 use crate::physics_util::{kick_speed, max_kick_deviation, rotate_kick_direction};
 use crate::region::Region;
 use crate::system::System;
@@ -134,6 +135,14 @@ impl System for ActionSystem {
                                 // the ball back to the kicker on the next tick.
                                 game.state.ball_state.possessed_by = None;
                                 game.state.ball_state.last_possession_change_time = timestamp;
+
+                                game.record(
+                                    timestamp,
+                                    JournalEvent::KickOutcome {
+                                        player_index,
+                                        ball_velocity: game.state.ball_state.velocity,
+                                    },
+                                );
                             }
                             // If player doesn't own ball, ignore kick decision (no action)
                         }

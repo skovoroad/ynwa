@@ -1,4 +1,5 @@
 use crate::game::{Decision, DecisionTarget, Game, GameStage};
+use crate::journal::JournalEvent;
 use crate::physics_util::distance_2d;
 use crate::region::GridCell;
 use crate::system::System;
@@ -150,13 +151,23 @@ impl System for DecisionSystem {
                             field_length,
                             grid_dims,
                         );
-                        let player_state = &mut game.state.player_states[player_index];
-                        player_state.current_decision = Some(stop);
-                        player_state.decision_processed = false;
                         let is_setup = matches!(game.state.stage, GameStage::Setup(_));
-                        if is_setup {
-                            player_state.needs_decision = false;
+                        {
+                            let player_state = &mut game.state.player_states[player_index];
+                            player_state.current_decision = Some(stop.clone());
+                            player_state.decision_processed = false;
+                            if is_setup {
+                                player_state.needs_decision = false;
+                            }
                         }
+                        game.record(
+                            timestamp,
+                            JournalEvent::DecisionAssigned {
+                                player_index,
+                                decision: stop,
+                                reason: None,
+                            },
+                        );
                         continue;
                     }
                 }
@@ -178,8 +189,6 @@ impl System for DecisionSystem {
                 let field_length = game.config().field.length().get::<meter>();
                 let grid_dims = game.config().field.grid_dimensions();
 
-                let player_state = &mut game.state.player_states[player_index];
-
                 match decision_result {
                     Ok((decision, reason)) => {
                         let display_decision = convert_decision_to_display_orientation(
@@ -190,12 +199,23 @@ impl System for DecisionSystem {
                             grid_dims,
                         );
 
-                        player_state.current_decision = Some(display_decision);
-                        player_state.decision_reason = reason;
-                        player_state.decision_processed = false;
-                        player_state.needs_decision = false;
-                        player_state.last_decision_time = timestamp;
-                        player_state.last_error = None;
+                        {
+                            let player_state = &mut game.state.player_states[player_index];
+                            player_state.current_decision = Some(display_decision.clone());
+                            player_state.decision_reason = reason.clone();
+                            player_state.decision_processed = false;
+                            player_state.needs_decision = false;
+                            player_state.last_decision_time = timestamp;
+                            player_state.last_error = None;
+                        }
+                        game.record(
+                            timestamp,
+                            JournalEvent::DecisionAssigned {
+                                player_index,
+                                decision: display_decision,
+                                reason,
+                            },
+                        );
                     }
                     Err(error) => {
                         let error_message = error.to_string();
@@ -213,12 +233,26 @@ impl System for DecisionSystem {
 
                         // Always treat error as "completed attempt" to prevent storm
                         // This ensures rate-limiting via PlayerReactionSystem's reaction_rate
-                        player_state.current_decision = converted_error_decision;
-                        player_state.decision_reason = None;
-                        player_state.decision_processed = false;
-                        player_state.needs_decision = false;
-                        player_state.last_decision_time = timestamp;
-                        player_state.last_error = Some(error_message);
+                        {
+                            let player_state = &mut game.state.player_states[player_index];
+                            player_state.current_decision = converted_error_decision.clone();
+                            player_state.decision_reason = None;
+                            player_state.decision_processed = false;
+                            player_state.needs_decision = false;
+                            player_state.last_decision_time = timestamp;
+                            player_state.last_error = Some(error_message);
+                        }
+                        // A failed attempt without a fallback decision assigns nothing to replay.
+                        if let Some(decision) = converted_error_decision {
+                            game.record(
+                                timestamp,
+                                JournalEvent::DecisionAssigned {
+                                    player_index,
+                                    decision,
+                                    reason: None,
+                                },
+                            );
+                        }
                     }
                 }
             }

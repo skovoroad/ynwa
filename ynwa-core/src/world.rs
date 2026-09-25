@@ -28,6 +28,7 @@ impl World {
         }
 
         self.game.state.elapsed_time = new_timestamp;
+        self.game.finish_step(new_timestamp);
     }
 
     pub fn game(&self) -> &Game {

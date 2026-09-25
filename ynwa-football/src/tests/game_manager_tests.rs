@@ -1,5 +1,6 @@
+use crate::events::FootballEvent;
 use crate::game_manager::FootballGameManager;
-use crate::test_utils::deterministic_rng;
+use crate::test_utils::{attach_journal, deterministic_rng};
 use std::collections::HashMap;
 use uom::si::f32::Length;
 use uom::si::length::meter;
@@ -9,6 +10,7 @@ use ynwa_core::game::{
     BallDef, Decision, DecisionTarget, Game, GameConfig, GameStage, PlayerDef, RefereeDef,
     REGION_START_POSITION,
 };
+use ynwa_core::journal::JournalEvent;
 use ynwa_core::region::{GridCell, Region};
 use ynwa_core::system::System;
 use ynwa_core::team::Team;
@@ -547,6 +549,50 @@ fn test_goal_in_team_a_net_scores_for_team_b() {
         "Team B should score when ball enters Team A's goal"
     );
     assert_eq!(game.state.team_stats[&Team::A].get("score"), 0.0);
+}
+
+#[test]
+fn test_goal_records_stat_reset_restart_and_stage() {
+    let mut game = create_standard_game();
+    let collection = attach_journal(&mut game);
+    let field_width = game.config().field.width().get::<meter>();
+
+    // Ball inside Team A's goal → Team B scores; Team A restarts from the centre.
+    set_ball_pos(&mut game, field_width / 2.0, -0.5);
+    FootballGameManager::new().update(&mut game, 7.0);
+
+    let entries = collection.borrow().entries().to_vec();
+    assert_eq!(entries.len(), 5);
+    assert_eq!(
+        entries[0].event,
+        JournalEvent::External {
+            kind: "football_event".to_string(),
+            data: serde_json::to_value(FootballEvent::Goal(Team::A)).unwrap(),
+        }
+    );
+    assert_eq!(
+        entries[1].event,
+        JournalEvent::StatUpdate {
+            team: Team::B,
+            key: "score".to_string(),
+            delta: 1.0,
+        }
+    );
+    assert_eq!(entries[2].event, JournalEvent::DecisionsReset);
+    assert_eq!(
+        entries[3].event,
+        JournalEvent::RestartSet {
+            restart_position: None,
+            restart_team: Some(Team::A),
+        }
+    );
+    assert_eq!(
+        entries[4].event,
+        JournalEvent::StageChange {
+            stage: GameStage::Setup("kick off".to_string()),
+        }
+    );
+    assert_eq!(game.state.team_stats[&Team::B].get("score"), 1.0);
 }
 
 // --- restart_position / restart_team from handle_event ---

@@ -32,10 +32,14 @@
 use uom::si::length::meter;
 use ynwa_core::field::zones::{Point3D, Velocity3D};
 use ynwa_core::game::{Decision, DecisionTarget, Game, GameStage};
+use ynwa_core::journal::JournalEvent;
 use ynwa_core::system::System;
 use ynwa_core::team::Team;
 
 use crate::events::{check_events, FootballEvent};
+
+/// `JournalEvent::External` kind used for football semantic events.
+const FOOTBALL_EVENT_KIND: &str = "football_event";
 
 /// Football game manager - manages football-specific game logic
 pub struct FootballGameManager;
@@ -47,7 +51,7 @@ impl FootballGameManager {
 }
 
 impl System for FootballGameManager {
-    fn update(&mut self, game: &mut Game, _timestamp: f32) {
+    fn update(&mut self, game: &mut Game, timestamp: f32) {
         match &game.state.stage {
             GameStage::Setup(_stage_name) => {
                 game.state.ball_state.position = game
@@ -58,16 +62,30 @@ impl System for FootballGameManager {
                 game.state.ball_state.possessed_by = None;
                 game.state.ball_state.last_possessing_team = None;
 
-                self.assign_setup_decisions(game);
+                self.assign_setup_decisions(game, timestamp);
                 self.check_player_readiness(game);
 
                 if game.state.player_states.iter().all(|p| p.is_ready) {
                     game.state.stage = GameStage::Play;
+                    game.record(
+                        timestamp,
+                        JournalEvent::StageChange {
+                            stage: GameStage::Play,
+                        },
+                    );
                 }
             }
             GameStage::Play => {
                 if let Some(event) = check_events(game) {
-                    self.handle_event(game, event);
+                    game.record(
+                        timestamp,
+                        JournalEvent::External {
+                            kind: FOOTBALL_EVENT_KIND.to_string(),
+                            data: serde_json::to_value(&event)
+                                .expect("FootballEvent must be serializable"),
+                        },
+                    );
+                    self.handle_event(game, event, timestamp);
                 }
             }
             GameStage::GameOver => {
@@ -92,7 +110,7 @@ impl FootballGameManager {
         }
     }
 
-    fn assign_setup_decisions(&self, game: &mut Game) {
+    fn assign_setup_decisions(&self, game: &mut Game, timestamp: f32) {
         let reason = match &game.state.stage {
             GameStage::Setup(r) => r.clone(),
             _ => return,
@@ -144,31 +162,67 @@ impl FootballGameManager {
                 }
             };
 
-            game.state.player_states[i].current_decision = Some(decision);
+            game.state.player_states[i].current_decision = Some(decision.clone());
             game.state.player_states[i].decision_processed = false;
+            game.record(
+                timestamp,
+                JournalEvent::DecisionAssigned {
+                    player_index: i,
+                    decision,
+                    reason: None,
+                },
+            );
         }
     }
 
-    fn handle_event(&self, game: &mut Game, event: FootballEvent) {
+    fn handle_event(&self, game: &mut Game, event: FootballEvent, timestamp: f32) {
         match event {
             FootballEvent::GameEnd => {
                 game.state.stage = GameStage::GameOver;
+                game.record(
+                    timestamp,
+                    JournalEvent::StageChange {
+                        stage: GameStage::GameOver,
+                    },
+                );
             }
             FootballEvent::Goal(team) => {
                 // `team` is the owner of the goal that was scored into — the scorer is the opponent
+                let scorer = team.opposite();
                 game.state
                     .team_stats
-                    .entry(team.opposite())
+                    .entry(scorer)
                     .or_default()
                     .increment("score", 1.0);
+                game.record(
+                    timestamp,
+                    JournalEvent::StatUpdate {
+                        team: scorer,
+                        key: "score".to_string(),
+                        delta: 1.0,
+                    },
+                );
+
                 for player_state in game.state.player_states.iter_mut() {
                     player_state.is_ready = false;
                     player_state.current_decision = None;
                     player_state.needs_decision = true;
                 }
+                game.record(timestamp, JournalEvent::DecisionsReset);
+
                 game.state.restart_position = None;
                 game.state.restart_team = Some(team); // team that conceded restarts from center
-                game.state.stage = GameStage::Setup("kick off".to_string());
+                game.record(
+                    timestamp,
+                    JournalEvent::RestartSet {
+                        restart_position: None,
+                        restart_team: Some(team),
+                    },
+                );
+
+                let stage = GameStage::Setup("kick off".to_string());
+                game.state.stage = stage.clone();
+                game.record(timestamp, JournalEvent::StageChange { stage });
             }
             FootballEvent::Touchline(position, last_team) => {
                 for player_state in game.state.player_states.iter_mut() {
@@ -176,9 +230,22 @@ impl FootballGameManager {
                     player_state.current_decision = None;
                     player_state.needs_decision = true;
                 }
+                game.record(timestamp, JournalEvent::DecisionsReset);
+
+                let restart_team = last_team.opposite();
                 game.state.restart_position = Some(position);
-                game.state.restart_team = Some(last_team.opposite());
-                game.state.stage = GameStage::Setup("throw in".to_string());
+                game.state.restart_team = Some(restart_team);
+                game.record(
+                    timestamp,
+                    JournalEvent::RestartSet {
+                        restart_position: Some(position),
+                        restart_team: Some(restart_team),
+                    },
+                );
+
+                let stage = GameStage::Setup("throw in".to_string());
+                game.state.stage = stage.clone();
+                game.record(timestamp, JournalEvent::StageChange { stage });
             }
             FootballEvent::GoalLine(position, last_team) => {
                 for player_state in game.state.player_states.iter_mut() {
@@ -186,6 +253,8 @@ impl FootballGameManager {
                     player_state.current_decision = None;
                     player_state.needs_decision = true;
                 }
+                game.record(timestamp, JournalEvent::DecisionsReset);
+
                 let field_length = game.config().field.length().get::<meter>();
                 let field_width = game.config().field.width().get::<meter>();
                 let ball_z = position.z.get::<meter>();
@@ -203,15 +272,37 @@ impl FootballGameManager {
                     } else {
                         field_length - GOAL_KICK_OFFSET
                     };
-                    game.state.restart_position =
-                        Some(Point3D::from_meters(field_width / 2.0, 0.0, goal_kick_z));
-                    game.state.restart_team = Some(last_team.opposite()); // defending team takes goal kick
-                    game.state.stage = GameStage::Setup("goal kick".to_string());
+                    let restart_position =
+                        Point3D::from_meters(field_width / 2.0, 0.0, goal_kick_z);
+                    let restart_team = last_team.opposite(); // defending team takes goal kick
+                    game.state.restart_position = Some(restart_position);
+                    game.state.restart_team = Some(restart_team);
+                    game.record(
+                        timestamp,
+                        JournalEvent::RestartSet {
+                            restart_position: Some(restart_position),
+                            restart_team: Some(restart_team),
+                        },
+                    );
+
+                    let stage = GameStage::Setup("goal kick".to_string());
+                    game.state.stage = stage.clone();
+                    game.record(timestamp, JournalEvent::StageChange { stage });
                 } else {
-                    game.state.restart_position =
-                        Some(nearest_corner(position, field_width, field_length));
+                    let restart_position = nearest_corner(position, field_width, field_length);
+                    game.state.restart_position = Some(restart_position);
                     game.state.restart_team = Some(attacking_team); // attacking team takes corner
-                    game.state.stage = GameStage::Setup("corner".to_string());
+                    game.record(
+                        timestamp,
+                        JournalEvent::RestartSet {
+                            restart_position: Some(restart_position),
+                            restart_team: Some(attacking_team),
+                        },
+                    );
+
+                    let stage = GameStage::Setup("corner".to_string());
+                    game.state.stage = stage.clone();
+                    game.record(timestamp, JournalEvent::StageChange { stage });
                 }
             }
         }

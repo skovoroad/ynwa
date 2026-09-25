@@ -1,5 +1,6 @@
 use crate::field::zones::{Point3D, Velocity3D};
 use crate::field::Field;
+use crate::journal::{JournalEvent, JournalSink, NullJournalSink};
 use crate::region::{GridCell, Region};
 use crate::team::Team;
 use serde::{Deserialize, Serialize};
@@ -277,6 +278,7 @@ pub struct Game {
     config: GameConfig,
     pub state: GameState,
     rng_manager: Box<dyn crate::rng::RngManager>,
+    journal_sink: Box<dyn JournalSink>,
 }
 
 impl Game {
@@ -360,11 +362,33 @@ impl Game {
             },
             config,
             rng_manager,
+            journal_sink: Box::new(NullJournalSink),
         }
     }
 
     pub fn rng_manager(&self) -> &dyn crate::rng::RngManager {
         self.rng_manager.as_ref()
+    }
+
+    /// Writes an event to the journal sink. `timestamp` is the absolute step time.
+    pub fn record(&mut self, timestamp: f32, event: JournalEvent) {
+        self.journal_sink.push(timestamp, event);
+    }
+
+    /// Notifies the sink that the step at `timestamp` has finished.
+    pub fn finish_step(&mut self, timestamp: f32) {
+        self.journal_sink.finish_step(timestamp);
+    }
+
+    /// Attaches a recording sink; replaces the no-op default.
+    pub fn set_journal_sink(&mut self, sink: Box<dyn JournalSink>) {
+        self.journal_sink = sink;
+    }
+
+    /// Detaches the current sink, restoring the no-op default, and finalizes the recording.
+    pub fn finish_journal(&mut self) -> Result<(), String> {
+        let sink = std::mem::replace(&mut self.journal_sink, Box::new(NullJournalSink));
+        sink.finish()
     }
 
     pub fn step(&mut self, delta_time: f32) {

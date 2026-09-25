@@ -23,6 +23,7 @@
 //! in favour of the lower index (stable sort).
 
 use crate::game::Game;
+use crate::journal::JournalEvent;
 use crate::physics_util::distance_length;
 use crate::system::System;
 use uom::si::f32::Length;
@@ -139,6 +140,14 @@ impl System for BallPossessionSystem {
             for player_state in &mut game.state.player_states {
                 player_state.needs_decision = true;
             }
+
+            game.record(
+                timestamp,
+                JournalEvent::PossessionChange {
+                    possessed_by: game.state.ball_state.possessed_by,
+                    last_possessing_team: game.state.ball_state.last_possessing_team,
+                },
+            );
         }
     }
 }

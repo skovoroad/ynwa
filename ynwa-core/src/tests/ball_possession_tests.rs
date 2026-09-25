@@ -4,9 +4,10 @@ use crate::field::Field;
 use crate::game::{
     BallDef, GameConfig, GameStage, PlayerDef, PlayerState, RefereeDef, REGION_START_POSITION,
 };
+use crate::journal::JournalEvent;
 use crate::region::GridCell;
 use crate::team::Team;
-use crate::test_utils::{deterministic_rng, SequenceRngManager};
+use crate::test_utils::{attach_journal, deterministic_rng, SequenceRngManager};
 use std::collections::HashMap;
 
 fn create_test_field() -> Field {
@@ -873,4 +874,59 @@ fn test_last_possessing_team_changes_on_interception() {
     // Team B should now have possession
     assert_eq!(game.state.ball_state.possessed_by, Some(1));
     assert_eq!(game.state.ball_state.last_possessing_team, Some(Team::B));
+}
+
+fn possession_game(ball_pos: Point3D, player_pos: Point3D) -> Game {
+    let (player_def, player_state) = create_test_player(Team::A, 1, 50, player_pos);
+    let config = GameConfig {
+        field: create_test_field(),
+        players: vec![player_def],
+        ball: BallDef::default(),
+        referees: vec![RefereeDef::default()],
+        scripting: crate::game::ScriptingConfig::empty(),
+    };
+
+    let mut game = make_play_game(config);
+    game.state.ball_state.position = ball_pos;
+    game.state.player_states = vec![player_state];
+    game.state.ball_state.possessed_by = None;
+    game
+}
+
+#[test]
+fn test_records_possession_change() {
+    let mut game = possession_game(
+        Point3D::from_meters(50.0, 30.0, 0.0),
+        Point3D::from_meters(50.5, 30.0, 0.0),
+    );
+    let collection = attach_journal(&mut game);
+
+    let mut system = BallPossessionSystem::new();
+    system.update(&mut game, 2.0);
+
+    let entries = collection.borrow().entries().to_vec();
+    assert_eq!(entries.len(), 1);
+    assert_eq!(entries[0].timestamp, 2.0);
+    assert_eq!(
+        entries[0].event,
+        JournalEvent::PossessionChange {
+            possessed_by: Some(0),
+            last_possessing_team: Some(Team::A),
+        }
+    );
+}
+
+#[test]
+fn test_no_record_when_possession_does_not_change() {
+    let mut game = possession_game(
+        Point3D::from_meters(50.0, 30.0, 0.0),
+        Point3D::from_meters(50.5, 30.0, 0.0),
+    );
+    let collection = attach_journal(&mut game);
+
+    let mut system = BallPossessionSystem::new();
+    system.update(&mut game, 2.0);
+    system.update(&mut game, 3.0);
+
+    assert_eq!(collection.borrow().entries().len(), 1);
 }

@@ -109,3 +109,16 @@ fn test_world_passes_correct_timestamp_to_systems() {
     world.step(0.016);
     assert!((*received_timestamp.borrow() - 0.032).abs() < 0.001);
 }
+
+#[test]
+fn test_world_step_notifies_journal_sink() {
+    let mut game = create_test_game();
+    let collection = crate::test_utils::attach_journal(&mut game);
+
+    let mut world = World::new(game);
+    world.step(0.016);
+    world.step(0.016);
+    world.game_mut().finish_journal().unwrap();
+
+    assert_eq!(collection.borrow().total_steps(), 2);
+}

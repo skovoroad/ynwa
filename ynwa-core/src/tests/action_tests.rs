@@ -1,9 +1,10 @@
 use super::*;
 use crate::field::Field;
 use crate::game::{BallDef, GameConfig, PlayerDef, RefereeDef, REGION_START_POSITION};
+use crate::journal::JournalEvent;
 use crate::region::GridCell;
 use crate::team::Team;
-use crate::test_utils::{deterministic_rng, SequenceRngManager};
+use crate::test_utils::{attach_journal, deterministic_rng, SequenceRngManager};
 use std::collections::HashMap;
 
 fn create_test_game() -> Game {
@@ -513,4 +514,47 @@ fn test_kick_resets_possession_cooldown_timer() {
         game.state.ball_state.last_possession_change_time, kick_timestamp,
         "last_possession_change_time must be updated on kick to prevent immediate re-possession"
     );
+}
+
+#[test]
+fn test_kick_outcome_is_recorded() {
+    let mut game = create_test_game_with_player_stats(100, 50, 50, 100, 100);
+    let collection = attach_journal(&mut game);
+
+    game.state.ball_state.possessed_by = Some(0);
+    game.state.ball_state.position = Point3D::from_meters(50.0, 0.0, 30.0);
+
+    let target = Point3D::from_meters(50.0, 0.0, 60.0);
+    game.state.player_states[0].current_decision = Some(Decision::Kick(target));
+    game.state.player_states[0].decision_processed = false;
+
+    let mut system = ActionSystem::new();
+    system.update(&mut game, 3.0);
+
+    let entries = collection.borrow().entries().to_vec();
+    assert_eq!(entries.len(), 1);
+    assert_eq!(entries[0].timestamp, 3.0);
+    assert_eq!(
+        entries[0].event,
+        JournalEvent::KickOutcome {
+            player_index: 0,
+            ball_velocity: game.state.ball_state.velocity,
+        }
+    );
+}
+
+#[test]
+fn test_ignored_kick_is_not_recorded() {
+    let mut game = create_test_game_with_player_stats(100, 50, 50, 100, 100);
+    let collection = attach_journal(&mut game);
+
+    game.state.ball_state.possessed_by = None;
+    game.state.player_states[0].current_decision =
+        Some(Decision::Kick(Point3D::from_meters(60.0, 30.0, 0.0)));
+    game.state.player_states[0].decision_processed = false;
+
+    let mut system = ActionSystem::new();
+    system.update(&mut game, 1.0);
+
+    assert!(collection.borrow().entries().is_empty());
 }

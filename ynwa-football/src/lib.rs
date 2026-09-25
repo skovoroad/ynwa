@@ -290,6 +290,9 @@ pub fn create_football_world(
 #[path = "tests/field_builder_tests.rs"]
 mod field_builder_tests;
 #[cfg(test)]
+#[path = "tests/journal_integration_tests.rs"]
+mod journal_integration_tests;
+#[cfg(test)]
 #[path = "tests/serde_tests.rs"]
 mod serde_tests;
 #[cfg(test)]
