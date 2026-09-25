@@ -34,7 +34,7 @@
 
 Запись состоит из:
 
-- **Заголовок**: полный [`GameConfig`](ynwa-core/src/game.rs:228) (поле, сетка, зоны, игроки,
+- **Заголовок**: полный [`GameConfig`](ynwa-core/src/game.rs:250) (поле, сетка, зоны, игроки,
   преамбулы и скрипты) + начальная стадия. Конфиг неизменяем во время матча, поэтому сериализуется
   один раз.
 - **Журнал событий** (§3).
@@ -53,7 +53,7 @@
 - Сбросы решений, выполняемые менеджером игры при переходах в `Setup`.
 
 Журнал должен быть доступен всем системам, включая футбольный слой. Предлагается буфер внутри
-[`Game`](ynwa-core/src/game.rs:254) (по аналогии с `rng_manager`) с методом записи; события
+[`Game`](ynwa-core/src/game.rs:276) (по аналогии с `rng_manager`) с методом записи; события
 таймстампятся аргументом `timestamp`.
 
 ## 4. Случайность (RNG)
@@ -67,7 +67,7 @@
 ## 5. Детерминизм
 
 - Для v1: гарантировать детерминизм в рамках одной платформы (задокументировать).
-- Упорядочить итерации по `HashMap` (зоны — [`Field.zones()`](ynwa-core/src/field/mod.rs:114),
+- Упорядочить итерации по `HashMap` (зоны — [`Field.zones()`](ynwa-core/src/field/mod.rs:154),
   статистика) для стабильного вывода сериализации; для логики с «первым совпадением» использовать
   детерминированный порядок.
 
@@ -81,7 +81,7 @@
 # Архитектурное решение (шаг 2)
 
 > Предпосылка: **этап 1 (фундамент сериализации) выполнен** — serde для доменных типов
-> (`Point3D`/`Velocity3D`, геометрия зон, [`Field`](ynwa-core/src/field/mod.rs:55) с
+> (`Point3D`/`Velocity3D`, геометрия зон, [`Field`](ynwa-core/src/field/mod.rs:60) с
 > детерминированным порядком зон, `Region`/`GridCell`, `Team`, `GameStage`, `Decision`,
 > `PlayerDef`/`GameConfig`), базовые единицы СИ, round-trip тесты. Этап 1 не пересматривается;
 > ниже — только оставшиеся этапы.
@@ -108,7 +108,7 @@
 - **Новый крейт не заводится.** Вся запись/воспроизведение ядра — в `ynwa-core` (там же
   `serde`/`serde_json` в зависимостях): `journal`, `record`, `codec`, `replay`. Футбольно-специфичная
   часть остаётся в `ynwa-football` (события, pin мяча, фабрика replay-мира).
-- **Журнал живёт в ядре**: [`Game`](ynwa-core/src/game.rs:254) владеет приёмником (`JournalSink`),
+- **Журнал живёт в ядре**: [`Game`](ynwa-core/src/game.rs:276) владеет приёмником (`JournalSink`),
   системы пишут через `Game::record`; события таймстампятся аргументом `timestamp` систем.
 - **Воспроизведение конфигурирует игру сокращённым набором систем.** Replay-мир собирается
   отдельной фабрикой (`create_football_replay_world`), а не через обычную
@@ -260,9 +260,9 @@ impl JournalSink for CollectJournalRecorder {
 
 ### 2.3 Изменения `Game` и `World`
 
-- В [`Game`](ynwa-core/src/game.rs:254) добавляется поле `journal_sink: Box<dyn JournalSink>`
-  (по умолчанию `NullJournalSink` — сигнатуры [`Game::new`](ynwa-core/src/game.rs:261) и
-  [`Game::with_stage`](ynwa-core/src/game.rs:265) не меняются).
+- В [`Game`](ynwa-core/src/game.rs:276) добавляется поле `journal_sink: Box<dyn JournalSink>`
+  (по умолчанию `NullJournalSink` — сигнатуры [`Game::new`](ynwa-core/src/game.rs:283) и
+  [`Game::with_stage`](ynwa-core/src/game.rs:287) не меняются).
 - Новые методы:
   - `Game::record(&mut self, timestamp: f32, event: JournalEvent)` — делегирует в
     `journal_sink.push(timestamp, event)`;
@@ -470,7 +470,7 @@ pub struct FileJournalRecorder {
 - `journal.rs`: `JournalEvent`, `JournalEntry`, `JournalSink` (`push` + `finish_step` + `finish`),
   `NullJournalSink`; `EventsCollection`, `CollectJournalRecorder`.
 - `record.rs`: `RecordHeader`, `Record`.
-- [`Game`](ynwa-core/src/game.rs:254): поле `journal_sink`; методы `record`, `finish_step`,
+- [`Game`](ynwa-core/src/game.rs:276): поле `journal_sink`; методы `record`, `finish_step`,
   `set_journal_sink`, `finish_journal`; [`World::step`](ynwa-core/src/world.rs:23) зовёт
   `Game::finish_step` на каждом шаге.
 - Точки записи в `DecisionSystem`, `BallPossessionSystem`, `ActionSystem`, `FootballGameManager`.
@@ -498,3 +498,35 @@ pub struct FileJournalRecorder {
   эквивалентности из §2.6. Исходный прогон интеграционного теста запускается с детерминированной
   RNG-конфигурацией (`temperature = 0.0` или фиксированный `seed`), чтобы сам тест был
   воспроизводим.
+
+---
+
+# Ревью архитектурного решения (шаг 3)
+
+Дата ревью: 2026-09-25.
+
+Результат: **пройдено**. Архитектурное решение согласовано, значимых замечаний нет — возврат
+к шагу 2 не требуется.
+
+В ходе ревью сверены ссылки на код и покрытие журналом всех точек изменения состояния, влияющих
+на физику (`current_decision`, `stage`, `restart_*`, `ball_state.*`, `team_stats`): набор событий
+и replay-системы (`ReplaySetupBallPlacer`, `ReplayDriver`, `PhysicsSystem`) покрывают их
+полностью. Порядок систем replay (`placer → driver → physics`) воспроизводит момент «мяч
+фиксируется со следующего тика после перехода в `Setup`»; события одного шага применяются в
+порядке журнала, который совпадает с порядком систем исходного прогона.
+
+Незначительные замечания, исправленные в этом файле:
+
+- Обновлены ссылки на строки кода (`game.rs`, `field/mod.rs`), сдвинувшиеся после написания
+  решения.
+
+Принято к сведению (изменений архитектуры/кода не требуют):
+
+- `JournalSink` не объявлен `Send`, а накапливающий приёмник использует `Rc<RefCell<...>>`.
+  Движок однопоточный, поэтому это осознанно допустимо; при появлении потоков — `Arc<Mutex<...>>`.
+- Утверждение «потребителей случайности в игре всего два» относится к футбольному миру
+  (`ScriptedDecisionMaker`). `PlaceholderDecisionMaker` тоже тянет RNG, но в replay-мир системы
+  принятия решений не входят, поэтому на запись/воспроизведение это не влияет.
+- Фразу DOD этапа 4 «одинаковая последовательность `FootballEvent`» следует читать как сравнение
+  последовательности, декодированной из журнала исходного прогона (`decode_football_events`), с
+  ожидаемой; сам replay-мир футбольные события не порождает (в нём нет `check_events`).
