@@ -480,9 +480,15 @@ pub struct FileJournalRecorder {
 
 ### Этап 3 — кодек и потоковая запись (JSON Lines)
 
-- `codec.rs`: `RecordWriter`/`RecordReader`, `JsonRecordCodec` (JSON Lines);
+- `codec.rs`: `RecordWriter`/`RecordReader`, `JsonRecordWriter`/`JsonRecordReader` (JSON Lines);
   `FileJournalRecorder` поверх `RecordWriter` + `Write` (считает шаги через `finish_step`, пишет
   трейлер с этим счётчиком).
+- `record_io.rs`: тонкие конструкторы `json_journal_file_writer`/`json_journal_file_reader` (файл) и
+  `json_journal_memory_writer`/`json_journal_memory_reader` (память), скрывающие сборку `RecordWriter` в точке
+  применения.
+- **Согласовано с человеком:** тип `JsonRecordCodec` из архитектурного решения удалён как лишний
+  уровень косвенности (его роль выполняют конструкторы конкретных типов и `record_io`). Файл
+  `record_io.rs` архитектурным решением не описан, но ему не противоречит.
 - **DOD**: round-trip `Record ↔ файл`; тест «обрыва» файла — читается валидный префикс
   (заголовок + события); тест потоковой записи — события попадают в файл по одному, не накапливаясь
   в памяти.

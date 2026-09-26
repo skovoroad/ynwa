@@ -1,6 +1,6 @@
-//! Tests for the JSON Lines codec and the file journal recorder.
+//! Tests for the JSON Lines codec, the record I/O helpers and the file journal recorder.
 
-use crate::codec::{FileJournalRecorder, JsonRecordCodec, RecordReader, RecordWriter};
+use crate::codec::{FileJournalRecorder, RecordReader, RecordWriter};
 use crate::field::zones::Velocity3D;
 use crate::field::Field;
 use crate::game::{
@@ -9,14 +9,15 @@ use crate::game::{
 };
 use crate::journal::{JournalEntry, JournalEvent, JournalSink};
 use crate::record::RecordHeader;
+use crate::record_io::{
+    json_journal_file_reader, json_journal_file_writer, json_journal_memory_reader,
+    json_journal_memory_writer, SharedBytes,
+};
 use crate::region::GridCell;
 use crate::team::Team;
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fs;
-use std::io::{BufReader, Cursor, Write};
 use std::path::PathBuf;
-use std::rc::Rc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const FOOTER_MARKER: &[u8] = b"{\"type\":\"footer\"";
@@ -77,35 +78,10 @@ fn sample_entries() -> Vec<JournalEntry> {
     ]
 }
 
-/// Owned write sink that can be cloned to observe bytes while the recorder still owns a handle.
-#[derive(Clone, Default)]
-struct SharedBuffer(Rc<RefCell<Vec<u8>>>);
-
-impl SharedBuffer {
-    fn contents(&self) -> Vec<u8> {
-        self.0.borrow().clone()
-    }
-
-    fn text(&self) -> String {
-        String::from_utf8(self.contents()).unwrap()
-    }
-}
-
-impl Write for SharedBuffer {
-    fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
-        self.0.borrow_mut().extend_from_slice(bytes);
-        Ok(bytes.len())
-    }
-
-    fn flush(&mut self) -> std::io::Result<()> {
-        Ok(())
-    }
-}
-
 fn write_recording(header: &RecordHeader, entries: &[JournalEntry], total_steps: u64) -> Vec<u8> {
-    let sink = SharedBuffer::default();
+    let sink = SharedBytes::new();
     let mut recorder =
-        FileJournalRecorder::new(Box::new(JsonRecordCodec::writer(sink.clone())), header);
+        FileJournalRecorder::new(Box::new(json_journal_memory_writer(&sink)), header);
     for entry in entries {
         recorder.push(entry.timestamp, entry.event.clone());
     }
@@ -113,7 +89,7 @@ fn write_recording(header: &RecordHeader, entries: &[JournalEntry], total_steps:
         recorder.finish_step(0.0);
     }
     Box::new(recorder).finish().unwrap();
-    sink.contents()
+    sink.bytes()
 }
 
 fn temp_path(name: &str) -> PathBuf {
@@ -124,13 +100,22 @@ fn temp_path(name: &str) -> PathBuf {
     std::env::temp_dir().join(format!("ynwa-core-codec-{name}-{nanos}.jsonl"))
 }
 
+/// Truncated recording = header + events, without the trailing footer line.
+fn prefix_without_footer(complete: &[u8]) -> &[u8] {
+    let footer_start = complete
+        .windows(FOOTER_MARKER.len())
+        .position(|window| window == FOOTER_MARKER)
+        .unwrap();
+    &complete[..footer_start]
+}
+
 #[test]
 fn in_memory_record_round_trips() {
     let header = test_header();
     let entries = sample_entries();
 
     let buffer = write_recording(&header, &entries, 3);
-    let record = JsonRecordCodec::reader(Cursor::new(buffer)).read().unwrap();
+    let record = json_journal_memory_reader(buffer).read().unwrap();
 
     assert_eq!(record.header, header);
     assert_eq!(record.total_steps, 3);
@@ -144,9 +129,8 @@ fn file_record_round_trips() {
     let path = temp_path("round-trip");
 
     {
-        let file = fs::File::create(&path).unwrap();
         let mut recorder =
-            FileJournalRecorder::new(Box::new(JsonRecordCodec::writer(file)), &header);
+            FileJournalRecorder::new(Box::new(json_journal_file_writer(&path).unwrap()), &header);
         for entry in &entries {
             recorder.push(entry.timestamp, entry.event.clone());
         }
@@ -156,10 +140,8 @@ fn file_record_round_trips() {
         Box::new(recorder).finish().unwrap();
     }
 
-    let file = fs::File::open(&path).unwrap();
-    let record = JsonRecordCodec::reader(BufReader::new(file))
-        .read()
-        .unwrap();
+    let mut reader = json_journal_file_reader(&path).unwrap();
+    let record = reader.read().unwrap();
     fs::remove_file(&path).unwrap();
 
     assert_eq!(record.header, header);
@@ -188,12 +170,11 @@ fn writes_header_event_and_footer_lines() {
 #[test]
 fn header_is_written_on_creation() {
     let header = test_header();
-    let sink = SharedBuffer::default();
+    let sink = SharedBytes::new();
 
-    let recorder =
-        FileJournalRecorder::new(Box::new(JsonRecordCodec::writer(sink.clone())), &header);
+    let recorder = FileJournalRecorder::new(Box::new(json_journal_memory_writer(&sink)), &header);
 
-    let text = sink.text();
+    let text = String::from_utf8(sink.bytes()).unwrap();
     assert_eq!(text.lines().count(), 1);
     assert!(text.starts_with("{\"type\":\"header\""));
     drop(recorder);
@@ -206,9 +187,8 @@ fn events_are_flushed_before_finish() {
     let path = temp_path("streaming");
 
     {
-        let file = fs::File::create(&path).unwrap();
         let mut recorder =
-            FileJournalRecorder::new(Box::new(JsonRecordCodec::writer(file)), &header);
+            FileJournalRecorder::new(Box::new(json_journal_file_writer(&path).unwrap()), &header);
 
         for (index, entry) in entries.iter().enumerate() {
             recorder.push(entry.timestamp, entry.event.clone());
@@ -232,13 +212,7 @@ fn reads_valid_prefix_without_footer() {
     let entries = sample_entries();
     let complete = write_recording(&header, &entries, 5);
 
-    let footer_start = complete
-        .windows(FOOTER_MARKER.len())
-        .position(|window| window == FOOTER_MARKER)
-        .unwrap();
-    let prefix = &complete[..footer_start];
-
-    let record = JsonRecordCodec::reader(Cursor::new(prefix.to_vec()))
+    let record = json_journal_memory_reader(prefix_without_footer(&complete).to_vec())
         .read()
         .unwrap();
 
@@ -252,16 +226,10 @@ fn ignores_event_line_cut_off_mid_write() {
     let entries = sample_entries();
     let complete = write_recording(&header, &entries, 5);
 
-    let footer_start = complete
-        .windows(FOOTER_MARKER.len())
-        .position(|window| window == FOOTER_MARKER)
-        .unwrap();
-    let prefix = &complete[..footer_start];
+    let prefix = prefix_without_footer(&complete);
     let cut = &prefix[..prefix.len() - 5];
 
-    let record = JsonRecordCodec::reader(Cursor::new(cut.to_vec()))
-        .read()
-        .unwrap();
+    let record = json_journal_memory_reader(cut.to_vec()).read().unwrap();
 
     assert_eq!(record.header, header);
     assert_eq!(record.journal, entries[..entries.len() - 1].to_vec());
@@ -269,9 +237,7 @@ fn ignores_event_line_cut_off_mid_write() {
 
 #[test]
 fn reading_without_header_fails() {
-    let error = JsonRecordCodec::reader(Cursor::new(Vec::new()))
-        .read()
-        .unwrap_err();
+    let error = json_journal_memory_reader(Vec::new()).read().unwrap_err();
 
     assert!(error.contains("no header"));
 }
@@ -291,9 +257,7 @@ fn duplicate_header_is_rejected() {
     duplicated.extend_from_slice(header_line.as_bytes());
     duplicated.push(b'\n');
 
-    let error = JsonRecordCodec::reader(Cursor::new(duplicated))
-        .read()
-        .unwrap_err();
+    let error = json_journal_memory_reader(duplicated).read().unwrap_err();
 
     assert!(error.contains("more than one header"));
 }
@@ -303,9 +267,7 @@ fn corrupt_complete_line_fails() {
     let mut buffer = write_recording(&test_header(), &[], 0);
     buffer.extend_from_slice(b"{not json}\n");
 
-    let error = JsonRecordCodec::reader(Cursor::new(buffer))
-        .read()
-        .unwrap_err();
+    let error = json_journal_memory_reader(buffer).read().unwrap_err();
 
     assert!(!error.is_empty());
 }

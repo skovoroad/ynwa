@@ -24,19 +24,6 @@ pub trait RecordReader {
     fn read(&mut self) -> Result<Record, String>;
 }
 
-/// Default codec: JSON Lines via `serde_json`.
-pub struct JsonRecordCodec;
-
-impl JsonRecordCodec {
-    pub fn writer<W: Write>(sink: W) -> JsonRecordWriter<W> {
-        JsonRecordWriter::new(sink)
-    }
-
-    pub fn reader<R: BufRead>(source: R) -> JsonRecordReader<R> {
-        JsonRecordReader::new(source)
-    }
-}
-
 /// One line of a JSON Lines recording.
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]

@@ -7,6 +7,7 @@ pub mod journal;
 pub mod orientation;
 pub mod physics_util;
 pub mod record;
+pub mod record_io;
 pub mod region;
 pub mod repository;
 pub mod rng;
@@ -31,8 +32,7 @@ mod journal_tests;
 mod serde_tests;
 
 pub use codec::{
-    FileJournalRecorder, JsonRecordCodec, JsonRecordReader, JsonRecordWriter, RecordReader,
-    RecordWriter,
+    FileJournalRecorder, JsonRecordReader, JsonRecordWriter, RecordReader, RecordWriter,
 };
 pub use field::zones::{Point3D, Velocity3D};
 pub use game::{
@@ -44,6 +44,10 @@ pub use journal::{
     NullJournalSink,
 };
 pub use record::{Record, RecordHeader};
+pub use record_io::{
+    json_journal_file_reader, json_journal_file_writer, json_journal_memory_reader,
+    json_journal_memory_writer, SharedBytes,
+};
 
 pub use orientation::{
     flip_grid_cell_orientation, flip_point_orientation, flip_region_orientation,
