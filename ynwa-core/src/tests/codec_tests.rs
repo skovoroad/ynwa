@@ -304,6 +304,22 @@ impl RecordWriter for FailingHeaderWriter {
     }
 }
 
+struct FailingFinishWriter;
+
+impl RecordWriter for FailingFinishWriter {
+    fn write_header(&mut self, _header: &RecordHeader) -> Result<(), String> {
+        Ok(())
+    }
+
+    fn write_event(&mut self, _entry: &JournalEntry) -> Result<(), String> {
+        Ok(())
+    }
+
+    fn finish(&mut self, _total_steps: u64) -> Result<(), String> {
+        Err("no space for footer".to_string())
+    }
+}
+
 #[test]
 fn event_write_error_is_reported_on_finish() {
     let header = test_header();
@@ -323,5 +339,19 @@ fn header_write_error_is_reported_on_finish() {
     assert_eq!(
         Box::new(recorder).finish().unwrap_err(),
         "no space for header"
+    );
+}
+
+#[test]
+fn finish_write_error_is_reported_on_finish() {
+    let header = test_header();
+    let mut recorder = FileJournalRecorder::new(Box::new(FailingFinishWriter), &header);
+
+    recorder.push(0.1, JournalEvent::DecisionsReset);
+    recorder.finish_step(0.1);
+
+    assert_eq!(
+        Box::new(recorder).finish().unwrap_err(),
+        "no space for footer"
     );
 }
