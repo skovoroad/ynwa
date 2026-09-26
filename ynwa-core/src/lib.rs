@@ -1,5 +1,6 @@
 //! YNWA Football Manager - Core Library
 
+pub mod codec;
 pub mod field;
 pub mod game;
 pub mod journal;
@@ -18,6 +19,10 @@ pub mod world;
 mod test_utils;
 
 #[cfg(test)]
+#[path = "tests/codec_tests.rs"]
+mod codec_tests;
+
+#[cfg(test)]
 #[path = "tests/journal_tests.rs"]
 mod journal_tests;
 
@@ -25,6 +30,10 @@ mod journal_tests;
 #[path = "tests/serde_tests.rs"]
 mod serde_tests;
 
+pub use codec::{
+    FileJournalRecorder, JsonRecordCodec, JsonRecordReader, JsonRecordWriter, RecordReader,
+    RecordWriter,
+};
 pub use field::zones::{Point3D, Velocity3D};
 pub use game::{
     BallDef, BallState, Decision, DecisionTarget, Game, GameConfig, GameStage, GameState,

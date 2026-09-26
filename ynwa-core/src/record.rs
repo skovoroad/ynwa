@@ -2,9 +2,10 @@
 
 use crate::game::{GameConfig, GameStage};
 use crate::journal::JournalEntry;
+use serde::{Deserialize, Serialize};
 
 /// Everything needed to reconstruct the initial state before replaying.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RecordHeader {
     pub config: GameConfig,
     pub initial_stage: GameStage,
