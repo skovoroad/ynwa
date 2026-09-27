@@ -173,8 +173,10 @@ fn assert_same_physical_state(expected: &Game, actual: &Game) {
         expected.state.restart_team, actual.state.restart_team,
         "restart_team"
     );
-    assert_eq!(score(expected, Team::A), score(actual, Team::A), "score A");
-    assert_eq!(score(expected, Team::B), score(actual, Team::B), "score B");
+    assert_eq!(
+        expected.state.team_stats, actual.state.team_stats,
+        "team_stats"
+    );
 }
 
 #[test]

@@ -27,7 +27,7 @@ mod sorted_collections {
 }
 
 /// Named numeric statistics. Keys are game-specific (defined by game managers, not core).
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct StatSet {
     values: HashMap<String, f64>,
 }

@@ -291,7 +291,7 @@ fn football_external(timestamp: f32, event: FootballEvent) -> JournalEntry {
     JournalEntry {
         timestamp,
         event: JournalEvent::External {
-            kind: "football_event".to_string(),
+            kind: crate::game_manager::FOOTBALL_EVENT_KIND.to_string(),
             data: serde_json::to_value(event).unwrap(),
         },
     }
@@ -362,8 +362,7 @@ fn assert_equivalent(expected: &GameState, actual: &GameState) {
         "restart_position"
     );
     assert_eq!(expected.restart_team, actual.restart_team, "restart_team");
-    assert_eq!(score(expected, Team::A), score(actual, Team::A), "score A");
-    assert_eq!(score(expected, Team::B), score(actual, Team::B), "score B");
+    assert_eq!(expected.team_stats, actual.team_stats, "team_stats");
 }
 
 fn close(expected: f32, actual: f32) -> bool {
