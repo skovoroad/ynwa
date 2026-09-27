@@ -305,6 +305,9 @@ mod replay_tests;
 #[path = "tests/serde_tests.rs"]
 mod serde_tests;
 #[cfg(test)]
+#[path = "tests/serialization_tests.rs"]
+mod serialization_tests;
+#[cfg(test)]
 mod tests {
     use super::*;
     use crate::test_utils::deterministic_rng;

@@ -4,22 +4,21 @@
 //! a divergence that self-corrects by the end would go unnoticed. Here both runs advance one step
 //! at a time and their contract state is compared on every step.
 
-use crate::events::{check_events, FootballEvent};
+use crate::events::FootballEvent;
 use crate::field_builder::create_football_field;
 use crate::replay::{create_football_replay_world, decode_football_events};
-use crate::test_utils::{assert_equivalent, build_recording_world_with, FIXED_DT};
+use crate::test_utils::{assert_equivalent, build_recording_world_with, run_lockstep, FIXED_DT};
 use std::collections::{HashMap, HashSet};
 use uom::si::length::meter;
 use ynwa_core::field::zones::Point3D;
 use ynwa_core::game::{
-    BallDef, Decision, DecisionTarget, Game, GameConfig, GameStage, GameState, PlayerDef,
-    RefereeDef, ScriptingConfig, REGION_START_POSITION,
+    BallDef, Decision, DecisionTarget, Game, GameConfig, GameStage, PlayerDef, RefereeDef,
+    ScriptingConfig, REGION_START_POSITION,
 };
 use ynwa_core::record::RecordHeader;
 use ynwa_core::region::GridCell;
 use ynwa_core::systems::{DecisionError, DecisionMaker};
 use ynwa_core::team::Team;
-use ynwa_core::world::World;
 
 const LOCKSTEP_STEPS: u64 = 150;
 
@@ -98,24 +97,6 @@ impl DecisionMaker for GoalThenTouchline {
         };
         Ok((Decision::Kick(target), Some(format!("kick {}", self.kicks))))
     }
-}
-
-/// Snapshots the contract state before each step, and reports `check_events` only on `Play`
-/// snapshots — mirroring `FootballGameManager`, which checks events in the `Play` branch alone.
-fn run_lockstep(world: &mut World, steps: u64) -> (Vec<GameState>, Vec<(f32, FootballEvent)>) {
-    let mut before = Vec::new();
-    let mut detected = Vec::new();
-    for _ in 0..steps {
-        let state = world.game().state().clone();
-        if matches!(state.stage, GameStage::Play) {
-            if let Some(event) = check_events(world.game()) {
-                detected.push((state.elapsed_time + FIXED_DT, event));
-            }
-        }
-        before.push(state);
-        world.step(FIXED_DT);
-    }
-    (before, detected)
 }
 
 #[test]

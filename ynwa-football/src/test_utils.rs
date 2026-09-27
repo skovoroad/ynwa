@@ -1,5 +1,6 @@
 //! Helpers shared by unit tests.
 
+use crate::events::{check_events, FootballEvent};
 use crate::game_manager::FootballGameManager;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -26,9 +27,17 @@ use ynwa_core::world::World;
 pub(crate) const FIXED_DT: f32 = 0.1;
 pub(crate) const STEPS: u64 = 150;
 
+/// Random source with the given temperature and seed; temperature `0.0` is fully reproducible.
+pub(crate) fn rng_with(temperature: f32, seed: u64) -> Box<dyn RngManager> {
+    Box::new(DefaultRngManager::new(RngConfig::new(
+        temperature,
+        Some(seed),
+    )))
+}
+
 /// Deterministic manager: zero variation, fixed seed.
 pub(crate) fn deterministic_rng() -> Box<dyn RngManager> {
-    Box::new(DefaultRngManager::new(RngConfig::new(0.0, Some(42))))
+    rng_with(0.0, 42)
 }
 
 /// Attaches an accumulating journal recorder to the game and returns its shared collection.
@@ -98,7 +107,17 @@ pub(crate) fn build_recording_world_with(
     stage: GameStage,
     decision_maker: Box<dyn DecisionMaker>,
 ) -> (World, Rc<RefCell<EventsCollection>>) {
-    let game = Game::with_stage(config, stage, deterministic_rng());
+    build_recording_world_with_rng(config, stage, decision_maker, deterministic_rng())
+}
+
+/// Like [`build_recording_world_with`], but with an explicit random source.
+pub(crate) fn build_recording_world_with_rng(
+    config: GameConfig,
+    stage: GameStage,
+    decision_maker: Box<dyn DecisionMaker>,
+    rng: Box<dyn RngManager>,
+) -> (World, Rc<RefCell<EventsCollection>>) {
+    let game = Game::with_stage(config, stage, rng);
     let mut world = World::new(game);
     world.add_system(Box::new(FootballGameManager::new()));
     world.add_system(Box::new(PlayerReactionSystem));
@@ -120,6 +139,27 @@ pub(crate) fn build_recording_world() -> (World, Rc<RefCell<EventsCollection>>) 
         GameStage::Setup("kick off".to_string()),
         Box::new(ChaseAndKick),
     )
+}
+
+/// Snapshots the contract state before each step, reporting `check_events` on `Play` snapshots
+/// only — mirroring `FootballGameManager`, which checks events in the `Play` branch alone.
+pub(crate) fn run_lockstep(
+    world: &mut World,
+    steps: u64,
+) -> (Vec<GameState>, Vec<(f32, FootballEvent)>) {
+    let mut before = Vec::new();
+    let mut detected = Vec::new();
+    for _ in 0..steps {
+        let state = world.game().state().clone();
+        if matches!(state.stage, GameStage::Play) {
+            if let Some(event) = check_events(world.game()) {
+                detected.push((state.elapsed_time + FIXED_DT, event));
+            }
+        }
+        before.push(state);
+        world.step(FIXED_DT);
+    }
+    (before, detected)
 }
 
 /// Tolerance for comparing floating-point contract fields between a run and its replay.
