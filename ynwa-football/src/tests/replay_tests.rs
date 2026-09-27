@@ -6,12 +6,12 @@ use crate::events::{FootballEvent, BALL_RADIUS, GAME_DURATION};
 use crate::field_builder::create_football_field;
 use crate::replay::{create_football_replay_world, decode_football_events};
 use crate::test_utils::{
-    build_recording_world, build_recording_world_with, single_player_config, FIXED_DT, STEPS,
+    assert_equivalent, build_recording_world, build_recording_world_with, single_player_config,
+    FIXED_DT, STEPS,
 };
 use std::collections::HashMap;
 use uom::si::length::meter;
-use uom::si::velocity::meter_per_second;
-use ynwa_core::field::zones::{Point3D, Velocity3D};
+use ynwa_core::field::zones::Point3D;
 use ynwa_core::game::{
     BallDef, Decision, DecisionTarget, Game, GameConfig, GameStage, GameState, PlayerDef,
     RefereeDef, ScriptingConfig, REGION_START_POSITION,
@@ -22,8 +22,6 @@ use ynwa_core::region::GridCell;
 use ynwa_core::systems::{DecisionError, DecisionMaker};
 use ynwa_core::team::Team;
 use ynwa_core::world::World;
-
-const TOLERANCE: f32 = 1e-4;
 
 /// Runs the short recordable game to completion; returns the finished world and its record.
 fn record_short_game() -> (World, Record) {
@@ -303,95 +301,4 @@ fn score(state: &GameState, team: Team) -> f64 {
         .get(&team)
         .map(|stats| stats.get("score"))
         .unwrap_or(0.0)
-}
-
-/// Asserts the replay contract: every physically significant field must match.
-fn assert_equivalent(expected: &GameState, actual: &GameState) {
-    assert!(
-        close(expected.elapsed_time, actual.elapsed_time),
-        "elapsed_time: {} != {}",
-        expected.elapsed_time,
-        actual.elapsed_time
-    );
-    assert_eq!(expected.stage, actual.stage, "stage");
-    assert_eq!(
-        expected.player_states.len(),
-        actual.player_states.len(),
-        "player count"
-    );
-    for (index, (expected_player, actual_player)) in expected
-        .player_states
-        .iter()
-        .zip(&actual.player_states)
-        .enumerate()
-    {
-        assert!(
-            close_point(&expected_player.position, &actual_player.position),
-            "player {index} position"
-        );
-        assert!(
-            close_velocity(&expected_player.velocity, &actual_player.velocity),
-            "player {index} velocity"
-        );
-    }
-    assert!(
-        close_point(&expected.ball_state.position, &actual.ball_state.position),
-        "ball position"
-    );
-    assert!(
-        close_velocity(&expected.ball_state.velocity, &actual.ball_state.velocity),
-        "ball velocity"
-    );
-    assert_eq!(
-        expected.ball_state.possessed_by, actual.ball_state.possessed_by,
-        "possessed_by"
-    );
-    assert_eq!(
-        expected.ball_state.last_possessing_team, actual.ball_state.last_possessing_team,
-        "last_possessing_team"
-    );
-    assert!(
-        close(
-            expected.ball_state.last_possession_change_time,
-            actual.ball_state.last_possession_change_time
-        ),
-        "last_possession_change_time"
-    );
-    assert!(
-        close_optional_point(expected.restart_position, actual.restart_position),
-        "restart_position"
-    );
-    assert_eq!(expected.restart_team, actual.restart_team, "restart_team");
-    assert_eq!(expected.team_stats, actual.team_stats, "team_stats");
-}
-
-fn close(expected: f32, actual: f32) -> bool {
-    (expected - actual).abs() <= TOLERANCE
-}
-
-fn close_point(expected: &Point3D, actual: &Point3D) -> bool {
-    close(expected.x.get::<meter>(), actual.x.get::<meter>())
-        && close(expected.y.get::<meter>(), actual.y.get::<meter>())
-        && close(expected.z.get::<meter>(), actual.z.get::<meter>())
-}
-
-fn close_velocity(expected: &Velocity3D, actual: &Velocity3D) -> bool {
-    close(
-        expected.x.get::<meter_per_second>(),
-        actual.x.get::<meter_per_second>(),
-    ) && close(
-        expected.y.get::<meter_per_second>(),
-        actual.y.get::<meter_per_second>(),
-    ) && close(
-        expected.z.get::<meter_per_second>(),
-        actual.z.get::<meter_per_second>(),
-    )
-}
-
-fn close_optional_point(expected: Option<Point3D>, actual: Option<Point3D>) -> bool {
-    match (expected, actual) {
-        (None, None) => true,
-        (Some(expected), Some(actual)) => close_point(&expected, &actual),
-        _ => false,
-    }
 }

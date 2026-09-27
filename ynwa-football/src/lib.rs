@@ -296,6 +296,9 @@ mod field_builder_tests;
 #[path = "tests/journal_integration_tests.rs"]
 mod journal_integration_tests;
 #[cfg(test)]
+#[path = "tests/lockstep_tests.rs"]
+mod lockstep_tests;
+#[cfg(test)]
 #[path = "tests/replay_tests.rs"]
 mod replay_tests;
 #[cfg(test)]
