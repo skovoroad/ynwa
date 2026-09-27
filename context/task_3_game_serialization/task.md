@@ -505,64 +505,7 @@ pub struct FileJournalRecorder {
   RNG-конфигурацией (`temperature = 0.0` или фиксированный `seed`), чтобы сам тест был
   воспроизводим.
 
-### Этап 5 — единый API изменения состояния `Game`
-
-> Мотивация: системы-симуляторы и [`ReplayDriver`](ynwa-core/src/replay.rs:17) независимо
-> присваивают одни и те же поля [`GameState`](ynwa-core/src/game.rs:261) — `ball_state`, флаги
-> решений игроков, `stage`, restart-поля, `team_stats`. Семантика переходов дублируется (например,
-> пин мяча в `Setup` в [`FootballGameManager`](ynwa-football/src/game_manager.rs:57) и
-> [`ReplaySetupBallPlacer`](ynwa-football/src/replay.rs:21)), из-за чего при появлении новых
-> возможностей логика может «расползтись», а эквивалентность replay держится на ручной
-> синхронизации двух реализаций.
-
-Ключевые решения:
-
-- **Команды изменения состояния на `Game`.** Единый слой мутаторов — чистые присваивания полей
-  `GameState`. Журнал (`Game::record`) и RNG они **не** используют: запись событий остаётся в
-  системах и остаётся единственным источником журнала, replay по-прежнему ничего не пишет.
-- **`state` остаётся публичным.** Мутаторы добавляются, а не заменяют прямой доступ; чтение
-  состояния (рендер, тесты) не меняется.
-- **Разделение «вычислить» и «применить».** Оригинал вычисляет (Lua, RNG, детекция событий) и
-  вызывает мутатор + `record`; replay только вызывает мутатор по записанному событию.
-- **Детерминизм сохраняется бит-в-бит.** Мутаторы копируют те же выражения и порядок операций,
-  что и текущий inline-код, — иначе развалится контракт эквивалентности replay (§2.6).
-- **Риски и область.** Это изменение фундамента (API ядра), вне этапа 4; радиус поражения
-  средний (многие тесты мутируют `state` напрямую, но доступ сохраняется). Оформляется отдельным
-  коммитом.
-
-Объём (минимальный набор методов):
-
-- `Game::assign_decision(player_index, decision, reason, timestamp)` — флаги решения игрока
-  (закрывает три блока присвоения в [`DecisionSystem`](ynwa-core/src/systems/decision/decision_system.rs:156)
-  и `DecisionAssigned` в replay).
-- `Game::process_current_decision(player_index)` — физический эффект необработанного решения и
-  `decision_processed = true` ([`ActionSystem`](ynwa-core/src/systems/action.rs:16) и
-  `apply_decision` в replay; общая физика уже вынесена — [`movement`](ynwa-core/src/systems/movement.rs:1)).
-- `Game::change_possession(possessed_by, last_possessing_team, timestamp)` — включая
-  `needs_decision = true` всем игрокам ([`BallPossessionSystem`](ynwa-core/src/systems/ball_possession.rs:128)
-  и `PossessionChange` в replay).
-- `Game::release_ball(velocity, timestamp)` — эффект удара
-  ([`ActionSystem`](ynwa-core/src/systems/action.rs:74) и `KickOutcome` в replay).
-- `Game::reset_decisions()` — цикл сброса решений (трижды в
-  [`FootballGameManager`](ynwa-football/src/game_manager.rs:206) и `DecisionsReset` в replay).
-- `Game::pin_ball(position)` — пин мяча в `Setup`
-  ([`FootballGameManager`](ynwa-football/src/game_manager.rs:57) и
-  [`ReplaySetupBallPlacer`](ynwa-football/src/replay.rs:21)).
-- Опционально, по согласованию (низкая ценность): `set_stage`, `set_restart`, `add_team_stat`.
-
-Перевод потребителей:
-
-- `ynwa-core`: `DecisionSystem`, `ActionSystem`, `BallPossessionSystem`, `ReplayDriver`.
-- `ynwa-football`: `FootballGameManager`, `ReplaySetupBallPlacer`.
-
-- **DOD**: присваивания `ball_state.*`, блоков «присвоить/сбросить решение игрока», `stage`,
-  restart-полей и `team_stats` в системах и replay заменены вызовами команд `Game` (вне
-  `game.rs` inline-присваиваний этих полей нет); расширенный интеграционный тест эквивалентности
-  (сценарии с голом и счётом, борьбой за мяч двух игроков, свободным мячом, `goal kick`/`corner`)
-  зелёный; существующие тесты зелёные; `cargo fmt`, `cargo clippy`, `cargo test` без
-  предупреждений; минимум один коммит.
-
-### Этап 6 — пошаговое (lockstep) сравнение оригинала и replay
+### Этап 5 — пошаговое (lockstep) сравнение оригинала и replay
 
 > Мотивация: интеграционные тесты этапа 4 сравнивают только **финальное** состояние и условия
 > событий в моменты их детекции. Ошибки, которые самокорректируются к концу прогона или сдвигают
@@ -570,9 +513,15 @@ pub struct FileJournalRecorder {
 
 Ключевые решения:
 
-- **Снапшоты по шагам.** Во время записи на каждом шаге снимать `GameState` (он реализует `Clone`)
-  и результат [`check_events`](ynwa-football/src/events.rs:121); затем replay прокрутить на то же
-  число шагов и на каждом шаге сравнить состояние по контракту §2.6 и ожидаемое событие.
+- **Снапшоты по шагам — до и после шага.** Перед каждым `world.step` снимать `GameState`
+  (реализует `Clone`) и результат [`check_events`](ynwa-football/src/events.rs:121) на нём; после
+  шага снимать `GameState` ещё раз; replay прокрутить на то же число шагов с той же схемой.
+  Сравниваются: контрактные поля по §2.6 на каждом снапшоте «до шага» и на финальном состоянии
+  после последнего шага, а также `check_events` на каждом снапшоте «до шага». Снятие `check_events`
+  **до** шага обязательно: [`FootballGameManager`](ynwa-football/src/game_manager.rs:79) вызывает
+  `check_events` первой системой, то есть на состоянии конца предыдущего тика; событие,
+  детектируемое на тике `T` (таймстамп журнала `T`), наблюдается именно на снапшоте до шага `T`.
+  Снятие после шага сдвинуло бы последовательность на один тик относительно журнала.
 - **Сравнивать только контрактные поля** (как в существующем `assert_equivalent`); координационные
   флаги игроков (`needs_decision`, `is_ready`, `last_error`, …) не сравниваются.
 - **События обязаны присутствовать.** Тест утверждает, что за прогон произошло ожидаемое число
@@ -587,8 +536,12 @@ pub struct FileJournalRecorder {
 - для **последовательности** событий в конфиг добавить игроку регионы стандартных положений
   ([`SET_PIECE_KEYS`](ynwa-football/src/lib.rs:125)) и роли `set_piece_roles`, иначе после первого
   события игра «залипает» в `Setup`;
-- `GameEnd` — прогон полной длительности при `dt = 1.0` (~120 шагов): начального `elapsed_time` в
-  [`RecordHeader`](ynwa-core/src/record.rs:9) нет, поэтому часы нельзя стартовать с середины.
+- `GameEnd` — прогон полной длительности при `dt = 1.0`: ровно **121 шаг**. Причина:
+  [`World::step`](ynwa-core/src/world.rs:23) сначала выполняет системы с `new_timestamp`, а
+  `elapsed_time` присваивает только после них; поэтому [`check_game_end`](ynwa-football/src/events.rs:111)
+  читает `elapsed_time` предыдущего шага, и `GameEnd` детектируется на шаге с таймстампом `121.0`
+  (когда `elapsed_time` равен `120.0`). Начального `elapsed_time` в
+  [`RecordHeader`](ynwa-core/src/record.rs:9) нет, поэтому стартовать часы с середины нельзя.
 
 - **DOD**: lockstep-тест — запись многошагового прогона со сценарием, дающим несколько
   `FootballEvent` разных типов (минимум `Touchline` + `Goal`, при возможности `GoalLine`/`GameEnd`);
@@ -599,10 +552,4 @@ pub struct FileJournalRecorder {
 
 ---
 
-# Ревью архитектурного решения (шаг 3)
-
-Дата ревью: 2026-09-25.
-
-Результат: **пройдено**. Архитектурное решение согласовано, значимых замечаний нет — возврат
-к шагу 2 не требуется.
 
