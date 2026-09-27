@@ -137,10 +137,15 @@ fn lockstep_matches_on_every_step() {
         fixed_dt: FIXED_DT,
     };
     let record = collection.borrow_mut().take_record(header);
+    assert_eq!(
+        record.total_steps, LOCKSTEP_STEPS,
+        "sink must count the recorded steps"
+    );
+    let total_steps = record.total_steps;
     let journal_events = decode_football_events(&record.journal);
 
     let mut replay = create_football_replay_world(record).unwrap();
-    let (replay_before, replay_events) = run_lockstep(&mut replay, LOCKSTEP_STEPS);
+    let (replay_before, replay_events) = run_lockstep(&mut replay, total_steps);
     let replay_final = replay.game().state().clone();
 
     for (original, replayed) in original_before.iter().zip(&replay_before) {

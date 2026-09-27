@@ -123,7 +123,7 @@ pub(crate) fn build_recording_world() -> (World, Rc<RefCell<EventsCollection>>) 
 }
 
 /// Tolerance for comparing floating-point contract fields between a run and its replay.
-pub(crate) const TOLERANCE: f32 = 1e-4;
+const TOLERANCE: f32 = 1e-4;
 
 /// Asserts the replay contract: every physically significant field must match.
 pub(crate) fn assert_equivalent(expected: &GameState, actual: &GameState) {
