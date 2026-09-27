@@ -2,6 +2,7 @@ pub mod action;
 pub mod ball_possession;
 pub mod decision;
 mod integration_tests;
+pub(crate) mod movement;
 pub mod physics;
 pub mod player_reaction;
 

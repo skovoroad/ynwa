@@ -3,104 +3,18 @@
 
 use crate::events::{check_events, FootballEvent};
 use crate::game_manager::FootballGameManager;
-use crate::test_utils::{attach_journal, deterministic_rng};
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::rc::Rc;
+use crate::test_utils::{
+    attach_journal, build_recording_world, deterministic_rng, single_player_config, FIXED_DT, STEPS,
+};
 use ynwa_core::field::zones::Point3D;
-use ynwa_core::field::Field;
-use ynwa_core::game::{
-    BallDef, Decision, DecisionTarget, Game, GameConfig, GameStage, PlayerDef, RefereeDef,
-    ScriptingConfig, REGION_START_POSITION,
-};
-use ynwa_core::journal::{EventsCollection, JournalEvent};
+use ynwa_core::game::{Decision, Game, GameStage};
+use ynwa_core::journal::JournalEvent;
 use ynwa_core::record::RecordHeader;
-use ynwa_core::region::GridCell;
 use ynwa_core::system::System;
-use ynwa_core::systems::{
-    ActionSystem, BallPossessionSystem, DecisionError, DecisionMaker, DecisionSystem,
-    PhysicsSystem, PlayerReactionSystem,
-};
 use ynwa_core::team::Team;
-use ynwa_core::world::World;
-
-const FIXED_DT: f32 = 0.1;
-const STEPS: u64 = 150;
-
-/// One striker near the centre spot: chases the ball and kicks it at the far sideline.
-fn single_player_config() -> GameConfig {
-    let field = Field::from_meters(100.0, 60.0, 26, 16);
-    let grid_dims = field.grid_dimensions();
-    let centre_region = grid_dims
-        .create_region(GridCell::new(12, 8).unwrap(), GridCell::new(12, 8).unwrap())
-        .unwrap();
-
-    let player = PlayerDef::new(
-        Team::A,
-        1,
-        "Runner".to_string(),
-        String::new(),
-        HashMap::from([
-            (REGION_START_POSITION.to_string(), centre_region.clone()),
-            ("kick off opp".to_string(), centre_region),
-        ]),
-    )
-    .with_reaction_rate(100)
-    .with_speed_rate(100)
-    .with_shot_power(100)
-    .with_shot_accuracy(100);
-
-    GameConfig {
-        field,
-        players: vec![player],
-        ball: BallDef {
-            initial_position: Point3D::from_meters(50.0, 0.0, 30.0),
-        },
-        referees: vec![RefereeDef::default()],
-        scripting: ScriptingConfig::empty(),
-    }
-}
 
 fn play_game() -> Game {
     Game::with_stage(single_player_config(), GameStage::Play, deterministic_rng())
-}
-
-/// Drives the player to the ball and kicks it over the sideline.
-struct ChaseAndKick;
-
-impl DecisionMaker for ChaseAndKick {
-    fn make_decision(
-        &mut self,
-        game: &Game,
-        player_index: usize,
-    ) -> Result<(Decision, Option<String>), DecisionError> {
-        let decision = if game.state.ball_state.possessed_by == Some(player_index) {
-            Decision::Kick(Point3D::from_meters(0.0, 0.0, 30.0))
-        } else {
-            Decision::Run(DecisionTarget::Ball)
-        };
-        Ok((decision, Some("test".to_string())))
-    }
-}
-
-fn build_recording_world() -> (World, Rc<RefCell<EventsCollection>>) {
-    let game = Game::with_stage(
-        single_player_config(),
-        GameStage::Setup("kick off".to_string()),
-        deterministic_rng(),
-    );
-    let mut world = World::new(game);
-    world.add_system(Box::new(FootballGameManager::new()));
-    world.add_system(Box::new(PlayerReactionSystem));
-    world.add_system(Box::new(BallPossessionSystem::new()));
-    world.add_system(Box::new(
-        DecisionSystem::new().with_decision_maker(Box::new(ChaseAndKick)),
-    ));
-    world.add_system(Box::new(ActionSystem::new()));
-    world.add_system(Box::new(PhysicsSystem::new()));
-
-    let collection = attach_journal(world.game_mut());
-    (world, collection)
 }
 
 #[test]

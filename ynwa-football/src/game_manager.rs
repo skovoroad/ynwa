@@ -39,7 +39,7 @@ use ynwa_core::team::Team;
 use crate::events::{check_events, FootballEvent};
 
 /// `JournalEvent::External` kind used for football semantic events.
-const FOOTBALL_EVENT_KIND: &str = "football_event";
+pub(crate) const FOOTBALL_EVENT_KIND: &str = "football_event";
 
 /// Football game manager - manages football-specific game logic
 pub struct FootballGameManager;

@@ -9,6 +9,7 @@ pub mod physics_util;
 pub mod record;
 pub mod record_io;
 pub mod region;
+pub mod replay;
 pub mod repository;
 pub mod rng;
 pub mod system;
@@ -54,6 +55,7 @@ pub use orientation::{
 };
 pub use physics_util::{distance, distance_length};
 pub use region::{GridCell, GridDimensions, Region, RegionError};
+pub use replay::ReplayDriver;
 pub use repository::{PlayerRecord, PlayerStatic, PlayerTactical, TeamRecord, TeamRepository};
 pub use rng::{DefaultRngManager, RngConfig, RngManager};
 pub use system::System;

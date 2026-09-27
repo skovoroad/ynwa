@@ -10,6 +10,7 @@
 pub mod events;
 pub mod field_builder;
 pub mod game_manager;
+pub mod replay;
 
 #[cfg(test)]
 mod test_utils;
@@ -30,6 +31,8 @@ use ynwa_core::systems::{
 };
 use ynwa_core::team::Team;
 use ynwa_core::world::World;
+
+pub use replay::{create_football_replay_world, decode_football_events, ReplaySetupBallPlacer};
 
 /// Non-determinism temperature of the playable game (stage 1: hardcoded, not yet configurable).
 const PLAYER_RNG_TEMPERATURE: f32 = 0.7;
@@ -292,6 +295,9 @@ mod field_builder_tests;
 #[cfg(test)]
 #[path = "tests/journal_integration_tests.rs"]
 mod journal_integration_tests;
+#[cfg(test)]
+#[path = "tests/replay_tests.rs"]
+mod replay_tests;
 #[cfg(test)]
 #[path = "tests/serde_tests.rs"]
 mod serde_tests;
