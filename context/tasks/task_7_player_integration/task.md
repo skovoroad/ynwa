@@ -93,14 +93,16 @@ pub fn parse(args: &[String]) -> Result<Cli, String>;
 Правила:
 - `--record` и `--replay` одновременно → ошибка (лог + ненулевой код выхода).
 - `--replay` без значения, `--out` без значения, неизвестный флаг → ошибка.
+- Более двух позиционных аргументов → ошибка.
+- Повторное указание одного и того же флага → ошибка.
 - `--out` без `--record` → ошибка (см. «Решения по неоднозначным местам»).
 - В режиме `Replay` позиционные аргументы `teams_path`/`preambles_path` игнорируются.
 
 ## 2. Каталог и имя файла записи
 
 - `fn games_dir(out: Option<&Path>) -> Result<PathBuf, String>`: при заданном `out` используется
-  он, иначе `env_home::home_dir().join(".ynwa/games")`; каталог создаётся через
-  `std::fs::create_dir_all`.
+  он, иначе `env_home::home_dir().ok_or_else(|| "home directory not found".to_string())?.join(".ynwa/games")`;
+  каталог создаётся через `std::fs::create_dir_all`.
 - `fn next_record_path(dir: &Path) -> Result<PathBuf, String>`: базовое имя
   `game_<timestamp>.jsonl`, где `<timestamp>` — локальное время в формате `%Y%m%d-%H%M%S`;
   при совпадении имени добавляется суффикс `_2`, `_3`, … до первого свободного.
@@ -125,8 +127,8 @@ pub struct SimulationControl {
 ```
 
 - `new(rate)` — обычный режим и запись: `step_delta = 1.0 / rate`, `max_steps = None`.
-- `for_replay(fixed_dt, total_steps)` — `rate = 60.0`, `step_delta = fixed_dt`,
-  `max_steps = Some(total_steps)`.
+- `for_replay(fixed_dt, total_steps)` — `rate = 1.0 / fixed_dt` (при `fixed_dt = 1/60` это 60 fps),
+  `step_delta = fixed_dt`, `max_steps = Some(total_steps)`.
 - `pace() = 1.0 / rate` — интервал накопления кадрового времени; `should_step()` истинно при
   `accumulator >= pace()` и (для replay) `steps_done < max_steps`; `consume_step()` вычитает
   `pace()` и инкрементирует `steps_done`.
@@ -193,6 +195,7 @@ world.game_mut().set_journal_sink(Box::new(
   - `Touchline(_, last_team)` → «Аут; последнее касание: {last_team}»;
   - `GoalLine(_, last_team)` → «Лицевая; последнее касание: {last_team}»;
   - `GameEnd` → «Конец матча».
+- `Team` не реализует `Display`: для текста используется хелпер `team_label(team)` → «A»/«B».
 - Событие добавляется в видимый список, когда `timestamp <= world.game().state().elapsed_time`;
   в `main` для этого хранится курсор по `events`, снимаемый на каждой отрисовке.
 - `render_scene` и `draw_control_panel` получают дополнительный параметр
@@ -218,3 +221,18 @@ world.game_mut().set_journal_sink(Box::new(
 3. `--out` без `--record` — ошибка с ненулевым кодом выхода.
 4. В режиме записи по достижении `GameOver` журнал финализируется, после чего приложение
    завершает работу.
+5. В replay после достижения `max_steps` накопление кадрового времени прекращается
+   (аккумулятор не растёт бесконечно) — косметика.
+
+---
+
+# Ревью архитектурного решения (шаг 3)
+
+Ревью пройдено. Архитектурное решение согласовано с кодом `ynwa-core` и `ynwa-football`;
+замечания незначительные и внесены в текст решения выше:
+
+- правила CLI дополнены: ошибка при более чем двух позиционных аргументах и при повторении флага;
+- `env_home::home_dir()` возвращает `Option<PathBuf>` — обработан через `ok_or_else(...)?`;
+- `for_replay` выводит `rate` из `fixed_dt` (`rate = 1.0 / fixed_dt`);
+- для текста событий добавлен хелпер `team_label(team)` («A»/«B»), т.к. `Team` не реализует `Display`;
+- уточнено поведение аккумулятора replay после достижения `max_steps`.
