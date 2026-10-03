@@ -20,11 +20,16 @@ impl TeamRepository for BrokenPreambleRepository<'_> {
     }
 }
 
-fn real_repository() -> Option<FsTeamRepository> {
+/// Fixture repository committed with the project. Fails loudly when absent so the tests can never
+/// silently pass without exercising the builder.
+fn real_repository() -> FsTeamRepository {
     let teams_path = std::path::Path::new("../teams");
-    teams_path
-        .exists()
-        .then(|| FsTeamRepository::new(teams_path))
+    assert!(
+        teams_path.exists(),
+        "fixture repository not found at {}",
+        teams_path.display()
+    );
+    FsTeamRepository::new(teams_path)
 }
 
 fn preambles_path() -> &'static std::path::Path {
@@ -33,9 +38,7 @@ fn preambles_path() -> &'static std::path::Path {
 
 #[test]
 fn strict_build_fails_on_broken_preamble() {
-    let Some(repo) = real_repository() else {
-        return;
-    };
+    let repo = real_repository();
     let broken = BrokenPreambleRepository { inner: &repo };
 
     let error = FootballWorldBuilder::new(&broken, preambles_path())
@@ -53,10 +56,18 @@ fn strict_build_fails_on_broken_preamble() {
 
 #[test]
 fn placeholder_fallback_builds_on_broken_preamble() {
-    let Some(repo) = real_repository() else {
-        return;
-    };
+    let repo = real_repository();
     let broken = BrokenPreambleRepository { inner: &repo };
+
+    // The same broken repository must fail the strict build, proving that the successful build
+    // below goes through the placeholder fallback branch rather than the scripted engine.
+    assert!(
+        FootballWorldBuilder::new(&broken, preambles_path())
+            .with_rng(deterministic_rng())
+            .build()
+            .is_err(),
+        "strict build must fail on a broken preamble"
+    );
 
     let world = FootballWorldBuilder::new(&broken, preambles_path())
         .with_rng(deterministic_rng())
@@ -69,9 +80,7 @@ fn placeholder_fallback_builds_on_broken_preamble() {
 
 #[test]
 fn strict_build_fails_on_missing_preamble() {
-    let Some(repo) = real_repository() else {
-        return;
-    };
+    let repo = real_repository();
     let missing = std::path::Path::new("../ynwa-scripts/absent");
 
     let error = FootballWorldBuilder::new(&repo, missing)
@@ -85,9 +94,7 @@ fn strict_build_fails_on_missing_preamble() {
 
 #[test]
 fn placeholder_fallback_does_not_hide_missing_preamble() {
-    let Some(repo) = real_repository() else {
-        return;
-    };
+    let repo = real_repository();
     let missing = std::path::Path::new("../ynwa-scripts/absent");
 
     let error = FootballWorldBuilder::new(&repo, missing)
@@ -102,9 +109,7 @@ fn placeholder_fallback_does_not_hide_missing_preamble() {
 
 #[test]
 fn build_applies_requested_stage() {
-    let Some(repo) = real_repository() else {
-        return;
-    };
+    let repo = real_repository();
 
     let world = FootballWorldBuilder::new(&repo, preambles_path())
         .with_rng(deterministic_rng())
@@ -118,9 +123,7 @@ fn build_applies_requested_stage() {
 
 #[test]
 fn default_wrapper_builds_playable_world() {
-    let Some(repo) = real_repository() else {
-        return;
-    };
+    let repo = real_repository();
 
     let world = create_football_world(&repo, preambles_path())
         .expect("valid repository must build through the default wrapper");

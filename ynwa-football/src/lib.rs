@@ -248,8 +248,8 @@ impl<'a> FootballWorldBuilder<'a> {
         self
     }
 
-    /// When enabled, a failed scripted decision engine falls back to a decision system that
-    /// makes no decisions instead of failing the build.
+    /// When enabled, a failed scripted decision engine falls back to the placeholder decision
+    /// system instead of failing the build.
     pub fn with_placeholder_fallback(mut self) -> Self {
         self.placeholder_fallback = true;
         self
@@ -334,8 +334,9 @@ impl<'a> FootballWorldBuilder<'a> {
 ///
 /// `repo` supplies both teams (`"team_a"` and `"team_b"`) and their preambles.
 /// `preambles_path` - directory containing `core.lua` and `stdlib.lua`.
-/// Uses the playable defaults (`0.7` RNG temperature) and a placeholder decision system when
-/// the Lua scripts fail to load, so the game always starts.
+/// Uses the playable defaults (`0.7` RNG temperature) and falls back to the placeholder decision
+/// system when the Lua decision engine fails to initialize; repository, tactics and preamble
+/// errors are still returned as `Err`.
 pub fn create_football_world(
     repo: &dyn TeamRepository,
     preambles_path: &std::path::Path,
