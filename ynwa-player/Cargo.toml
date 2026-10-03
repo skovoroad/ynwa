@@ -9,6 +9,8 @@ ynwa-football = { path = "../ynwa-football" }
 ynwa-repository = { path = "../ynwa-repository" }
 uom = { version = "0.36", features = ["f32"] }
 macroquad = "0.4"
+chrono = "0.4"
+env_home = "0.1"
 
 [[bin]]
 name = "ynwa-player"

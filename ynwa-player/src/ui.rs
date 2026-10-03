@@ -1,11 +1,17 @@
 use macroquad::prelude::*;
 use ynwa_core::game::{Decision, DecisionTarget, GameConfig, GameState};
+use ynwa_core::team::Team;
+use ynwa_football::events::FootballEvent;
+
+/// How many of the most recent events the replay panel shows.
+pub const EVENT_PANEL_SIZE: usize = 5;
 
 pub fn draw_control_panel(
     panel_x: f32,
     game_config: &GameConfig,
     game_state: &GameState,
     is_paused: bool,
+    events: Option<&[(f32, FootballEvent)]>,
 ) {
     let panel_x = panel_x + 20.0;
     let mut y_offset = 40.0;
@@ -34,6 +40,13 @@ pub fn draw_control_panel(
     draw_score(panel_x, y_offset, game_state);
     y_offset += line_height * 2.0;
 
+    // `Some` marks the replay panel (drawn even before the first event); `None` is play/record.
+    if let Some(events) = events {
+        draw_event_panel(panel_x, y_offset, events);
+        let rows = events.len().clamp(1, EVENT_PANEL_SIZE);
+        y_offset += 24.0 * (rows as f32 + 1.0) + 10.0;
+    }
+
     draw_text("Space - pause/resume", panel_x, y_offset, 20.0, LIGHTGRAY);
     y_offset += line_height * 2.0;
 
@@ -41,7 +54,6 @@ pub fn draw_control_panel(
 }
 
 fn draw_score(x: f32, y: f32, game_state: &GameState) {
-    use ynwa_core::team::Team;
     let score_a = game_state
         .team_stats
         .get(&Team::A)
@@ -165,6 +177,52 @@ fn draw_player_decisions_table(
 
     draw_player_column(x, table_y, &team_a, game_state, "Team A");
     draw_player_column(x + col_width, table_y, &team_b, game_state, "Team B");
+}
+
+fn team_label(team: Team) -> &'static str {
+    match team {
+        Team::A => "A",
+        Team::B => "B",
+    }
+}
+
+fn event_text(event: &FootballEvent) -> String {
+    match event {
+        // In a goal event the team is the one whose net was hit; the scorer is the opposite.
+        FootballEvent::Goal(conceding_team) => {
+            format!("Goal: team {}", team_label(conceding_team.opposite()))
+        }
+        FootballEvent::Touchline(_, last_team) => {
+            format!("Throw-in; last touch: {}", team_label(*last_team))
+        }
+        FootballEvent::GoalLine(_, last_team) => {
+            format!("Goal line; last touch: {}", team_label(*last_team))
+        }
+        FootballEvent::GameEnd => "Match end".to_string(),
+    }
+}
+
+/// Draws the last [`EVENT_PANEL_SIZE`] events with their timestamps.
+fn draw_event_panel(x: f32, y: f32, events: &[(f32, FootballEvent)]) {
+    let line_height = 24.0;
+    let title_color = Color::new(0.9, 0.9, 0.9, 1.0);
+    let text_color = Color::new(0.8, 0.8, 0.8, 1.0);
+
+    let mut cursor = y;
+    draw_text("Events:", x, cursor, 22.0, title_color);
+    cursor += line_height;
+
+    if events.is_empty() {
+        draw_text("(no events yet)", x, cursor, 20.0, text_color);
+        return;
+    }
+
+    let start = events.len().saturating_sub(EVENT_PANEL_SIZE);
+    for (timestamp, event) in &events[start..] {
+        let text = format!("{:.1}s  {}", timestamp, event_text(event));
+        draw_text(&text, x, cursor, 20.0, text_color);
+        cursor += line_height;
+    }
 }
 
 pub fn draw_separator(x: f32, screen_height: f32) {
