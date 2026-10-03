@@ -65,6 +65,9 @@
 Зависимости крейта: `ynwa-core`, `ynwa-football`, `ynwa-repository`, `serde`, `serde_json`,
 `toml`, `uom`.
 
+Крейт регистрируется в workspace: добавить `"ynwa-integration-testing"` в `members`
+([`Cargo.toml`](Cargo.toml:3)).
+
 ```mermaid
 flowchart TD
     A[Каталог сценария: initial_state.toml + final_state.toml + scenario.toml + teams/] --> B[Загрузчик: TOML + FsTeamRepository + преамбулы]
@@ -95,8 +98,10 @@ ynwa-integration-testing/scenarios/<имя>/
 ```
 
 `teams/` читается существующим `FsTeamRepository` (формат `protocols.md` §2–3), преамбулы ядра и
-стандартной библиотеки — из `ynwa-scripts/preambles` (как в `create_football_world`). Состав
-команд, характеристики, регионы и тактика задаются существующими механизмами, без дублирования.
+стандартной библиотеки — из `ynwa-scripts/preambles` (как в `create_football_world`); путь
+разрешается от `env!("CARGO_MANIFEST_DIR")` как `../ynwa-scripts/preambles` и переопределяется
+параметром билдера. Состав команд, характеристики, регионы и тактика задаются
+существующими механизмами, без дублирования.
 
 Начальное и ожидаемое конечное состояние — это один и тот же формат частичного `GameState`, поэтому
 оба вынесены в отдельные файлы: `initial_state.toml` (вход) и `final_state.toml` (выход). Различие только
@@ -142,6 +147,11 @@ position = { x = 34.0, y = 0.0, z = 10.0 }
 - `ball.possessed_by` — ссылка на игрока `{team, number}`; `"none"` — свободен; отсутствует — не
   задавать (остаётся `None`).
 - `ball.last_possessing_team` — команда последнего владения.
+- при `stage = "Setup"` задание `ball.position` / `ball.velocity` / `ball.possessed_by` /
+  `ball.last_possessing_team` — **ошибка загрузки** : в первый Setup-тик
+  [`FootballGameManager::update`](ynwa-football/src/game_manager.rs:54) безусловно перезаписывает мяч
+  (`position = restart_position или initial`, `velocity = 0`, `possessed_by = None`,
+  `last_possessing_team = None`). Управление мячом в `Setup` — только через `[setup]`.
 - `setup.restart_position` / `setup.restart_team` — для стадии `Setup`.
 - `players` — точные позиции игроков в метрах. **Переопределяют только начальную позицию**
   (`PlayerState.position`); тактические регионы, `set_piece_positions` и роли исполнителя из
@@ -175,7 +185,8 @@ steps = 10000
 
 Типы критериев (`StopCriterion`):
 
-- `OnStage(GameStage)` — стадия стала равна целевой;
+- `OnStage(GameStage)` — стадия стала равна целевой; для `Setup` без `setup_reason` матчится любая
+  причина, с `setup_reason` — точная причина;
 - `OnEvent(EventMatcher)` — в журнале появилось заданное футбольное событие; сравнение по типу
   события, опционально по дополнительным полям (например, `team` у `Goal`);
 - `OnSteps(u64)` — достигнут лимит шагов;
@@ -187,6 +198,9 @@ steps = 10000
 ### 3.3 `scenario.toml` — ожидания `[expect]` (каждый пункт опционален)
 
 ```toml
+[expect]
+journal_match = "exact" # "exact" | "subsequence"; по умолчанию "exact"
+
 [expect.stop]           # каким критерием завершился прогон и число шагов
 when = "event"
 event = "Goal"
@@ -207,13 +221,20 @@ at = 1.5                # необязательно: ожидаемый timesta
 Ожидаемое конечное состояние задаётся отдельным файлом `final_state.toml` (см. §3.4), а не в составе
 `scenario.toml`.
 
+Игроки во всех ожиданиях журнала адресуются `{team, number}` (номер — `tactical.toml.number`), а не
+глобальным индексом; раннер резолвит `{team, number}` → глобальный индекс тем же способом, что и
+снапшот (поиск в `config.players` по `team` и `number`; дубликат или отсутствие — ошибка загрузки),
+независимо от порядка [`FsTeamRepository`](ynwa-repository/src/fs_team_repository.rs:93).
+Поля, допускающие отсутствие владения/команды (`possessed_by`, `last_possessing_team`,
+`restart_set.team`), принимают `{team, number}` / `"A"` / `"B"` либо `"none"`.
+
 Типы записей журнала (`ExpectedEvent`), по одной на строку `[[expect.journal]]`, с
 полем-дискриминатором `type`:
 
-- `decision_assigned` — опц. `player`, `decision`, `reason`;
-- `possession_change` — опц. `possessed_by`, `last_possessing_team`;
-- `kick_outcome` — опц. `player`, `ball_velocity`;
-- `stage_change` — опц. `stage`;
+- `decision_assigned` — опц. `player = {team, number}`, `decision`, `reason`;
+- `possession_change` — опц. `possessed_by = {team, number} | "none"`, `last_possessing_team`;
+- `kick_outcome` — опц. `player = {team, number}`, `ball_velocity`;
+- `stage_change` — опц. `stage` (+ `setup_reason` для `Setup`);
 - `restart_set` — опц. `position`, `team`;
 - `decisions_reset`;
 - `stat_update` — опц. `team`, `key`, `delta`;
@@ -221,6 +242,17 @@ at = 1.5                # необязательно: ожидаемый timesta
 
 Сравнение журнала (§5.2): сверяются типы и порядок; `timestamp` и float-поля — с допуском;
 неуказанные поля не проверяются.
+
+`journal_match` задаёт способ сравнения списка `[[expect.journal]]`:
+
+- `"exact"` (по умолчанию) — полное совпадение длины и порядка (исходное «точный упорядоченный
+  список»);
+- `"subsequence"` — перечисленные события должны встретиться в фактическом журнале в указанном
+  порядке, прочие записи игнорируются. Удобно для сценариев, стартующих в `Setup`: не нужно
+  перечислять `DecisionAssigned` от [`assign_setup_decisions`](ynwa-football/src/game_manager.rs:113).
+
+Поле строковое (не булевое) — расширяемо: в будущем можно добавить режимы с фильтрацией конкретных
+событий.
 
 ### 3.4 `final_state.toml` — ожидаемое конечное состояние
 
@@ -234,8 +266,8 @@ score = { A = 1, B = 0 }   # необязательно: счёт по кома�
 
 [ball]                     # необязательно
 position = { x = 34.0, y = 0.0, z = 10.0 }
-possessed_by = "none"
-last_possessing_team = "A"
+possessed_by = { team = "A", number = 9 }  # или "none"; необязательно
+last_possessing_team = "A"                 # или "none"; необязательно
 
 [setup]                    # необязательно
 restart_position = { x = 34.0, y = 0.0, z = 5.5 }
@@ -247,14 +279,21 @@ number = 9
 position = { x = 34.0, y = 0.0, z = 10.0 }
 ```
 
+`stage = "Setup"` без `setup_reason` — проверяется только, что стадия `Setup` (любой причины); с
+`setup_reason` — точная причина.
+
 ## 4. Семантика снапшота и применение к миру
 
 Порядок сборки раннером:
 
-1. Сборка мира билдером `FootballWorldBuilder::new(repo, preambles_path).with_rng(rng).build()`,
+1. Парсинг `initial_state.toml` → определяется целевая стартовая стадия (по умолчанию
+   `Setup("kick off")`).
+2. Сборка мира билдером `FootballWorldBuilder::new(repo, preambles_path).with_rng(rng).with_stage(stage).build()`,
    где RNG детерминирован и захардкожен в раннере: `temperature = 0.0` и фиксированный `seed`
-   (константа в `ynwa-integration-testing`).
-2. Поверх собранного мира применяется снапшот (поля `GameState` публичны):
+   (константа в `ynwa-integration-testing`). Билдер передаёт целевую стадию в `Game::with_stage`,
+   поэтому расстановка по умолчанию соответствует стадии (центр региона `start` в `Play`/`GameOver`,
+   за полем в `Setup`).
+3. Поверх собранного мира применяется снапшот (поля `GameState` публичны):
    - `stage` → `state.stage`; для `Setup` дополнительно `restart_position` / `restart_team` из
      `[setup]`;
    - мяч → `state.ball_state.{position, velocity, possessed_by, last_possessing_team}`;
@@ -294,9 +333,10 @@ steps = 0
 
 ### 5.2 Сверка ожиданий
 
-- **Журнал.** Если задан `[[expect.journal]]`, фактический журнал должен совпасть с ожидаемым
-  списком точно (та же длина и порядок). Каждая запись сравнивается по типу; указанные поля
-  проверяются:
+- **Журнал.** Если задан `[[expect.journal]]`, фактический журнал сверяется с ожидаемым списком в
+  режиме `journal_match`: `"exact"` — та же длина и порядок; `"subsequence"` — ожидаемые записи
+  встречаются в указанном порядке, прочие игнорируются. Каждая запись сравнивается по типу;
+  указанные поля проверяются:
   - целые / перечисления / строки — точное равенство;
   - float-поля (`Point3D`, `Velocity3D`, `delta`, `timestamp`) — с допуском `TOLERANCE` (константа,
     например `1e-4` для метров и м/с; `timestamp` — с допуском `max(dt, 1e-4)`);
@@ -309,25 +349,56 @@ steps = 0
 При расхождении раннер возвращает структурированную ошибку с позицией и ожидаемым/фактическим
 значениями (для читаемого вывода в `cargo test`).
 
+### 5.3 Строгий режим сборки 
+
+Сборка тестового мира — **строгая**: любая ошибка инициализации движка решений
+([`ScriptedDecisionMaker::new`](ynwa-football/src/lib.rs:214)) или чтения скрипта/преамбулы должна
+приводить к ошибке загрузки сценария, а не к тихому откату на placeholder. Для этого
+[`add_football_systems`](ynwa-football/src/lib.rs:209) перерабатывается в
+`add_football_systems(world) -> Result<(), String>`: на ошибке возвращает `Err`, печать
+`println!`/`eprintln!` из пути сборки убирается; билдер получает строгий
+`build() -> Result<World, String>`. Существующий `create_football_world` остаётся мягкой обёрткой
+(предупреждение + placeholder) для играбельной игры.
+
+Дополнительно раннер после прогона проверяет, что ни у одного игрока не установлен
+`player_state.last_error` (скриптовая ошибка выполнения, неизвестная причина Setup, отсутствующий
+регион): при наличии — сценарий считается проваленным с этим сообщением.
+
 ## 6. Изменения в существующих крейтах
 
 - **`ynwa-core`**: добавить тип частичного состояния `Snapshot` (serde, поля — `Option`; отсутствующее
   поле = «не трогать»; игроки адресуются глобальным индексом, как в `GameState`) и метод применения
-  к `Game` (например, `Game::apply_snapshot`). Используется и `initial_state.toml`, и `final_state.toml`
-  (у `final_state` та же форма, но «отсутствующее поле = не проверять»). Полный снапшот task_4 — это
-  сериализованный `GameState` целиком (`Game::from_state`); частичный `Snapshot` task_8 разделяет с ним
-  кодировки значений.
+  к `Game` (например, `Game::apply_snapshot`). В состав полей входит `score` (`Option`; в
+  `initial_state.toml` не задаётся, в сверке `final_state` проверяется ). Используется
+  и `initial_state.toml`, и `final_state.toml` (у `final_state` та же форма, но «отсутствующее поле
+  = не проверять»). Полный снапшот task_4 — это сериализованный `GameState` целиком
+  (`Game::from_state`); частичный `Snapshot` task_8 разделяет с ним кодировки значений.
 - **`ynwa-football`**: ввести билдер мира `FootballWorldBuilder::new(repo, preambles_path)` с методами
-  `with_rng(...)` (и в task_4 — `with_snapshot`, `with_physics_last_update`) и `build()`. Существующий
-  `create_football_world` становится обёрткой над билдером с дефолтами (температура `0.7`).
+  `with_rng(...)`, `with_stage(GameStage)` (и в task_4 — `with_snapshot`,
+  `with_physics_last_update`) и строгим `build() -> Result<World, String>`;
+  [`add_football_systems`](ynwa-football/src/lib.rs:209) переработать в строгую версию (возврат
+  `Result`, без печати ). Существующий `create_football_world` становится обёрткой
+  над билдером с дефолтами (температура `0.7`, мягкий режим с placeholder).
 
-## 7. Совместимость с task_4
+## 7. Вход в тесты (harness)
+
+- Крейт экспортирует `run_scenario(path: &Path) -> Result<ScenarioReport, ScenarioError>`, где
+  `ScenarioReport` содержит имя сценария, признак `passed` и человекочитаемый дифф (ожидание/факт).
+- Интеграционный тест `tests/scenarios.rs`: `#[test] fn run_all_scenarios()` обходит `scenarios/*`
+  (каталоги, содержащие `scenario.toml`), прогоняет каждый, агрегирует результаты и завершается
+  `assert!(все прошли, "...сводный отчёт...")`; фильтр одного сценария для отладки через переменную
+  окружения `YNWA_SCENARIO=<имя>` (неизвестное имя — ошибка со списком доступных).
+- Структурные ошибки (расхождение ожиданий, ошибка загрузки) выводятся в сообщение `cargo test`.
+
+## 8. Совместимость с task_4
 
 Частичный `Snapshot` task_8 (Option-поля) использует те же кодировки значений, что и полный снапшот
 task_4 (полная сериализация `GameState`): `Point3D` / `Velocity3D` — числа в базовых единицах,
 `Team` — строковое представление. Строковое представление `GameStage` (`stage` + `setup_reason`)
-фиксируется здесь и переиспользуется task_4. task_4 добавляет: полную сериализацию `GameState`,
-курсор журнала и состояние RNG в снапшоте, `Game::from_state`, запись снапшотов в `Record` и
-воспроизведение с снапшота (`create_football_replay_world(record, seek_to)`) — это же даёт визуальный
-контроль сценариев (record → replay).
-
+фиксируется здесь и переиспользуется task_4. Коллизия имени: task_4 планирует
+[`record::Snapshot`](context/tasks/task_4_serialization_snapshots/task.md:32); факт коллизии
+зафиксирован в документе task_4, решение об окончательном имени принимается на стадии task_4
+. task_4 добавляет: полную сериализацию `GameState`, курсор журнала и состояние RNG в
+снапшоте, `Game::from_state`, запись снапшотов в `Record` и воспроизведение с снапшота
+(`create_football_replay_world(record, seek_to)`) — это же даёт визуальный контроль сценариев
+(record → replay).
