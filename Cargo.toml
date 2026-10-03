@@ -4,6 +4,7 @@ members = [
     "ynwa-core",
     "ynwa-decisions",
     "ynwa-football",
+    "ynwa-integration-testing",
     "ynwa-player",
     "ynwa-repository",
     "ynwa-script-tests",

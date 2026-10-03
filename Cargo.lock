@@ -1108,6 +1108,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "ynwa-integration-testing"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "toml",
+ "uom",
+ "ynwa-core",
+ "ynwa-football",
+ "ynwa-repository",
+]
+
+[[package]]
 name = "ynwa-player"
 version = "0.1.0"
 dependencies = [
