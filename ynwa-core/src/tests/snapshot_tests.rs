@@ -134,15 +134,24 @@ fn applies_setup_restart() {
 #[test]
 fn applies_score() {
     let mut game = game();
-    let snapshot = Snapshot {
+
+    game.apply_snapshot(&Snapshot {
         score: Some(Score { a: 2, b: 1 }),
         ..Default::default()
-    };
-
-    game.apply_snapshot(&snapshot).unwrap();
+    })
+    .unwrap();
 
     assert_eq!(game.state.team_stats[&Team::A].get("score"), 2.0);
     assert_eq!(game.state.team_stats[&Team::B].get("score"), 1.0);
+
+    game.apply_snapshot(&Snapshot {
+        score: Some(Score { a: 3, b: 4 }),
+        ..Default::default()
+    })
+    .unwrap();
+
+    assert_eq!(game.state.team_stats[&Team::A].get("score"), 3.0);
+    assert_eq!(game.state.team_stats[&Team::B].get("score"), 4.0);
 }
 
 #[test]
@@ -150,13 +159,24 @@ fn missing_fields_leave_state_untouched() {
     let mut game = game();
     let stage = game.state.stage.clone();
     let ball_position = game.state.ball_state.position;
+    let ball_velocity = game.state.ball_state.velocity;
+    let possessed_by = game.state.ball_state.possessed_by;
+    let last_possessing_team = game.state.ball_state.last_possessing_team;
     let player_position = game.state.player_states[0].position;
+    let team_stats = game.state.team_stats.clone();
 
     game.apply_snapshot(&Snapshot::default()).unwrap();
 
     assert_eq!(game.state.stage, stage);
     assert_eq!(game.state.ball_state.position, ball_position);
+    assert_eq!(game.state.ball_state.velocity, ball_velocity);
+    assert_eq!(game.state.ball_state.possessed_by, possessed_by);
+    assert_eq!(
+        game.state.ball_state.last_possessing_team,
+        last_possessing_team
+    );
     assert_eq!(game.state.player_states[0].position, player_position);
+    assert_eq!(game.state.team_stats, team_stats);
     assert_eq!(game.state.restart_position, None);
     assert_eq!(game.state.restart_team, None);
 }
