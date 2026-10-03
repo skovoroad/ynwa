@@ -470,3 +470,107 @@ fn event_matcher_is_absent_for_non_event_criteria() {
 
     assert_eq!(criterion.event_matcher(), None);
 }
+
+#[test]
+fn event_matcher_is_absent_when_event_missing() {
+    let criterion = StopCriterionDef {
+        when: StopWhen::Event,
+        stage: None,
+        setup_reason: None,
+        event: None,
+        team: Some(Team::A),
+        steps: None,
+        time: None,
+    };
+
+    assert_eq!(criterion.event_matcher(), None);
+}
+
+#[test]
+fn stop_criterion_requires_its_payload() {
+    let cases = [
+        ("when = \"stage\"", "stage"),
+        ("when = \"event\"", "event"),
+        ("when = \"steps\"", "steps"),
+        ("when = \"time\"", "time"),
+    ];
+
+    for (criterion, field) in cases {
+        let source = format!("dt = 0.1\n[[stop]]\n{criterion}\n");
+        let error = RunPlan::parse(&source).unwrap_err();
+        assert!(
+            error.contains(field),
+            "criterion {criterion}: unexpected error: {error}"
+        );
+    }
+}
+
+#[test]
+fn run_plan_rejects_non_finite_dt() {
+    for dt in ["nan", "inf"] {
+        let source = format!("dt = {dt}\n[[stop]]\nwhen = \"steps\"\nsteps = 1\n");
+        assert!(
+            RunPlan::parse(&source).is_err(),
+            "dt = {dt} must be rejected"
+        );
+    }
+}
+
+#[test]
+fn expect_stop_requires_its_payload() {
+    let error = ScenarioDef::parse(
+        "[run]\ndt = 0.1\n[[run.stop]]\nwhen = \"steps\"\nsteps = 5\n[expect.stop]\nwhen = \"event\"\n",
+    )
+    .unwrap_err();
+
+    assert!(error.contains("event"), "unexpected error: {error}");
+}
+
+#[test]
+fn final_state_rejects_zero_player_number() {
+    let error = FinalState::parse(
+        "[[players]]\nteam = \"A\"\nnumber = 0\nposition = { x = 0.0, y = 0.0, z = 0.0 }\n",
+    )
+    .unwrap_err();
+
+    assert!(
+        error.contains("number must be positive"),
+        "unexpected error: {error}"
+    );
+}
+
+#[test]
+fn parses_remaining_stage_and_event_variants() {
+    let state = parse_initial("stage = \"GameOver\"\n");
+    assert_eq!(state.stage, Some(StageName::GameOver));
+
+    let scenario = parse_scenario(
+        r#"
+[run]
+dt = 0.1
+
+[[run.stop]]
+when = "event"
+event = "GoalLine"
+team = "A"
+
+[[run.stop]]
+when = "steps"
+steps = 5
+
+[[expect.journal]]
+type = "football_event"
+event = "GameEnd"
+"#,
+    );
+
+    assert_eq!(scenario.run.stop[0].event, Some(EventKind::GoalLine));
+    assert_eq!(
+        scenario.expect.journal[0],
+        ExpectedEventDef::FootballEvent {
+            event: Some(EventKind::GameEnd),
+            team: None,
+            at: None,
+        }
+    );
+}

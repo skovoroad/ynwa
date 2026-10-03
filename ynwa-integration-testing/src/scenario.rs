@@ -218,6 +218,23 @@ impl StopCriterionDef {
             team: self.team,
         })
     }
+
+    /// Checks that the field selected by `when` is present, so the criterion can actually fire.
+    fn validate(&self) -> Result<(), String> {
+        let missing = match self.when {
+            StopWhen::Stage => self.stage.is_none().then_some("stage"),
+            StopWhen::Event => self.event.is_none().then_some("event"),
+            StopWhen::Steps => self.steps.is_none().then_some("steps"),
+            StopWhen::Time => self.time.is_none().then_some("time"),
+        };
+        match missing {
+            Some(field) => Err(format!(
+                "stop criterion {:?} requires the '{field}' field",
+                self.when
+            )),
+            None => Ok(()),
+        }
+    }
 }
 
 /// Run plan from `[run]` in `scenario.toml`.
@@ -239,6 +256,9 @@ impl RunPlan {
     fn validate(&self) -> Result<(), String> {
         if self.dt <= 0.0 || !self.dt.is_finite() {
             return Err(format!("run.dt must be a positive number, got {}", self.dt));
+        }
+        for criterion in &self.stop {
+            criterion.validate()?;
         }
         let has_safety = self
             .stop
@@ -354,6 +374,9 @@ impl ScenarioDef {
     pub fn parse(source: &str) -> Result<Self, String> {
         let scenario: Self = toml::from_str(source).map_err(|error| error.to_string())?;
         scenario.run.validate()?;
+        if let Some(stop) = &scenario.expect.stop {
+            stop.validate()?;
+        }
         Ok(scenario)
     }
 }
