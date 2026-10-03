@@ -402,3 +402,139 @@ task_4 (полная сериализация `GameState`): `Point3D` / `Velocit
 снапшоте, `Game::from_state`, запись снапшотов в `Record` и воспроизведение с снапшота
 (`create_football_replay_world(record, seek_to)`) — это же даёт визуальный контроль сценариев
 (record → replay).
+
+---
+
+# Декомпозиция архитектурного решения
+
+Решение разбито на этапы. Каждый этап — законченный компилируемый и семантически связный фрагмент
+кода, оформляется отдельным коммитом. Порядок этапов важен: каждый следующий опирается на предыдущие.
+
+## Этап 1. `ynwa-core`: частичный снапшот `Snapshot` и `Game::apply_snapshot`
+
+Цель: базовый тип частичного состояния `GameState`, используемый и для начального состояния
+(`initial_state.toml`), и для сверки конечного состояния (`final_state.toml`).
+
+Изменения:
+
+- Новый модуль `ynwa-core/src/snapshot.rs` (подключить в [`ynwa-core/src/lib.rs`](ynwa-core/src/lib.rs:3)
+  и реэкспортировать).
+- Тип `Snapshot` с serde, все поля `Option` («отсутствующее поле = не трогать / не проверять»):
+  - `stage: Option<GameStage>` (причина Setup — внутри `GameStage::Setup`);
+  - `ball: Option<SnapshotBall>` — `position`, `velocity`, `possessed_by` (глобальный индекс),
+    `last_possessing_team`;
+  - `players: Vec<SnapshotPlayer>` — глобальный `index` + `position`;
+  - `setup: Option<SnapshotSetup>` — `restart_position`, `restart_team`;
+  - `score: Option<Score>` — счёт по командам `{ A, B }` (используется только в сверке конечного
+    состояния).
+- Метод `Game::apply_snapshot(&mut self, &Snapshot) -> Result<(), String>`: валидация индексов
+  игроков, применение стадии, полей мяча, позиций игроков, `restart_position`/`restart_team`, счёта
+  (через `team_stats[team].set("score", …)`).
+- Кодировки значений совпадают с будущей сериализацией `GameState` (`Point3D`/`Velocity3D`/`Team`/
+  `GameStage` уже serde-совместимы).
+
+DOD: `cargo test -p ynwa-core` зелёный; юнит-тесты покрывают применение каждого поля и ошибки
+валидации (выход индекса за границы).
+
+## Этап 2. `ynwa-football`: `FootballWorldBuilder` + строгая сборка
+
+Цель: вынести сборку мира в конфигурируемый билдер и сделать её строгой (ошибка вместо тихого
+отката на placeholder).
+
+Изменения:
+
+- [`add_football_systems`](ynwa-football/src/lib.rs:209) → `add_football_systems(world) -> Result<(), String>`:
+  ошибка [`ScriptedDecisionMaker::new`](ynwa-football/src/lib.rs:214) возвращается как `Err`,
+  убрать `println!`/`eprintln!`; обновить все вызовы (в т.ч. `create_test_world` в тестах).
+- `FootballWorldBuilder::new(repo, preambles_path)` с методами `with_rng(...)`,
+  `with_stage(GameStage)` и строгим `build() -> Result<World, String>`; перенести логику из
+  [`create_football_world`](ynwa-football/src/lib.rs:240).
+- [`create_football_world`](ynwa-football/src/lib.rs:240) становится мягкой обёрткой над билдером
+  (температура `0.7`, placeholder-фолбэк).
+
+DOD: `cargo test -p ynwa-football` зелёный; тесты: строгая ошибка на битом скрипте/преамбуле и
+мягкий режим обёртки.
+
+## Этап 3. `ynwa-integration-testing`: каркас крейта и модель сценария
+
+Цель: зарегистрировать новый крейт и описать модель данных сценария (парсинг TOML без исполнения).
+
+Изменения:
+
+- Добавить `"ynwa-integration-testing"` в `members` [`Cargo.toml`](Cargo.toml:3).
+- `ynwa-integration-testing/Cargo.toml`: зависимости `ynwa-core`, `ynwa-football`,
+  `ynwa-repository`, `serde`, `serde_json`, `toml`, `uom`.
+- `src/lib.rs` + модули модели: `InitialState`, `FinalState`, `RunPlan` (`dt`, `stop`),
+  `StopCriterionDef` (`when`, `stage`, `event`, `team`, `steps`, `time`), `Expect`
+  (`journal_match`, `stop`, `journal`), `EventMatcher`, `ExpectedEventDef`.
+- Валидация при парсинге: обязательный страховочный критерий `steps`/`time`; при `stage = "Setup"`
+  запрещены `ball.*`; корректность меток команд и ссылок `{team, number}`.
+
+DOD: крейт компилируется; юнит-тесты парсинга и валидации.
+
+## Этап 4. `ynwa-integration-testing`: загрузчик и сборка мира
+
+Цель: превратить файлы сценария в готовый `World` с применённым начальным снапшотом.
+
+Изменения:
+
+- Загрузчик каталога сценария: `initial_state.toml`, `scenario.toml`, `final_state.toml`
+  (опционален), `teams/` через [`FsTeamRepository`](ynwa-repository/src/fs_team_repository.rs:67),
+  преамбулы `core.lua`/`stdlib.lua` (путь `../ynwa-scripts/preambles` от `CARGO_MANIFEST_DIR`,
+  переопределяемый).
+- Сборка: `FootballWorldBuilder` с детерминированным RNG (`temperature = 0.0`, фиксированный seed —
+  константа крейта) и `with_stage(...)`.
+- Резолв `{team, number}` → глобальный индекс поиском по `config.players` (дубликат/отсутствие —
+  ошибка загрузки).
+- Построение core-`Snapshot` из `InitialState` (игроки в глобальных индексах) и `apply_snapshot`.
+- Все ошибки (чтение, парсинг, инициализация движка решений) → `ScenarioError`.
+
+DOD: функция сборки мира компилируется и покрыта тестами (резолв, конвертация снапшота, строгие
+ошибки).
+
+## Этап 5. `ynwa-integration-testing`: раннер прогона
+
+Цель: детерминированный прогон `world.step(dt)` до первого сработавшего критерия остановки.
+
+Изменения:
+
+- Подключение [`CollectJournalRecorder`](ynwa-core/src/journal.rs:120); цикл шагов; после каждого
+  шага проверка критериев в порядке объявления, первый сработавший → `StopReason`.
+- Рантайм-типы: `StopCriterion` (`OnStage`/`OnEvent`/`OnSteps`/`OnTime`) и инкрементальное
+  декодирование футбольных событий из `JournalEvent::External` для `OnEvent`.
+- `RunOutcome { journal, football_events, stop_reason, steps, final_state }`; пост-прогонная
+  проверка отсутствия `player_state.last_error`.
+
+DOD: раннер компилируется; тест на тривиальном сценарии (прогон без ожиданий).
+
+## Этап 6. `ynwa-integration-testing`: сверка ожиданий и отчёт
+
+Цель: сравнение исхода с ожиданиями и человекочитаемый дифф.
+
+Изменения:
+
+- Сверка журнала (`journal_match = exact | subsequence`) с допусками: константа `TOLERANCE` для
+  координат/скоростей, `timestamp` с допуском `max(dt, 1e-4)`; неуказанные поля не проверяются.
+- Сверка `[expect.stop]` (`StopReason` + опционально `steps`).
+- Сверка `final_state.toml` (та же семантика «отсутствующее поле = не проверять», координаты с
+  допуском, счёт).
+- `ScenarioReport { name, passed, diff }`, `ScenarioError` со структурированным ожидание/факт;
+  `run_scenario(path) -> Result<ScenarioReport, ScenarioError>`.
+
+DOD: API `run_scenario` готов; юнит-тесты сверки журнала/стопа/финального состояния и диффа.
+
+## Этап 7. `ynwa-integration-testing`: harness и примеры сценариев
+
+Цель: встроить прогон сценариев в `cargo test` и показать рабочие примеры.
+
+Изменения:
+
+- `tests/scenarios.rs`: обход `scenarios/*` (каталоги с `scenario.toml`), прогон каждого через
+  `run_scenario`, агрегирование, `assert!(все прошли, сводка)`; фильтр `YNWA_SCENARIO=<имя>`
+  (неизвестное имя — ошибка со списком).
+- Примеры сценариев: гол (свои/чужие ворота, пары команд A/B), выход за боковую/лицевую
+  (throw-in/goal-kick/corner), сценарий стандартной библиотеки с точными позициями игроков.
+- Документация запуска в комментариях крейта.
+
+DOD: `cargo test -p ynwa-integration-testing` зелёный; сценарии реально прогоняются и проверяются;
+фильтр `YNWA_SCENARIO` работает.
