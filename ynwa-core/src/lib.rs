@@ -12,6 +12,7 @@ pub mod region;
 pub mod replay;
 pub mod repository;
 pub mod rng;
+pub mod snapshot;
 pub mod system;
 pub mod systems;
 pub mod team;
@@ -58,6 +59,7 @@ pub use region::{GridCell, GridDimensions, Region, RegionError};
 pub use replay::ReplayDriver;
 pub use repository::{PlayerRecord, PlayerStatic, PlayerTactical, TeamRecord, TeamRepository};
 pub use rng::{DefaultRngManager, RngConfig, RngManager};
+pub use snapshot::{Score, Snapshot, SnapshotBall, SnapshotPlayer, SnapshotSetup};
 pub use system::System;
 pub use systems::{
     ActionSystem, DecisionMaker, DecisionSystem, PhysicsSystem, PlaceholderDecisionMaker,

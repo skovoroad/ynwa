@@ -2,6 +2,7 @@ use crate::field::zones::{Point3D, Velocity3D};
 use crate::field::Field;
 use crate::journal::{JournalEvent, JournalSink, NullJournalSink};
 use crate::region::{GridCell, Region};
+use crate::snapshot::{Snapshot, SnapshotBall};
 use crate::team::Team;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -402,8 +403,81 @@ impl Game {
     pub fn config(&self) -> &GameConfig {
         &self.config
     }
+
+    /// Applies the fields present in `snapshot`, leaving absent ones untouched.
+    /// Out-of-bounds player indices are rejected.
+    pub fn apply_snapshot(&mut self, snapshot: &Snapshot) -> Result<(), String> {
+        if let Some(stage) = &snapshot.stage {
+            self.state.stage = stage.clone();
+        }
+        if let Some(ball) = &snapshot.ball {
+            self.apply_ball_snapshot(ball)?;
+        }
+        for player in &snapshot.players {
+            self.set_player_position(player.index, player.position)?;
+        }
+        if let Some(setup) = &snapshot.setup {
+            if let Some(position) = setup.restart_position {
+                self.state.restart_position = Some(position);
+            }
+            if let Some(team) = setup.restart_team {
+                self.state.restart_team = Some(team);
+            }
+        }
+        if let Some(score) = &snapshot.score {
+            self.state
+                .team_stats
+                .entry(Team::A)
+                .or_default()
+                .set("score", score.a as f64);
+            self.state
+                .team_stats
+                .entry(Team::B)
+                .or_default()
+                .set("score", score.b as f64);
+        }
+        Ok(())
+    }
+
+    fn apply_ball_snapshot(&mut self, ball: &SnapshotBall) -> Result<(), String> {
+        if let Some(position) = ball.position {
+            self.state.ball_state.position = position;
+        }
+        if let Some(velocity) = ball.velocity {
+            self.state.ball_state.velocity = velocity;
+        }
+        if let Some(possessed_by) = ball.possessed_by {
+            self.validate_player_index(possessed_by)?;
+            self.state.ball_state.possessed_by = Some(possessed_by);
+        }
+        if let Some(team) = ball.last_possessing_team {
+            self.state.ball_state.last_possessing_team = Some(team);
+        }
+        Ok(())
+    }
+
+    fn set_player_position(&mut self, index: usize, position: Point3D) -> Result<(), String> {
+        self.validate_player_index(index)?;
+        self.state.player_states[index].position = position;
+        Ok(())
+    }
+
+    fn validate_player_index(&self, index: usize) -> Result<(), String> {
+        let count = self.state.player_states.len();
+        if index >= count {
+            return Err(format!(
+                "player index {} is out of bounds (player count {})",
+                index, count
+            ));
+        }
+        Ok(())
+    }
 }
 
 #[cfg(test)]
 #[path = "tests/game_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "tests/snapshot_tests.rs"]
+mod snapshot_tests;
