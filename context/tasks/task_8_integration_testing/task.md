@@ -355,9 +355,11 @@ steps = 0
 ([`ScriptedDecisionMaker::new`](ynwa-football/src/lib.rs:214)) или чтения скрипта/преамбулы должна
 приводить к ошибке загрузки сценария, а не к тихому откату на placeholder. Для этого
 [`add_football_systems`](ynwa-football/src/lib.rs:209) перерабатывается в
-`add_football_systems(world) -> Result<(), String>`: на ошибке возвращает `Err`, печать
-`println!`/`eprintln!` из пути сборки убирается; билдер получает строгий
-`build() -> Result<World, String>`. Существующий `create_football_world` остаётся мягкой обёрткой
+`add_football_systems(world, decision_system)`: функция лишь добавляет стек систем с переданным
+`DecisionSystem`, без `Result` и без печати `println!`/`eprintln!`. Создание движка решений
+остаётся в билдере: `build() -> Result<World, String>` при ошибке `ScriptedDecisionMaker::new`
+возвращает `Err`, а мягкий режим включается флагом билдера (`with_placeholder_fallback`) и
+подставляет `DecisionSystem::new()`. Существующий `create_football_world` остаётся мягкой обёрткой
 (предупреждение + placeholder) для играбельной игры.
 
 Дополнительно раннер после прогона проверяет, что ни у одного игрока не установлен
@@ -374,11 +376,13 @@ steps = 0
   = не проверять»). Полный снапшот task_4 — это сериализованный `GameState` целиком
   (`Game::from_state`); частичный `Snapshot` task_8 разделяет с ним кодировки значений.
 - **`ynwa-football`**: ввести билдер мира `FootballWorldBuilder::new(repo, preambles_path)` с методами
-  `with_rng(...)`, `with_stage(GameStage)` (и в task_4 — `with_snapshot`,
-  `with_physics_last_update`) и строгим `build() -> Result<World, String>`;
-  [`add_football_systems`](ynwa-football/src/lib.rs:209) переработать в строгую версию (возврат
-  `Result`, без печати ). Существующий `create_football_world` становится обёрткой
-  над билдером с дефолтами (температура `0.7`, мягкий режим с placeholder).
+  `with_rng(...)`, `with_stage(GameStage)`, `with_placeholder_fallback()` (и в task_4 —
+  `with_snapshot`, `with_physics_last_update`) и строгим `build() -> Result<World, String>`;
+  [`add_football_systems`](ynwa-football/src/lib.rs:209) переработать так, чтобы она принимала
+  готовый `DecisionSystem` и только добавляла стек систем (без `Result`, без печати); создание
+  движка решений и выбор строгого/мягкого режима — в `build()`. Существующий
+  `create_football_world` становится обёрткой над билдером с дефолтами (температура `0.7`,
+  мягкий режим с placeholder).
 
 ## 7. Вход в тесты (harness)
 
@@ -443,11 +447,16 @@ DOD: `cargo test -p ynwa-core` зелёный; юнит-тесты покрыв�
 
 Изменения:
 
-- [`add_football_systems`](ynwa-football/src/lib.rs:209) → `add_football_systems(world) -> Result<(), String>`:
-  ошибка [`ScriptedDecisionMaker::new`](ynwa-football/src/lib.rs:214) возвращается как `Err`,
-  убрать `println!`/`eprintln!`; обновить все вызовы (в т.ч. `create_test_world` в тестах).
+- [`add_football_systems`](ynwa-football/src/lib.rs:209) →
+  `add_football_systems(world, decision_system)`: добавляет стек систем с переданным
+  `DecisionSystem` (без `Result`, без `println!`/`eprintln!`); обновить все вызовы
+  (в т.ч. `create_test_world` в тестах).
+- Создание [`ScriptedDecisionMaker::new`](ynwa-football/src/lib.rs:214) переносится в `build()`:
+  в строгом режиме ошибка возвращается как `Err`, в мягком (`with_placeholder_fallback`)
+  подставляется `DecisionSystem::new()`.
 - `FootballWorldBuilder::new(repo, preambles_path)` с методами `with_rng(...)`,
-  `with_stage(GameStage)` и строгим `build() -> Result<World, String>`; перенести логику из
+  `with_stage(GameStage)`, `with_placeholder_fallback()` и строгим
+  `build() -> Result<World, String>`; перенести логику из
   [`create_football_world`](ynwa-football/src/lib.rs:240).
 - [`create_football_world`](ynwa-football/src/lib.rs:240) становится мягкой обёрткой над билдером
   (температура `0.7`, placeholder-фолбэк).

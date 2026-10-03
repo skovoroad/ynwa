@@ -206,87 +206,143 @@ fn validate_on_ball(team_record: &TeamRecord, team_label: &str) -> Result<(), St
     Ok(())
 }
 
-fn add_football_systems(world: &mut World) {
+/// Adds the football system stack with the given decision system.
+fn add_football_systems(world: &mut World, decision_system: DecisionSystem) {
     world.add_system(Box::new(FootballGameManager::new()));
     world.add_system(Box::new(PlayerReactionSystem));
     world.add_system(Box::new(BallPossessionSystem::new()));
-
-    let decision_system = match ScriptedDecisionMaker::new(world.game()) {
-        Ok(scripted_maker) => {
-            println!(
-                "Successfully initialized ScriptedDecisionMaker for {} players",
-                world.game().config().players.len()
-            );
-            DecisionSystem::new().with_decision_maker(Box::new(scripted_maker))
-        }
-        Err(e) => {
-            eprintln!(
-                "Warning: Failed to create ScriptedDecisionMaker: {}. Using placeholder.",
-                e
-            );
-            DecisionSystem::new()
-        }
-    };
-
     world.add_system(Box::new(decision_system));
     world.add_system(Box::new(ActionSystem::new()));
     world.add_system(Box::new(PhysicsSystem::new()));
+}
+
+/// Builds a football [`World`] from a team repository and Lua preambles.
+///
+/// Defaults mirror the playable game: RNG temperature `0.7` and `Setup("kick off")`.
+pub struct FootballWorldBuilder<'a> {
+    repo: &'a dyn TeamRepository,
+    preambles_path: &'a std::path::Path,
+    rng: Box<dyn RngManager>,
+    stage: GameStage,
+    placeholder_fallback: bool,
+}
+
+impl<'a> FootballWorldBuilder<'a> {
+    pub fn new(repo: &'a dyn TeamRepository, preambles_path: &'a std::path::Path) -> Self {
+        Self {
+            repo,
+            preambles_path,
+            rng: create_player_rng_manager(),
+            stage: GameStage::Setup("kick off".to_string()),
+            placeholder_fallback: false,
+        }
+    }
+
+    pub fn with_rng(mut self, rng: Box<dyn RngManager>) -> Self {
+        self.rng = rng;
+        self
+    }
+
+    pub fn with_stage(mut self, stage: GameStage) -> Self {
+        self.stage = stage;
+        self
+    }
+
+    /// When enabled, a failed scripted decision engine falls back to a decision system that
+    /// makes no decisions instead of failing the build.
+    pub fn with_placeholder_fallback(mut self) -> Self {
+        self.placeholder_fallback = true;
+        self
+    }
+
+    /// Builds the world, failing on any repository, tactics, scripting or preamble error.
+    pub fn build(self) -> Result<World, String> {
+        let placeholder_fallback = self.placeholder_fallback;
+        let game = self.create_game()?;
+        let mut world = World::new(game);
+
+        let decision_system = match ScriptedDecisionMaker::new(world.game()) {
+            Ok(scripted) => DecisionSystem::new().with_decision_maker(Box::new(scripted)),
+            Err(error) if placeholder_fallback => {
+                eprintln!(
+                    "Warning: failed to initialize ScriptedDecisionMaker: {}. Using placeholder.",
+                    error
+                );
+                DecisionSystem::new()
+            }
+            Err(error) => {
+                return Err(format!(
+                    "Failed to initialize ScriptedDecisionMaker: {}",
+                    error
+                ));
+            }
+        };
+
+        add_football_systems(&mut world, decision_system);
+        Ok(world)
+    }
+
+    fn create_game(self) -> Result<Game, String> {
+        let FootballWorldBuilder {
+            repo,
+            preambles_path,
+            rng,
+            stage,
+            ..
+        } = self;
+
+        let field = create_football_field();
+        let grid_dims = field.grid_dimensions();
+
+        let team_a_record = repo.load_team("team_a")?;
+        let team_b_record = repo.load_team("team_b")?;
+
+        validate_on_ball(&team_a_record, "team_a")?;
+        validate_on_ball(&team_b_record, "team_b")?;
+        validate_set_piece_keys(&team_a_record, "team_a")?;
+        validate_set_piece_keys(&team_b_record, "team_b")?;
+
+        let mut players = build_player_defs(Team::A, &team_a_record, grid_dims)?;
+        players.extend(build_player_defs(Team::B, &team_b_record, grid_dims)?);
+
+        let load_preamble = |name: &str| {
+            let path = preambles_path.join(name);
+            std::fs::read_to_string(&path)
+                .map_err(|e| format!("Failed to read preamble '{}': {}", path.display(), e))
+        };
+
+        let game_config = GameConfig {
+            field: field.clone(),
+            players,
+            ball: BallDef {
+                initial_position: get_ball_initial_position(&field),
+            },
+            referees: vec![RefereeDef::default()],
+            scripting: ScriptingConfig {
+                core_preamble: load_preamble("core.lua")?,
+                stdlib_preamble: load_preamble("stdlib.lua")?,
+                team_a_preamble: team_a_record.preamble,
+                team_b_preamble: team_b_record.preamble,
+            },
+        };
+
+        Ok(Game::with_stage(game_config, stage, rng))
+    }
 }
 
 /// Creates a football world from team repository.
 ///
 /// `repo` supplies both teams (`"team_a"` and `"team_b"`) and their preambles.
 /// `preambles_path` - directory containing `core.lua` and `stdlib.lua`.
+/// Uses the playable defaults (`0.7` RNG temperature) and a placeholder decision system when
+/// the Lua scripts fail to load, so the game always starts.
 pub fn create_football_world(
     repo: &dyn TeamRepository,
     preambles_path: &std::path::Path,
 ) -> Result<World, String> {
-    let field = create_football_field();
-    let grid_dims = field.grid_dimensions();
-
-    let team_a_record = repo.load_team("team_a")?;
-    let team_b_record = repo.load_team("team_b")?;
-
-    validate_on_ball(&team_a_record, "team_a")?;
-    validate_on_ball(&team_b_record, "team_b")?;
-    validate_set_piece_keys(&team_a_record, "team_a")?;
-    validate_set_piece_keys(&team_b_record, "team_b")?;
-
-    let team_a_players = build_player_defs(Team::A, &team_a_record, grid_dims)?;
-    let team_b_players = build_player_defs(Team::B, &team_b_record, grid_dims)?;
-
-    let mut players = team_a_players;
-    players.extend(team_b_players);
-
-    let load_preamble = |name: &str| {
-        let path = preambles_path.join(name);
-        std::fs::read_to_string(&path)
-            .map_err(|e| format!("Failed to read preamble '{}': {}", path.display(), e))
-    };
-
-    let game_config = GameConfig {
-        field: field.clone(),
-        players,
-        ball: BallDef {
-            initial_position: get_ball_initial_position(&field),
-        },
-        referees: vec![RefereeDef::default()],
-        scripting: ScriptingConfig {
-            core_preamble: load_preamble("core.lua")?,
-            stdlib_preamble: load_preamble("stdlib.lua")?,
-            team_a_preamble: team_a_record.preamble,
-            team_b_preamble: team_b_record.preamble,
-        },
-    };
-
-    let game = Game::with_stage(
-        game_config,
-        GameStage::Setup("kick off".to_string()),
-        create_player_rng_manager(),
-    );
-    let mut world = World::new(game);
-    add_football_systems(&mut world);
-    Ok(world)
+    FootballWorldBuilder::new(repo, preambles_path)
+        .with_placeholder_fallback()
+        .build()
 }
 
 #[cfg(test)]
@@ -307,6 +363,9 @@ mod serde_tests;
 #[cfg(test)]
 #[path = "tests/serialization_tests.rs"]
 mod serialization_tests;
+#[cfg(test)]
+#[path = "tests/world_builder_tests.rs"]
+mod world_builder_tests;
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -381,7 +440,12 @@ mod tests {
             deterministic_rng(),
         );
         let mut world = World::new(game);
-        add_football_systems(&mut world);
+        let scripted = ScriptedDecisionMaker::new(world.game())
+            .expect("test world decision engine must initialize");
+        add_football_systems(
+            &mut world,
+            DecisionSystem::new().with_decision_maker(Box::new(scripted)),
+        );
         world
     }
 
