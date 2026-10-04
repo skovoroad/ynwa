@@ -16,8 +16,8 @@ use ynwa_football::FootballWorldBuilder;
 use ynwa_repository::FsTeamRepository;
 
 use crate::dto::{
-    BallOwnerDto, BallStateDto, ExpectDto, FinalStateDto, InitialStateDto, RunPlanDto, ScenarioDto,
-    StageNameDto, TeamOrNoneDto,
+    BallOwnerDto, BallStateDto, ExpectDto, ExpectedFinalStateDto, InitialStateDto, RunPlanDto,
+    ScenarioDto, StageNameDto, TeamOrNoneDto,
 };
 
 /// Fixed RNG state: scenarios must be fully reproducible, so temperature is zero and the seed is
@@ -67,7 +67,7 @@ pub struct LoadedScenario {
     pub world: World,
     pub run: RunPlanDto,
     pub expect: ExpectDto,
-    pub final_state: Option<FinalStateDto>,
+    pub final_state: Option<ExpectedFinalStateDto>,
 }
 
 /// Loads scenario directories with an overridable preamble path.
@@ -98,7 +98,7 @@ impl ScenarioLoader {
         let initial = InitialStateDto::parse(&read_file(&dir.join("initial_state.toml"))?)?;
         let scenario = ScenarioDto::parse(&read_file(&dir.join("scenario.toml"))?)?;
         let final_state = read_optional_file(&dir.join("final_state.toml"))?
-            .map(|source| FinalStateDto::parse(&source))
+            .map(|source| ExpectedFinalStateDto::parse(&source))
             .transpose()?;
 
         let mut world = build_world(dir, &initial, &self.preambles_path)?;
@@ -198,7 +198,7 @@ fn build_ball_snapshot(
 }
 
 /// Resolves `{team, number}` to the global player index; a missing or duplicated player is an error.
-fn resolve_player_index(
+pub(crate) fn resolve_player_index(
     config: &GameConfig,
     team: Team,
     number: u32,

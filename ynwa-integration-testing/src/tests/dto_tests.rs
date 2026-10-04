@@ -7,8 +7,8 @@ fn parse_initial(source: &str) -> InitialStateDto {
     InitialStateDto::parse(source).expect("initial state must parse")
 }
 
-fn parse_final(source: &str) -> FinalStateDto {
-    FinalStateDto::parse(source).expect("final state must parse")
+fn parse_final(source: &str) -> ExpectedFinalStateDto {
+    ExpectedFinalStateDto::parse(source).expect("final state must parse")
 }
 
 fn parse_scenario(source: &str) -> ScenarioDto {
@@ -499,7 +499,7 @@ fn journal_football_event_rejects_team_for_game_end() {
 #[test]
 fn unknown_fields_are_rejected() {
     assert!(InitialStateDto::parse("stage = \"Play\"\nbogus = 1\n").is_err());
-    assert!(FinalStateDto::parse("stage = \"Play\"\nbogus = 1\n").is_err());
+    assert!(ExpectedFinalStateDto::parse("stage = \"Play\"\nbogus = 1\n").is_err());
     assert!(
         RunPlanDto::parse("dt = 0.1\nbogus = 1\n[[stop]]\nwhen = \"steps\"\nsteps = 1\n").is_err()
     );
@@ -561,7 +561,7 @@ fn expect_stop_requires_its_payload() {
 
 #[test]
 fn final_state_rejects_zero_player_number() {
-    let error = FinalStateDto::parse(
+    let error = ExpectedFinalStateDto::parse(
         "[[players]]\nteam = \"A\"\nnumber = 0\nposition = { x = 0.0, y = 0.0, z = 0.0 }\n",
     )
     .unwrap_err();
@@ -574,7 +574,7 @@ fn final_state_rejects_zero_player_number() {
 
 #[test]
 fn final_state_rejects_zero_ball_owner_number() {
-    let error = FinalStateDto::parse(
+    let error = ExpectedFinalStateDto::parse(
         "stage = \"Play\"\n[ball]\npossessed_by = { team = \"A\", number = 0 }\n",
     )
     .unwrap_err();

@@ -123,7 +123,7 @@ pub struct InitialStateDto {
 /// Partial expected final state (`final_state.toml`).
 #[derive(Debug, Clone, Default, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct FinalStateDto {
+pub struct ExpectedFinalStateDto {
     #[serde(default)]
     pub stage: Option<StageNameDto>,
     #[serde(default)]
@@ -163,7 +163,7 @@ impl InitialStateDto {
     }
 }
 
-impl FinalStateDto {
+impl ExpectedFinalStateDto {
     /// Parses and validates `final_state.toml`.
     pub fn parse(source: &str) -> Result<Self, String> {
         let state: Self = toml::from_str(source).map_err(|error| error.to_string())?;

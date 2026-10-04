@@ -54,7 +54,7 @@ impl EventMatcher {
         }
     }
 
-    fn matches_football(&self, event: &FootballEvent) -> bool {
+    pub(crate) fn matches_football(&self, event: &FootballEvent) -> bool {
         match (self, event) {
             (EventMatcher::Goal { team }, FootballEvent::Goal(actual)) => accepts(*team, *actual),
             (EventMatcher::Touchline { team }, FootballEvent::Touchline(_, actual)) => {
