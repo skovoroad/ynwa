@@ -520,6 +520,44 @@ fn unknown_fields_are_rejected() {
 }
 
 #[test]
+fn stop_criterion_rejects_unknown_field() {
+    let error = RunPlanDto::parse("dt = 0.1\n[[stop]]\nwhen = \"steps\"\nsteps = 1\nbogus = 1\n")
+        .unwrap_err();
+
+    assert!(error.contains("bogus"), "unexpected error: {error}");
+}
+
+#[test]
+fn expect_stop_rejects_unknown_field() {
+    let error = ScenarioDto::parse(
+        "[run]\ndt = 0.1\n[[run.stop]]\nwhen = \"steps\"\nsteps = 1\n[expect.stop]\nwhen = \"steps\"\nsteps = 1\nbogus = 1\n",
+    )
+    .unwrap_err();
+
+    assert!(error.contains("bogus"), "unexpected error: {error}");
+}
+
+#[test]
+fn journal_entry_rejects_unknown_field() {
+    let error = ScenarioDto::parse(
+        "[run]\ndt = 0.1\n[[run.stop]]\nwhen = \"steps\"\nsteps = 1\n[[expect.journal]]\ntype = \"decisions_reset\"\nbogus = 1\n",
+    )
+    .unwrap_err();
+
+    assert!(error.contains("bogus"), "unexpected error: {error}");
+}
+
+#[test]
+fn expect_stop_stage_requires_target_stage() {
+    let error = ScenarioDto::parse(
+        "[run]\ndt = 0.1\n[[run.stop]]\nwhen = \"steps\"\nsteps = 5\n[expect.stop]\nwhen = \"stage\"\n",
+    )
+    .unwrap_err();
+
+    assert!(error.contains("stage"), "unexpected error: {error}");
+}
+
+#[test]
 fn stop_criterion_requires_its_payload() {
     let cases = [
         ("when = \"stage\"", "stage"),

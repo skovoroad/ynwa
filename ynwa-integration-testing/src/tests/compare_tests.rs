@@ -339,7 +339,7 @@ fn stop_event_matches_with_optional_steps() {
 #[test]
 fn stop_stage_and_time_are_compared() {
     let stage = StopExpectationDto::Stage {
-        stage: Some(StageNameDto::Setup),
+        stage: StageNameDto::Setup,
         setup_reason: Some("throw in".to_string()),
         steps: None,
     };
@@ -648,15 +648,8 @@ fn journal_reports_reason_mismatch() {
 
 #[test]
 fn stop_stage_matches_target_stage() {
-    let any = StopExpectationDto::Stage {
-        stage: None,
-        setup_reason: None,
-        steps: None,
-    };
-    assert!(compare_stop(&any, &StopReason::Stage(StageMatcher::Play), 1).is_empty());
-
     let play = StopExpectationDto::Stage {
-        stage: Some(StageNameDto::Play),
+        stage: StageNameDto::Play,
         setup_reason: None,
         steps: None,
     };
@@ -667,7 +660,7 @@ fn stop_stage_matches_target_stage() {
     );
 
     let setup = StopExpectationDto::Stage {
-        stage: Some(StageNameDto::Setup),
+        stage: StageNameDto::Setup,
         setup_reason: Some("throw in".to_string()),
         steps: Some(3),
     };

@@ -182,7 +182,7 @@ impl ExpectedFinalStateDto {
 
 /// A stop criterion from `[[run.stop]]`.
 #[derive(Debug, Clone, PartialEq, Deserialize)]
-#[serde(tag = "when", rename_all = "snake_case")]
+#[serde(tag = "when", rename_all = "snake_case", deny_unknown_fields)]
 pub enum StopCriterionDto {
     Stage {
         stage: StageNameDto,
@@ -260,7 +260,7 @@ pub enum JournalMatchDto {
 
 /// One expected journal record (`[[expect.journal]]`).
 #[derive(Debug, Clone, PartialEq, Deserialize)]
-#[serde(tag = "type", rename_all = "snake_case")]
+#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
 pub enum ExpectedEventDto {
     DecisionAssigned {
         #[serde(default)]
@@ -340,11 +340,10 @@ impl ExpectedEventDto {
 /// Expected stop in `[expect.stop]`: the criterion that ended the run, plus an optional exact
 /// number of steps taken. For `when = "steps"` the limit and the step count are the same field.
 #[derive(Debug, Clone, PartialEq, Deserialize)]
-#[serde(tag = "when", rename_all = "snake_case")]
+#[serde(tag = "when", rename_all = "snake_case", deny_unknown_fields)]
 pub enum StopExpectationDto {
     Stage {
-        #[serde(default)]
-        stage: Option<StageNameDto>,
+        stage: StageNameDto,
         #[serde(default)]
         setup_reason: Option<String>,
         #[serde(default)]

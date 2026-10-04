@@ -91,6 +91,38 @@ fn event_matcher_matches_kind_and_optional_team() {
 }
 
 #[test]
+fn goal_line_matcher_covers_team_variants() {
+    let point = Point3D::from_meters(68.0, 0.0, 5.5);
+    let goal_line_a = FootballEvent::GoalLine(point, Team::A);
+
+    let cases = [
+        (EventMatcher::GoalLine { team: None }, &goal_line_a, true),
+        (
+            EventMatcher::GoalLine {
+                team: Some(Team::A),
+            },
+            &goal_line_a,
+            true,
+        ),
+        (
+            EventMatcher::GoalLine {
+                team: Some(Team::B),
+            },
+            &goal_line_a,
+            false,
+        ),
+    ];
+
+    for (matcher, event, expected) in cases {
+        assert_eq!(
+            matcher.matches_football(event),
+            expected,
+            "matcher {matcher:?} against {event:?}"
+        );
+    }
+}
+
+#[test]
 fn from_def_builds_matchers_and_rejects_team_on_game_end() {
     assert_eq!(
         EventMatcher::from_def(EventKindDto::Goal, Some(Team::A)).unwrap(),

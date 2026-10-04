@@ -525,18 +525,17 @@ fn setup_stage_matches(setup_reason: &Option<String>, actual: &GameStage) -> boo
 }
 
 /// Matches a `[expect.stop] when = "stage"` expectation against the stage matcher that ended the
-/// run. An omitted target stage accepts any stage; a bare `setup_reason` still requires `Setup`.
+/// run. A bare `setup_reason` still requires `Setup`.
 fn stop_stage_matches(
-    stage: &Option<StageNameDto>,
+    stage: &StageNameDto,
     setup_reason: &Option<String>,
     actual: &StageMatcher,
 ) -> bool {
     let stage_ok = matches!(
         (stage, actual),
-        (None, _)
-            | (Some(StageNameDto::Play), StageMatcher::Play)
-            | (Some(StageNameDto::GameOver), StageMatcher::GameOver)
-            | (Some(StageNameDto::Setup), StageMatcher::Setup { .. })
+        (StageNameDto::Play, StageMatcher::Play)
+            | (StageNameDto::GameOver, StageMatcher::GameOver)
+            | (StageNameDto::Setup, StageMatcher::Setup { .. })
     );
 
     stage_ok
