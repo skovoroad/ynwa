@@ -751,3 +751,159 @@ fn final_state_checks_setup_reason_without_stage() {
         1
     );
 }
+
+#[test]
+fn stat_update_reports_team_mismatch() {
+    let config = test_config(&[(Team::A, 9)]);
+    let expected = vec![ExpectedEventDto::StatUpdate {
+        team: Some(Team::B),
+        key: Some("score".to_string()),
+        delta: Some(1.0),
+        at: None,
+    }];
+    let actual = vec![entry(
+        0.1,
+        JournalEvent::StatUpdate {
+            team: Team::A,
+            key: "score".to_string(),
+            delta: 1.0,
+        },
+    )];
+
+    let diffs = journal_diffs(&expected, &actual, JournalMatchDto::Exact, &config);
+
+    assert_eq!(diffs.len(), 1, "{diffs:?}");
+}
+
+#[test]
+fn stat_update_reports_key_mismatch() {
+    let config = test_config(&[(Team::A, 9)]);
+    let expected = vec![ExpectedEventDto::StatUpdate {
+        team: Some(Team::A),
+        key: Some("passes".to_string()),
+        delta: Some(1.0),
+        at: None,
+    }];
+    let actual = vec![entry(
+        0.1,
+        JournalEvent::StatUpdate {
+            team: Team::A,
+            key: "score".to_string(),
+            delta: 1.0,
+        },
+    )];
+
+    let diffs = journal_diffs(&expected, &actual, JournalMatchDto::Exact, &config);
+
+    assert_eq!(diffs.len(), 1, "{diffs:?}");
+}
+
+#[test]
+fn stat_update_reports_delta_outside_tolerance() {
+    let config = test_config(&[(Team::A, 9)]);
+    let expected = vec![ExpectedEventDto::StatUpdate {
+        team: Some(Team::A),
+        key: Some("score".to_string()),
+        delta: Some(1.0),
+        at: None,
+    }];
+    let actual = vec![entry(
+        0.1,
+        JournalEvent::StatUpdate {
+            team: Team::A,
+            key: "score".to_string(),
+            delta: 1.0 + 2.0 * TOLERANCE as f64,
+        },
+    )];
+
+    let diffs = journal_diffs(&expected, &actual, JournalMatchDto::Exact, &config);
+
+    assert_eq!(diffs.len(), 1, "{diffs:?}");
+}
+
+#[test]
+fn kick_outcome_reports_velocity_outside_tolerance() {
+    let config = test_config(&[(Team::A, 9)]);
+    let expected = vec![ExpectedEventDto::KickOutcome {
+        player: Some(PlayerRefDto {
+            team: Team::A,
+            number: 9,
+        }),
+        ball_velocity: Some(Velocity3D::from_meters_per_second(1.0, 0.0, 2.0)),
+        at: None,
+    }];
+    let actual = vec![entry(
+        0.1,
+        JournalEvent::KickOutcome {
+            player_index: 0,
+            ball_velocity: Velocity3D::from_meters_per_second(1.0 + 2.0 * TOLERANCE, 0.0, 2.0),
+        },
+    )];
+
+    let diffs = journal_diffs(&expected, &actual, JournalMatchDto::Exact, &config);
+
+    assert_eq!(diffs.len(), 1, "{diffs:?}");
+}
+
+#[test]
+fn restart_set_reports_position_mismatch() {
+    let config = test_config(&[(Team::A, 9)]);
+    let expected = vec![ExpectedEventDto::RestartSet {
+        position: Some(Point3D::from_meters(1.0, 0.0, 2.0)),
+        team: Some(TeamOrNoneDto::Team(Team::A)),
+        at: None,
+    }];
+    let actual = vec![entry(
+        0.1,
+        JournalEvent::RestartSet {
+            restart_position: Some(Point3D::from_meters(5.0, 0.0, 5.0)),
+            restart_team: Some(Team::A),
+        },
+    )];
+
+    let diffs = journal_diffs(&expected, &actual, JournalMatchDto::Exact, &config);
+
+    assert_eq!(diffs.len(), 1, "{diffs:?}");
+}
+
+#[test]
+fn subsequence_matches_multiple_events_in_order() {
+    let config = test_config(&[(Team::A, 1)]);
+    let expected = vec![
+        ExpectedEventDto::DecisionsReset { at: None },
+        ExpectedEventDto::StageChange {
+            stage: Some(StageNameDto::Setup),
+            setup_reason: Some("corner".to_string()),
+            at: None,
+        },
+    ];
+    let actual = vec![
+        entry(0.1, decision_assigned(0, Decision::Stop)),
+        entry(0.2, JournalEvent::DecisionsReset),
+        entry(
+            0.3,
+            JournalEvent::StageChange {
+                stage: GameStage::Setup("corner".to_string()),
+            },
+        ),
+    ];
+
+    let diffs = journal_diffs(&expected, &actual, JournalMatchDto::Subsequence, &config);
+
+    assert!(diffs.is_empty(), "{diffs:?}");
+}
+
+#[test]
+fn subsequence_does_not_reuse_a_matched_entry() {
+    let config = test_config(&[(Team::A, 1)]);
+    let expected = vec![
+        ExpectedEventDto::DecisionsReset { at: None },
+        ExpectedEventDto::DecisionsReset { at: None },
+    ];
+    let actual = vec![entry(0.1, JournalEvent::DecisionsReset)];
+
+    let diffs = journal_diffs(&expected, &actual, JournalMatchDto::Subsequence, &config);
+
+    assert_eq!(diffs.len(), 1, "{diffs:?}");
+    assert!(diffs[0].contains("not found"), "{diffs:?}");
+}
