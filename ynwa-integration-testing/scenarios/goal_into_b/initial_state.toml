@@ -1,0 +1,6 @@
+stage = "Play"
+
+[ball]
+position = { x = 34.0, y = 0.0, z = 99.0 }
+velocity = { x = 0.0, y = 0.0, z = 20.0 }
+last_possessing_team = "A"

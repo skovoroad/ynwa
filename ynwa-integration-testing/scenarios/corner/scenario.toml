@@ -1,0 +1,29 @@
+[run]
+dt = 0.1
+
+[[run.stop]]
+when = "event"
+event = "GoalLine"
+team = "A"
+
+[[run.stop]]
+when = "steps"
+steps = 1000
+
+[expect]
+journal_match = "subsequence"
+
+[expect.stop]
+when = "event"
+event = "GoalLine"
+team = "A"
+
+[[expect.journal]]
+type = "football_event"
+event = "GoalLine"
+team = "A"
+
+[[expect.journal]]
+type = "stage_change"
+stage = "Setup"
+setup_reason = "corner"

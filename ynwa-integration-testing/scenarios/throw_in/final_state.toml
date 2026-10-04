@@ -1,0 +1,5 @@
+stage = "Setup"
+setup_reason = "throw in"
+
+[setup]
+restart_team = "B"

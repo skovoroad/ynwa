@@ -1,0 +1,6 @@
+stage = "Setup"
+setup_reason = "kick off"
+score = { A = 0, B = 1 }
+
+[setup]
+restart_team = "A"

@@ -7,6 +7,21 @@
 //!
 //! Run the scenarios with `cargo test -p ynwa-integration-testing`; set `YNWA_SCENARIO=<name>` to
 //! run a single scenario.
+//!
+//! ## Scenarios
+//!
+//! Every directory under `scenarios/` that contains a `scenario.toml` is one case:
+//!
+//! ```text
+//! scenarios/<name>/
+//!   initial_state.toml   # partial start state (stage, ball, player positions)
+//!   final_state.toml     # optional partial state checked after the run
+//!   scenario.toml        # run plan ([run]) and expectations ([expect])
+//!   teams/               # FsTeamRepository tree: preambles, tactics, scripts
+//! ```
+//!
+//! [`tests/scenarios.rs`] runs them all and fails with a per-scenario diff if an expectation does
+//! not hold. Runs are fully deterministic: the runner uses a fixed RNG seed and zero temperature.
 
 pub mod compare;
 pub mod criterion;
