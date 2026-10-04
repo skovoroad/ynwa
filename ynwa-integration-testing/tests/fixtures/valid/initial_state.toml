@@ -1,0 +1,12 @@
+stage = "Play"
+
+[ball]
+position = { x = 34.0, y = 0.0, z = 10.0 }
+velocity = { x = 1.5, y = 0.0, z = -2.5 }
+possessed_by = { team = "B", number = 1 }
+last_possessing_team = "B"
+
+[[players]]
+team = "A"
+number = 1
+position = { x = 35.0, y = 0.0, z = 11.0 }

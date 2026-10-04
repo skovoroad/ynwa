@@ -1,0 +1,9 @@
+[run]
+dt = 0.1
+
+[[run.stop]]
+when = "steps"
+steps = 10
+
+[expect]
+journal_match = "subsequence"

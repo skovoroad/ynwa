@@ -1,0 +1,2 @@
+stage = "Play"
+score = { A = 0, B = 0 }
