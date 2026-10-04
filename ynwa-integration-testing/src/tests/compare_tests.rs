@@ -5,7 +5,9 @@ use crate::dto::{
     BallStateDto, EventKindDto, NoneToken, PlayerPlacementDto, PlayerRefDto, SetupDto,
 };
 use ynwa_core::field::Field;
-use ynwa_core::game::{BallDef, PlayerDef, RefereeDef, ScriptingConfig, REGION_START_POSITION};
+use ynwa_core::game::{
+    BallDef, DecisionTarget, PlayerDef, RefereeDef, ScriptingConfig, REGION_START_POSITION,
+};
 use ynwa_core::region::GridCell;
 use ynwa_core::{DefaultRngManager, Game, RngConfig, Score};
 
@@ -337,6 +339,7 @@ fn stop_event_matches_with_optional_steps() {
 #[test]
 fn stop_stage_and_time_are_compared() {
     let stage = StopExpectationDto::Stage {
+        stage: Some(StageNameDto::Setup),
         setup_reason: Some("throw in".to_string()),
         steps: None,
     };
@@ -469,4 +472,289 @@ fn compare_outcome_without_expectations_passes() {
     let diffs = compare_outcome(&outcome, &ExpectDto::default(), None, &config, 0.1).unwrap();
 
     assert!(diffs.is_empty(), "{diffs:?}");
+}
+
+#[test]
+fn empty_journal_expectation_is_not_checked() {
+    let (config, state) = test_state(&[(Team::A, 9)]);
+    let outcome = RunOutcome {
+        journal: vec![entry(0.1, JournalEvent::DecisionsReset)],
+        football_events: vec![],
+        stop_reason: StopReason::Steps(10),
+        steps: 10,
+        final_state: state,
+    };
+
+    let diffs = compare_outcome(&outcome, &ExpectDto::default(), None, &config, 0.1).unwrap();
+
+    assert!(diffs.is_empty(), "{diffs:?}");
+}
+
+#[test]
+fn journal_restart_set_and_stat_update_match() {
+    let config = test_config(&[(Team::A, 9)]);
+    let expected = vec![
+        ExpectedEventDto::RestartSet {
+            position: Some(Point3D::from_meters(1.0, 0.0, 2.0)),
+            team: Some(TeamOrNoneDto::Team(Team::A)),
+            at: None,
+        },
+        ExpectedEventDto::StatUpdate {
+            team: Some(Team::A),
+            key: Some("score".to_string()),
+            delta: Some(1.0),
+            at: None,
+        },
+    ];
+    let actual = vec![
+        entry(
+            0.1,
+            JournalEvent::RestartSet {
+                restart_position: Some(Point3D::from_meters(1.0, 0.0, 2.0)),
+                restart_team: Some(Team::A),
+            },
+        ),
+        entry(
+            0.2,
+            JournalEvent::StatUpdate {
+                team: Team::A,
+                key: "score".to_string(),
+                delta: 1.0 + TOLERANCE as f64 / 2.0,
+            },
+        ),
+    ];
+
+    let diffs = journal_diffs(&expected, &actual, JournalMatchDto::Exact, &config);
+
+    assert!(diffs.is_empty(), "{diffs:?}");
+}
+
+#[test]
+fn journal_matches_every_decision_kind() {
+    let config = test_config(&[(Team::A, 1)]);
+    let cases = [
+        (
+            "Run",
+            Decision::Run(DecisionTarget::Point(Point3D::from_meters(1.0, 0.0, 1.0))),
+        ),
+        ("Stop", Decision::Stop),
+        ("Kick", Decision::Kick(Point3D::from_meters(2.0, 0.0, 2.0))),
+    ];
+
+    for (kind, decision) in cases {
+        let expected = vec![ExpectedEventDto::DecisionAssigned {
+            player: None,
+            decision: Some(kind.to_string()),
+            reason: None,
+            at: None,
+        }];
+        let actual = vec![entry(0.1, decision_assigned(0, decision))];
+
+        assert!(
+            journal_diffs(&expected, &actual, JournalMatchDto::Exact, &config).is_empty(),
+            "{kind} must match"
+        );
+    }
+}
+
+#[test]
+fn football_event_game_end_matches() {
+    let config = test_config(&[(Team::A, 1)]);
+    let expected = vec![ExpectedEventDto::FootballEvent {
+        event: EventKindDto::GameEnd,
+        team: None,
+        at: None,
+    }];
+    let actual = vec![football_entry(0.3, FootballEvent::GameEnd)];
+
+    assert!(journal_diffs(&expected, &actual, JournalMatchDto::Exact, &config).is_empty());
+}
+
+#[test]
+fn stage_change_without_stage_matches_any_target() {
+    let config = test_config(&[(Team::A, 1)]);
+    let expected = vec![ExpectedEventDto::StageChange {
+        stage: None,
+        setup_reason: None,
+        at: None,
+    }];
+
+    for stage in [
+        GameStage::Play,
+        GameStage::GameOver,
+        GameStage::Setup("corner".to_string()),
+    ] {
+        let actual = vec![entry(0.1, JournalEvent::StageChange { stage })];
+
+        assert!(
+            journal_diffs(&expected, &actual, JournalMatchDto::Exact, &config).is_empty(),
+            "any stage must match"
+        );
+    }
+}
+
+#[test]
+fn stage_change_without_stage_but_with_reason_requires_setup() {
+    let config = test_config(&[(Team::A, 1)]);
+    let expected = vec![ExpectedEventDto::StageChange {
+        stage: None,
+        setup_reason: Some("throw in".to_string()),
+        at: None,
+    }];
+
+    let matching = vec![entry(
+        0.1,
+        JournalEvent::StageChange {
+            stage: GameStage::Setup("throw in".to_string()),
+        },
+    )];
+    assert!(journal_diffs(&expected, &matching, JournalMatchDto::Exact, &config).is_empty());
+
+    let other_reason = vec![entry(
+        0.1,
+        JournalEvent::StageChange {
+            stage: GameStage::Setup("corner".to_string()),
+        },
+    )];
+    assert_eq!(
+        journal_diffs(&expected, &other_reason, JournalMatchDto::Exact, &config).len(),
+        1
+    );
+}
+
+#[test]
+fn journal_reports_reason_mismatch() {
+    let config = test_config(&[(Team::A, 1)]);
+    let expected = vec![ExpectedEventDto::DecisionAssigned {
+        player: None,
+        decision: None,
+        reason: Some("hold".to_string()),
+        at: None,
+    }];
+    let actual = vec![entry(
+        0.1,
+        JournalEvent::DecisionAssigned {
+            player_index: 0,
+            decision: Decision::Stop,
+            reason: Some("run".to_string()),
+        },
+    )];
+
+    assert_eq!(
+        journal_diffs(&expected, &actual, JournalMatchDto::Exact, &config).len(),
+        1
+    );
+}
+
+#[test]
+fn stop_stage_matches_target_stage() {
+    let any = StopExpectationDto::Stage {
+        stage: None,
+        setup_reason: None,
+        steps: None,
+    };
+    assert!(compare_stop(&any, &StopReason::Stage(StageMatcher::Play), 1).is_empty());
+
+    let play = StopExpectationDto::Stage {
+        stage: Some(StageNameDto::Play),
+        setup_reason: None,
+        steps: None,
+    };
+    assert!(compare_stop(&play, &StopReason::Stage(StageMatcher::Play), 1).is_empty());
+    assert_eq!(
+        compare_stop(&play, &StopReason::Stage(StageMatcher::GameOver), 1).len(),
+        1
+    );
+
+    let setup = StopExpectationDto::Stage {
+        stage: Some(StageNameDto::Setup),
+        setup_reason: Some("throw in".to_string()),
+        steps: Some(3),
+    };
+    assert!(compare_stop(
+        &setup,
+        &StopReason::Stage(StageMatcher::Setup {
+            reason: Some("throw in".to_string()),
+        }),
+        3,
+    )
+    .is_empty());
+    assert_eq!(
+        compare_stop(
+            &setup,
+            &StopReason::Stage(StageMatcher::Setup {
+                reason: Some("corner".to_string()),
+            }),
+            3,
+        )
+        .len(),
+        1
+    );
+}
+
+#[test]
+fn final_state_checks_ball_velocity() {
+    let (config, mut state) = test_state(&[(Team::A, 9)]);
+    state.ball_state.velocity = Velocity3D::from_meters_per_second(1.0, 0.0, 2.0);
+
+    let expected = ExpectedFinalStateDto {
+        ball: Some(BallStateDto {
+            velocity: Some(Velocity3D::from_meters_per_second(1.0, 0.0, 2.0)),
+            ..BallStateDto::default()
+        }),
+        ..ExpectedFinalStateDto::default()
+    };
+
+    assert!(compare_final_state(&expected, &state, &config)
+        .unwrap()
+        .is_empty());
+}
+
+#[test]
+fn final_state_reports_setup_restart_mismatch() {
+    let (config, mut state) = test_state(&[(Team::A, 9)]);
+    state.restart_position = Some(Point3D::from_meters(1.0, 0.0, 2.0));
+    state.restart_team = None;
+
+    let expected = ExpectedFinalStateDto {
+        setup: Some(SetupDto {
+            restart_position: Some(Point3D::from_meters(9.0, 0.0, 9.0)),
+            restart_team: Some(TeamOrNoneDto::Team(Team::B)),
+        }),
+        ..ExpectedFinalStateDto::default()
+    };
+
+    let diffs = compare_final_state(&expected, &state, &config).unwrap();
+
+    assert!(
+        diffs.iter().any(|diff| diff.contains("restart_position")),
+        "{diffs:?}"
+    );
+    assert!(
+        diffs.iter().any(|diff| diff.contains("restart_team")),
+        "{diffs:?}"
+    );
+}
+
+#[test]
+fn final_state_checks_setup_reason_without_stage() {
+    let (config, mut state) = test_state(&[(Team::A, 9)]);
+    state.stage = GameStage::Setup("throw in".to_string());
+
+    let matching = ExpectedFinalStateDto {
+        setup_reason: Some("throw in".to_string()),
+        ..ExpectedFinalStateDto::default()
+    };
+    assert!(compare_final_state(&matching, &state, &config)
+        .unwrap()
+        .is_empty());
+
+    let wrong = ExpectedFinalStateDto {
+        setup_reason: Some("corner".to_string()),
+        ..ExpectedFinalStateDto::default()
+    };
+    assert_eq!(
+        compare_final_state(&wrong, &state, &config).unwrap().len(),
+        1
+    );
 }

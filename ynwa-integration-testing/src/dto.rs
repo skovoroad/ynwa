@@ -344,6 +344,8 @@ impl ExpectedEventDto {
 pub enum StopExpectationDto {
     Stage {
         #[serde(default)]
+        stage: Option<StageNameDto>,
+        #[serde(default)]
         setup_reason: Option<String>,
         #[serde(default)]
         steps: Option<u64>,

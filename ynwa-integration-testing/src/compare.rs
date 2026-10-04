@@ -39,13 +39,17 @@ pub fn compare_outcome(
     config: &GameConfig,
     dt: f32,
 ) -> Result<Vec<String>, ScenarioError> {
-    let mut diffs = compare_journal(
-        &expect.journal,
-        &outcome.journal,
-        expect.journal_match,
-        config,
-        dt,
-    )?;
+    let mut diffs = if expect.journal.is_empty() {
+        Vec::new()
+    } else {
+        compare_journal(
+            &expect.journal,
+            &outcome.journal,
+            expect.journal_match,
+            config,
+            dt,
+        )?
+    };
     if let Some(stop) = &expect.stop {
         diffs.extend(compare_stop(stop, &outcome.stop_reason, outcome.steps));
     }
@@ -209,14 +213,12 @@ fn compare_stop(expected: &StopExpectationDto, actual: &StopReason, steps: u64) 
     let mut diffs = Vec::new();
 
     let reason_matches = match expected {
-        StopExpectationDto::Stage { setup_reason, .. } => match actual {
-            StopReason::Stage(matcher) => match setup_reason {
-                None => true,
-                Some(reason) => matches!(
-                    matcher,
-                    StageMatcher::Setup { reason: Some(actual_reason) } if actual_reason == reason
-                ),
-            },
+        StopExpectationDto::Stage {
+            stage,
+            setup_reason,
+            ..
+        } => match actual {
+            StopReason::Stage(matcher) => stop_stage_matches(stage, setup_reason, matcher),
             _ => false,
         },
         StopExpectationDto::Event { event, team, .. } => {
@@ -495,6 +497,8 @@ fn team_matches(expected: &Option<TeamOrNoneDto>, actual: Option<Team>) -> bool 
     }
 }
 
+/// Matches a stage expectation against an actual stage. An omitted `stage` does not restrict the
+/// target; a bare `setup_reason` still pins a `Setup` transition to that reason.
 fn stage_matches(
     stage: &Option<StageNameDto>,
     setup_reason: &Option<String>,
@@ -503,13 +507,42 @@ fn stage_matches(
     match stage {
         Some(StageNameDto::Play) => matches!(actual, GameStage::Play),
         Some(StageNameDto::GameOver) => matches!(actual, GameStage::GameOver),
-        Some(StageNameDto::Setup) | None => match actual {
-            GameStage::Setup(reason) => setup_reason
-                .as_ref()
-                .is_none_or(|expected| expected == reason),
-            _ => false,
+        Some(StageNameDto::Setup) => setup_stage_matches(setup_reason, actual),
+        None => match setup_reason {
+            None => true,
+            Some(_) => setup_stage_matches(setup_reason, actual),
         },
     }
+}
+
+fn setup_stage_matches(setup_reason: &Option<String>, actual: &GameStage) -> bool {
+    match actual {
+        GameStage::Setup(reason) => setup_reason
+            .as_ref()
+            .is_none_or(|expected| expected == reason),
+        _ => false,
+    }
+}
+
+/// Matches a `[expect.stop] when = "stage"` expectation against the stage matcher that ended the
+/// run. An omitted target stage accepts any stage; a bare `setup_reason` still requires `Setup`.
+fn stop_stage_matches(
+    stage: &Option<StageNameDto>,
+    setup_reason: &Option<String>,
+    actual: &StageMatcher,
+) -> bool {
+    let stage_ok = matches!(
+        (stage, actual),
+        (None, _)
+            | (Some(StageNameDto::Play), StageMatcher::Play)
+            | (Some(StageNameDto::GameOver), StageMatcher::GameOver)
+            | (Some(StageNameDto::Setup), StageMatcher::Setup { .. })
+    );
+
+    stage_ok
+        && setup_reason.as_ref().is_none_or(|expected| {
+            matches!(actual, StageMatcher::Setup { reason: Some(reason) } if reason == expected)
+        })
 }
 
 fn entry_timestamp_matches(expected: &ExpectedEventDto, actual: f32, dt: f32) -> bool {

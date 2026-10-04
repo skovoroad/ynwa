@@ -1,0 +1,6 @@
+name = "Player B1"
+reaction_rate = 50
+speed_rate = 50
+tackle_rate = 50
+shot_power = 50
+shot_accuracy = 50

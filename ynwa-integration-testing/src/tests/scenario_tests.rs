@@ -29,3 +29,20 @@ fn run_scenario_reports_error_for_missing_directory() {
         "unexpected error: {error}"
     );
 }
+
+#[test]
+fn run_scenario_reports_failed_expectations() {
+    let report = run_scenario(&fixture("failing")).expect("scenario must run");
+
+    assert_eq!(report.name, "failing");
+    assert!(!report.passed);
+    let diff = report.diff.expect("a failed report carries a diff");
+    assert!(
+        diff.contains("final_state.stage"),
+        "unexpected diff: {diff}"
+    );
+    assert!(
+        diff.contains("final_state.score"),
+        "unexpected diff: {diff}"
+    );
+}
