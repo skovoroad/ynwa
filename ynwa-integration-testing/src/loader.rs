@@ -15,9 +15,9 @@ use ynwa_core::world::World;
 use ynwa_football::FootballWorldBuilder;
 use ynwa_repository::FsTeamRepository;
 
-use crate::scenario::{
-    BallOwner, BallStateDef, Expect, FinalState, InitialState, RunPlan, ScenarioDef, StageName,
-    TeamOrNone,
+use crate::dto::{
+    BallOwnerDto, BallStateDto, ExpectDto, FinalStateDto, InitialStateDto, RunPlanDto, ScenarioDto,
+    StageNameDto, TeamOrNoneDto,
 };
 
 /// Fixed RNG state: scenarios must be fully reproducible, so temperature is zero and the seed is
@@ -65,9 +65,9 @@ impl From<String> for ScenarioError {
 pub struct LoadedScenario {
     pub name: String,
     pub world: World,
-    pub run: RunPlan,
-    pub expect: Expect,
-    pub final_state: Option<FinalState>,
+    pub run: RunPlanDto,
+    pub expect: ExpectDto,
+    pub final_state: Option<FinalStateDto>,
 }
 
 /// Loads scenario directories with an overridable preamble path.
@@ -95,10 +95,10 @@ impl ScenarioLoader {
 
     /// Loads and fully assembles the scenario rooted at `dir`.
     pub fn load(&self, dir: &Path) -> Result<LoadedScenario, ScenarioError> {
-        let initial = InitialState::parse(&read_file(&dir.join("initial_state.toml"))?)?;
-        let scenario = ScenarioDef::parse(&read_file(&dir.join("scenario.toml"))?)?;
+        let initial = InitialStateDto::parse(&read_file(&dir.join("initial_state.toml"))?)?;
+        let scenario = ScenarioDto::parse(&read_file(&dir.join("scenario.toml"))?)?;
         let final_state = read_optional_file(&dir.join("final_state.toml"))?
-            .map(|source| FinalState::parse(&source))
+            .map(|source| FinalStateDto::parse(&source))
             .transpose()?;
 
         let mut world = build_world(dir, &initial, &self.preambles_path)?;
@@ -133,7 +133,7 @@ fn scenario_rng() -> Box<dyn RngManager> {
 
 fn build_world(
     dir: &Path,
-    initial: &InitialState,
+    initial: &InitialStateDto,
     preambles_path: &Path,
 ) -> Result<World, ScenarioError> {
     let repo = FsTeamRepository::new(dir.join("teams"));
@@ -145,7 +145,7 @@ fn build_world(
 }
 
 /// Builds the core partial snapshot from the initial state, resolving players to global indices.
-fn build_snapshot(initial: &InitialState, game: &Game) -> Result<Snapshot, ScenarioError> {
+fn build_snapshot(initial: &InitialStateDto, game: &Game) -> Result<Snapshot, ScenarioError> {
     let config = game.config();
     let ball = initial
         .ball
@@ -177,16 +177,16 @@ fn build_snapshot(initial: &InitialState, game: &Game) -> Result<Snapshot, Scena
 }
 
 fn build_ball_snapshot(
-    ball: &BallStateDef,
+    ball: &BallStateDto,
     config: &GameConfig,
 ) -> Result<SnapshotBall, ScenarioError> {
     let possessed_by = match ball.possessed_by {
-        Some(BallOwner::Player(reference)) => Some(resolve_player_index(
+        Some(BallOwnerDto::Player(reference)) => Some(resolve_player_index(
             config,
             reference.team,
             reference.number,
         )?),
-        Some(BallOwner::Free(_)) | None => None,
+        Some(BallOwnerDto::Free(_)) | None => None,
     };
 
     Ok(SnapshotBall {
@@ -223,12 +223,12 @@ fn resolve_player_index(
     Ok(index)
 }
 
-fn resolve_stage(initial: &InitialState) -> GameStage {
+fn resolve_stage(initial: &InitialStateDto) -> GameStage {
     match initial.stage {
-        Some(StageName::Play) => GameStage::Play,
-        Some(StageName::GameOver) => GameStage::GameOver,
+        Some(StageNameDto::Play) => GameStage::Play,
+        Some(StageNameDto::GameOver) => GameStage::GameOver,
         // An omitted stage also means Setup, so an explicit `setup_reason` is honoured in both cases.
-        None | Some(StageName::Setup) => GameStage::Setup(
+        None | Some(StageNameDto::Setup) => GameStage::Setup(
             initial
                 .setup_reason
                 .clone()
@@ -237,10 +237,10 @@ fn resolve_stage(initial: &InitialState) -> GameStage {
     }
 }
 
-fn team_option(value: Option<TeamOrNone>) -> Option<Team> {
+fn team_option(value: Option<TeamOrNoneDto>) -> Option<Team> {
     match value {
-        Some(TeamOrNone::Team(team)) => Some(team),
-        Some(TeamOrNone::None(_)) | None => None,
+        Some(TeamOrNoneDto::Team(team)) => Some(team),
+        Some(TeamOrNoneDto::None(_)) | None => None,
     }
 }
 

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use super::*;
-use crate::scenario::JournalMatch;
+use crate::dto::JournalMatchDto;
 use ynwa_core::field::Field;
 use ynwa_core::game::{BallDef, PlayerDef, RefereeDef, ScriptingConfig, REGION_START_POSITION};
 use ynwa_core::region::GridCell;
@@ -43,8 +43,8 @@ fn test_game(players: &[(Team, u32)]) -> Game {
     )
 }
 
-fn parse_initial_state(source: &str) -> InitialState {
-    InitialState::parse(source).expect("initial state must parse")
+fn parse_initial_state(source: &str) -> InitialStateDto {
+    InitialStateDto::parse(source).expect("initial state must parse")
 }
 
 #[test]
@@ -248,7 +248,7 @@ fn loads_scenario_directory_into_world() {
     );
 
     assert_eq!(loaded.run.dt, 0.1);
-    assert_eq!(loaded.expect.journal_match, JournalMatch::Subsequence);
+    assert_eq!(loaded.expect.journal_match, JournalMatchDto::Subsequence);
     assert_eq!(
         loaded.final_state.unwrap().score,
         Some(Score { a: 0, b: 0 })

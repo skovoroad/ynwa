@@ -8,16 +8,16 @@
 //! Run the scenarios with `cargo test -p ynwa-integration-testing`; set `YNWA_SCENARIO=<name>` to
 //! run a single scenario.
 
+pub mod criterion;
+pub mod dto;
 pub mod loader;
-pub mod scenario;
+pub mod runner;
 
-#[cfg(test)]
-#[path = "tests/scenario_tests.rs"]
-mod scenario_tests;
-
-pub use loader::{load_scenario, LoadedScenario, ScenarioError, ScenarioLoader};
-pub use scenario::{
-    BallOwner, BallStateDef, EventKind, EventMatcher, Expect, ExpectedEventDef, FinalState,
-    InitialState, JournalMatch, NoneToken, PlayerPlacement, PlayerRef, RunPlan, ScenarioDef,
-    SetupDef, StageName, StopCriterionDef, StopWhen, TeamOrNone,
+pub use criterion::{EventMatcher, StageMatcher, StopCriterion, StopReason};
+pub use dto::{
+    BallOwnerDto, BallStateDto, EventKindDto, ExpectDto, ExpectedEventDto, FinalStateDto,
+    InitialStateDto, JournalMatchDto, NoneToken, PlayerPlacementDto, PlayerRefDto, RunPlanDto,
+    ScenarioDto, SetupDto, StageNameDto, StopCriterionDto, StopExpectationDto, TeamOrNoneDto,
 };
+pub use loader::{load_scenario, LoadedScenario, ScenarioError, ScenarioLoader};
+pub use runner::{run, RunOutcome};

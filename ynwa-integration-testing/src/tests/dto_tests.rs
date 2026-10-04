@@ -1,23 +1,23 @@
-use crate::scenario::NoneToken;
+use crate::dto::NoneToken;
 use crate::*;
 use ynwa_core::team::Team;
 use ynwa_core::{Point3D, Score, Velocity3D};
 
-fn parse_initial(source: &str) -> InitialState {
-    InitialState::parse(source).expect("initial state must parse")
+fn parse_initial(source: &str) -> InitialStateDto {
+    InitialStateDto::parse(source).expect("initial state must parse")
 }
 
-fn parse_final(source: &str) -> FinalState {
-    FinalState::parse(source).expect("final state must parse")
+fn parse_final(source: &str) -> FinalStateDto {
+    FinalStateDto::parse(source).expect("final state must parse")
 }
 
-fn parse_scenario(source: &str) -> ScenarioDef {
-    ScenarioDef::parse(source).expect("scenario must parse")
+fn parse_scenario(source: &str) -> ScenarioDto {
+    ScenarioDto::parse(source).expect("scenario must parse")
 }
 
 #[test]
 fn minimal_initial_state_is_empty() {
-    assert_eq!(parse_initial(""), InitialState::default());
+    assert_eq!(parse_initial(""), InitialStateDto::default());
 }
 
 #[test]
@@ -39,7 +39,7 @@ position = { x = 34.0, y = 0.0, z = 10.0 }
 "#,
     );
 
-    assert_eq!(state.stage, Some(StageName::Play));
+    assert_eq!(state.stage, Some(StageNameDto::Play));
     let ball = state.ball.expect("ball present");
     assert_eq!(ball.position, Some(Point3D::from_meters(34.0, 0.0, 10.0)));
     assert_eq!(
@@ -48,15 +48,18 @@ position = { x = 34.0, y = 0.0, z = 10.0 }
     );
     assert_eq!(
         ball.possessed_by,
-        Some(BallOwner::Player(PlayerRef {
+        Some(BallOwnerDto::Player(PlayerRefDto {
             team: Team::A,
             number: 9
         }))
     );
-    assert_eq!(ball.last_possessing_team, Some(TeamOrNone::Team(Team::B)));
+    assert_eq!(
+        ball.last_possessing_team,
+        Some(TeamOrNoneDto::Team(Team::B))
+    );
     assert_eq!(
         state.players,
-        vec![PlayerPlacement {
+        vec![PlayerPlacementDto {
             team: Team::A,
             number: 9,
             position: Point3D::from_meters(34.0, 0.0, 10.0),
@@ -77,14 +80,14 @@ restart_team = "A"
 "#,
     );
 
-    assert_eq!(state.stage, Some(StageName::Setup));
+    assert_eq!(state.stage, Some(StageNameDto::Setup));
     assert_eq!(state.setup_reason.as_deref(), Some("throw in"));
     let setup = state.setup.expect("setup present");
     assert_eq!(
         setup.restart_position,
         Some(Point3D::from_meters(0.0, 0.0, 5.5))
     );
-    assert_eq!(setup.restart_team, Some(TeamOrNone::Team(Team::A)));
+    assert_eq!(setup.restart_team, Some(TeamOrNoneDto::Team(Team::A)));
 }
 
 #[test]
@@ -100,13 +103,16 @@ last_possessing_team = "none"
     );
 
     let ball = state.ball.expect("ball present");
-    assert_eq!(ball.possessed_by, Some(BallOwner::Free(NoneToken)));
-    assert_eq!(ball.last_possessing_team, Some(TeamOrNone::None(NoneToken)));
+    assert_eq!(ball.possessed_by, Some(BallOwnerDto::Free(NoneToken)));
+    assert_eq!(
+        ball.last_possessing_team,
+        Some(TeamOrNoneDto::None(NoneToken))
+    );
 }
 
 #[test]
 fn setup_stage_forbids_ball_state() {
-    let error = InitialState::parse(
+    let error = InitialStateDto::parse(
         "stage = \"Setup\"\n[ball]\nposition = { x = 1.0, y = 0.0, z = 1.0 }\n",
     )
     .unwrap_err();
@@ -117,7 +123,7 @@ fn setup_stage_forbids_ball_state() {
 #[test]
 fn omitted_stage_resolves_to_setup_and_forbids_ball() {
     let error =
-        InitialState::parse("[ball]\nposition = { x = 1.0, y = 0.0, z = 1.0 }\n").unwrap_err();
+        InitialStateDto::parse("[ball]\nposition = { x = 1.0, y = 0.0, z = 1.0 }\n").unwrap_err();
 
     assert!(error.contains("Setup"), "unexpected error: {error}");
 }
@@ -136,7 +142,7 @@ fn zero_player_number_is_rejected() {
     ];
 
     for (source, label) in cases {
-        let error = InitialState::parse(source).unwrap_err();
+        let error = InitialStateDto::parse(source).unwrap_err();
         assert!(
             error.contains("number must be positive"),
             "{label}: unexpected error: {error}"
@@ -161,39 +167,41 @@ restart_team = "B"
 "#,
     );
 
-    assert_eq!(state.stage, Some(StageName::Setup));
+    assert_eq!(state.stage, Some(StageNameDto::Setup));
     assert_eq!(state.setup_reason.as_deref(), Some("throw in"));
     assert_eq!(state.score, Some(Score { a: 1, b: 0 }));
     assert_eq!(
         state.ball.expect("ball present").possessed_by,
-        Some(BallOwner::Free(NoneToken))
+        Some(BallOwnerDto::Free(NoneToken))
     );
     assert_eq!(
         state.setup.expect("setup present").restart_team,
-        Some(TeamOrNone::Team(Team::B))
+        Some(TeamOrNoneDto::Team(Team::B))
     );
 }
 
 #[test]
 fn invalid_team_label_is_rejected() {
     assert!(
-        InitialState::parse("stage = \"Play\"\n[ball]\nlast_possessing_team = \"C\"\n").is_err()
+        InitialStateDto::parse("stage = \"Play\"\n[ball]\nlast_possessing_team = \"C\"\n").is_err()
     );
 }
 
 #[test]
 fn invalid_ball_owner_is_rejected() {
-    assert!(InitialState::parse("stage = \"Play\"\n[ball]\npossessed_by = \"bogus\"\n").is_err());
+    assert!(
+        InitialStateDto::parse("stage = \"Play\"\n[ball]\npossessed_by = \"bogus\"\n").is_err()
+    );
 }
 
 #[test]
 fn invalid_stage_name_is_rejected() {
-    assert!(InitialState::parse("stage = \"Half\"\n").is_err());
+    assert!(InitialStateDto::parse("stage = \"Half\"\n").is_err());
 }
 
 #[test]
 fn run_plan_parses_all_criteria() {
-    let plan = RunPlan::parse(
+    let plan = RunPlanDto::parse(
         r#"
 dt = 0.1
 
@@ -219,27 +227,27 @@ time = 60.0
     .expect("run plan must parse");
 
     assert_eq!(plan.dt, 0.1);
-    assert_eq!(plan.stop.len(), 4);
-    assert_eq!(plan.stop[0].when, StopWhen::Stage);
-    assert_eq!(plan.stop[0].stage, Some(StageName::Setup));
-    assert_eq!(plan.stop[0].setup_reason.as_deref(), Some("goal kick"));
     assert_eq!(
-        plan.stop[1].event_matcher(),
-        Some(EventMatcher {
-            event: EventKind::Goal,
-            team: Some(Team::B),
-        })
+        plan.stop,
+        vec![
+            StopCriterionDto::Stage {
+                stage: StageNameDto::Setup,
+                setup_reason: Some("goal kick".to_string()),
+            },
+            StopCriterionDto::Event {
+                event: EventKindDto::Goal,
+                team: Some(Team::B),
+            },
+            StopCriterionDto::Steps { steps: 10000 },
+            StopCriterionDto::Time { time: 60.0 },
+        ]
     );
-    assert_eq!(plan.stop[2].when, StopWhen::Steps);
-    assert_eq!(plan.stop[2].steps, Some(10000));
-    assert_eq!(plan.stop[3].when, StopWhen::Time);
-    assert_eq!(plan.stop[3].time, Some(60.0));
 }
 
 #[test]
 fn run_plan_requires_a_safety_criterion() {
     let error =
-        RunPlan::parse("dt = 0.1\n[[stop]]\nwhen = \"stage\"\nstage = \"Play\"\n").unwrap_err();
+        RunPlanDto::parse("dt = 0.1\n[[stop]]\nwhen = \"stage\"\nstage = \"Play\"\n").unwrap_err();
 
     assert!(error.contains("steps"), "unexpected error: {error}");
 }
@@ -249,7 +257,7 @@ fn run_plan_requires_positive_dt() {
     for dt in ["0.0", "-0.5"] {
         let source = format!("dt = {dt}\n[[stop]]\nwhen = \"steps\"\nsteps = 1\n");
         assert!(
-            RunPlan::parse(&source).is_err(),
+            RunPlanDto::parse(&source).is_err(),
             "dt = {dt} must be rejected"
         );
     }
@@ -257,7 +265,7 @@ fn run_plan_requires_positive_dt() {
 
 #[test]
 fn invalid_stop_when_is_rejected() {
-    assert!(RunPlan::parse("dt = 0.1\n[[stop]]\nwhen = \"bogus\"\n").is_err());
+    assert!(RunPlanDto::parse("dt = 0.1\n[[stop]]\nwhen = \"bogus\"\n").is_err());
 }
 
 #[test]
@@ -298,22 +306,25 @@ team = "B"
     );
 
     assert_eq!(scenario.run.dt, 0.1);
-    assert_eq!(scenario.expect.journal_match, JournalMatch::Subsequence);
-    let stop = scenario.expect.stop.expect("stop expectation present");
-    assert_eq!(stop.when, StopWhen::Event);
-    assert_eq!(stop.event, Some(EventKind::Goal));
-    assert_eq!(stop.team, Some(Team::B));
-    assert_eq!(stop.steps, Some(15));
+    assert_eq!(scenario.expect.journal_match, JournalMatchDto::Subsequence);
+    assert_eq!(
+        scenario.expect.stop,
+        Some(StopExpectationDto::Event {
+            event: EventKindDto::Goal,
+            team: Some(Team::B),
+            steps: Some(15),
+        })
+    );
     assert_eq!(
         scenario.expect.journal,
         vec![
-            ExpectedEventDef::StageChange {
-                stage: Some(StageName::Setup),
+            ExpectedEventDto::StageChange {
+                stage: Some(StageNameDto::Setup),
                 setup_reason: None,
                 at: Some(1.5),
             },
-            ExpectedEventDef::FootballEvent {
-                event: Some(EventKind::Goal),
+            ExpectedEventDto::FootballEvent {
+                event: EventKindDto::Goal,
                 team: Some(Team::B),
                 at: None,
             },
@@ -325,7 +336,7 @@ team = "B"
 fn expect_defaults_when_omitted() {
     let scenario = parse_scenario("[run]\ndt = 0.1\n[[run.stop]]\nwhen = \"steps\"\nsteps = 3\n");
 
-    assert_eq!(scenario.expect.journal_match, JournalMatch::Exact);
+    assert_eq!(scenario.expect.journal_match, JournalMatchDto::Exact);
     assert!(scenario.expect.stop.is_none());
     assert!(scenario.expect.journal.is_empty());
 }
@@ -383,13 +394,13 @@ team = "A"
 "#,
     );
 
-    use ExpectedEventDef::*;
+    use ExpectedEventDto::*;
     let journal = &scenario.expect.journal;
     assert_eq!(journal.len(), 8);
     assert_eq!(
         journal[0],
         DecisionAssigned {
-            player: Some(PlayerRef {
+            player: Some(PlayerRefDto {
                 team: Team::A,
                 number: 9
             }),
@@ -401,18 +412,18 @@ team = "A"
     assert_eq!(
         journal[1],
         PossessionChange {
-            possessed_by: Some(BallOwner::Player(PlayerRef {
+            possessed_by: Some(BallOwnerDto::Player(PlayerRefDto {
                 team: Team::B,
                 number: 4
             })),
-            last_possessing_team: Some(TeamOrNone::None(NoneToken)),
+            last_possessing_team: Some(TeamOrNoneDto::None(NoneToken)),
             at: None,
         }
     );
     assert_eq!(
         journal[2],
         KickOutcome {
-            player: Some(PlayerRef {
+            player: Some(PlayerRefDto {
                 team: Team::A,
                 number: 10
             }),
@@ -423,7 +434,7 @@ team = "A"
     assert_eq!(
         journal[3],
         StageChange {
-            stage: Some(StageName::Setup),
+            stage: Some(StageNameDto::Setup),
             setup_reason: Some("throw in".to_string()),
             at: None,
         }
@@ -432,7 +443,7 @@ team = "A"
         journal[4],
         RestartSet {
             position: Some(Point3D::from_meters(1.0, 0.0, 2.0)),
-            team: Some(TeamOrNone::Team(Team::A)),
+            team: Some(TeamOrNoneDto::Team(Team::A)),
             at: None,
         }
     );
@@ -449,7 +460,7 @@ team = "A"
     assert_eq!(
         journal[7],
         FootballEvent {
-            event: Some(EventKind::Touchline),
+            event: EventKindDto::Touchline,
             team: Some(Team::A),
             at: None,
         }
@@ -457,33 +468,55 @@ team = "A"
 }
 
 #[test]
-fn event_matcher_is_absent_for_non_event_criteria() {
-    let criterion = StopCriterionDef {
-        when: StopWhen::Steps,
-        stage: None,
-        setup_reason: None,
-        event: None,
-        team: None,
-        steps: Some(5),
-        time: None,
-    };
+fn stop_criterion_rejects_team_for_game_end() {
+    let source = "dt = 0.1\n[[stop]]\nwhen = \"event\"\nevent = \"GameEnd\"\nteam = \"A\"\n[[stop]]\nwhen = \"steps\"\nsteps = 1\n";
 
-    assert_eq!(criterion.event_matcher(), None);
+    let error = RunPlanDto::parse(source).unwrap_err();
+
+    assert!(error.contains("GameEnd"), "unexpected error: {error}");
 }
 
 #[test]
-fn event_matcher_is_absent_when_event_missing() {
-    let criterion = StopCriterionDef {
-        when: StopWhen::Event,
-        stage: None,
-        setup_reason: None,
-        event: None,
-        team: Some(Team::A),
-        steps: None,
-        time: None,
-    };
+fn expect_stop_rejects_team_for_game_end() {
+    let error = ScenarioDto::parse(
+        "[run]\ndt = 0.1\n[[run.stop]]\nwhen = \"steps\"\nsteps = 5\n[expect.stop]\nwhen = \"event\"\nevent = \"GameEnd\"\nteam = \"B\"\n",
+    )
+    .unwrap_err();
 
-    assert_eq!(criterion.event_matcher(), None);
+    assert!(error.contains("GameEnd"), "unexpected error: {error}");
+}
+
+#[test]
+fn journal_football_event_rejects_team_for_game_end() {
+    let error = ScenarioDto::parse(
+        "[run]\ndt = 0.1\n[[run.stop]]\nwhen = \"steps\"\nsteps = 5\n[[expect.journal]]\ntype = \"football_event\"\nevent = \"GameEnd\"\nteam = \"A\"\n",
+    )
+    .unwrap_err();
+
+    assert!(error.contains("GameEnd"), "unexpected error: {error}");
+}
+
+#[test]
+fn unknown_fields_are_rejected() {
+    assert!(InitialStateDto::parse("stage = \"Play\"\nbogus = 1\n").is_err());
+    assert!(FinalStateDto::parse("stage = \"Play\"\nbogus = 1\n").is_err());
+    assert!(
+        RunPlanDto::parse("dt = 0.1\nbogus = 1\n[[stop]]\nwhen = \"steps\"\nsteps = 1\n").is_err()
+    );
+    assert!(InitialStateDto::parse("stage = \"Play\"\n[ball]\nbogus = 1\n").is_err());
+    assert!(InitialStateDto::parse("stage = \"Setup\"\n[setup]\nbogus = 1\n").is_err());
+    assert!(InitialStateDto::parse(
+        "stage = \"Play\"\n[[players]]\nteam = \"A\"\nnumber = 1\nposition = { x = 0.0, y = 0.0, z = 0.0 }\nbogus = 1\n"
+    )
+    .is_err());
+    assert!(ScenarioDto::parse(
+        "bogus = 1\n[run]\ndt = 0.1\n[[run.stop]]\nwhen = \"steps\"\nsteps = 1\n"
+    )
+    .is_err());
+    assert!(ScenarioDto::parse(
+        "[run]\ndt = 0.1\n[[run.stop]]\nwhen = \"steps\"\nsteps = 1\n[[expect.journal]]\ntype = \"decision_assigned\"\nplayer = { team = \"A\", number = 1, bogus = 1 }\n"
+    )
+    .is_err());
 }
 
 #[test]
@@ -497,7 +530,7 @@ fn stop_criterion_requires_its_payload() {
 
     for (criterion, field) in cases {
         let source = format!("dt = 0.1\n[[stop]]\n{criterion}\n");
-        let error = RunPlan::parse(&source).unwrap_err();
+        let error = RunPlanDto::parse(&source).unwrap_err();
         assert!(
             error.contains(field),
             "criterion {criterion}: unexpected error: {error}"
@@ -510,7 +543,7 @@ fn run_plan_rejects_non_finite_dt() {
     for dt in ["nan", "inf"] {
         let source = format!("dt = {dt}\n[[stop]]\nwhen = \"steps\"\nsteps = 1\n");
         assert!(
-            RunPlan::parse(&source).is_err(),
+            RunPlanDto::parse(&source).is_err(),
             "dt = {dt} must be rejected"
         );
     }
@@ -518,7 +551,7 @@ fn run_plan_rejects_non_finite_dt() {
 
 #[test]
 fn expect_stop_requires_its_payload() {
-    let error = ScenarioDef::parse(
+    let error = ScenarioDto::parse(
         "[run]\ndt = 0.1\n[[run.stop]]\nwhen = \"steps\"\nsteps = 5\n[expect.stop]\nwhen = \"event\"\n",
     )
     .unwrap_err();
@@ -528,7 +561,7 @@ fn expect_stop_requires_its_payload() {
 
 #[test]
 fn final_state_rejects_zero_player_number() {
-    let error = FinalState::parse(
+    let error = FinalStateDto::parse(
         "[[players]]\nteam = \"A\"\nnumber = 0\nposition = { x = 0.0, y = 0.0, z = 0.0 }\n",
     )
     .unwrap_err();
@@ -540,9 +573,32 @@ fn final_state_rejects_zero_player_number() {
 }
 
 #[test]
+fn final_state_rejects_zero_ball_owner_number() {
+    let error = FinalStateDto::parse(
+        "stage = \"Play\"\n[ball]\npossessed_by = { team = \"A\", number = 0 }\n",
+    )
+    .unwrap_err();
+
+    assert!(
+        error.contains("number must be positive"),
+        "unexpected error: {error}"
+    );
+}
+
+#[test]
+fn journal_football_event_requires_event() {
+    let error = ScenarioDto::parse(
+        "[run]\ndt = 0.1\n[[run.stop]]\nwhen = \"steps\"\nsteps = 5\n[[expect.journal]]\ntype = \"football_event\"\nteam = \"A\"\n",
+    )
+    .unwrap_err();
+
+    assert!(error.contains("event"), "unexpected error: {error}");
+}
+
+#[test]
 fn parses_remaining_stage_and_event_variants() {
     let state = parse_initial("stage = \"GameOver\"\n");
-    assert_eq!(state.stage, Some(StageName::GameOver));
+    assert_eq!(state.stage, Some(StageNameDto::GameOver));
 
     let scenario = parse_scenario(
         r#"
@@ -564,11 +620,17 @@ event = "GameEnd"
 "#,
     );
 
-    assert_eq!(scenario.run.stop[0].event, Some(EventKind::GoalLine));
+    assert_eq!(
+        scenario.run.stop[0],
+        StopCriterionDto::Event {
+            event: EventKindDto::GoalLine,
+            team: Some(Team::A),
+        }
+    );
     assert_eq!(
         scenario.expect.journal[0],
-        ExpectedEventDef::FootballEvent {
-            event: Some(EventKind::GameEnd),
+        ExpectedEventDto::FootballEvent {
+            event: EventKindDto::GameEnd,
             team: None,
             at: None,
         }
