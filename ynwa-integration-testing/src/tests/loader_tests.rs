@@ -135,6 +135,18 @@ fn free_and_absent_ball_map_to_no_possession() {
 }
 
 #[test]
+fn ball_without_owner_fields_maps_to_no_possession() {
+    let game = test_game(&[(Team::A, 1), (Team::B, 2)]);
+
+    let initial =
+        parse_initial_state("stage = \"Play\"\n[ball]\nposition = { x = 1.0, y = 0.0, z = 2.0 }\n");
+    let ball = build_snapshot(&initial, &game).unwrap().ball.unwrap();
+
+    assert_eq!(ball.possessed_by, None);
+    assert_eq!(ball.last_possessing_team, None);
+}
+
+#[test]
 fn setup_stage_maps_reason_and_restart() {
     let game = test_game(&[(Team::A, 1)]);
     let initial = parse_initial_state(
@@ -173,6 +185,28 @@ fn omitted_stage_defaults_to_kick_off() {
         snapshot.stage,
         Some(GameStage::Setup("kick off".to_string()))
     );
+}
+
+#[test]
+fn omitted_stage_honours_setup_reason() {
+    let game = test_game(&[(Team::A, 1)]);
+    let initial = parse_initial_state("setup_reason = \"throw in\"\n");
+
+    let snapshot = build_snapshot(&initial, &game).unwrap();
+
+    assert_eq!(
+        snapshot.stage,
+        Some(GameStage::Setup("throw in".to_string()))
+    );
+}
+
+#[test]
+fn game_over_stage_is_mapped() {
+    let game = test_game(&[(Team::A, 1)]);
+
+    let snapshot = build_snapshot(&parse_initial_state("stage = \"GameOver\"\n"), &game).unwrap();
+
+    assert_eq!(snapshot.stage, Some(GameStage::GameOver));
 }
 
 #[test]
@@ -307,4 +341,61 @@ fn preamble_syntax_error_fails_the_load() {
     .unwrap();
 
     assert!(load_scenario(dir.path()).is_err());
+}
+
+#[test]
+fn invalid_scenario_file_is_error() {
+    let dir = TempDir::new("invalid_scenario");
+    std::fs::write(dir.path().join("initial_state.toml"), "stage = \"Play\"\n").unwrap();
+    std::fs::write(dir.path().join("scenario.toml"), "this is not toml").unwrap();
+
+    assert!(load_scenario(dir.path()).is_err());
+}
+
+#[test]
+fn missing_final_state_is_allowed() {
+    let dir = TempDir::new("missing_final_state");
+    copy_dir_all(&fixture("valid"), dir.path());
+    std::fs::remove_file(dir.path().join("final_state.toml")).unwrap();
+
+    let loaded = load_scenario(dir.path()).expect("scenario without final state must load");
+
+    assert!(loaded.final_state.is_none());
+}
+
+#[test]
+fn unreadable_final_state_is_error() {
+    let dir = TempDir::new("unreadable_final_state");
+    copy_dir_all(&fixture("valid"), dir.path());
+    let final_state = dir.path().join("final_state.toml");
+    std::fs::remove_file(&final_state).unwrap();
+    std::fs::create_dir(&final_state).unwrap();
+
+    let error = load_error(dir.path());
+
+    assert!(
+        error.message().contains("final_state.toml"),
+        "unexpected error: {error}"
+    );
+}
+
+#[test]
+fn custom_preambles_path_is_used() {
+    let preambles = TempDir::new("empty_preambles");
+    let loader = ScenarioLoader::new().with_preambles_path(preambles.path());
+
+    let error = loader
+        .load(&fixture("valid"))
+        .err()
+        .expect("load must fail");
+
+    assert!(
+        error.message().contains("core.lua"),
+        "unexpected error: {error}"
+    );
+}
+
+#[test]
+fn scenario_name_of_root_is_empty() {
+    assert_eq!(scenario_name(Path::new("/")), "");
 }

@@ -225,10 +225,10 @@ fn resolve_player_index(
 
 fn resolve_stage(initial: &InitialState) -> GameStage {
     match initial.stage {
-        None => GameStage::Setup("kick off".to_string()),
         Some(StageName::Play) => GameStage::Play,
         Some(StageName::GameOver) => GameStage::GameOver,
-        Some(StageName::Setup) => GameStage::Setup(
+        // An omitted stage also means Setup, so an explicit `setup_reason` is honoured in both cases.
+        None | Some(StageName::Setup) => GameStage::Setup(
             initial
                 .setup_reason
                 .clone()
