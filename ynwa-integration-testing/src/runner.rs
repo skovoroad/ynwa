@@ -19,6 +19,7 @@ use crate::loader::ScenarioError;
 
 /// Everything a completed run yields: the journal, the decoded football events, why the run
 /// stopped, how many steps it took and the final game state.
+#[derive(Debug)]
 pub struct RunOutcome {
     pub journal: Vec<JournalEntry>,
     pub football_events: Vec<(f32, FootballEvent)>,
