@@ -2,7 +2,7 @@ use crate::field::zones::{Point3D, Velocity3D};
 use crate::field::Field;
 use crate::journal::{JournalEvent, JournalSink, NullJournalSink};
 use crate::region::{GridCell, Region};
-use crate::snapshot::{Snapshot, SnapshotBall};
+use crate::state_spec::{PartialBallSpec, PartialStateSpec};
 use crate::team::Team;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -404,19 +404,19 @@ impl Game {
         &self.config
     }
 
-    /// Applies the fields present in `snapshot`, leaving absent ones untouched.
+    /// Applies the fields present in `spec`, leaving absent ones untouched.
     /// Out-of-bounds player indices are rejected.
-    pub fn apply_snapshot(&mut self, snapshot: &Snapshot) -> Result<(), String> {
-        if let Some(stage) = &snapshot.stage {
+    pub fn apply_state_spec(&mut self, spec: &PartialStateSpec) -> Result<(), String> {
+        if let Some(stage) = &spec.stage {
             self.state.stage = stage.clone();
         }
-        if let Some(ball) = &snapshot.ball {
-            self.apply_ball_snapshot(ball)?;
+        if let Some(ball) = &spec.ball {
+            self.apply_ball_spec(ball)?;
         }
-        for player in &snapshot.players {
+        for player in &spec.players {
             self.set_player_position(player.index, player.position)?;
         }
-        if let Some(setup) = &snapshot.setup {
+        if let Some(setup) = &spec.setup {
             if let Some(position) = setup.restart_position {
                 self.state.restart_position = Some(position);
             }
@@ -424,7 +424,7 @@ impl Game {
                 self.state.restart_team = Some(team);
             }
         }
-        if let Some(score) = &snapshot.score {
+        if let Some(score) = &spec.score {
             self.state
                 .team_stats
                 .entry(Team::A)
@@ -439,7 +439,7 @@ impl Game {
         Ok(())
     }
 
-    fn apply_ball_snapshot(&mut self, ball: &SnapshotBall) -> Result<(), String> {
+    fn apply_ball_spec(&mut self, ball: &PartialBallSpec) -> Result<(), String> {
         if let Some(position) = ball.position {
             self.state.ball_state.position = position;
         }
@@ -479,5 +479,5 @@ impl Game {
 mod tests;
 
 #[cfg(test)]
-#[path = "tests/snapshot_tests.rs"]
-mod snapshot_tests;
+#[path = "tests/state_spec_tests.rs"]
+mod state_spec_tests;

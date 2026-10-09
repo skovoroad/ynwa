@@ -2,14 +2,16 @@
 //!
 //! A directory holds `initial_state.toml`, `scenario.toml`, an optional `final_state.toml` and a
 //! `teams/` tree. The loader parses the state, builds the world with a deterministic RNG, resolves
-//! every `{team, number}` reference to a global player index and applies the initial snapshot.
+//! every `{team, number}` reference to a global player index and applies the initial state spec.
 
 use std::fmt;
 use std::path::{Path, PathBuf};
 
 use ynwa_core::game::{Game, GameConfig, GameStage};
 use ynwa_core::rng::{DefaultRngManager, RngConfig, RngManager};
-use ynwa_core::snapshot::{Snapshot, SnapshotBall, SnapshotPlayer, SnapshotSetup};
+use ynwa_core::state_spec::{
+    PartialBallSpec, PartialPlayerSpec, PartialSetupSpec, PartialStateSpec,
+};
 use ynwa_core::team::Team;
 use ynwa_core::world::World;
 use ynwa_football::FootballWorldBuilder;
@@ -60,7 +62,7 @@ impl From<String> for ScenarioError {
     }
 }
 
-/// A scenario directory turned into a world with the initial snapshot already applied, together
+/// A scenario directory turned into a world with the initial state spec already applied, together
 /// with the parsed run plan and expectations for later stages.
 pub struct LoadedScenario {
     pub name: String,
@@ -102,8 +104,8 @@ impl ScenarioLoader {
             .transpose()?;
 
         let mut world = build_world(dir, &initial, &self.preambles_path)?;
-        let snapshot = build_snapshot(&initial, world.game())?;
-        world.game_mut().apply_snapshot(&snapshot)?;
+        let spec = build_state_spec(&initial, world.game())?;
+        world.game_mut().apply_state_spec(&spec)?;
 
         Ok(LoadedScenario {
             name: scenario_name(dir),
@@ -144,30 +146,33 @@ fn build_world(
         .map_err(ScenarioError::from)
 }
 
-/// Builds the core partial snapshot from the initial state, resolving players to global indices.
-fn build_snapshot(initial: &InitialStateDto, game: &Game) -> Result<Snapshot, ScenarioError> {
+/// Builds the core partial state spec from the initial state, resolving players to global indices.
+fn build_state_spec(
+    initial: &InitialStateDto,
+    game: &Game,
+) -> Result<PartialStateSpec, ScenarioError> {
     let config = game.config();
     let ball = initial
         .ball
         .as_ref()
-        .map(|ball| build_ball_snapshot(ball, config))
+        .map(|ball| build_ball_spec(ball, config))
         .transpose()?;
     let players = initial
         .players
         .iter()
         .map(|placement| {
-            Ok(SnapshotPlayer {
+            Ok(PartialPlayerSpec {
                 index: resolve_player_index(config, placement.team, placement.number)?,
                 position: placement.position,
             })
         })
         .collect::<Result<Vec<_>, ScenarioError>>()?;
-    let setup = initial.setup.as_ref().map(|setup| SnapshotSetup {
+    let setup = initial.setup.as_ref().map(|setup| PartialSetupSpec {
         restart_position: setup.restart_position,
         restart_team: team_option(setup.restart_team),
     });
 
-    Ok(Snapshot {
+    Ok(PartialStateSpec {
         stage: Some(resolve_stage(initial)),
         ball,
         players,
@@ -176,10 +181,10 @@ fn build_snapshot(initial: &InitialStateDto, game: &Game) -> Result<Snapshot, Sc
     })
 }
 
-fn build_ball_snapshot(
+fn build_ball_spec(
     ball: &BallStateDto,
     config: &GameConfig,
-) -> Result<SnapshotBall, ScenarioError> {
+) -> Result<PartialBallSpec, ScenarioError> {
     let possessed_by = match ball.possessed_by {
         Some(BallOwnerDto::Player(reference)) => Some(resolve_player_index(
             config,
@@ -189,7 +194,7 @@ fn build_ball_snapshot(
         Some(BallOwnerDto::Free(_)) | None => None,
     };
 
-    Ok(SnapshotBall {
+    Ok(PartialBallSpec {
         position: ball.position,
         velocity: ball.velocity,
         possessed_by,

@@ -8,7 +8,7 @@ use ynwa_core::game::{BallDef, PlayerDef, RefereeDef, ScriptingConfig, REGION_ST
 use ynwa_core::region::GridCell;
 use ynwa_core::{Point3D, Score, Velocity3D};
 
-/// Minimal `Game` with the given `{team, number}` players, used to test resolution and snapshot
+/// Minimal `Game` with the given `{team, number}` players, used to test resolution and state spec
 /// conversion without touching the filesystem.
 fn test_game(players: &[(Team, u32)]) -> Game {
     let field = Field::from_meters(68.0, 104.615_38, 26, 40);
@@ -78,7 +78,7 @@ fn duplicate_player_reference_is_rejected() {
 }
 
 #[test]
-fn builds_snapshot_with_resolved_ball_owner_and_players() {
+fn builds_state_spec_with_resolved_ball_owner_and_players() {
     let game = test_game(&[(Team::A, 1), (Team::B, 2)]);
     let initial = parse_initial_state(
         r#"
@@ -97,10 +97,10 @@ position = { x = 35.0, y = 0.0, z = 11.0 }
 "#,
     );
 
-    let snapshot = build_snapshot(&initial, &game).unwrap();
+    let spec = build_state_spec(&initial, &game).unwrap();
 
-    assert_eq!(snapshot.stage, Some(GameStage::Play));
-    let ball = snapshot.ball.expect("ball snapshot");
+    assert_eq!(spec.stage, Some(GameStage::Play));
+    let ball = spec.ball.expect("ball spec");
     assert_eq!(ball.position, Some(Point3D::from_meters(34.0, 0.0, 10.0)));
     assert_eq!(
         ball.velocity,
@@ -109,14 +109,14 @@ position = { x = 35.0, y = 0.0, z = 11.0 }
     assert_eq!(ball.possessed_by, Some(1));
     assert_eq!(ball.last_possessing_team, Some(Team::A));
     assert_eq!(
-        snapshot.players,
-        vec![SnapshotPlayer {
+        spec.players,
+        vec![PartialPlayerSpec {
             index: 0,
             position: Point3D::from_meters(35.0, 0.0, 11.0),
         }]
     );
-    assert!(snapshot.setup.is_none());
-    assert!(snapshot.score.is_none());
+    assert!(spec.setup.is_none());
+    assert!(spec.score.is_none());
 }
 
 #[test]
@@ -126,12 +126,12 @@ fn free_and_absent_ball_map_to_no_possession() {
     let free = parse_initial_state(
         "stage = \"Play\"\n[ball]\npossessed_by = \"none\"\nlast_possessing_team = \"none\"\n",
     );
-    let ball = build_snapshot(&free, &game).unwrap().ball.unwrap();
+    let ball = build_state_spec(&free, &game).unwrap().ball.unwrap();
     assert_eq!(ball.possessed_by, None);
     assert_eq!(ball.last_possessing_team, None);
 
     let absent = parse_initial_state("stage = \"Play\"\n");
-    assert!(build_snapshot(&absent, &game).unwrap().ball.is_none());
+    assert!(build_state_spec(&absent, &game).unwrap().ball.is_none());
 }
 
 #[test]
@@ -140,7 +140,7 @@ fn ball_without_owner_fields_maps_to_no_possession() {
 
     let initial =
         parse_initial_state("stage = \"Play\"\n[ball]\nposition = { x = 1.0, y = 0.0, z = 2.0 }\n");
-    let ball = build_snapshot(&initial, &game).unwrap().ball.unwrap();
+    let ball = build_state_spec(&initial, &game).unwrap().ball.unwrap();
 
     assert_eq!(ball.possessed_by, None);
     assert_eq!(ball.last_possessing_team, None);
@@ -160,15 +160,12 @@ restart_team = "A"
 "#,
     );
 
-    let snapshot = build_snapshot(&initial, &game).unwrap();
+    let spec = build_state_spec(&initial, &game).unwrap();
 
+    assert_eq!(spec.stage, Some(GameStage::Setup("throw in".to_string())));
     assert_eq!(
-        snapshot.stage,
-        Some(GameStage::Setup("throw in".to_string()))
-    );
-    assert_eq!(
-        snapshot.setup,
-        Some(SnapshotSetup {
+        spec.setup,
+        Some(PartialSetupSpec {
             restart_position: Some(Point3D::from_meters(5.0, 0.0, 6.0)),
             restart_team: Some(Team::A),
         })
@@ -179,12 +176,9 @@ restart_team = "A"
 fn omitted_stage_defaults_to_kick_off() {
     let game = test_game(&[(Team::A, 1)]);
 
-    let snapshot = build_snapshot(&parse_initial_state(""), &game).unwrap();
+    let spec = build_state_spec(&parse_initial_state(""), &game).unwrap();
 
-    assert_eq!(
-        snapshot.stage,
-        Some(GameStage::Setup("kick off".to_string()))
-    );
+    assert_eq!(spec.stage, Some(GameStage::Setup("kick off".to_string())));
 }
 
 #[test]
@@ -192,21 +186,18 @@ fn omitted_stage_honours_setup_reason() {
     let game = test_game(&[(Team::A, 1)]);
     let initial = parse_initial_state("setup_reason = \"throw in\"\n");
 
-    let snapshot = build_snapshot(&initial, &game).unwrap();
+    let spec = build_state_spec(&initial, &game).unwrap();
 
-    assert_eq!(
-        snapshot.stage,
-        Some(GameStage::Setup("throw in".to_string()))
-    );
+    assert_eq!(spec.stage, Some(GameStage::Setup("throw in".to_string())));
 }
 
 #[test]
 fn game_over_stage_is_mapped() {
     let game = test_game(&[(Team::A, 1)]);
 
-    let snapshot = build_snapshot(&parse_initial_state("stage = \"GameOver\"\n"), &game).unwrap();
+    let spec = build_state_spec(&parse_initial_state("stage = \"GameOver\"\n"), &game).unwrap();
 
-    assert_eq!(snapshot.stage, Some(GameStage::GameOver));
+    assert_eq!(spec.stage, Some(GameStage::GameOver));
 }
 
 #[test]
@@ -214,7 +205,7 @@ fn restart_team_none_maps_to_absent() {
     let game = test_game(&[(Team::A, 1)]);
     let initial = parse_initial_state("stage = \"Setup\"\n[setup]\nrestart_team = \"none\"\n");
 
-    let setup = build_snapshot(&initial, &game).unwrap().setup.unwrap();
+    let setup = build_state_spec(&initial, &game).unwrap().setup.unwrap();
 
     assert_eq!(setup.restart_team, None);
 }

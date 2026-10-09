@@ -1,4 +1,4 @@
-//! Partial snapshot of `GameState` used by integration scenarios.
+//! Partial specification of a `GameState` used by integration scenarios.
 //!
 //! Every field is optional: a missing field means "do not touch" when applied to a `Game`
 //! (initial state) and "do not verify" when compared against the final state. Players are
@@ -19,7 +19,7 @@ pub struct Score {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
-pub struct SnapshotBall {
+pub struct PartialBallSpec {
     pub position: Option<Point3D>,
     pub velocity: Option<Velocity3D>,
     /// Global player index, or `None` to leave possession unchanged.
@@ -28,24 +28,24 @@ pub struct SnapshotBall {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct SnapshotPlayer {
+pub struct PartialPlayerSpec {
     /// Global index into `GameState::player_states`.
     pub index: usize,
     pub position: Point3D,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
-pub struct SnapshotSetup {
+pub struct PartialSetupSpec {
     pub restart_position: Option<Point3D>,
     pub restart_team: Option<Team>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
-pub struct Snapshot {
+pub struct PartialStateSpec {
     pub stage: Option<GameStage>,
-    pub ball: Option<SnapshotBall>,
+    pub ball: Option<PartialBallSpec>,
     #[serde(default)]
-    pub players: Vec<SnapshotPlayer>,
-    pub setup: Option<SnapshotSetup>,
+    pub players: Vec<PartialPlayerSpec>,
+    pub setup: Option<PartialSetupSpec>,
     pub score: Option<Score>,
 }
