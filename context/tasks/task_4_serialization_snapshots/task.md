@@ -163,3 +163,21 @@ DOD: `cargo test -p ynwa-integration-testing` зелёный; в `recordings/` �
 - автоматическая проверка эквивалентности replay из снапшота оригиналу — lockstep-тест Этапа 2
   (механизм ядра/футбола) и интеграционный тест Этапа 3 (связка «сценарий → запись → replay»).
 
+## Ревью архитектурного решения
+
+Ревью пройдено, архитектурное решение согласовано. Замечания признаны незначительными и
+учитываются при разработке:
+
+- Дополнительно к перечисленным изменениям обновить тесты, ссылающиеся на
+  `RecordHeader.initial_stage`: `ynwa-core/src/tests/codec_tests.rs`,
+  `ynwa-core/src/tests/journal_tests.rs`, `ynwa-core/src/tests/record_tests.rs`,
+  `ynwa-football/src/tests/journal_integration_tests.rs`.
+- Обновить `ynwa-integration-testing/src/tests/compare_tests.rs` под замену
+  `RunOutcome.journal` на `RunOutcome.record`.
+- Функцию `write_json_record` сделать публичной в `ynwa-core/src/record_io.rs` и ре-экспортировать
+  из `ynwa-core/src/lib.rs`.
+- Путь записи `recordings/<scenario>.jsonl` привязывать к `CARGO_MANIFEST_DIR`, а не к текущему
+  рабочему каталогу.
+- В `Game::apply_state` дополнительно проверить ключи `team_stats` на соответствие командам из
+  `config` (либо явно задекларировать ответственность вызывающего).
+
