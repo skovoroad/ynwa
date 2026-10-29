@@ -37,12 +37,17 @@ impl System for ReplaySetupBallPlacer {
 
 /// Builds a world that replays `record` by re-simulating physics only.
 ///
+/// The game is built from `record.header.config` and then its state is replaced by
+/// `record.header.initial_state`, mirroring how a scenario is set up: a world from the config,
+/// then a snapshot on top of it.
+///
 /// The caller steps the world `record.header.fixed_dt` for `record.total_steps` times, reading
 /// those values before the record is consumed.
 pub fn create_football_replay_world(record: Record) -> Result<World, String> {
     // Replay never consults RNG: random-branch outcomes are already in the journal.
     let rng = Box::new(DefaultRngManager::new(RngConfig::new(0.0, Some(0))));
-    let game = Game::with_stage(record.header.config, record.header.initial_stage, rng);
+    let mut game = Game::new(record.header.config, rng);
+    game.apply_state(record.header.initial_state)?;
 
     let mut world = World::new(game);
     world.add_system(Box::new(ReplaySetupBallPlacer));

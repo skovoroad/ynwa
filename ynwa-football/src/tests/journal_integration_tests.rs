@@ -20,6 +20,7 @@ fn play_game() -> Game {
 #[test]
 fn short_game_records_expected_events_and_builds_record() {
     let (mut world, collection) = build_recording_world();
+    let header = RecordHeader::from_game(world.game(), FIXED_DT);
 
     for _ in 0..STEPS {
         world.step(FIXED_DT);
@@ -87,16 +88,15 @@ fn short_game_records_expected_events_and_builds_record() {
     );
     assert_eq!(collection.borrow().total_steps(), STEPS);
 
-    let header = RecordHeader {
-        config: single_player_config(),
-        initial_stage: GameStage::Setup("kick off".to_string()),
-        fixed_dt: FIXED_DT,
-    };
     let record = collection.borrow_mut().take_record(header);
 
     assert_eq!(record.total_steps, STEPS);
     assert_eq!(record.journal.len(), entries.len());
     assert_eq!(record.header.fixed_dt, FIXED_DT);
+    assert_eq!(
+        record.header.initial_state.stage,
+        GameStage::Setup("kick off".to_string())
+    );
     assert!(record
         .journal
         .iter()

@@ -10,7 +10,7 @@ use crate::replay::{create_football_replay_world, decode_football_events};
 use crate::test_utils::{assert_equivalent, build_recording_world_with, run_lockstep, FIXED_DT};
 use std::collections::{HashMap, HashSet};
 use uom::si::length::meter;
-use ynwa_core::field::zones::Point3D;
+use ynwa_core::field::zones::{Point3D, Velocity3D};
 use ynwa_core::game::{
     BallDef, Decision, DecisionTarget, Game, GameConfig, GameStage, PlayerDef, RefereeDef,
     ScriptingConfig, REGION_START_POSITION,
@@ -103,20 +103,16 @@ impl DecisionMaker for GoalThenTouchline {
 fn lockstep_matches_on_every_step() {
     let config = lockstep_config();
     let (mut world, collection) = build_recording_world_with(
-        config.clone(),
+        config,
         GameStage::Play,
         Box::new(GoalThenTouchline { kicks: 0 }),
     );
+    let header = RecordHeader::from_game(world.game(), FIXED_DT);
 
     let (original_before, original_events) = run_lockstep(&mut world, LOCKSTEP_STEPS);
     world.game_mut().finish_journal().unwrap();
     let original_final = world.game().state().clone();
 
-    let header = RecordHeader {
-        config,
-        initial_stage: GameStage::Play,
-        fixed_dt: FIXED_DT,
-    };
     let record = collection.borrow_mut().take_record(header);
     assert_eq!(
         record.total_steps, LOCKSTEP_STEPS,
@@ -154,5 +150,59 @@ fn lockstep_matches_on_every_step() {
             .iter()
             .any(|(_, event)| matches!(event, FootballEvent::Touchline(..))),
         "scenario must put the ball out of play: {journal_events:?}"
+    );
+}
+
+/// Records a run that starts far from what `Game::new` builds: the ball lies off its configured
+/// spot and rolls, and both the ball and the player already have velocity. The replay must start
+/// from that snapshot and stay in lockstep with the original.
+#[test]
+fn lockstep_matches_from_non_standard_initial_state() {
+    let config = lockstep_config();
+    let (mut world, collection) = build_recording_world_with(
+        config,
+        GameStage::Play,
+        Box::new(GoalThenTouchline { kicks: 0 }),
+    );
+    {
+        let state = &mut world.game_mut().state;
+        state.ball_state.position = Point3D::from_meters(30.0, 0.0, 40.0);
+        state.ball_state.velocity = Velocity3D::from_meters_per_second(3.0, 0.0, 3.0);
+        state.player_states[0].position = Point3D::from_meters(10.0, 0.0, 20.0);
+        state.player_states[0].velocity = Velocity3D::from_meters_per_second(-2.0, 0.0, 1.0);
+    }
+    let header = RecordHeader::from_game(world.game(), FIXED_DT);
+    let recorded_start = header.initial_state.clone();
+
+    let (original_before, original_events) = run_lockstep(&mut world, LOCKSTEP_STEPS);
+    world.game_mut().finish_journal().unwrap();
+    let original_final = world.game().state().clone();
+
+    let record = collection.borrow_mut().take_record(header);
+    let journal_events = decode_football_events(&record.journal);
+
+    let mut replay = create_football_replay_world(record).unwrap();
+    assert_eq!(
+        replay.game().state(),
+        &recorded_start,
+        "replay must start from the recorded snapshot"
+    );
+    let (replay_before, replay_events) = run_lockstep(&mut replay, LOCKSTEP_STEPS);
+
+    for (original, replayed) in original_before.iter().zip(&replay_before) {
+        assert_equivalent(original, replayed);
+    }
+    assert_equivalent(&original_final, replay.game().state());
+    assert_eq!(
+        original_events, replay_events,
+        "check_events must agree on every Play snapshot"
+    );
+    assert_eq!(
+        original_events, journal_events,
+        "detected events must match the decoded journal"
+    );
+    assert!(
+        !journal_events.is_empty(),
+        "scenario must produce events from the non-standard start"
     );
 }

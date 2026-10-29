@@ -6,8 +6,7 @@ use crate::events::{FootballEvent, BALL_RADIUS, GAME_DURATION};
 use crate::field_builder::create_football_field;
 use crate::replay::{create_football_replay_world, decode_football_events};
 use crate::test_utils::{
-    assert_equivalent, build_recording_world, build_recording_world_with, single_player_config,
-    FIXED_DT, STEPS,
+    assert_equivalent, build_recording_world, build_recording_world_with, FIXED_DT, STEPS,
 };
 use std::collections::HashMap;
 use uom::si::length::meter;
@@ -26,16 +25,12 @@ use ynwa_core::world::World;
 /// Runs the short recordable game to completion; returns the finished world and its record.
 fn record_short_game() -> (World, Record) {
     let (mut world, collection) = build_recording_world();
+    let header = RecordHeader::from_game(world.game(), FIXED_DT);
     for _ in 0..STEPS {
         world.step(FIXED_DT);
     }
     world.game_mut().finish_journal().unwrap();
 
-    let header = RecordHeader {
-        config: single_player_config(),
-        initial_stage: GameStage::Setup("kick off".to_string()),
-        fixed_dt: FIXED_DT,
-    };
     let record = collection.borrow_mut().take_record(header);
     (world, record)
 }
@@ -249,21 +244,14 @@ impl DecisionMaker for ShootAtOpponentGoal {
 #[test]
 fn replay_reproduces_state_after_a_goal() {
     let config = goal_scenario_config();
-    let (mut world, collection) = build_recording_world_with(
-        config.clone(),
-        GameStage::Play,
-        Box::new(ShootAtOpponentGoal),
-    );
+    let (mut world, collection) =
+        build_recording_world_with(config, GameStage::Play, Box::new(ShootAtOpponentGoal));
+    let header = RecordHeader::from_game(world.game(), FIXED_DT);
     for _ in 0..GOAL_SCENARIO_STEPS {
         world.step(FIXED_DT);
     }
     world.game_mut().finish_journal().unwrap();
 
-    let header = RecordHeader {
-        config,
-        initial_stage: GameStage::Play,
-        fixed_dt: FIXED_DT,
-    };
     let record = collection.borrow_mut().take_record(header);
 
     let events = decode_football_events(&record.journal);
