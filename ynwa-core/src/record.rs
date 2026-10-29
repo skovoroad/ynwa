@@ -1,6 +1,6 @@
 //! Codec-independent model of a full recording.
 
-use crate::game::{Game, GameConfig, GameStage};
+use crate::game::{Game, GameConfig, GameState};
 use crate::journal::JournalEntry;
 use serde::{Deserialize, Serialize};
 
@@ -8,18 +8,19 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RecordHeader {
     pub config: GameConfig,
-    pub initial_stage: GameStage,
+    /// Full state of the game at the moment the recording started; the stage is part of it.
+    pub initial_state: GameState,
     /// Fixed simulation step used for physics integration during replay.
     pub fixed_dt: f32,
 }
 
 impl RecordHeader {
-    /// Builds a header from the current configuration and stage of `game`, so callers do not
-    /// duplicate `config`/`initial_stage` when starting a recording.
+    /// Builds a header from the current configuration and state of `game`, so callers do not
+    /// duplicate `config`/`initial_state` when starting a recording.
     pub fn from_game(game: &Game, fixed_dt: f32) -> Self {
         Self {
             config: game.config().clone(),
-            initial_stage: game.state().stage.clone(),
+            initial_state: game.state().clone(),
             fixed_dt,
         }
     }

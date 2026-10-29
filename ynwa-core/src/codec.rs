@@ -28,7 +28,9 @@ pub trait RecordReader {
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 enum RecordLine {
-    Header(RecordHeader),
+    // Boxed because a header carries the full initial `GameState` and would otherwise dwarf
+    // the other variants.
+    Header(Box<RecordHeader>),
     Event(JournalEntry),
     Footer { total_steps: u64 },
 }
@@ -55,7 +57,7 @@ impl<W: Write> JsonRecordWriter<W> {
 
 impl<W: Write> RecordWriter for JsonRecordWriter<W> {
     fn write_header(&mut self, header: &RecordHeader) -> Result<(), String> {
-        self.write_line(&RecordLine::Header(header.clone()))
+        self.write_line(&RecordLine::Header(Box::new(header.clone())))
     }
 
     fn write_event(&mut self, entry: &JournalEntry) -> Result<(), String> {
@@ -106,7 +108,7 @@ impl<R: BufRead> RecordReader for JsonRecordReader<R> {
                     if header.is_some() {
                         return Err("recording contains more than one header".to_string());
                     }
-                    header = Some(value);
+                    header = Some(*value);
                 }
                 RecordLine::Event(entry) => journal.push(entry),
                 RecordLine::Footer { total_steps: steps } => total_steps = steps,

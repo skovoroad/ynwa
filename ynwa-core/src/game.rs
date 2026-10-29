@@ -15,10 +15,12 @@ mod sorted_collections {
     use serde::{Serialize, Serializer};
     use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
-    pub fn map<V: Serialize, S: Serializer>(
-        value: &HashMap<String, V>,
-        serializer: S,
-    ) -> Result<S::Ok, S::Error> {
+    pub fn map<K, V, S>(value: &HashMap<K, V>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        K: Ord + Serialize,
+        V: Serialize,
+        S: Serializer,
+    {
         BTreeMap::from_iter(value.iter()).serialize(serializer)
     }
 
@@ -28,8 +30,9 @@ mod sorted_collections {
 }
 
 /// Named numeric statistics. Keys are game-specific (defined by game managers, not core).
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct StatSet {
+    #[serde(serialize_with = "sorted_collections::map")]
     values: HashMap<String, f64>,
 }
 
@@ -151,7 +154,7 @@ pub struct BallDef {
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct RefereeDef {}
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PlayerState {
     pub position: Point3D,
     pub velocity: Velocity3D,
@@ -180,7 +183,7 @@ impl Default for PlayerState {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BallState {
     pub position: Point3D,
     pub velocity: Velocity3D,
@@ -204,7 +207,7 @@ impl Default for BallState {
     }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct RefereeState {
     pub position: Point3D,
     pub velocity: Velocity3D,
@@ -258,7 +261,7 @@ pub struct GameConfig {
     pub scripting: ScriptingConfig,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GameState {
     pub elapsed_time: f32,
     pub stage: GameStage,
@@ -266,6 +269,7 @@ pub struct GameState {
     pub ball_state: BallState,
     pub referee_states: Vec<RefereeState>,
     /// Indexed by Team. Populated by game-specific managers (e.g. FootballGameManager).
+    #[serde(serialize_with = "sorted_collections::map")]
     pub team_stats: HashMap<Team, StatSet>,
     /// Parallel to player_states: player_stats[i] corresponds to player_states[i].
     pub player_stats: Vec<StatSet>,
@@ -402,6 +406,58 @@ impl Game {
 
     pub fn config(&self) -> &GameConfig {
         &self.config
+    }
+
+    /// Replaces the whole state with `state`, after validating it against the configuration.
+    ///
+    /// Unlike [`apply_state_spec`](Self::apply_state_spec), which merges the fields present in a
+    /// partial spec into the current state, this replaces the state entirely: `state` must be a
+    /// complete snapshot, such as the one captured by `RecordHeader::from_game`.
+    pub fn apply_state(&mut self, state: GameState) -> Result<(), String> {
+        let player_count = self.config.players.len();
+        let referee_count = self.config.referees.len();
+
+        if state.player_states.len() != player_count {
+            return Err(format!(
+                "player_states length {} does not match config player count {}",
+                state.player_states.len(),
+                player_count
+            ));
+        }
+        if state.player_stats.len() != player_count {
+            return Err(format!(
+                "player_stats length {} does not match config player count {}",
+                state.player_stats.len(),
+                player_count
+            ));
+        }
+        if state.referee_states.len() != referee_count {
+            return Err(format!(
+                "referee_states length {} does not match config referee count {}",
+                state.referee_states.len(),
+                referee_count
+            ));
+        }
+        if let Some(possessed_by) = state.ball_state.possessed_by {
+            if possessed_by >= player_count {
+                return Err(format!(
+                    "possessed_by index {} is out of bounds (player count {})",
+                    possessed_by, player_count
+                ));
+            }
+        }
+        let config_teams: HashSet<Team> = self.config.players.iter().map(|p| p.team).collect();
+        for team in state.team_stats.keys() {
+            if !config_teams.contains(team) {
+                return Err(format!(
+                    "team_stats contains team {:?} which is not present in config",
+                    team
+                ));
+            }
+        }
+
+        self.state = state;
+        Ok(())
     }
 
     /// Applies the fields present in `spec`, leaving absent ones untouched.

@@ -48,7 +48,7 @@ pub use journal::{
 pub use record::{Record, RecordHeader};
 pub use record_io::{
     json_journal_file_reader, json_journal_file_writer, json_journal_memory_reader,
-    json_journal_memory_writer, SharedBytes,
+    json_journal_memory_writer, write_json_record, SharedBytes,
 };
 
 pub use orientation::{

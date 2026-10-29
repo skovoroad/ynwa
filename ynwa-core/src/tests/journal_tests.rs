@@ -45,11 +45,7 @@ fn test_game() -> Game {
 }
 
 fn test_header() -> RecordHeader {
-    RecordHeader {
-        config: test_config(),
-        initial_stage: GameStage::Setup("kick off".to_string()),
-        fixed_dt: 0.016,
-    }
+    RecordHeader::from_game(&test_game(), 0.016)
 }
 
 fn shared_collection() -> (Rc<RefCell<EventsCollection>>, CollectJournalRecorder) {
@@ -123,7 +119,7 @@ fn take_record_moves_events_and_step_count() {
     assert_eq!(record.journal[0].timestamp, 0.1);
     assert_eq!(record.header.fixed_dt, 0.016);
     assert_eq!(
-        record.header.initial_stage,
+        record.header.initial_state.stage,
         GameStage::Setup("kick off".to_string())
     );
     assert!(collection.entries().is_empty());

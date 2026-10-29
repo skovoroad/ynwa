@@ -42,14 +42,15 @@ fn test_game(stage: GameStage) -> Game {
 }
 
 #[test]
-fn from_game_captures_config_stage_and_step() {
+fn from_game_captures_config_state_and_step() {
     let stage = GameStage::Setup("kick off".to_string());
     let game = test_game(stage.clone());
 
     let header = RecordHeader::from_game(&game, 0.05);
 
     assert_eq!(header.config, test_config());
-    assert_eq!(header.initial_stage, stage);
+    assert_eq!(header.initial_state, game.state().clone());
+    assert_eq!(header.initial_state.stage, stage);
     assert_eq!(header.fixed_dt, 0.05);
 }
 
@@ -59,5 +60,5 @@ fn from_game_reflects_the_current_play_stage() {
 
     let header = RecordHeader::from_game(&game, 0.1);
 
-    assert_eq!(header.initial_stage, GameStage::Play);
+    assert_eq!(header.initial_state.stage, GameStage::Play);
 }

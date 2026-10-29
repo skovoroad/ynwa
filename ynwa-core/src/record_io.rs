@@ -5,7 +5,8 @@
 //! format implement [`RecordWriter`](crate::codec::RecordWriter)/[`RecordReader`](crate::codec::RecordReader)
 //! directly.
 
-use crate::codec::{JsonRecordReader, JsonRecordWriter};
+use crate::codec::{JsonRecordReader, JsonRecordWriter, RecordWriter};
+use crate::record::Record;
 use std::cell::RefCell;
 use std::fs::File;
 use std::io::{BufReader, Cursor, Write};
@@ -60,4 +61,15 @@ pub fn json_journal_memory_writer(sink: &SharedBytes) -> JsonRecordWriter<Shared
 /// JSON Lines reader over in-memory `bytes`.
 pub fn json_journal_memory_reader(bytes: Vec<u8>) -> JsonRecordReader<Cursor<Vec<u8>>> {
     JsonRecordReader::new(Cursor::new(bytes))
+}
+
+/// Writes the whole `record` (header, events, footer) to a JSON Lines file at `path`,
+/// creating or truncating it.
+pub fn write_json_record(path: impl AsRef<Path>, record: &Record) -> Result<(), String> {
+    let mut writer = json_journal_file_writer(path)?;
+    writer.write_header(&record.header)?;
+    for entry in &record.journal {
+        writer.write_event(entry)?;
+    }
+    writer.finish(record.total_steps)
 }

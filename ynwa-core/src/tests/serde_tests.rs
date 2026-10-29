@@ -3,11 +3,12 @@
 use crate::field::zones::{Arc, Circle, Point3D, PointZone, Rectangle, Velocity3D, ZoneGeometry};
 use crate::field::{Field, FieldBuilder, Zone};
 use crate::game::{
-    BallDef, Decision, DecisionTarget, GameConfig, GameStage, PlayerDef, RefereeDef,
-    ScriptingConfig, REGION_START_POSITION,
+    BallDef, Decision, DecisionTarget, Game, GameConfig, GameStage, PlayerDef, RefereeDef,
+    ScriptingConfig, StatSet, REGION_START_POSITION,
 };
 use crate::region::{GridCell, GridDimensions, Region};
 use crate::team::Team;
+use crate::test_utils::deterministic_rng;
 use serde::{de::DeserializeOwned, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::f32::consts::PI;
@@ -372,4 +373,62 @@ fn scripting_config_round_trip() {
 #[test]
 fn game_config_round_trip() {
     assert_round_trip(test_game_config());
+}
+
+fn test_game() -> Game {
+    Game::new(test_game_config(), deterministic_rng())
+}
+
+#[test]
+fn game_state_round_trip_preserves_all_fields() {
+    let mut game = test_game();
+    game.state.elapsed_time = 1.25;
+    game.state
+        .team_stats
+        .get_mut(&Team::A)
+        .unwrap()
+        .set("score", 2.0);
+    game.state.player_states[0].velocity = Velocity3D::from_meters_per_second(1.0, 0.0, -2.0);
+    game.state.ball_state.possessed_by = Some(0);
+    game.state.restart_position = Some(Point3D::on_ground(1.0, 2.0));
+    game.state.restart_team = Some(Team::B);
+
+    assert_round_trip(game.state().clone());
+}
+
+#[test]
+fn stat_set_serialization_is_independent_of_insertion_order() {
+    let mut forward = StatSet::default();
+    forward.set("score", 1.0);
+    forward.set("shots", 2.0);
+    forward.set("possession", 3.0);
+
+    let mut backward = StatSet::default();
+    backward.set("possession", 3.0);
+    backward.set("shots", 2.0);
+    backward.set("score", 1.0);
+
+    assert_eq!(
+        serde_json::to_string(&forward).unwrap(),
+        serde_json::to_string(&backward).unwrap()
+    );
+    assert_eq!(forward, backward);
+}
+
+#[test]
+fn team_stats_serialization_is_independent_of_insertion_order() {
+    let mut forward = test_game().state().clone();
+    forward.team_stats.clear();
+    forward.team_stats.insert(Team::A, StatSet::default());
+    forward.team_stats.insert(Team::B, StatSet::default());
+
+    let mut backward = test_game().state().clone();
+    backward.team_stats.clear();
+    backward.team_stats.insert(Team::B, StatSet::default());
+    backward.team_stats.insert(Team::A, StatSet::default());
+
+    assert_eq!(
+        serde_json::to_string(&forward).unwrap(),
+        serde_json::to_string(&backward).unwrap()
+    );
 }

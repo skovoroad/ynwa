@@ -155,6 +155,77 @@ fn test_player_initial_position_from_start_region() {
 }
 
 #[test]
+fn apply_state_replaces_state_when_valid() {
+    let mut game = Game::new(create_test_config(), deterministic_rng());
+    let mut snapshot = game.state().clone();
+    snapshot.elapsed_time = 12.5;
+    snapshot.stage = GameStage::Play;
+    snapshot.ball_state.position = Point3D::from_meters(1.0, 0.0, 2.0);
+    snapshot.ball_state.possessed_by = Some(0);
+
+    game.apply_state(snapshot.clone()).unwrap();
+
+    assert_eq!(game.state(), &snapshot);
+}
+
+#[test]
+fn apply_state_rejects_wrong_player_states_count() {
+    let mut game = Game::new(create_test_config(), deterministic_rng());
+    let mut snapshot = game.state().clone();
+    snapshot.player_states.pop();
+
+    let error = game.apply_state(snapshot).unwrap_err();
+
+    assert!(error.contains("player_states length"));
+}
+
+#[test]
+fn apply_state_rejects_wrong_player_stats_count() {
+    let mut game = Game::new(create_test_config(), deterministic_rng());
+    let mut snapshot = game.state().clone();
+    snapshot.player_stats.pop();
+
+    let error = game.apply_state(snapshot).unwrap_err();
+
+    assert!(error.contains("player_stats length"));
+}
+
+#[test]
+fn apply_state_rejects_wrong_referee_states_count() {
+    let mut game = Game::new(create_test_config(), deterministic_rng());
+    let mut snapshot = game.state().clone();
+    snapshot.referee_states.clear();
+
+    let error = game.apply_state(snapshot).unwrap_err();
+
+    assert!(error.contains("referee_states length"));
+}
+
+#[test]
+fn apply_state_rejects_out_of_bounds_possession() {
+    let mut game = Game::new(create_test_config(), deterministic_rng());
+    let mut snapshot = game.state().clone();
+    snapshot.ball_state.possessed_by = Some(99);
+
+    let error = game.apply_state(snapshot).unwrap_err();
+
+    assert!(error.contains("possessed_by"));
+}
+
+#[test]
+fn apply_state_rejects_team_stats_absent_from_config() {
+    let mut config = create_test_config();
+    config.players.retain(|player| player.team == Team::A);
+    let mut game = Game::new(config, deterministic_rng());
+    let mut snapshot = game.state().clone();
+    snapshot.team_stats.insert(Team::B, StatSet::default());
+
+    let error = game.apply_state(snapshot).unwrap_err();
+
+    assert!(error.contains("team_stats"));
+}
+
+#[test]
 fn test_player_initial_position_in_setup_stage() {
     let config = create_test_config();
     let field_length = config.field.length().get::<meter>();

@@ -4,17 +4,18 @@ use crate::codec::{FileJournalRecorder, RecordReader, RecordWriter};
 use crate::field::zones::Velocity3D;
 use crate::field::Field;
 use crate::game::{
-    BallDef, Decision, DecisionTarget, GameConfig, GameStage, PlayerDef, RefereeDef,
+    BallDef, Decision, DecisionTarget, Game, GameConfig, GameStage, PlayerDef, RefereeDef,
     REGION_START_POSITION,
 };
 use crate::journal::{JournalEntry, JournalEvent, JournalSink};
-use crate::record::RecordHeader;
+use crate::record::{Record, RecordHeader};
 use crate::record_io::{
     json_journal_file_reader, json_journal_file_writer, json_journal_memory_reader,
-    json_journal_memory_writer, SharedBytes,
+    json_journal_memory_writer, write_json_record, SharedBytes,
 };
 use crate::region::GridCell;
 use crate::team::Team;
+use crate::test_utils::deterministic_rng;
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
@@ -45,11 +46,8 @@ fn test_config() -> GameConfig {
 }
 
 fn test_header() -> RecordHeader {
-    RecordHeader {
-        config: test_config(),
-        initial_stage: GameStage::Setup("kick off".to_string()),
-        fixed_dt: 0.016,
-    }
+    let game = Game::new(test_config(), deterministic_rng());
+    RecordHeader::from_game(&game, 0.016)
 }
 
 fn sample_entries() -> Vec<JournalEntry> {
@@ -147,6 +145,23 @@ fn file_record_round_trips() {
     assert_eq!(record.header, header);
     assert_eq!(record.total_steps, 7);
     assert_eq!(record.journal, entries);
+}
+
+#[test]
+fn write_json_record_round_trips_the_whole_record() {
+    let record = Record {
+        header: test_header(),
+        total_steps: 4,
+        journal: sample_entries(),
+    };
+    let path = temp_path("write-record");
+
+    write_json_record(&path, &record).unwrap();
+
+    let restored = json_journal_file_reader(&path).unwrap().read().unwrap();
+    fs::remove_file(&path).unwrap();
+
+    assert_eq!(restored, record);
 }
 
 #[test]
