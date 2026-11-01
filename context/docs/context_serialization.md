@@ -1,9 +1,10 @@
 # Запись и воспроизведение матча
 
 Контекст по сериализации результатов обсчёта игры (task_3). Цели: запись/воспроизведение матча
-(игра, отладка) и интеграционные тесты по журналу событий. Не реализовано и вынесено в отдельные
-задачи: снапшоты/перемотка (`task_4`), версионирование формата (`task_5`), кроссплатформенный
-детерминизм (`task_6`), интеграция в плеер (`task_7`).
+(игра, отладка) и интеграционные тесты по журналу событий. Снапшот начального состояния в записи
+реализован в `task_4` (цель 1). В отдельные задачи вынесены: перемотка/коррекция дрейфа (`task_4`,
+цели 2–3), версионирование формата (`task_5`), кроссплатформенный детерминизм (`task_6`),
+интеграция в плеер (`task_7`).
 
 ## 1. Модель
 
@@ -25,8 +26,10 @@
 
 `Serialize`/`Deserialize` есть у конфигурационных типов ядра (`GameConfig`, `PlayerDef`, `Field`,
 зоны, `Region`/`GridCell`, `Team`, `GameStage`, `Decision`, `Point3D`/`Velocity3D` и др.), у
-`JournalEntry`/`JournalEvent` и у `FootballEvent`. Типы состояния (`GameState` и вложенные) **не**
-сериализуются — это задача снапшотов.
+`JournalEntry`/`JournalEvent`, у `FootballEvent` и у полного состояния игры (`GameState` и
+вложенные `PlayerState`/`BallState`/`RefereeState`/`StatSet`). `GameState` кладётся в запись как
+снапшот начального состояния; `HashMap`/`HashSet` внутри него (в т.ч. `team_stats` по `Team`)
+сериализуются детерминированно через `sorted_collections`.
 
 ## 3. Журнал (`ynwa-core/src/journal.rs`)
 
@@ -59,13 +62,16 @@
 Формат байтов вынесен за трейты, чтобы позже можно было добавить бинарный кодек без изменения
 модели.
 
-- `record.rs`: `RecordHeader { config, initial_stage, fixed_dt }` (`RecordHeader::from_game`),
-  `Record { header, total_steps, journal }`.
+- `record.rs`: `RecordHeader { config, initial_state: GameState, fixed_dt }`
+  (`RecordHeader::from_game` захватывает конфигурацию и текущее состояние), `Record { header,
+  total_steps, journal }`. Стадия — часть `initial_state.stage`; отдельного поля `initial_stage`
+  нет.
 - `codec.rs`: `RecordWriter`/`RecordReader`, JSON Lines-реализации `JsonRecordWriter`/
   `JsonRecordReader`. Строки: `header`, `event`…, `footer { total_steps }`. Оборванный файл
   (без футера) читается как валидный префикс.
 - `record_io.rs`: конструкторы `json_journal_file_writer/reader` и
-  `json_journal_memory_writer/reader` (`SharedBytes` — буфер в памяти).
+  `json_journal_memory_writer/reader` (`SharedBytes` — буфер в памяти), а также
+  `write_json_record(path, &Record)` — запись готового `Record` целиком (header, события, footer).
 
 Типичное использование:
 
@@ -88,7 +94,8 @@ let record = collection.borrow_mut().take_record(header);
   `timestamp <= текущий` по курсору. Расчёт скорости по решению общий с `ActionSystem`
   (`systems/movement.rs`, `pub(crate)`), чтобы физика совпадала.
 - `ynwa-football/src/replay.rs`:
-  - `create_football_replay_world(record)` — мир с сокращённым набором систем:
+  - `create_football_replay_world(record)` — строит `Game` из `record.header.config`, затем
+    применяет `record.header.initial_state` (`Game::apply_state`); набор систем:
     `ReplaySetupBallPlacer` (пин мяча в `Setup`, как в менеджере) → `ReplayDriver` →
     `PhysicsSystem`. Клиент делает `world.step(fixed_dt)` ровно `total_steps` раз.
   - `decode_football_events(&[JournalEntry])` — извлечение `FootballEvent` из `External`.
