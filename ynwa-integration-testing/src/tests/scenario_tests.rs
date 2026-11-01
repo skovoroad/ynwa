@@ -10,7 +10,12 @@ fn fixture(name: &str) -> std::path::PathBuf {
 }
 
 #[test]
-fn run_scenario_passes_for_the_valid_fixture() {
+fn run_scenario_passes_and_writes_the_record_it_ran() {
+    let LoadedScenario {
+        world, run: plan, ..
+    } = load_scenario(&fixture("valid")).expect("fixture must load");
+    let expected = run(world, &plan).expect("trivial run must succeed").record;
+
     let report = run_scenario(&fixture("valid")).expect("scenario must run");
 
     assert_eq!(
@@ -21,16 +26,6 @@ fn run_scenario_passes_for_the_valid_fixture() {
             diff: None,
         }
     );
-}
-
-#[test]
-fn run_scenario_writes_the_record_it_ran() {
-    let LoadedScenario {
-        world, run: plan, ..
-    } = load_scenario(&fixture("valid")).expect("fixture must load");
-    let expected = run(world, &plan).expect("trivial run must succeed").record;
-
-    run_scenario(&fixture("valid")).expect("scenario must run");
 
     let path = recording_path("valid").expect("home directory must be available");
     let actual = json_journal_file_reader(path)
