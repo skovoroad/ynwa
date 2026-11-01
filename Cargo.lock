@@ -1111,6 +1111,7 @@ dependencies = [
 name = "ynwa-integration-testing"
 version = "0.1.0"
 dependencies = [
+ "env_home",
  "serde",
  "serde_json",
  "toml",

@@ -8,7 +8,8 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use ynwa_core::game::GameState;
-use ynwa_core::journal::{CollectJournalRecorder, EventsCollection, JournalEntry};
+use ynwa_core::journal::{CollectJournalRecorder, EventsCollection};
+use ynwa_core::record::{Record, RecordHeader};
 use ynwa_core::world::World;
 use ynwa_football::decode_football_events;
 use ynwa_football::events::FootballEvent;
@@ -17,11 +18,12 @@ use crate::criterion::{stage_matcher, EventMatcher, StopCriterion, StopReason};
 use crate::dto::{RunPlanDto, StopCriterionDto};
 use crate::loader::ScenarioError;
 
-/// Everything a completed run yields: the journal, the decoded football events, why the run
-/// stopped, how many steps it took and the final game state.
+/// Everything a completed run yields: the record (its header carries the initial state, its
+/// journal the recorded events), the decoded football events, why the run stopped, how many steps
+/// it took and the final game state.
 #[derive(Debug)]
 pub struct RunOutcome {
-    pub journal: Vec<JournalEntry>,
+    pub record: Record,
     pub football_events: Vec<(f32, FootballEvent)>,
     pub stop_reason: StopReason,
     pub steps: u64,
@@ -39,6 +41,7 @@ pub fn run(world: World, run: &RunPlanDto) -> Result<RunOutcome, ScenarioError> 
     world
         .game_mut()
         .set_journal_sink(Box::new(CollectJournalRecorder::new(collection.clone())));
+    let header = RecordHeader::from_game(world.game(), run.dt);
 
     let mut steps: u64 = 0;
     let mut decoded_upto: usize = 0;
@@ -79,11 +82,11 @@ pub fn run(world: World, run: &RunPlanDto) -> Result<RunOutcome, ScenarioError> 
     }
 
     world.game_mut().finish_journal()?;
-    let journal = collection.borrow().entries().to_vec();
+    let record = collection.borrow_mut().take_record(header);
     let final_state = world.game().state().clone();
 
     Ok(RunOutcome {
-        journal,
+        record,
         football_events,
         stop_reason,
         steps,

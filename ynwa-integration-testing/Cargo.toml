@@ -8,6 +8,7 @@ authors.workspace = true
 ynwa-core = { path = "../ynwa-core" }
 ynwa-football = { path = "../ynwa-football" }
 ynwa-repository = { path = "../ynwa-repository" }
+env_home = "0.1"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 toml = "0.8"

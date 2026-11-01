@@ -44,7 +44,7 @@ pub fn compare_outcome(
     } else {
         compare_journal(
             &expect.journal,
-            &outcome.journal,
+            &outcome.record.journal,
             expect.journal_match,
             config,
             dt,

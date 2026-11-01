@@ -61,8 +61,8 @@ DOD:
    сценария.
 3. Прогон пишет журнал в `CollectJournalRecorder` (как сейчас).
 4. После прогона `run()` собирает `Record` и возвращает его в `RunOutcome`.
-5. `run_scenario()` сериализует `Record` в `ynwa-integration-testing/recordings/<scenario>.jsonl`
-   (JSON Lines) и возвращает `ScenarioReport` (как сейчас).
+5. `run_scenario()` сериализует `Record` в `~/.ynwa/scenarios/<scenario>.jsonl` (JSON Lines;
+   рядом с `~/.ynwa/games`, куда пишет записи игр плеер) и возвращает `ScenarioReport` (как сейчас).
 6. Плеер открывает файл в `--replay`: `create_football_replay_world` применяет `initial_state` и
    воспроизводит сценарий.
 
@@ -139,10 +139,9 @@ DOD: `cargo test -p ynwa-football` зелёный; replay-тесты прохо�
 - [`compare.rs::compare_outcome`](ynwa-integration-testing/src/compare.rs:35): журнал берётся из
   `outcome.record.journal`.
 - [`scenario.rs::run_scenario`](ynwa-integration-testing/src/scenario.rs:19): после `run(...)`
-  пишет `outcome.record` в `ynwa-integration-testing/recordings/<scenario>.jsonl` через
-  `write_json_record` (каталог создаётся при необходимости; запись выполняется до сверки ожиданий,
-  поэтому файл есть и для упавшего сценария).
-- `.gitignore`: добавить `ynwa-integration-testing/recordings/`.
+  пишет `outcome.record` в `~/.ynwa/scenarios/<scenario>.jsonl` через `write_json_record` (каталог
+  создаётся при необходимости; запись выполняется до сверки ожиданий, поэтому файл есть и для
+  упавшего сценария).
 - Тесты:
   - юнит: `run()` возвращает `Record`, у которого `header.initial_state` соответствует начальному
     состоянию мира, а `journal`/`total_steps` — прогону;
@@ -153,8 +152,8 @@ DOD: `cargo test -p ynwa-football` зелёный; replay-тесты прохо�
     оригинальному прогону (сравнение с допуском `TOLERANCE` по контракту replay, локальный хелпер
     в тестах).
 
-DOD: `cargo test -p ynwa-integration-testing` зелёный; в `recordings/` появляются JSON Lines-файлы
-сценариев; запись читается плеером в `--replay` и replay эквивалентен прогону.
+DOD: `cargo test -p ynwa-integration-testing` зелёный; в `~/.ynwa/scenarios/` появляются JSON
+Lines-файлы сценариев; запись читается плеером в `--replay` и replay эквивалентен прогону.
 
 ## Проверка DOD
 
@@ -176,8 +175,8 @@ DOD: `cargo test -p ynwa-integration-testing` зелёный; в `recordings/` �
   `RunOutcome.journal` на `RunOutcome.record`.
 - Функцию `write_json_record` сделать публичной в `ynwa-core/src/record_io.rs` и ре-экспортировать
   из `ynwa-core/src/lib.rs`.
-- Путь записи `recordings/<scenario>.jsonl` привязывать к `CARGO_MANIFEST_DIR`, а не к текущему
-  рабочему каталогу.
+- Путь записи `~/.ynwa/scenarios/<scenario>.jsonl` брать из домашнего каталога (`env_home`), как это
+  делает плеер для записей игр, а не привязывать к текущему рабочему каталогу или `CARGO_MANIFEST_DIR`.
 - В `Game::apply_state` дополнительно проверить ключи `team_stats` на соответствие командам из
   `config` (либо явно задекларировать ответственность вызывающего).
 

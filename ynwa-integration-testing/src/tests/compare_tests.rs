@@ -8,6 +8,7 @@ use ynwa_core::field::Field;
 use ynwa_core::game::{
     BallDef, DecisionTarget, PlayerDef, RefereeDef, ScriptingConfig, REGION_START_POSITION,
 };
+use ynwa_core::record::{Record, RecordHeader};
 use ynwa_core::region::GridCell;
 use ynwa_core::{DefaultRngManager, Game, RngConfig, Score};
 
@@ -46,6 +47,24 @@ fn test_state(players: &[(Team, u32)]) -> (GameConfig, GameState) {
         Box::new(DefaultRngManager::new(RngConfig::new(0.0, Some(0)))),
     );
     (config, game.state.clone())
+}
+
+fn test_outcome(config: &GameConfig, state: GameState, journal: Vec<JournalEntry>) -> RunOutcome {
+    RunOutcome {
+        record: Record {
+            header: RecordHeader {
+                config: config.clone(),
+                initial_state: state.clone(),
+                fixed_dt: 0.1,
+            },
+            total_steps: 10,
+            journal,
+        },
+        football_events: vec![],
+        stop_reason: StopReason::Steps(10),
+        steps: 10,
+        final_state: state,
+    }
 }
 
 fn entry(timestamp: f32, event: JournalEvent) -> JournalEntry {
@@ -461,13 +480,7 @@ fn final_state_checks_setup_restart() {
 #[test]
 fn compare_outcome_without_expectations_passes() {
     let (config, state) = test_state(&[(Team::A, 9)]);
-    let outcome = RunOutcome {
-        journal: vec![],
-        football_events: vec![],
-        stop_reason: StopReason::Steps(10),
-        steps: 10,
-        final_state: state,
-    };
+    let outcome = test_outcome(&config, state, vec![]);
 
     let diffs = compare_outcome(&outcome, &ExpectDto::default(), None, &config, 0.1).unwrap();
 
@@ -477,13 +490,11 @@ fn compare_outcome_without_expectations_passes() {
 #[test]
 fn empty_journal_expectation_is_not_checked() {
     let (config, state) = test_state(&[(Team::A, 9)]);
-    let outcome = RunOutcome {
-        journal: vec![entry(0.1, JournalEvent::DecisionsReset)],
-        football_events: vec![],
-        stop_reason: StopReason::Steps(10),
-        steps: 10,
-        final_state: state,
-    };
+    let outcome = test_outcome(
+        &config,
+        state,
+        vec![entry(0.1, JournalEvent::DecisionsReset)],
+    );
 
     let diffs = compare_outcome(&outcome, &ExpectDto::default(), None, &config, 0.1).unwrap();
 

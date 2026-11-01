@@ -39,4 +39,4 @@ pub use dto::{
 };
 pub use loader::{load_scenario, LoadedScenario, ScenarioError, ScenarioLoader};
 pub use runner::{run, RunOutcome};
-pub use scenario::{run_scenario, ScenarioReport};
+pub use scenario::{recording_path, run_scenario, ScenarioReport};

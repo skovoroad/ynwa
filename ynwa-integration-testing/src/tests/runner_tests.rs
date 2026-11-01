@@ -83,6 +83,24 @@ fn trivial_scenario_stops_at_the_step_limit() {
 }
 
 #[test]
+fn run_returns_a_record_of_the_initial_state_and_the_run() {
+    let LoadedScenario {
+        world, run: plan, ..
+    } = load_scenario(&fixture("valid")).expect("fixture must load");
+    let initial_state = world.game().state().clone();
+
+    let outcome = run(world, &plan).expect("trivial run must succeed");
+
+    assert_eq!(outcome.record.header.initial_state, initial_state);
+    assert_eq!(outcome.record.header.fixed_dt, plan.dt);
+    assert_eq!(outcome.record.total_steps, outcome.steps);
+    assert!(
+        !outcome.record.journal.is_empty(),
+        "the run must journal decisions"
+    );
+}
+
+#[test]
 fn compile_criteria_covers_time() {
     let plan = RunPlanDto {
         dt: 0.1,
