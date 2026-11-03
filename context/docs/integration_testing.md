@@ -5,7 +5,7 @@ player scripts" chain as a granular scenario. The exact file formats and all all
 in [`protocols.md`](protocols.md) §4; here — how a scenario is structured, how to run it, and by which
 rules it is executed.
 
-General project context — in [`context.md`](context.md).
+General project context — in [`project_overview.md`](project_overview.md).
 
 ---
 

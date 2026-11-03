@@ -4,10 +4,11 @@ This document describes everything football-specific in the project: field geome
 set pieces, event detection (goal, out of play, end of match), and ready-made world assembly.
 The core (`ynwa-core`) knows nothing about football — all this logic lives in the separate crate
 `ynwa-football` and hooks into the core at two points: as the `World` factory and as the first system
-in the step pipeline (`FootballGameManager`, see `context_game_step.md`).
+in the step pipeline (`FootballGameManager`, see `game_step.md`).
 
-Companion documents: `context.md` (general context), `context_game_step.md` (the structure of one
-simulation step), `protocols.md` (team data formats).
+Companion documents: [`project_overview.md`](project_overview.md) (general context),
+[`game_step.md`](game_step.md) (the structure of one simulation step), [`protocols.md`](protocols.md)
+(team data formats).
 
 ---
 
@@ -57,7 +58,7 @@ simulation-ready `World`:
 Assembly order: builds the field, loads `"team_a"` and `"team_b"`, validates the key sets and
 `on_ball` markings, converts records into `PlayerDef`, reads `core.lua`/`stdlib.lua`, creates
 `Game` in the `Setup("kick off")` stage, and adds systems in the order described in
-`context_game_step.md` §2.
+`game_step.md` §2.
 
 Significant details:
 
@@ -99,7 +100,7 @@ intersection of a circle of radius 9.15 m around the penalty spot with the penal
 
 The only system aware of stages: it switches `GameStage`, hands out decisions during
 setup, and processes events. It runs first in the step pipeline, so an event takes
-effect before players start making decisions (more in `context_game_step.md` §3).
+effect before players start making decisions (more in `game_step.md` §3).
 
 Behavior by stage:
 

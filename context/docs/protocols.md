@@ -3,7 +3,8 @@
 This document gathers in one place all the "data contracts": the JSON protocol between the game core and the
 decision engine, the on-disk team storage format and what the repository actually reads, and the
 integration-testing scenario file formats (§4).
-General project context — in `context.md`.
+General project context — in [`project_overview.md`](project_overview.md); coordinate conventions
+(axes, display orientation, grid notation) — in [`coordinate_system.md`](coordinate_system.md).
 
 ---
 
@@ -148,7 +149,7 @@ defence = "N1"
 Rules:
 
 - The value is a cell/region notation (`"K7"`, `"A1:B2"`) or the `"on_ball"` marker
-  (the player is the set-piece taker; see `context_football.md`).
+  (the player is the set-piece taker; see [`football.md`](football.md)).
 - All 16 set-piece keys are mandatory; `"on_ball"` is allowed only in `own` keys
   and for exactly one player per key. Validation is performed at startup (`ynwa-football`).
 - Positions are written in the team's own perspective; for Team B the engine mirrors them at load.

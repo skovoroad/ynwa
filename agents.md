@@ -1,1 +1,1 @@
-Описание проекта здесь: context/docs/context.md
+Описание проекта здесь: context/docs/project_overview.md

@@ -7,7 +7,8 @@ and phase changes intervene in this flow.
 Everything described applies to `ynwa-core` and does not depend on football. The football layer hooks in at exactly
 one point — as the first system in the list (see §2).
 
-Companion documents: `context.md` (general project context).
+Companion documents: [`project_overview.md`](project_overview.md) (general project context),
+[`coordinate_system.md`](coordinate_system.md) (coordinate conventions).
 
 ---
 

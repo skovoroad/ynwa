@@ -3,7 +3,7 @@
 Documentation for those developing the scripting part of the project: the core functions and the standard
 library ([`ynwa-scripts/preambles/`](../ynwa-scripts/preambles)), team preambles, and player
 scripts. How scripts are executed (VM, systems, timers) is not described here — see
-[`context.md`](context.md) §4 and [`context_game_step.md`](context_game_step.md). The core ↔ decision-engine
+[`project_overview.md`](project_overview.md) §4 and [`game_step.md`](game_step.md). The core ↔ decision-engine
 exchange protocol — [`protocols.md`](protocols.md); here only references to it. The on-disk team data
 format — [`protocols.md`](protocols.md) §2.
 

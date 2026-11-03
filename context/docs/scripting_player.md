@@ -2,7 +2,7 @@
 
 Development-stage documentation: a scripting reference for those configuring
 players and teams. Full data formats (`static.toml`, `tactical.toml`, `context`, `GAME_DATA`,
-decision) — [`protocols.md`](protocols.md); general context — [`context.md`](context.md);
+decision) — [`protocols.md`](protocols.md); general context — [`project_overview.md`](project_overview.md);
 script internals — [`scripting_developer.md`](scripting_developer.md).
 
 IMPORTANT: user-authored Lua scripts are an intermediate state. In the future a dedicated user language will be developed and transpiled to Lua. Therefore, at the development stage many capabilities of user Lua scripts (for example, direct calls to core.lua functions) are not restricted: they will not be available to the user in the real user programming language. Nevertheless, the separation of abstraction levels must be observed.
