@@ -1,13 +1,19 @@
 schema: spec-driven
 
-# Project context (optional)
-# Add only constraints that should guide OpenSpec artifacts and workflows.
-# Include constraints an agent cannot infer by reading the code.
-# Keep general project documentation and discoverable codebase facts out.
-# Example:
-#   context: |
-#     Designs and tasks must cover Windows, macOS, and Linux
-#     Write all artifacts in Spanish
+context: |
+  Language: chat and dialogue in Russian; all OpenSpec artifacts and project docs in English.
+
+  Code style (source of truth: context/code_requirements.md):
+  1. Keep code as simple as possible; avoid templates/traits in favor of plain structs and functions when possible.
+  2. Avoid obvious comments; comment only non-obvious places and API. Function comments must not state where the function is called from.
+  3. Use self-explanatory identifiers.
+  4. Strive for maximum test coverage, preferably parameterized. Unit tests go in separate *_tests.rs files next to the implementation, included via #[cfg(test)] #[path = "..."] mod tests;. Trivial assignments are not tested; logic, boundaries, and integration are. New code covers all paths; parameterize where input conditions fundamentally affect the result.
+  5. All tests must pass. cargo clippy and cargo fmt produce no warnings.
+  6. YAGNI: implement only what the task explicitly asks. Do not add unrequested changes; if needed, discuss with a human first.
+  7. When writing tests, reuse existing infrastructure (helpers, builders); extract into a test-utilities file when necessary.
+  8. Inherent impl blocks live in the same file where the type is declared; do not add an inherent impl for a type from another module. Trait implementations may live in separate companion modules.
+  9. Prefer data-driven description over algorithms; idiomatic Rust (Option/Result). Model data so invalid states are unrepresentable; use type safety (e.g., uom instead of f32) and validate in constructors via assert!. When the set of meaningful fields depends on a variant, use an enum with fields in variants instead of a flat { kind, field1?, field2?, ... } structure; do not rely on runtime checks where the invariant is expressible in the type.
+  10. Keep input DTOs (types deserialized from TOML/JSON/etc.) in a separate module (e.g., dto.rs) with the Dto suffix. Do not mix DTOs with runtime types; Def is reserved for engine entity definitions (e.g., PlayerDef).
 
 # Per-artifact rules (optional)
 # Add custom rules for specific artifacts.
