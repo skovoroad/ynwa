@@ -1,174 +1,174 @@
-# Футбольный слой (`ynwa-football`)
+# Football Layer (`ynwa-football`)
 
-Документ описывает всё специфически футбольное в проекте: геометрию поля, стадии матча и
-стандартные положения, детекцию событий (гол, аут, конец матча) и сборку готового мира.
-Ядро (`ynwa-core`) про футбол не знает ничего — вся эта логика живёт в отдельном крейте
-`ynwa-football` и подключается к ядру в двух точках: как фабрика `World` и как первая система
-в конвейере шага (`FootballGameManager`, см. `context_game_step.md`).
+This document describes everything football-specific in the project: field geometry, match stages and
+set pieces, event detection (goal, out of play, end of match), and ready-made world assembly.
+The core (`ynwa-core`) knows nothing about football — all this logic lives in the separate crate
+`ynwa-football` and hooks into the core at two points: as the `World` factory and as the first system
+in the step pipeline (`FootballGameManager`, see `context_game_step.md`).
 
-Сопутствующие документы: `context.md` (общий контекст), `context_game_step.md` (устройство одного
-шага симуляции), `protocols.md` (форматы данных команды).
-
----
-
-## 1. Ответственность и принятые решения
-
-Крейт отвечает за правила футбола поверх нейтрального ядра: строит поле с зонами, управляет
-стадиями матча (расстановка / игра / конец), обнаруживает события и реагирует на них, собирает
-готовый `World` из данных команд.
-
-Принятые решения:
-
-- Ядро не должно знать про футбол — поэтому весь этот слой вынесен в отдельный крейт; для другого
-  вида спорта пишется аналогичный крейт.
-- Создание поля и `GameConfig` — внутренние детали; наружу отдаётся только `World`.
-- Крейт зависит от **trait** `TeamRepository`, а не от `ynwa-repository`: конкретную реализацию
-  инжектит клиент.
-- Все 16 ключей стандартных положений обязательны для каждого игрока и валидируются на старте:
-  лучше упасть при загрузке, чем получить игрока без позиции посреди матча.
+Companion documents: `context.md` (general context), `context_game_step.md` (the structure of one
+simulation step), `protocols.md` (team data formats).
 
 ---
 
-## 2. Основные понятия и терминология
+## 1. Responsibility and Decisions Made
 
-- **Команды `"team_a"` и `"team_b"`** — текстовые идентификаторы двух соперничающих команд,
-  каталоги которых с настройками (`preamble.lua`, `players/`) загружаются из репозитория.
-- **Ключи стандартных положений (Set-Piece Keys)** — 16 строковых идентификаторов, кодирующих
-  ситуации ввода мяча в игру. По ним из файлов `tactical.toml` игроков выбираются тактические
-  регионы для расстановки в фазе `Setup`. Каждый игрок обязан задать позицию для всех 16 ключей.
-- **Маркер `"on_ball"`** — специальное значение позиции в `tactical.toml`, указывающее, что этот
-  игрок является исполнителем (бьющим) данного стандарта. Назначается вместо региона.
-- **Валидация `on_ball`** — проверка при запуске, гарантирующая, что для каждого «своего»
-  стандарта (`own`) назначен ровно один исполнитель с `"on_ball"`, а для стандартов соперника
-  (`opp`) таких исполнителей в нашей команде нет.
-- **Маппинг «причина + состояние» → ключ** — функция трансляции абстрактной причины остановки
-  матча (например, аут) и текущей ситуации (кто вводит, с какого фланга и половины поля) в один
-  из 16 конкретных ключей стандартного положения для расстановки игроков.
+The crate is responsible for football rules on top of the neutral core: it builds the field with zones, manages
+match stages (setup / play / end), detects events and reacts to them, and assembles a
+ready-made `World` from team data.
+
+Decisions made:
+
+- The core must not know about football — so this whole layer is moved to a separate crate; for another
+  sport an analogous crate is written.
+- Field and `GameConfig` creation are internal details; only `World` is exposed.
+- The crate depends on the **trait** `TeamRepository`, not on `ynwa-repository`: the client injects the
+  concrete implementation.
+- All 16 set-piece keys are mandatory for every player and validated at startup:
+  it is better to fail at load time than to get a player without a position mid-match.
 
 ---
 
-## 3. `lib.rs` — сборка мира
+## 2. Core Concepts and Terminology
 
-Точка входа крейта — фабрика, которая из репозитория команд и каталога преамбул делает готовый
-к симуляции `World`:
+- **Teams `"team_a"` and `"team_b"`** — text identifiers of the two competing teams,
+  whose configuration directories (`preamble.lua`, `players/`) are loaded from the repository.
+- **Set-Piece Keys** — 16 string identifiers encoding situations of putting the ball into play. They
+  select tactical regions from players' `tactical.toml` files for positioning in the `Setup` phase. Every player
+  must specify a position for all 16 keys.
+- **The `"on_ball"` marker** — a special position value in `tactical.toml` indicating that this
+  player is the taker (kicker) of the given set piece. Assigned instead of a region.
+- **`on_ball` validation** — a startup check guaranteeing that for each "own"
+  set piece (`own`) exactly one taker with `"on_ball"` is assigned, and that for the opponent's set pieces
+  (`opp`) there are no such takers in our team.
+- **"reason + state" → key mapping** — a function translating an abstract match-stoppage
+  reason (e.g., a throw-in) and the current situation (who takes it, from which flank and half) into one
+  of the 16 concrete set-piece keys for player positioning.
+
+---
+
+## 3. `lib.rs` — World Assembly
+
+The crate's entry point is a factory that turns the team repository and the preamble directory into a
+simulation-ready `World`:
 
 `create_football_world(repo: &dyn TeamRepository, preambles_path: &Path) -> Result<World, String>`
 
-Порядок сборки: строит поле, загружает `"team_a"` и `"team_b"`, валидирует наборы ключей и
-разметку `on_ball`, конвертирует записи в `PlayerDef`, читает `core.lua`/`stdlib.lua`, создаёт
-`Game` в стадии `Setup("kick off")` и добавляет системы в порядке, описанном в
+Assembly order: builds the field, loads `"team_a"` and `"team_b"`, validates the key sets and
+`on_ball` markings, converts records into `PlayerDef`, reads `core.lua`/`stdlib.lua`, creates
+`Game` in the `Setup("kick off")` stage, and adds systems in the order described in
 `context_game_step.md` §2.
 
-Существенные детали:
+Significant details:
 
-- `build_player_defs` парсит нотации позиций и **отражает регионы команды B** в абсолютные
-  координаты поля (в TOML команда B пишет позиции в своей перспективе).
-- Значение `"on_ball"` вместо нотации означает, что игрок — исполнитель этого стандарта; ключ
-  попадает в `set_piece_roles`, а региона для него не создаётся.
-- Ключ `"kick off opp"` дополнительно регистрируется как `REGION_START_POSITION` (`"start"`) —
-  временное решение: там ждут все игроки до начала матча, пока не сделан выбор разыгрывающей
-  команды.
-- `SET_PIECE_KEYS` — 16 обязательных ключей; `ON_BALL_REQUIRED_KEYS` — 8 ключей `own`, в каждом
-  из которых ровно один игрок команды обязан иметь `"on_ball"`; в ключах `opp` `"on_ball"`
-  запрещён (мяч у соперника).
-- Если `ScriptedDecisionMaker` не создался, система решений молча деградирует до
-  `PlaceholderDecisionMaker` с предупреждением в stderr.
-- Начальная позиция мяча берётся из зоны `center_spot`.
+- `build_player_defs` parses position notations and **mirrors Team B's regions** into absolute
+  field coordinates (in TOML, Team B writes positions from its own perspective).
+- A value of `"on_ball"` instead of a notation means the player is the taker of that set piece; the key
+  goes into `set_piece_roles`, and no region is created for it.
+- The `"kick off opp"` key is additionally registered as `REGION_START_POSITION` (`"start"`) —
+  a temporary solution: all players wait there before the match starts, until the kicking-off
+  team is chosen.
+- `SET_PIECE_KEYS` — the 16 mandatory keys; `ON_BALL_REQUIRED_KEYS` — 8 `own` keys, in each
+  of which exactly one player on the team must have `"on_ball"`; in `opp` keys `"on_ball"`
+  is forbidden (the ball is with the opponent).
+- If `ScriptedDecisionMaker` fails to be created, the decision system silently degrades to
+  `PlaceholderDecisionMaker` with a warning to stderr.
+- The initial ball position is taken from the `center_spot` zone.
 
 ---
 
-## 4. `field_builder.rs` — поле и зоны
+## 4. `field_builder.rs` — Field and Zones
 
-Поле — это размеры, сетка адресации и набор именованных зон, по которым работают и правила
-(детекция гола), и скрипты (через `GAME_DATA.zones`).
+The field is dimensions, an addressing grid, and a set of named zones used by both the rules
+(goal detection) and the scripts (via `GAME_DATA.zones`).
 
-`create_football_field()` — поле 68 × 104.615 м, сетка 26 × 40 (клетка ≈ 2.615 м).
-`create_football_field_with_dimensions(...)` позволяет другие размеры, но **требует квадратных
-клеток** (`width/columns == length/rows`), иначе возвращает ошибку — вся метрика регионов в ядре
-считается от квадратной клетки.
+`create_football_field()` — a 68 × 104.615 m field, 26 × 40 grid (cell ≈ 2.615 m).
+`create_football_field_with_dimensions(...)` allows other dimensions but **requires square
+cells** (`width/columns == length/rows`), otherwise it returns an error — all region metrics in the core
+are computed from a square cell.
 
-Создаётся 19 зон: `field`, `half` (A/B), `goal_area` (A/B), `penalty_area` (A/B), `center_circle`,
+19 zones are created: `field`, `half` (A/B), `goal_area` (A/B), `penalty_area` (A/B), `center_circle`,
 `center_spot`, `penalty_arc` (A/B), `penalty_spot` (A/B), `corner_arc_bottom`/`corner_arc_top`
-(A/B), `goal` (A/B). Ворота вынесены **за** линию поля (A: z ∈ [−2.5, 0], B: z ∈
-[length, length+2.5]) — именно так детектируется гол. Углы штрафной дуги вычисляются как
-пересечение окружности радиуса 9.15 м вокруг 11-метровой отметки с линией штрафной.
+(A/B), `goal` (A/B). Goals are placed **outside** the field line (A: z ∈ [−2.5, 0], B: z ∈
+[length, length+2.5]) — that is how a goal is detected. The penalty-arc angles are computed as the
+intersection of a circle of radius 9.15 m around the penalty spot with the penalty-area line.
 
 ---
 
 ## 5. `game_manager.rs` — `FootballGameManager`
 
-Единственная система, знающая о стадиях: она переключает `GameStage`, раздаёт решения при
-расстановке и обрабатывает события. Работает первой в конвейере шага, поэтому событие вступает
-в силу до того, как игроки начнут принимать решения (подробнее — `context_game_step.md` §3).
+The only system aware of stages: it switches `GameStage`, hands out decisions during
+setup, and processes events. It runs first in the step pipeline, so an event takes
+effect before players start making decisions (more in `context_game_step.md` §3).
 
-Поведение по стадиям:
+Behavior by stage:
 
-- **`Setup(reason)`**: каждый тик мяч принудительно ставится в `restart_position` (или в начальную
-  позицию мяча, если она не задана), скорость и владение обнуляются, `last_possessing_team`
-  сбрасывается. Затем:
-  - `assign_setup_decisions` — каждому игроку без решения выдаётся `Run`: исполнителю стандарта —
-    в точку мяча, остальным — в их регион для соответствующего ключа. Если региона нет, пишется
-    `last_error` и игрок остаётся на месте. Lua при этом **не вызывается**.
-  - `check_player_readiness` — игрок считается готовым (`is_ready`), когда его текущее решение
-    стало `Stop` (то есть `DecisionSystem` зафиксировала прибытие).
-  - Когда готовы все — стадия переключается на `Play`.
-- **`Play`**: вызывает `check_events` и обрабатывает первое найденное событие.
-- **`GameOver`**: ничего не делает.
+- **`Setup(reason)`**: every tick the ball is forced into `restart_position` (or into the initial
+  ball position if none is set), velocity and possession are cleared, `last_possessing_team`
+  is reset. Then:
+  - `assign_setup_decisions` — every player without a decision gets a `Run`: the set-piece taker —
+    to the ball position, the rest — to their region for the corresponding key. If there is no region,
+    `last_error` is written and the player stays in place. Lua is **not** called.
+  - `check_player_readiness` — a player is considered ready (`is_ready`) when their current decision
+    has become `Stop` (that is, `DecisionSystem` recorded arrival).
+  - When everyone is ready — the stage switches to `Play`.
+- **`Play`**: calls `check_events` and processes the first found event.
+- **`GameOver`**: does nothing.
 
-### Обработка событий (`handle_event`)
+### Event Handling (`handle_event`)
 
-| Событие | Последствие |
+| Event | Consequence |
 |---|---|
-| `Goal(team)` | `team` — владелец ворот, в которые забили, поэтому счёт увеличивается у `team.opposite()`. Переход в `Setup("kick off")`, `restart_position = None` (мяч в центре), `restart_team` = пропустившая команда. |
-| `Touchline(pos, last)` | `Setup("throw in")`, мяч в точке пересечения, `restart_team = last.opposite()`. |
-| `GoalLine(pos, last)` | Если за линию мяч вывела атакующая команда — `Setup("goal kick")`, мяч в 5.5 м от линии по центру, вводит защищающаяся команда; иначе — `Setup("corner")`, мяч в ближайшем угловом флаге, вводит атакующая команда. |
+| `Goal(team)` | `team` — the owner of the goal that was scored into, so the score is incremented for `team.opposite()`. Transition to `Setup("kick off")`, `restart_position = None` (ball at center), `restart_team` = the conceding team. |
+| `Touchline(pos, last)` | `Setup("throw in")`, ball at the intersection point, `restart_team = last.opposite()`. |
+| `GoalLine(pos, last)` | If the attacking team put the ball out — `Setup("goal kick")`, ball 5.5 m from the line at the center, taken by the defending team; otherwise — `Setup("corner")`, ball at the nearest corner flag, taken by the attacking team. |
 | `GameEnd` | `GameOver`. |
 
-При любом переходе в `Setup` у всех игроков сбрасываются `is_ready`, `current_decision` и
-поднимается `needs_decision`.
+On any transition to `Setup`, all players have `is_ready` and `current_decision` reset and
+`needs_decision` raised.
 
-Важное решение: `restart_position`/`restart_team` выставляются в `handle_event`, до начала тиков
-`Setup`, — иначе их затёр бы сброс `last_possessing_team`, происходящий каждый тик `Setup`.
+Important decision: `restart_position`/`restart_team` are set in `handle_event`, before the `Setup`
+ticks begin — otherwise they would be wiped by the `last_possessing_team` reset that happens every `Setup` tick.
 
-### Выбор ключа стандартного положения
+### Set-Piece Key Selection
 
-`resolve_set_piece_key(reason, player_team, restart_team, restart_position, w, l)` — маппинг
-«причина + состояние» → один из 16 ключей. Логика различения:
+`resolve_set_piece_key(reason, player_team, restart_team, restart_position, w, l)` — the
+"reason + state" → one-of-16-keys mapping. The distinguishing logic:
 
-- `own`/`opp` — совпадает ли `restart_team` с командой игрока;
-- `left`/`right` — от лица игрока (левая сторона команды A — малые X, команды B — большие X);
-- `own half`/`opp half` — в чьей половине мяч (A защищает `z < length/2`, B — `z > length/2`).
+- `own`/`opp` — whether `restart_team` matches the player's team;
+- `left`/`right` — from the player's perspective (Team A's left side — small X, Team B's — large X);
+- `own half`/`opp half` — in whose half the ball is (A defends `z < length/2`, B — `z > length/2`).
 
-Неизвестная причина даёт `None`, что вызывающий трактует как ошибку.
-
----
-
-## 6. `events.rs` — детекция событий
-
-События — единственный способ, которым правила «замечают», что игра должна остановиться.
-Тип `FootballEvent` — `Goal(Team)` | `Touchline(Point3D, Team)` | `GoalLine(Point3D, Team)` |
-`GameEnd`. `check_events` проверяет в порядке приоритета: гол → конец матча → аут по боковой →
-аут по лицевой.
-
-Детали правил:
-
-- гол: мяч **полностью** пересёк линию по Z (учитывается радиус 0.11 м), а по X учитывается только
-  центр мяча — касание штанги изнутри считается голом, снаружи — нет;
-- `check_goal_line` не срабатывает, если мяч между штангами (этот случай обслуживает `check_goal`);
-- ауты требуют полного пересечения линии с учётом радиуса;
-- команда, последней касавшаяся мяча, берётся из `last_possessing_team`, при `None` — `Team::A`
-  (грубая заглушка);
-- `GAME_DURATION = 120.0` секунд — временное значение для отладки, не полноценный матч.
+An unknown reason yields `None`, which the caller treats as an error.
 
 ---
 
-## 7. Известные футбольные несоответствия и незавершённые места
+## 6. `events.rs` — Event Detection
 
-- **Стартовая расстановка в `Setup`.** Комментарий в `game_manager.rs` говорит
-  `(width/2, 0, −5)`, фактически `Game::with_stage` ставит игроков в `(−5, 0, length/2)` — сбоку
-  от поля.
-- **`GAME_DURATION = 120 с`** при комментарии «1 minute» — отладочное значение.
-- **`REGION_START_POSITION` = алиас `"kick off opp"`** — временное решение; выбор разыгрывающей
-  команды на старте матча ещё не реализован.
-- **Последнее касание мяча** определяется через `last_possessing_team` (владение), а не через
-  реальное касание; при `None` подставляется `Team::A`.
+Events are the only way the rules "notice" that the game must stop.
+The `FootballEvent` type — `Goal(Team)` | `Touchline(Point3D, Team)` | `GoalLine(Point3D, Team)` |
+`GameEnd`. `check_events` checks in priority order: goal → end of match → touchline out →
+goal-line out.
+
+Rule details:
+
+- goal: the ball has **fully** crossed the line along Z (the 0.11 m radius is accounted for), while along X only the
+  ball's center is considered — touching the post from inside counts as a goal, from outside it does not;
+- `check_goal_line` does not fire if the ball is between the posts (that case is handled by `check_goal`);
+- outs require full line crossing accounting for the radius;
+- the team that last touched the ball is taken from `last_possessing_team`, and when `None` — `Team::A`
+  (a crude stub);
+- `GAME_DURATION = 120.0` seconds — a temporary debug value, not a full match.
+
+---
+
+## 7. Known Football Discrepancies and Unfinished Places
+
+- **Initial positioning in `Setup`.** A comment in `game_manager.rs` says
+  `(width/2, 0, −5)`, but actually `Game::with_stage` places players at `(−5, 0, length/2)` — beside
+  the field.
+- **`GAME_DURATION = 120 s`** despite a "1 minute" comment — a debug value.
+- **`REGION_START_POSITION` = the `"kick off opp"` alias** — a temporary solution; choosing the kicking-off
+  team at match start is not yet implemented.
+- **Last ball touch** is determined via `last_possessing_team` (possession), not via
+  an actual touch; when `None`, `Team::A` is substituted.

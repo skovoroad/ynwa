@@ -1,327 +1,327 @@
-# Обработка одного шага игры (уровень ядра)
+# Processing One Game Step (core level)
 
-Документ описывает, что происходит внутри одного вызова `World::step(delta_time)`: в каком порядке
-работают системы, как рождается решение игрока, как оно превращается в движение, и как события
-и смены фаз вмешиваются в этот поток.
+This document describes what happens inside one `World::step(delta_time)` call: in what order
+the systems run, how a player's decision is born, how it turns into movement, and how events
+and phase changes intervene in this flow.
 
-Всё описанное относится к `ynwa-core` и не зависит от футбола. Футбольный слой подключается ровно
-в одной точке — как первая система в списке (см. §2).
+Everything described applies to `ynwa-core` and does not depend on football. The football layer hooks in at exactly
+one point — as the first system in the list (see §2).
 
-Сопутствующие документы: `context.md` (общий контекст проекта).
+Companion documents: `context.md` (general project context).
 
 ---
 
-## 1. Точка входа: `World::step(delta_time)`
+## 1. Entry Point: `World::step(delta_time)`
 
-Игровой цикл принадлежит клиенту — ядро не крутит собственный таймер. Клиент сам решает, с каким
-шагом и как часто вызывать `step`. Это и есть источник детерминизма: при одинаковой
-последовательности `delta_time` симуляция воспроизводима (с точностью до RNG, см. §7).
+The game loop belongs to the client — the core does not run its own timer. The client decides with what
+step and how often to call `step`. This is the source of determinism: with the same
+`delta_time` sequence the simulation is reproducible (up to RNG, see §7).
 
-Шаг устроен предельно просто:
+The step is extremely simple:
 
 ```
 new_timestamp = game.state.elapsed_time + delta_time
-для каждой системы в порядке добавления:
+for each system in insertion order:
     system.update(&mut game, new_timestamp)
 game.state.elapsed_time = new_timestamp
 ```
 
-Два неочевидных решения зашиты именно здесь:
+Two non-obvious decisions are baked in here:
 
-- **Системам передаётся `&mut Game`, а не `&mut World`.** Иначе borrow checker не позволил бы
-  итерировать список систем, одновременно отдавая им мир целиком.
-- **Системам передаётся абсолютный `timestamp`, а не `delta_time`.** Каждая система сама решает,
-  что для неё «прошло время»: `PlayerReactionSystem` сравнивает с `last_decision_time` игрока,
-  `BallPossessionSystem` — с `last_possession_change_time` мяча, `PhysicsSystem` хранит собственный
-  `last_update` и вычисляет из него dt.
-- **`elapsed_time` обновляется только в самом конце.** То есть все системы внутри одного шага видят
-  ещё *старое* `game.state.elapsed_time`, но получают *новый* `timestamp` аргументом. Если системе
-  нужно текущее время шага — она обязана брать аргумент, а не поле состояния.
+- **Systems receive `&mut Game`, not `&mut World`.** Otherwise the borrow checker would not allow
+  iterating the system list while handing each the whole world.
+- **Systems receive an absolute `timestamp`, not `delta_time`.** Each system decides for itself
+  what "time has passed" means: `PlayerReactionSystem` compares against the player's `last_decision_time`,
+  `BallPossessionSystem` — against the ball's `last_possession_change_time`, `PhysicsSystem` keeps its own
+  `last_update` and derives dt from it.
+- **`elapsed_time` is updated only at the very end.** That is, all systems within one step see
+  the still *old* `game.state.elapsed_time` but receive the *new* `timestamp` as an argument. If a system
+  needs the current step time — it must take the argument, not the state field.
 
-Состояние передаётся между системами через общий `GameState`: никаких очередей сообщений нет,
-системы общаются флагами и полями (`needs_decision`, `decision_processed`, `is_ready`,
-`current_decision`). Порядок систем — часть контракта, а не деталь реализации.
-
----
-
-## 2. Порядок систем внутри шага
-
-```
-1. Менеджер игры (спорт-специфичный, напр. FootballGameManager)  — фазы и события
-2. PlayerReactionSystem                                          — «кому пора думать»
-3. BallPossessionSystem                                          — кто владеет мячом
-4. DecisionSystem                                                — что игрок решил
-5. ActionSystem                                                  — решение → скорость/удар
-6. PhysicsSystem                                                 — скорость → позиция
-```
-
-Логика порядка — это конвейер «правила → намерение → действие → мир»:
-
-- менеджер идёт **первым**, чтобы решения принимались уже в актуальной фазе игры, а не в той,
-  что была на прошлом шаге;
-- владение мячом определяется **до** принятия решений: игрок должен решать, зная, у кого мяч
-  прямо сейчас;
-- физика идёт **последней**, чтобы всё, что накопилось за шаг (новые скорости, удар по мячу),
-  применилось к позициям один раз и согласованно.
-
-Само ядро список систем не навязывает — его собирает игровой слой. Но описанный порядок —
-единственный, при котором конвейер работает без задержки в один кадр на каждом звене.
+State is passed between systems via the shared `GameState`: there are no message queues;
+systems communicate through flags and fields (`needs_decision`, `decision_processed`, `is_ready`,
+`current_decision`). System order is part of the contract, not an implementation detail.
 
 ---
 
-## 3. Шаг 1: менеджер игры — фазы и события
+## 2. System Order Within a Step
 
-Ядро знает о существовании фаз, но не знает их смысла. Фазы описаны перечислением `GameStage`:
+```
+1. Game manager (sport-specific, e.g. FootballGameManager)  — phases and events
+2. PlayerReactionSystem                                     — "whose turn to think"
+3. BallPossessionSystem                                     — who possesses the ball
+4. DecisionSystem                                           — what the player decided
+5. ActionSystem                                             — decision → velocity/kick
+6. PhysicsSystem                                            — velocity → position
+```
 
-| Фаза | Смысл для ядра |
+The logic of the order is the "rules → intent → action → world" pipeline:
+
+- the manager runs **first**, so decisions are made in the current game phase, not the one
+  from the previous step;
+- ball possession is determined **before** decisions: the player must decide knowing who has the ball
+  right now;
+- physics runs **last**, so everything accumulated during the step (new velocities, a kick on the ball)
+  applies to positions once and consistently.
+
+The core itself does not impose the system list — the game layer assembles it. But the described order is
+the only one under which the pipeline works without a one-frame delay at each link.
+
+---
+
+## 3. Step 1: Game Manager — Phases and Events
+
+The core knows phases exist but not their meaning. Phases are described by the `GameStage` enum:
+
+| Phase | Meaning for the core |
 |---|---|
-| `Play` | Обычная игра. Скрипты вызываются, владение мячом вычисляется, всё работает. |
-| `Setup(String)` | Подготовка/расстановка. Строка — причина (для футбола: `"kick off"`, `"throw in"`, `"corner"`, `"goal kick"`); ядро её не интерпретирует, просто носит. |
-| `GameOver` | Матч окончен. |
+| `Play` | Normal play. Scripts are called, ball possession is computed, everything works. |
+| `Setup(String)` | Preparation/positioning. The string is the reason (for football: `"kick off"`, `"throw in"`, `"corner"`, `"goal kick"`); the core does not interpret it, just carries it. |
+| `GameOver` | The match is over. |
 
-Что означает фаза **для ядра** — это набор ровно трёх поведенческих отличий, зашитых в системы:
+What a phase means **for the core** is a set of exactly three behavioral differences, baked into the systems:
 
-1. `BallPossessionSystem` в `Setup` не работает вовсе (мяч зафиксирован, владение бессмысленно).
-2. `PlayerReactionSystem` в `Setup` не использует таймер реакции: решение запрашивается только у
-   игрока, у которого решения ещё нет.
-3. `DecisionSystem` в `Setup` **не вызывает скрипты**. Решения в этой фазе раздаёт менеджер игры
-   напрямую. Скриптовый `DecisionMaker`, будучи вызванным в `Setup`, намеренно возвращает ошибку с
-   явным сообщением — это признак бага вызывающего кода, и он не должен маскироваться.
+1. `BallPossessionSystem` does nothing at all in `Setup` (the ball is pinned, possession is meaningless).
+2. `PlayerReactionSystem` in `Setup` does not use the reaction timer: a decision is requested only from
+   a player who does not yet have one.
+3. `DecisionSystem` in `Setup` **does not call scripts**. Decisions in this phase are handed out by the game manager
+   directly. The scripted `DecisionMaker`, if called in `Setup`, deliberately returns an error with
+   an explicit message — that is a sign of a caller bug, and it must not be masked.
 
-Всё остальное (кто, куда и почему расставляется в `Setup`; когда фаза меняется; что считается
-голом) — ответственность спорт-специфичного менеджера.
+Everything else (who, where, and why is positioned in `Setup`; when the phase changes; what counts as
+a goal) is the responsibility of the sport-specific manager.
 
-### События
+### Events
 
-Событий как типа в ядре нет: `FootballEvent` и его обработка живут в игровом слое. Для ядра
-событие — это просто набор изменений в `GameState`, которые менеджер делает в начале шага.
-Существенно то, **какие поля** менеджер имеет право трогать и как это ломает конвейер ниже:
+There is no event type in the core: `FootballEvent` and its handling live in the game layer. For the core,
+an event is just a set of `GameState` changes the manager makes at the start of the step.
+What matters is **which fields** the manager is allowed to touch and how that breaks the downstream pipeline:
 
-- `state.stage` — смена фазы; влияет на все три пункта выше уже в этом же шаге;
-- `state.restart_position` / `state.restart_team` — где и чей розыгрыш; ядро эти поля только хранит;
-- сброс `current_decision = None`, `is_ready = false`, `needs_decision = true` у игроков — это
-  способ сказать конвейеру «прошлые намерения недействительны, думайте заново»;
-- `ball_state` — принудительная установка позиции/скорости/владения;
-- `team_stats` / `player_stats` — счётчики (`StatSet`); их ключи задаёт игровой слой, ядро их не
-  понимает и **не передаёт в Lua**.
+- `state.stage` — phase change; affects all three points above already in this same step;
+- `state.restart_position` / `state.restart_team` — where and whose restart; the core only stores these fields;
+- resetting `current_decision = None`, `is_ready = false`, `needs_decision = true` on players — this is
+  a way to tell the pipeline "previous intents are invalid, think again";
+- `ball_state` — forced position/velocity/possession setting;
+- `team_stats` / `player_stats` — counters (`StatSet`); the game layer defines their keys, the core does not
+  understand them and does **not pass them to Lua**.
 
-Важное следствие порядка: раз менеджер работает первым, то событие, обнаруженное на этом шаге
-(например, гол), полностью вступает в силу до того, как игроки в этом же шаге начнут принимать
-решения. Задержки в один кадр не возникает.
+An important consequence of the order: since the manager runs first, an event detected in this step
+(e.g., a goal) fully takes effect before the players in this same step start making
+decisions. No one-frame delay arises.
 
-### Смена фазы `Setup → Play`
+### The `Setup → Play` Phase Change
 
-Ядро само фазу не переключает. Механика (реализованная в футбольном менеджере, но опирающаяся на
-поля ядра) такова: игрок помечается `is_ready`, когда его текущее решение стало `Stop`. А `Stop`
-появляется автоматически, как только игрок добежал до цели (§4.1). То есть «все на местах»
-выражается через уже существующий механизм прибытия, а не через отдельную проверку расстояний.
+The core does not switch phases itself. The mechanics (implemented in the football manager, but relying on
+core fields) is as follows: a player is marked `is_ready` when their current decision has become `Stop`. And `Stop`
+appears automatically as soon as the player has reached the target (§4.1). That is, "everyone in place"
+is expressed through the already existing arrival mechanism, not through a separate distance check.
 
 ---
 
-## 4. Шаги 2–4: рождение решения
+## 4. Steps 2–4: Birth of a Decision
 
-Принятие решения разнесено на три системы: «пора ли думать» (`PlayerReactionSystem`), «что известно
-про мяч» (`BallPossessionSystem`) и «что решено» (`DecisionSystem`). Разделение осознанное:
-координация (когда) отделена от стратегии (что).
+Decision-making is split across three systems: "is it time to think" (`PlayerReactionSystem`), "what is known
+about the ball" (`BallPossessionSystem`), and "what was decided" (`DecisionSystem`). The split is deliberate:
+coordination (when) is separated from strategy (what).
 
-### 4.1 `PlayerReactionSystem` — кому пора думать
+### 4.1 `PlayerReactionSystem` — whose turn to think
 
-Единственная задача — поднять флаг `needs_decision`.
+Its only task — raise the `needs_decision` flag.
 
-- В `Play`: флаг поднимается, если с `last_decision_time` игрока прошёл его интервал реакции.
-  Интервал линейно зависит от характеристики `reaction_rate`: `0.5 с` при 100 и `3.0 с` при 10.
-  Это и есть «тупость» игрока — медленный игрок реагирует на изменившуюся обстановку с задержкой
-  до трёх секунд.
-- В `Setup`: таймер не используется. Флаг поднимается, только если у игрока вообще нет решения;
-  иначе снимается. Это грубый фильтр — окончательное слово за `DecisionSystem`.
+- In `Play`: the flag is raised if the player's reaction interval has passed since `last_decision_time`.
+  The interval depends linearly on the `reaction_rate` attribute: `0.5 s` at 100 and `3.0 s` at 10.
+  This is the player's "slowness" — a slow player reacts to changed circumstances with a delay
+  of up to three seconds.
+- In `Setup`: the timer is not used. The flag is raised only if the player has no decision at all;
+  otherwise it is cleared. This is a coarse filter — the final word is `DecisionSystem`'s.
 
-Система не снимает флаг в `Play`: снятие — ответственность потребителя (`DecisionSystem`), чтобы
-поднятый кем-то ещё флаг (например, при смене владения мячом) не потерялся.
+The system does not clear the flag in `Play`: clearing is the consumer's (`DecisionSystem`'s) responsibility, so a
+flag raised by someone else (e.g., on a ball-possession change) is not lost.
 
-### 4.2 `BallPossessionSystem` — кто владеет мячом
+### 4.2 `BallPossessionSystem` — who possesses the ball
 
-Определяет `ball_state.possessed_by` до того, как игроки начнут думать.
+Determines `ball_state.possessed_by` before the players start thinking.
 
-Основное:
-- в `Setup` система выходит немедленно;
-- действует кулдаун 1 с между сменами владения (`last_possession_change_time`) — это антидребезг,
-  иначе мяч мигал бы между двумя стоящими рядом игроками каждый тик;
-- кандидаты — игроки в радиусе 1 м от мяча; если мяч уже у кого-то, кандидатами считаются **только
-  соперники** владельца: партнёры мяч не отбирают;
-- при нескольких кандидатах победитель выбирается вероятностно: счёт = `tackle_rate × k` через
-  `RngManager`, где `k ∈ [0.5, 1.5]` при `temperature = 1.0` и сжимается к 1.0 при её снижении —
-  сильный отбирающий выигрывает почти всегда, но у слабого остаётся шанс; при `temperature = 0.0`
-  счёт пропорционален `tackle_rate`, а равные счёты разбиваются в пользу меньшего индекса;
-- **смена владения поднимает `needs_decision` всем игрокам сразу**. Это единственный механизм
-  «прерывания» таймера реакции: на смену владения реагируют все и немедленно, не дожидаясь своего
-  интервала.
+Basics:
+- in `Setup` the system exits immediately;
+- a 1 s cooldown between possession changes (`last_possession_change_time`) applies — this is debouncing,
+  otherwise the ball would flicker between two adjacent players every tick;
+- candidates are players within a 1 m radius of the ball; if the ball is already held, the candidates are **only
+  the owner's opponents**: teammates do not take the ball away;
+- with several candidates, the winner is chosen probabilistically: score = `tackle_rate × k` via
+  `RngManager`, where `k ∈ [0.5, 1.5]` at `temperature = 1.0` and compresses toward 1.0 as it decreases —
+  a strong tackler wins almost always, but a weak one keeps a chance; at `temperature = 0.0`
+  the score is proportional to `tackle_rate`, and equal scores are broken in favor of the smaller index;
+- **a possession change raises `needs_decision` for all players at once**. This is the only mechanism
+  that "interrupts" the reaction timer: everyone reacts to a possession change immediately, without waiting for
+  their interval.
 
-Отдельно живёт `last_possessing_team`: команда, владевшая мячом последней. Она **не сбрасывается**,
-когда мяч отпущен (пас, удар), — благодаря этому в скриптах различимы ситуации «мяч летит от своих»
-и «мяч ничей вообще». Сбрасывается она только игровым менеджером при переходе в `Setup`.
+Separately, `last_possessing_team`: the team that last possessed the ball. It is **not reset**
+when the ball is released (pass, kick) — thanks to this, the scripts can distinguish "the ball is flying from one of ours"
+from "the ball is neutral". It is reset only by the game manager on transition to `Setup`.
 
-### 4.3 `DecisionSystem` — что решено
+### 4.3 `DecisionSystem` — what was decided
 
-Для каждого игрока по порядку выполняется следующее.
+For each player, in order, the following happens.
 
-**Во-первых, проверка прибытия — каждый тик, безусловно.** Если текущее решение — `Run`, его цель
-разрешается в точку и сравнивается с позицией игрока по горизонтали. Если ближе 0.5 м, решение
-немедленно подменяется на `Stop` (с пометкой «не обработано», чтобы `ActionSystem` обнулила
-скорость), и обработка игрока на этом шаге заканчивается.
+**First, the arrival check — every tick, unconditionally.** If the current decision is `Run`, its target
+resolves to a point and is compared with the player's position horizontally. If closer than 0.5 m, the decision
+is immediately replaced with `Stop` (marked "not processed" so `ActionSystem` zeroes the
+velocity), and the player's processing ends for this step.
 
-Это ключевое нетривиальное решение: без него игрок пробегал бы мимо цели, ожидая следующего вызова
-скрипта — до трёх секунд при низком `reaction_rate`. Проверка выполняется независимо от фазы и
-таймера реакции. Дополнительно в `Setup` здесь же снимается `needs_decision` — так игрок, дошедший
-до своей позиции, фиксируется в состоянии `Stop`, что и означает готовность.
+This is a key non-trivial decision: without it the player would run past the target, waiting for the next script
+call — up to three seconds at low `reaction_rate`. The check runs regardless of phase and
+reaction timer. Additionally, in `Setup` `needs_decision` is cleared here — so a player who reached
+their position is pinned in the `Stop` state, which signifies readiness.
 
-Разрешение цели вынесено в общую функцию: для `Point`/`GridCell`/`Region` берётся точка или центр,
-а для `Ball` — **текущая** позиция мяча. То есть проверка прибытия за мячом всегда сверяется с тем,
-где мяч сейчас, а не где он был в момент принятия решения.
+Target resolution is extracted into a common function: for `Point`/`GridCell`/`Region` the point or center
+is taken, and for `Ball` — the ball's **current** position. That is, the arrival check for the ball always verifies where
+the ball is now, not where it was at decision time.
 
-**Во-вторых, фаза.** В `Setup` дальше ничего не происходит: `needs_decision` снимается, скрипт не
-вызывается.
+**Second, the phase.** In `Setup` nothing further happens: `needs_decision` is cleared, the script is not
+called.
 
-**В-третьих, собственно решение** — только если поднят `needs_decision`. Вызывается
-`DecisionMaker::make_decision(game, player_index)`, возвращающий пару «решение + необязательная
-причина».
+**Third, the decision proper** — only if `needs_decision` is raised. It calls
+`DecisionMaker::make_decision(game, player_index)`, returning the pair "decision + optional
+reason".
 
-`DecisionMaker` — точка расширения ядра, публичный trait; реализация внедряется через
-`DecisionSystem::with_decision_maker`. В ядре есть заглушка (`PlaceholderDecisionMaker`, бежит в
-случайную клетку) и скриптовая реализация поверх `ynwa-decisions`.
+`DecisionMaker` is a core extension point, a public trait; the implementation is injected via
+`DecisionSystem::with_decision_maker`. The core has a stub (`PlaceholderDecisionMaker`, runs to a
+random cell) and a scripted implementation on top of `ynwa-decisions`.
 
-Полученное решение приходит **в перспективе команды игрока** и конвертируется в каноническую
-ориентацию (перспективу команды A), в которой хранится всё состояние игры. Для команды A это
-no-op; для B отражаются точка, клетка и регион, а `Kick` — своя целевая точка. Цель `Ball`
-не отражается: она разрешается в мировых координатах.
+The resulting decision arrives **in the player's team perspective** and is converted to the canonical
+orientation (Team A's perspective), in which all game state is stored. For Team A this is
+a no-op; for B the point, cell, and region are mirrored, and for `Kick` — its own target point. The `Ball` target
+is not mirrored: it resolves in world coordinates.
 
-Далее выставляются: `current_decision`, `decision_reason`, `decision_processed = false`,
+Then the following are set: `current_decision`, `decision_reason`, `decision_processed = false`,
 `needs_decision = false`, `last_decision_time = timestamp`.
 
-**Обработка ошибок.** Ошибка скрипта (синтаксис, исключение, таймаут) трактуется как
-«состоявшаяся попытка»: `needs_decision` снимается, `last_decision_time` обновляется, текст ошибки
-пишется в `last_error`. Иначе падающий скрипт вызывался бы каждый тик — шторм. Реакция на ошибку
-настраивается обработчиком; по умолчанию — сообщение в stderr и отсутствие решения.
+**Error handling.** A script error (syntax, exception, timeout) is treated as
+"an attempt that happened": `needs_decision` is cleared, `last_decision_time` is updated, and the error text
+is written to `last_error`. Otherwise a crashing script would be called every tick — a storm. The reaction to an error
+is configured by the handler; by default — a message to stderr and no decision.
 
-### 4.4 Какими бывают решения
+### 4.4 What Decisions Are
 
-| Решение | Смысл |
+| Decision | Meaning |
 |---|---|
-| `Stop` | Остановиться на месте. |
-| `Run(Point)` | Бежать в точку с координатами. |
-| `Run(GridCell)` | Бежать в центр клетки сетки. |
-| `Run(Region)` | Бежать в центр прямоугольного региона. |
-| `Run(Ball)` | Бежать за мячом. |
-| `Kick(Point)` | Ударить по мячу в направлении точки. |
+| `Stop` | Stop in place. |
+| `Run(Point)` | Run to the point with coordinates. |
+| `Run(GridCell)` | Run to the center of the grid cell. |
+| `Run(Region)` | Run to the center of the rectangular region. |
+| `Run(Ball)` | Run after the ball. |
+| `Kick(Point)` | Kick the ball toward the point. |
 
-Решение живёт до тех пор, пока его не заменят: новым решением скрипта, автоматическим `Stop` по
-прибытии или сбросом со стороны менеджера игры. Флаг `decision_processed` отделяет «решение
-принято» от «решение уже превращено в действие» — благодаря ему решение исполняется ровно один раз,
-а не переинициализирует скорость каждый тик.
+A decision lives until it is replaced: by a new script decision, an automatic `Stop` on
+arrival, or a reset by the game manager. The `decision_processed` flag separates "decision
+made" from "decision already turned into an action" — thanks to it the decision executes exactly once,
+rather than re-initializing velocity every tick.
 
-Отдельно стоит `reason` — необязательная строка-объяснение, которую скрипт прикладывает к решению.
-Ядро её только хранит и отдаёт наружу (UI, логи). Это основной инструмент понимания, почему игрок
-ведёт себя так, а не иначе.
-
----
-
-## 5. Шаг 5: `ActionSystem` — решение становится действием
-
-Система проходит по игрокам и обрабатывает только решения с `decision_processed == false`, после
-чего помечает их обработанными.
-
-- **`Stop`** → скорость обнуляется.
-- **`Run(target)`** → цель разрешается в точку, строится вектор к ней, нормализуется и умножается
-  на скорость игрока: `speed_rate / 100 × 10 м/с` (максимум ≈ 36 км/ч). Если до цели меньше 0.5 м,
-  скорость нулевая — страховка от дрожания на месте.
-- **`Kick(target)`** → выполняется, **только если игрок владеет мячом**; иначе решение молча
-  игнорируется (никакого действия и никакой ошибки).
-
-Ключевая асимметрия, важная для понимания модели движения: направление задаётся **один раз**, в
-момент обработки решения, и дальше игрок бежит по прямой. Для цели `Ball` это означает, что игрок
-бежит туда, где мяч был в момент решения, и скорректирует курс только при следующем вызове скрипта.
-Это намеренная модель — угловая коррекция с задержкой, а не идеальное преследование. При этом
-проверка *прибытия* (§4.3) использует актуальную позицию мяча — то есть игрок «догоняет» цель
-рывками, но останавливается точно.
-
-Модель удара (базовые формулы — в `physics_util`, случайность — из `RngManager`):
-- сила: `shot_power / 5` м/с с разбросом ±25 %, масштабируемым температурой;
-- точность: симметричное отклонение направления от ±5° при `shot_accuracy = 100` до ±45° при 10;
-- после удара владение **снимается**, и `last_possession_change_time` сдвигается на текущий момент.
-  Второе обязательно: иначе `BallPossessionSystem` на следующем же тике вернула бы мяч бьющему,
-  ведь тот стоит вплотную. Кулдаун владения используется здесь как «мяч только что улетел, не
-  трогайте его секунду».
+Separately there is `reason` — an optional explanatory string the script attaches to the decision.
+The core only stores it and exposes it (UI, logs). It is the main tool for understanding why a player
+behaves in a certain way.
 
 ---
 
-## 6. Шаг 6: `PhysicsSystem` — действие меняет мир
+## 5. Step 5: `ActionSystem` — the decision becomes an action
 
-Физика намеренно минимальна: собственная кинематика без внешнего движка.
+The system iterates over players and processes only decisions with `decision_processed == false`, after
+which it marks them processed.
 
-- dt вычисляется как `timestamp - last_update` (система хранит своё `last_update`). Неположительный
-  dt — выход без изменений.
-- Игроки: `position += velocity × dt`. Никаких инерции, ускорения, столкновений и границ поля —
-  игрок может выбежать за пределы поля, ядро это не запрещает.
-- Мяч: если им кто-то владеет, позиция мяча приравнивается к позиции владельца, а скорость
-  обнуляется — то есть «ведение» это не физика, а привязка. Если мяч свободен, он катится с
-  постоянным замедлением 2 м/с² вдоль текущего вектора скорости, после чего применяется перемещение.
+- **`Stop`** → velocity is zeroed.
+- **`Run(target)`** → the target resolves to a point, a vector toward it is built, normalized, and multiplied
+  by the player's speed: `speed_rate / 100 × 10 m/s` (max ≈ 36 km/h). If the target is closer than 0.5 m,
+  velocity is zero — a guard against jitter in place.
+- **`Kick(target)`** → executes **only if the player possesses the ball**; otherwise the decision is silently
+  ignored (no action and no error).
 
-Существенное для понимания ядра: гравитации и отскоков нет, хотя координаты трёхмерные. Ось Y
-присутствует в модели и в решениях, но ничем не управляется — верховые передачи не реализованы.
-Выход мяча за границы поля физика не обрабатывает: это событие, и им занимается игровой слой на
-следующем шаге.
+The key asymmetry important for understanding the movement model: the direction is set **once**, at
+decision processing time, and the player then runs in a straight line. For the `Ball` target this means the player
+runs to where the ball was at decision time and corrects course only on the next script call.
+This is a deliberate model — angular correction with a delay, not perfect pursuit. At the same time
+the *arrival* check (§4.3) uses the ball's current position — that is, the player "catches up" with the target
+in bursts, but stops precisely.
 
----
-
-## 7. Что делает шаг детерминированным (и что — нет)
-
-Детерминизм обеспечивается тем, что весь шаг — чистая функция от состояния и `delta_time`:
-внутренних таймеров реального времени нет, порядок систем фиксирован, порядок обхода игроков — по
-индексу.
-
-Источники недетерминизма, все явные:
-- выбор победителя в борьбе за мяч (`BallPossessionSystem`);
-- разброс силы и точности удара (`ActionSystem`);
-- заглушка `PlaceholderDecisionMaker`.
-
-Все три идут через единый `RngManager`, внедряемый в `Game` конструктором. При `temperature = 0.0`
-случайность вырождается: `next()` возвращает `0.5`, `randomize` — базовое значение,
-`randomize_range` — `0`, поэтому шаг становится полностью воспроизводимым. Тесты используют именно
-такую конфигурацию (при нулевой температуре заглушка всегда выбирает одну и ту же клетку), игра —
-ненулевую температуру (сейчас `0.7`, задаётся в футбольном слое).
-
-Отдельно: Lua-VM игрока не сохраняет состояние между вызовами (скрипт перезагружается каждый раз),
-поэтому решение зависит только от переданного контекста — накопленной «памяти» у игрока нет.
+The kick model (base formulas — in `physics_util`, randomness — from `RngManager`):
+- power: `shot_power / 5` m/s with a ±25% spread, scaled by temperature;
+- accuracy: symmetric direction deviation from ±5° at `shot_accuracy = 100` to ±45° at 10;
+- after the kick, possession is **released**, and `last_possession_change_time` is moved to the current moment.
+  The second is mandatory: otherwise `BallPossessionSystem` on the very next tick would give the ball back to the kicker,
+  who is standing right next to it. The possession cooldown is used here as "the ball just flew away, don't
+  touch it for a second".
 
 ---
 
-## 8. Сводка одного шага
+## 6. Step 6: `PhysicsSystem` — the action changes the world
+
+Physics is deliberately minimal: custom kinematics without an external engine.
+
+- dt is computed as `timestamp - last_update` (the system keeps its own `last_update`). A non-positive
+  dt — exit with no changes.
+- Players: `position += velocity × dt`. No inertia, acceleration, collisions, or field boundaries —
+  a player can run out of the field; the core does not forbid it.
+- Ball: if someone possesses it, the ball's position is equated to the owner's position, and the velocity
+  is zeroed — that is, "dribbling" is not physics but attachment. If the ball is free, it rolls with
+  constant deceleration 2 m/s² along the current velocity vector, after which displacement is applied.
+
+Essential for understanding the core: there is no gravity or bounces, although the coordinates are three-dimensional. The Y axis
+is present in the model and in decisions, but is not managed by anything — lofted passes are not implemented.
+The ball leaving the field boundaries is not handled by physics: it is an event, handled by the game layer on
+the next step.
+
+---
+
+## 7. What Makes the Step Deterministic (and What Does Not)
+
+Determinism is ensured by the fact that the whole step is a pure function of the state and `delta_time`:
+there are no real-time internal timers, the system order is fixed, and player iteration order is by
+index.
+
+Sources of non-determinism, all explicit:
+- winner selection in the ball contest (`BallPossessionSystem`);
+- kick power and accuracy spread (`ActionSystem`);
+- the `PlaceholderDecisionMaker` stub.
+
+All three go through the single `RngManager`, injected into `Game` by the constructor. At `temperature = 0.0`
+randomness degenerates: `next()` returns `0.5`, `randomize` returns the base value,
+`randomize_range` returns `0`, so the step becomes fully reproducible. Tests use exactly
+this configuration (at zero temperature the stub always chooses the same cell), while the game —
+a non-zero temperature (currently `0.7`, set in the football layer).
+
+Separately: the player's Lua VM does not preserve state between calls (the script is reloaded every time),
+so the decision depends only on the passed context — the player has no accumulated "memory".
+
+---
+
+## 8. Summary of One Step
 
 ```
 step(dt):
   timestamp = elapsed_time + dt
 
-  [менеджер игры]      фаза? событие? → возможна смена stage,
-                       сброс решений, перестановка мяча, счётчики
+  [game manager]      phase? event? → possible stage change,
+                      decision reset, ball repositioning, counters
 
-  [реакция]            Play : прошёл интервал reaction_rate → needs_decision = true
-                       Setup: нет решения → needs_decision = true, иначе false
+  [reaction]          Play : reaction_rate interval passed → needs_decision = true
+                      Setup: no decision → needs_decision = true, otherwise false
 
-  [владение мячом]     Setup → пропуск
-                       кулдаун 1с; кандидаты в радиусе 1м (только соперники владельца);
-                       победитель по tackle_rate × rnd (RngManager); смена → needs_decision всем
+  [ball possession]   Setup → skip
+                      1s cooldown; candidates within 1m radius (owner's opponents only);
+                      winner by tackle_rate × rnd (RngManager); change → needs_decision for all
 
-  [решения]            для каждого игрока:
-                         добежал до цели (< 0.5 м)? → Stop, дальше не думаем
-                         Setup? → скрипт не вызываем
-                         needs_decision? → DecisionMaker → отражение в каноническую
-                                           ориентацию → current_decision,
-                                           decision_processed = false
+  [decisions]         for each player:
+                        reached target (< 0.5 m)? → Stop, stop thinking
+                        Setup? → do not call script
+                        needs_decision? → DecisionMaker → mirror to canonical
+                                          orientation → current_decision,
+                                          decision_processed = false
 
-  [действия]           необработанные решения → скорость игрока,
-                       либо удар по мячу (только у владельца) + снятие владения
+  [actions]           unprocessed decisions → player velocity,
+                      or a kick (owner only) + possession release
 
-  [физика]             позиции += скорость × dt; мяч у владельца прилипает,
-                       свободный мяч катится с трением
+  [physics]           positions += velocity × dt; possessed ball sticks,
+                      free ball rolls with friction
 
   elapsed_time = timestamp
 ```

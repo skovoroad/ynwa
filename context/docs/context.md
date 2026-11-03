@@ -1,169 +1,168 @@
-# YNWA — контекст проекта
+# YNWA — Project Context
 
-Документ содержит контекст разработки: что за проект, как он устроен, из чего состоит
-каждый модуль и какие контракты действуют между слоями. Здесь описаны основные концепции и
-классы; детали вынесены в сопутствующие документы. Описан только продуктовый код; тесты не
-описываются. Актуальные источники правды: сам код и эта документация.
+This document contains the development context: what the project is, how it is organized, what each
+module consists of, and which contracts hold between layers. It describes the core concepts and
+classes; details are moved to companion documents. Only production code is described; tests are not.
+The actual sources of truth: the code itself and this documentation.
 
-Сопутствующие документы в папке context/docs:
+Companion documents in the context/docs folder:
 
-- `context_game_step.md` — подробное устройство одного шага симуляции (`World::step`): порядок
-  систем, рождение решения, движение, детерминизм.
-- `context_football.md` — футбольный слой: поле и зоны, стадии матча, стандартные положения,
-  события.
-- `protocols.md` — форматы и протоколы: JSON-контракт ядра с движком решений, формат данных
-  команды на диске, что читает репозиторий, форматы файлов сценариев интеграционного
-  тестирования.
-- `scripting_developer.md` — руководство разработчика Lua-скриптов: уровни скриптов
-  (`core.lua`, `stdlib.lua`, преамбула команды, скрипт игрока), правила написания, диспетчер
-  `make_decision()`, примеры.
-- `scripting_player.md` — справочник игрока по Lua-скриптам: характеристики и позиции, функции
-  стандартной библиотеки, структура `team_play`/`player_play`, регионы и зоны поля.
-- `context_serialization.md` — запись и воспроизведение матча: журнал событий, `Record`,
-  JSON Lines-кодек, replay-мир, контракт эквивалентности.
-- `integration_testing.md` — руководство по созданию интеграционных тестов: структура сценария,
-  план прогона, ожидания, запуск.
+- `context_game_step.md` — detailed structure of one simulation step (`World::step`): system
+  order, decision generation, movement, determinism.
+- `context_football.md` — the football layer: field and zones, match stages, set pieces,
+  events.
+- `protocols.md` — formats and protocols: the JSON contract between the core and the decision engine, the on-disk
+  team data format, what the repository reads, the integration-testing scenario file formats.
+- `scripting_developer.md` — Lua scripting developer guide: script levels
+  (`core.lua`, `stdlib.lua`, team preamble, player script), authoring rules, the
+  `make_decision()` dispatcher, examples.
+- `scripting_player.md` — the player's Lua scripting reference: attributes and positions, standard-library
+  functions, the `team_play`/`player_play` structure, field regions and zones.
+- `context_serialization.md` — match recording and replay: the event journal, `Record`,
+  the JSON Lines codec, the replay world, the equivalence contract.
+- `integration_testing.md` — guide to writing integration tests: scenario structure,
+  run plan, expectations, running.
 
 ---
 
-## 1. О проекте
+## 1. About the Project
 
-Футбольный менеджер. Пользователь:
+A football manager. The user:
 
-1. задаёт характеристики футболистов и их позиции (обычные и при стандартных положениях), а также
-   пишет для них код принятия решений на Lua;
-2. запускает матч и наблюдает за игрой.
+1. specifies player attributes and their positions (regular and set-piece), and
+   writes decision-making code for them in Lua;
+2. runs the match and watches the game.
 
-Симуляция детерминирована по шагам (фиксированный timestep задаёт клиент), физика собственная,
-ИИ игроков полностью вынесен в пользовательские Lua-скрипты.
+The simulation is deterministic by steps (the client supplies a fixed timestep), physics is custom,
+and player AI is entirely delegated to user Lua scripts.
 
-### Крейты workspace
+### Workspace crates
 
-| Крейт | Роль |
+| Crate | Role |
 |---|---|
-| `ynwa-core` | Ядро симуляции: модель мира, системы, поле, регионы, ориентация, физика, исполнение решений. Не знает про футбол. |
-| `ynwa-football` | Правила футбола: построение поля, стадии игры, события (гол, аут, конец матча), фабрика готового `World`. Подробно — `context_football.md`. |
-| `ynwa-decisions` | Независимая от игры библиотека исполнения Lua-скриптов. Общается только через JSON (`protocols.md` §1). |
-| `ynwa-repository` | Файловая реализация `TeamRepository` из ядра (чтение `teams/`, см. `protocols.md` §3). |
-| `ynwa-integration-testing` | Библиотека модели сценария, загрузчика и раннера для автоматического интеграционного тестирования полной цепочки «ядро — стандартная библиотека — скрипты игрока». Подробно — `integration_testing.md`. |
-| `ynwa-script-tests` | Инфраструктура интеграционного тестирования скриптов и визуальные сценарии. |
-| `ynwa-player` | Локальный клиент (macroquad + egui). Не описывается. |
-| `ynwa-scripts` | Библиотека Lua-преамбул (данные, без Rust). Контракты описаны в разделе 7 и документах `scripting_developer.md`, `scripting_player.md`. |
-| `teams/` | Данные команд (TOML + Lua). Формат — `protocols.md` §2. |
+| `ynwa-core` | Simulation core: world model, systems, field, regions, orientation, physics, decision execution. Knows nothing about football. |
+| `ynwa-football` | Football rules: field construction, game stages, events (goal, out of play, end of match), ready-made `World` factory. Details — `context_football.md`. |
+| `ynwa-decisions` | Game-independent Lua-script execution library. Communicates only via JSON (`protocols.md` §1). |
+| `ynwa-repository` | File-based implementation of the core `TeamRepository` (reads `teams/`, see `protocols.md` §3). |
+| `ynwa-integration-testing` | Scenario-model, loader, and runner library for automatic integration testing of the full "core — standard library — player scripts" chain. Details — `integration_testing.md`. |
+| `ynwa-script-tests` | Script integration-testing infrastructure and visual scenarios. |
+| `ynwa-player` | Local client (macroquad + egui). Not described. |
+| `ynwa-scripts` | Library of Lua preambles (data, no Rust). Contracts are described in section 7 and in `scripting_developer.md`, `scripting_player.md`. |
+| `teams/` | Team data (TOML + Lua). Format — `protocols.md` §2. |
 
-Граф зависимостей (без циклов):
+Dependency graph (acyclic):
 
 ```
 ynwa-player ──> ynwa-football ──> ynwa-core ──> ynwa-decisions
       │                                ▲
-      └────────> ynwa-repository ──────┘  (реализует trait TeamRepository)
+      └────────> ynwa-repository ──────┘  (implements the TeamRepository trait)
 
 ynwa-integration-testing ──> ynwa-football ──> ynwa-core
             └──────────────> ynwa-repository
 ```
 
-Ключевое архитектурное решение: `ynwa-core` не зависит ни от футбола, ни от способа хранения
-данных, ни от клиента. Всё специфичное для вида спорта живёт в `ynwa-football`, всё специфичное
-для хранения — в `ynwa-repository`.
+Key architectural decision: `ynwa-core` depends neither on football, nor on the storage mechanism,
+nor on the client. Everything sport-specific lives in `ynwa-football`, everything storage-specific
+in `ynwa-repository`.
 
 ---
 
-## 2. Система координат и общие соглашения
+## 2. Coordinate System and General Conventions
 
-Все слои проекта разделяют одну систему координат и одно ключевое соглашение об «ориентации» —
-из чьей перспективы записаны координаты. Понимание этого раздела необходимо для чтения любого
-кода проекта.
+All project layers share one coordinate system and one key convention about "orientation" —
+from whose perspective coordinates are written. Understanding this section is required for reading any
+project code.
 
-- Правая система координат, Y вверх:
-  - **X** — ширина поля,
-  - **Y** — высота над газоном (физика 3D, отрисовка 2D сверху),
-  - **Z** — длина поля; ворота команды A при Z ≈ 0, ворота команды B при Z ≈ length.
-- «Display orientation» (каноническая) = перспектива команды A. Всё внутреннее состояние игры
-  хранится только в ней.
-- Перспектива команды B получается отражением: `x' = width - x`, `z' = length - z`, `y' = y`.
-  Отражение применяется **только на границах системы принятия решений**:
-  вход (context/GAME_DATA/регионы) отражается, выход (решение) отражается обратно.
-  Благодаря этому скрипты обеих команд пишутся одинаково.
-- Физические величины — `uom` (`Length`, `Velocity`, `Angle`), а не голые `f32`.
-- Сетка поля: колонки — по X, ряды — по Z, нумерация 1-based, колонки в Excel-нотации
-  (A=1 … Z=26, AA=27). Клетка — `"M22"`, регион — `"A1:B2"`.
+- Right-handed coordinate system, Y up:
+  - **X** — field width,
+  - **Y** — height above the pitch (3D physics, 2D top-down rendering),
+  - **Z** — field length; Team A's goal at Z ≈ 0, Team B's goal at Z ≈ length.
+- "Display orientation" (canonical) = Team A's perspective. All internal game state
+  is stored only in it.
+- Team B's perspective is obtained by mirroring: `x' = width - x`, `z' = length - z`, `y' = y`.
+  Mirroring is applied **only at the decision-system boundaries**:
+  the input (context/GAME_DATA/regions) is mirrored, the output (decision) is mirrored back.
+  This allows both teams' scripts to be written identically.
+- Physical quantities are `uom` (`Length`, `Velocity`, `Angle`), not bare `f32`.
+- Field grid: columns along X, rows along Z, 1-based numbering, columns in Excel notation
+  (A=1 … Z=26, AA=27). A cell is `"M22"`, a region is `"A1:B2"`.
 
 ---
 
 ## 3. `ynwa-core`
 
-### Ответственность
+### Responsibility
 
-Симуляция матча вне зависимости от вида спорта: модель сущностей, набор систем, поле и зоны,
-адресация регионов, преобразования ориентации, физика и мост к Lua-решениям. Ядро предоставляет
-клиенту единственную точку продвижения времени — `World::step(delta_time)`; что происходит внутри
-одного шага, подробно описано в `context_game_step.md`.
+Match simulation independent of the sport: the entity model, the set of systems, field and zones,
+region addressing, orientation transforms, physics, and the bridge to Lua decisions. The core provides
+the client with a single point for advancing time — `World::step(delta_time)`; what happens inside
+one step is described in detail in `context_game_step.md`.
 
-### Принятые решения
+### Decisions Made
 
-- **Гибридный ECS-подобный подход**: `config.players[i]` (неизменяемое) ↔ `state.player_states[i]`
-  (изменяемое) — параллельные массивы, доступ O(1). Внешних ECS-библиотек нет.
-- **Config / State разделены** явно: `GameConfig` не меняется во время матча.
-- **Единый источник случайности**: вся случайность идёт через `RngManager`, внедрённый в `Game`;
-  системы не хранят собственных RNG (см. «`rng.rs`» ниже).
-- **Player/Ball/Referee — отдельные типы, не trait**: их обрабатывают разные системы, общий trait
-  не дал бы выигрыша.
-- **Poll-модель**: игровой цикл принадлежит клиенту, ядро предоставляет `World::step(delta_time)`.
-- Системы получают `&mut Game` (а не `&mut World`) — иначе borrow checker не даст итерировать
-  список систем; и получают **абсолютный timestamp**, а не delta — чтобы каждая система сама
-  считала свои интервалы.
+- **Hybrid ECS-like approach**: `config.players[i]` (immutable) ↔ `state.player_states[i]`
+  (mutable) — parallel arrays, O(1) access. No external ECS libraries.
+- **Config / State are separated** explicitly: `GameConfig` does not change during a match.
+- **Single source of randomness**: all randomness goes through `RngManager`, injected into `Game`;
+  systems do not keep their own RNG (see "`rng.rs`" below).
+- **Player/Ball/Referee are separate types, not a trait**: different systems process them; a common trait
+  would not pay off.
+- **Poll model**: the game loop belongs to the client; the core provides `World::step(delta_time)`.
+- Systems receive `&mut Game` (not `&mut World`) — otherwise the borrow checker would not allow iterating
+  the system list; and they receive an **absolute timestamp** rather than a delta — so each system
+  computes its own intervals.
 
-### Основные типы
+### Main Types
 
-Ниже — карта модулей ядра: что где лежит и какие решения зашиты в каждый тип. Детали поведения
-систем во время шага — в `context_game_step.md`.
+Below is a map of the core modules: what lives where and what decisions are baked into each type. System behavior
+details during a step — in `context_game_step.md`.
 
 #### `world.rs` — `World`
 
-Корневой объект симуляции. Владеет `Game` и упорядоченным списком `Box<dyn System>`.
-`step(delta_time)` вычисляет новый timestamp, прогоняет все системы **в порядке добавления**,
-затем фиксирует `elapsed_time`. Порядок систем — часть контракта (см. 3.1).
+Root simulation object. Owns `Game` and an ordered list of `Box<dyn System>`.
+`step(delta_time)` computes the new timestamp, runs all systems **in insertion order**,
+then commits `elapsed_time`. System order is part of the contract (see 3.1).
 
 #### `system.rs` — `System`
 
-Интерфейс всех систем: единственный метод `update(&mut self, game: &mut Game, timestamp: f32)`.
+The interface of all systems: the single method `update(&mut self, game: &mut Game, timestamp: f32)`.
 
-#### `game.rs` — модель игры
+#### `game.rs` — game model
 
-Центральный модуль модели: конфигурация, состояние и типы решений.
+The central model module: configuration, state, and decision types.
 
-- `Game` — контейнер `GameConfig` (приватный, доступ через `config()`) + публичный `state` +
-  принадлежащий ему менеджер случайности (`Box<dyn RngManager>`, доступ через `rng_manager()`).
-  `Game::new` стартует со стадии по умолчанию `Setup("kick off")`; `Game::with_stage` задаёт
-  стадию явно; оба конструктора принимают менеджер случайности параметром. При старте в `Setup`
-  игроки ставятся **за пределами поля** в точку
-  `(-5, 0, length/2)`; при старте в `Play`/`GameOver` — в центр своего региона
-  `REGION_START_POSITION`.
+- `Game` — a container of `GameConfig` (private, accessed via `config()`) + public `state` +
+  an owned randomness manager (`Box<dyn RngManager>`, accessed via `rng_manager()`).
+  `Game::new` starts with the default stage `Setup("kick off")`; `Game::with_stage` sets
+  the stage explicitly; both constructors take a randomness manager as a parameter. When starting in `Setup`,
+  players are placed **outside the field** at
+  `(-5, 0, length/2)`; when starting in `Play`/`GameOver` — at the center of their
+  `REGION_START_POSITION` region.
 - `GameConfig { field, players: Vec<PlayerDef>, ball: BallDef, referees, scripting }`.
 - `GameState { elapsed_time, stage, player_states, ball_state, referee_states, team_stats,
   player_stats, restart_position, restart_team }`.
-- `PlayerDef` — статические характеристики игрока (`reaction_rate`, `speed_rate`, `tackle_rate`,
-  `shot_power`, `shot_accuracy`, все 10–100), его Lua-скрипт, карта именованных регионов
-  `HashMap<String, Region>` и `set_piece_roles: HashSet<String>`. Ядро интерпретирует из регионов
-  **только** ключ `REGION_START_POSITION = "start"` — это и есть контракт между ядром и
-  спорт-специфичным слоем; `set_piece_roles` ядро не интерпретирует вовсе. Билдер-методы
-  `with_*` задают характеристики.
-- `PlayerState` — позиция, скорость, `current_decision`, `decision_reason`, флаги
+- `PlayerDef` — static player attributes (`reaction_rate`, `speed_rate`, `tackle_rate`,
+  `shot_power`, `shot_accuracy`, all 10–100), their Lua script, a named-region map
+  `HashMap<String, Region>`, and `set_piece_roles: HashSet<String>`. The core interprets from regions
+  **only** the key `REGION_START_POSITION = "start"` — that is the contract between the core and
+  the sport-specific layer; `set_piece_roles` is not interpreted by the core at all. Builder methods
+  `with_*` set the attributes.
+- `PlayerState` — position, velocity, `current_decision`, `decision_reason`, flags
   `needs_decision` / `decision_processed` / `is_ready`, `last_error`, `last_decision_time`.
-- `BallState` — позиция, скорость, `possessed_by: Option<usize>`,
-  `last_possessing_team: Option<Team>` (сохраняется во время передач),
-  `last_possession_change_time` (для антидребезга).
+- `BallState` — position, velocity, `possessed_by: Option<usize>`,
+  `last_possessing_team: Option<Team>` (preserved during passes),
+  `last_possession_change_time` (for debouncing).
 - `Decision` — `Run(DecisionTarget)` | `Stop` | `Kick(Point3D)`.
   `DecisionTarget` — `Point` | `GridCell` | `Region` | `Ball`.
-  Вариант `Ball` разрешается в актуальную позицию мяча: направление задаётся один раз в момент
-  обработки решения (`ActionSystem`), а проверка «добежал» выполняется каждый тик по текущей
-  позиции мяча.
-- `GameStage` — `Play` | `Setup(String)` | `GameOver`. Строка в `Setup` — причина/тип
-  стандартного положения (`"kick off"`, `"throw in"`, `"corner"`, `"goal kick"`). Само ядро смысла
-  этих строк не знает.
-- `ScriptingConfig` — тексты преамбул: core, stdlib, преамбулы команд A и B.
-- `StatSet` — именованные `f64`-счётчики (`get`/`set`/`increment`). Ключи задаёт игровой слой
-  (например, `"score"` пишет `FootballGameManager`). В Lua статистика **не** передаётся.
+  The `Ball` variant resolves to the ball's current position: the direction is set once at decision
+  processing time (`ActionSystem`), while the "reached" check runs every tick against the ball's current
+  position.
+- `GameStage` — `Play` | `Setup(String)` | `GameOver`. The string in `Setup` is the set-piece
+  reason/type (`"kick off"`, `"throw in"`, `"corner"`, `"goal kick"`). The core itself does not know
+  the meaning of these strings.
+- `ScriptingConfig` — preamble texts: core, stdlib, Team A and B preambles.
+- `StatSet` — named `f64` counters (`get`/`set`/`increment`). The game layer defines the keys
+  (e.g., `"score"` is written by `FootballGameManager`). Stats are **not** passed to Lua.
 
 #### `team.rs`
 
@@ -171,286 +170,288 @@ ynwa-integration-testing ──> ynwa-football ──> ynwa-core
 
 #### `field/` — `Field`, `FieldBuilder`, `Zone`, `ZoneGeometry`
 
-Геометрия поля: размеры, сетка и именованные зоны. `Field` хранит ширину, длину, `GridDimensions`
-и зоны в `HashMap<(name, Option<Team>), Zone>` — O(1) поиск по паре имя+команда
-(`get_zone("goal", Some(Team::A))`). Имя и команда продублированы внутри `Zone`, чтобы зона была
-самодостаточной при передаче в рендер/логику. `ZoneGeometry` — `Rectangle` | `Circle` | `Arc` |
-`Point`; примитивы валидируют вход в конструкторе через `assert!`. `cell_size()` считает размер
-клетки как `width / columns` (клетки предполагаются квадратными).
+Field geometry: dimensions, grid, and named zones. `Field` stores width, length, `GridDimensions`,
+and zones in `HashMap<(name, Option<Team>), Zone>` — O(1) lookup by name+team pair
+(`get_zone("goal", Some(Team::A))`). The name and team are duplicated inside `Zone` so a zone is
+self-contained when passed to render/logic. `ZoneGeometry` — `Rectangle` | `Circle` | `Arc` |
+`Point`; primitives validate input in the constructor via `assert!`. `cell_size()` computes the cell
+size as `width / columns` (cells are assumed square).
 
 #### `region.rs` — `GridDimensions`, `GridCell`, `Region`, `RegionError`
 
-Адресация прямоугольных участков поля в шахматной нотации.
+Addressing of rectangular field areas in chess-like notation.
 
 - `GridCell::from_notation("AA10")`, `GridCell::column_to_label(col)`.
-- `Region::from_grid_notation("A1:B2", dims)`, `to_grid_notation()` (одноклеточный регион
-  печатается как `"M3"`).
-- `Region::center(dims, field_width)` и `contains_point(...)` считают метрику из **квадратных**
-  клеток размера `field_width / columns` (по обеим осям).
-- Два способа создания — осознанное решение: `GridDimensions::create_region(...)` валидирует
-  границы (для пользовательских данных), `Region::new(...)` не валидирует (для внутренне
-  сгенерированных значений — результатов отражения, одноклеточных регионов).
+- `Region::from_grid_notation("A1:B2", dims)`, `to_grid_notation()` (a single-cell region
+  prints as `"M3"`).
+- `Region::center(dims, field_width)` and `contains_point(...)` compute the metric from **square**
+  cells of size `field_width / columns` (along both axes).
+- Two creation paths — a deliberate decision: `GridDimensions::create_region(...)` validates
+  bounds (for user data), `Region::new(...)` does not validate (for internally generated values —
+  mirroring results, single-cell regions).
 
 #### `orientation.rs`
 
-Отражение координат между перспективами команд (см. раздел 2): `flip_point_orientation`,
-`flip_grid_cell_orientation`, `flip_region_orientation`. При отражении региона углы меняются
-местами, чтобы сохранить инвариант `top_left <= bottom_right`.
+Coordinate mirroring between team perspectives (see section 2): `flip_point_orientation`,
+`flip_grid_cell_orientation`, `flip_region_orientation`. When mirroring a region, the corners are
+swapped to preserve the invariant `top_left <= bottom_right`.
 
 #### `rng.rs` — `RngConfig`, `RngManager`, `DefaultRngManager`
 
-Единственный источник случайности в ядре — системы своих RNG не хранят.
+The single source of randomness in the core — systems do not keep their own RNG.
 
-- `RngManager` — trait с тремя методами: `next()` (сырое значение `[0, 1]`),
-  `randomize(base, variation_pct)` (базовое значение с относительным разбросом: `0.25` — это ±25 %)
-  и `randomize_range(max)` (симметричное отклонение `[-max, +max]`). Клиент не знает формул
-  рандомизации — он передаёт базовое значение и диапазон. Методы принимают `&self`: реализация
-  обеспечивает внутреннюю мутабельность, поэтому вызов идёт через `game.rng_manager()`.
-- **`temperature`** (0.0–1.0) — «температура» недетерминированности: `0.0` даёт полностью
-  воспроизводимый результат (`next()` всегда `0.5`), `1.0` — полный разброс, промежуточные значения
-  масштабируют его линейно.
-- `RngConfig { temperature, seed }` — неизменяемая конфигурация, создаётся через `RngConfig::new`
-  (валидирует температуру). `seed = Some(…)` — воспроизводимая последовательность (тесты),
-  `None` — энтропийный сид (игра).
-- `DefaultRngManager` (`StdRng`) — рабочая реализация. Для воспроизведения отдельный
-  RNG-менеджер не нужен: в журнал пишутся исходы случайных веток (см. «Запись и воспроизведение»).
+- `RngManager` — a trait with three methods: `next()` (raw value `[0, 1]`),
+  `randomize(base, variation_pct)` (base value with relative spread: `0.25` means ±25%)
+  and `randomize_range(max)` (symmetric deviation `[-max, +max]`). The client does not know the
+  randomization formulas — it passes a base value and a range. Methods take `&self`: the implementation
+  provides interior mutability, so calls go through `game.rng_manager()`.
+- **`temperature`** (0.0–1.0) — the "temperature" of non-determinism: `0.0` gives a fully
+  reproducible result (`next()` always returns `0.5`), `1.0` full spread, and intermediate values
+  scale it linearly.
+- `RngConfig { temperature, seed }` — immutable configuration, created via `RngConfig::new`
+  (validates temperature). `seed = Some(…)` — reproducible sequence (tests),
+  `None` — entropy-based seed (game).
+- `DefaultRngManager` (`StdRng`) — the production implementation. For replay a separate
+  RNG manager is not needed: the outcomes of random branches are written to the journal (see
+  "Recording and Replay").
 
 #### `physics_util.rs`
 
-Формулы движения и удара, используемые системами (разброс и отклонение считает `RngManager`):
+Movement and kick formulas used by systems (spread and deviation are computed by `RngManager`):
 
-- скорость игрока: `speed_rate / 100 * 10 м/с` (максимум ≈ 36 км/ч);
-- `kick_speed(shot_power)` = `shot_power / 5` м/с — базовая скорость удара;
-- `max_kick_deviation(shot_accuracy)` — максимальное отклонение направления: ±5° при точности 100,
-  ±45° при точности 10;
-- `rotate_kick_direction(target, ball, deviation)` — поворот нормализованного направления на угол;
-- `distance`, `distance_2d` (без Y), `distance_length`.
+- player speed: `speed_rate / 100 * 10 m/s` (max ≈ 36 km/h);
+- `kick_speed(shot_power)` = `shot_power / 5` m/s — base kick speed;
+- `max_kick_deviation(shot_accuracy)` — maximum direction deviation: ±5° at accuracy 100,
+  ±45° at accuracy 10;
+- `rotate_kick_direction(target, ball, deviation)` — rotation of the normalized direction by an angle;
+- `distance`, `distance_2d` (without Y), `distance_length`.
 
-#### `repository.rs` — `TeamRepository` и DTO
+#### `repository.rs` — `TeamRepository` and DTOs
 
-Абстракция хранилища команд — ядро определяет интерфейс, реализацию инжектит клиент:
+Team storage abstraction — the core defines the interface, the client injects the implementation:
 `trait TeamRepository { fn load_team(&self, team_id: &str) -> Result<TeamRecord, String> }`.
-DTO: `TeamRecord { players, preamble }`, `PlayerRecord { static_data, tactical, script:
-Option<String> }`, `PlayerStatic` (имя и 5 характеристик), `PlayerTactical { number,
-play_positions, set_piece_positions }`. Ключи в обеих картах позиций — строки, их смысл задаёт
-спорт-слой; ядро их не трактует.
+DTOs: `TeamRecord { players, preamble }`, `PlayerRecord { static_data, tactical, script:
+Option<String> }`, `PlayerStatic` (name and 5 attributes), `PlayerTactical { number,
+play_positions, set_piece_positions }`. Keys in both position maps are strings; the sport layer
+assigns their meaning; the core does not interpret them.
 
-#### Запись и воспроизведение — `journal.rs`, `record.rs`, `codec.rs`, `record_io.rs`, `replay.rs`
+#### Recording and Replay — `journal.rs`, `record.rs`, `codec.rs`, `record_io.rs`, `replay.rs`
 
-Сыгранный матч можно записать и потом воспроизвести. Зачем это нужно: чтобы пересмотреть игру,
-отлаживаться на конкретном прогоне и писать интеграционные тесты, которые проверяют, какие события
-произошли за матч. Подробно — `context_serialization.md`.
+A played match can be recorded and later replayed. Why: to review the game,
+to debug a specific run, and to write integration tests that verify which events
+occurred during a match. Details — `context_serialization.md`.
 
-**Что записывается.** Кадры не сохраняются. В запись попадают один раз конфигурация матча (поле,
-игроки, скрипты), полное начальное состояние игры (`GameState`), шаг времени (`fixed_dt`) и **журнал** — последовательность значимых событий
-с отметками времени: какие решения приняли игроки, кто завладел мячом, с какой скоростью
-на самом деле улетел мяч после удара, смены стадий, голы и прочие футбольные события. Всё вместе
-образует `Record`.
+**What is recorded.** Frames are not saved. The record contains, once, the match configuration (field,
+players, scripts), the full initial game state (`GameState`), the time step (`fixed_dt`), and the **journal** — a sequence of significant events
+with timestamps: which decisions players made, who took possession, at what speed
+the ball actually flew after a kick, stage changes, goals and other football events. Together these
+form a `Record`.
 
-**Как воспроизводится.** Lua-скрипты и системы, принимающие решения, в воспроизведении
-не запускаются: решения берутся из журнала в нужный момент, а заново считается только физика —
-бег игроков и полёт мяча. Случайность тоже не перевычисляется: в журнал записан уже
-её результат (кто выиграл борьбу за мяч, куда реально ушёл удар). Поэтому воспроизведение
-повторяет оригинал, а запись остаётся маленькой. За подачу событий отвечает система `ReplayDriver`.
+**How it is replayed.** Lua scripts and decision-making systems are not run during replay:
+decisions are taken from the journal at the right moment, and only physics is recomputed —
+player running and ball flight. Randomness is also not recomputed: its result is already recorded
+in the journal (who won the ball contest, where the kick actually went). Therefore replay
+reproduces the original while the record stays small. The `ReplayDriver` system is responsible for
+feeding events.
 
-**Как устроена запись в коде.** У `Game` есть подключаемый приёмник журнала (`JournalSink`).
-Системы сообщают о событиях вызовом `game.record(...)` и не знают, куда эти события уйдут.
-Приёмник по умолчанию ничего не делает, так что обычная игра не платит за запись. Для записи
-подключают приёмник, который складывает события в память (`CollectJournalRecorder`, удобно
-в тестах) или сразу пишет их в файл (`FileJournalRecorder`, формат JSON Lines — одна строка
-на событие; даже оборванный файл остаётся читаемым).
+**How recording is structured in code.** `Game` has a pluggable journal sink (`JournalSink`).
+Systems report events by calling `game.record(...)` and do not know where the events go.
+The default sink does nothing, so a normal game pays nothing for recording. For recording,
+a sink is attached that accumulates events in memory (`CollectJournalRecorder`, convenient
+in tests) or writes them straight to a file (`FileJournalRecorder`, JSON Lines format — one line
+per event; even a truncated file remains readable).
 
-**Сериализация.** Типы конфигурации ядра поддерживают serde, и их вывод детерминирован:
-неупорядоченные коллекции пишутся отсортированными. Полное состояние игры (`GameState`) тоже
-сериализуется и кладётся в заголовок записи как снапшот начального состояния
-(`RecordHeader.initial_state`); replay-мир применяет его при построении, чтобы стартовать из того
-же состояния, что и записанный прогон.
+**Serialization.** Core configuration types support serde, and their output is deterministic:
+unordered collections are written sorted. The full game state (`GameState`) is also
+serialized and placed in the record header as the initial-state snapshot
+(`RecordHeader.initial_state`); the replay world applies it during construction to start from the
+same state as the recorded run.
 
-### 3.1 Системы (`systems/`)
+### 3.1 Systems (`systems/`)
 
-Конвейер шага состоит из шести систем; их порядок существенен и подробно описан (вместе с
-поведением каждой системы, флагами и обработкой ошибок) в `context_game_step.md`. Здесь — только
-перечень и точки расширения:
+The step pipeline consists of six systems; their order matters and is described in detail (along with
+each system's behavior, flags, and error handling) in `context_game_step.md`. Here — only
+the list and extension points:
 
-1. **Менеджер игры** (спорт-специфичный, для футбола — `FootballGameManager`) — стадии и события.
-2. **`PlayerReactionSystem`** — определяет, кому пора принимать решение (таймер реакции).
-3. **`BallPossessionSystem`** — владение мячом (борьба, кулдаун, антидребезг); разброс борьбы
-   берётся из `game.rng_manager()`.
-4. **`DecisionSystem`** — координация принятия решений; стратегия внедряется через
+1. **Game manager** (sport-specific; for football — `FootballGameManager`) — stages and events.
+2. **`PlayerReactionSystem`** — determines whose turn it is to decide (reaction timer).
+3. **`BallPossessionSystem`** — ball possession (contest, cooldown, debouncing); contest spread
+   comes from `game.rng_manager()`.
+4. **`DecisionSystem`** — decision-making coordination; strategy is injected via
    `trait DecisionMaker { make_decision(&mut self, game, player_index) ->
-   Result<(Decision, Option<String>), DecisionError> }`. Реализации: `PlaceholderDecisionMaker`
-   (заглушка — случайная клетка) и `ScriptedDecisionMaker` (Lua).
+   Result<(Decision, Option<String>), DecisionError> }`. Implementations: `PlaceholderDecisionMaker`
+   (stub — random cell) and `ScriptedDecisionMaker` (Lua).
    `DecisionError` — `ScriptError` | `Timeout` | `RuntimeError`.
-5. **`ActionSystem`** — превращает решение в скорость/удар.
-6. **`PhysicsSystem`** — интегрирует скорость в позицию.
+5. **`ActionSystem`** — turns a decision into velocity/kick.
+6. **`PhysicsSystem`** — integrates velocity into position.
 
 #### `ScriptedDecisionMaker` (`systems/decision/scripted_decision_maker.rs`)
 
-Адаптер между доменными типами ядра и JSON-API `ynwa-decisions` (сам протокол — `protocols.md`
-§1). Ответственность:
+An adapter between the core's domain types and the `ynwa-decisions` JSON API (the protocol itself —
+`protocols.md` §1). Responsibilities:
 
-- `build_config()` — собирает JSON конфигурации движка: преамбулы команд и, для каждого игрока,
-  его скрипт, команду и `static_data` (зоны поля и размеры поля/сетки), **уже отражённые** под
-  перспективу его команды;
-- `build_context()` — собирает JSON состояния на текущий тик (позиции, мяч, регионы игрока),
-  тоже с отражением для команды B;
-- делегирует парсинг в `decision_parser`, который **не** делает отражений (это делается на границе
-  системы, в `DecisionSystem`).
+- `build_config()` — builds the engine's JSON configuration: team preambles and, for each player,
+  their script, team, and `static_data` (field zones and field/grid dimensions), **already mirrored**
+  to their team's perspective;
+- `build_context()` — builds the JSON state for the current tick (positions, ball, player regions),
+  also mirrored for Team B;
+- delegates parsing to `decision_parser`, which does **not** mirror (that is done at the system
+  boundary, in `DecisionSystem`).
 
-Нетривиально:
+Non-trivial:
 
-- зоны-`Arc` при отражении получают пересчитанные углы (`180° − end`, `180° − start`);
-- вызов `make_decision` в стадии `Setup` — это ошибка вызывающего кода, и метод намеренно падает
-  с явным сообщением, а не тихо возвращает заглушку; в `GameOver` возвращается `Stop`.
+- `Arc` zones get recomputed angles when mirrored (`180° − end`, `180° − start`);
+- calling `make_decision` during `Setup` is a caller bug, and the method deliberately panics
+  with an explicit message rather than silently returning a stub; in `GameOver` it returns `Stop`.
 
 #### `decision_parser.rs`
 
-Преобразует JSON-решение в доменный `Decision` + `Option<reason>`. Границы сетки здесь не
-проверяются (регион строится через `Region::new`) — валидность координат проявится позже.
+Converts a JSON decision into a domain `Decision` + `Option<reason>`. Grid bounds are not checked
+here (the region is built via `Region::new`) — coordinate validity surfaces later.
 
 #### `systems/decision/util.rs`
 
-`resolve_target_point(decision, field_width, grid_dims, ball_state)` — единая точка разрешения
-цели `Run` в `Point3D`; для `Ball` возвращает **текущую** позицию мяча (используется проверкой
-прибытия).
+`resolve_target_point(decision, field_width, grid_dims, ball_state)` — the single point where a `Run`
+target resolves into a `Point3D`; for `Ball` it returns the ball's **current** position (used by the
+arrival check).
 
 ---
 
 ## 4. `ynwa-decisions`
 
-### Ответственность
+### Responsibility
 
-Игро-независимое исполнение Lua-скриптов принятия решений. Никаких доменных типов (нет `Point3D`,
-`Region`, `Team`) — только `serde_json::Value` как lingua franca. Крейт можно опубликовать и
-переиспользовать в другой игре. JSON-протокол (конфигурация, контекст, формат решения) описан в
+Game-independent execution of Lua decision-making scripts. No domain types (no `Point3D`,
+`Region`, `Team`) — only `serde_json::Value` as the lingua franca. The crate can be published and
+reused in another game. The JSON protocol (configuration, context, decision format) is described in
 `protocols.md` §1.
 
-### Принятые решения
+### Decisions Made
 
-- **JSON-контракт** вместо типизированного API: игровой движок и движок решений версионируются
-  независимо.
-- **Одна изолированная Lua VM на игрока**: скрипты не могут общаться через глобальные переменные.
-- **Состояние между вызовами не сохраняется**: скрипт игрока перезагружается (`load().exec()`) на
-  каждом вызове; сохраняются только преамбулы и глобали, выставленные при создании VM.
-- **Песочница**: обнуляются `io`, `os`, `package`, `require`, `load`, `loadfile`, `dofile`,
-  `debug`, `collectgarbage`, `_G`. Доступны `math`, `string`, `table` и базовые функции.
-- **Таймаут** — опциональный hook раз в 10 000 инструкций (≈2× накладных расходов);
-  `DecisionEngine` включает его жёстко на 100 мс.
+- **JSON contract** instead of a typed API: the game engine and the decision engine are versioned
+  independently.
+- **One isolated Lua VM per player**: scripts cannot communicate through global variables.
+- **State between calls is not preserved**: the player script is reloaded (`load().exec()`) on
+  every call; only the preambles and globals set at VM creation are preserved.
+- **Sandbox**: `io`, `os`, `package`, `require`, `load`, `loadfile`, `dofile`,
+  `debug`, `collectgarbage`, `_G` are cleared. `math`, `string`, `table`, and base functions remain.
+- **Timeout** — an optional hook every 10,000 instructions (≈2× overhead);
+  `DecisionEngine` enables it strictly at 100 ms.
 
-### Типы
+### Types
 
-- **`DecisionEngine`** — фасад. Конструктор принимает JSON-конфиг и тексты core/stdlib преамбул,
-  создаёт по `LuaExecutor` на игрока со склеенной преамбулой `core + stdlib + team` и записывает
-  `GAME_DATA` из `static_data` игрока. `make_decision(player_index, context)` вызывает Lua-функцию
-  `make_decision`, валидирует результат через `LuaDecision` и возвращает сырой JSON.
-- **`LuaExecutor`** — низкоуровневая обёртка над `mlua`: песочница, преамбула, таймаут,
-  `set_global`, `execute(script, fn, context)` и `execute_with_args(...)` (первый делегирует во
-  второй с пустым списком аргументов). Контекст кладётся в глобальную переменную `context`.
-- **`LuaDecision`** (`lua_format.rs`) — serde-схема допустимых решений (`Stop` / `Run` / `Kick`),
-  используется только для валидации формата, без перевода в доменные типы.
-- Ошибки: `ScriptError` (`SyntaxError`, `RuntimeError`, `SerializationError`,
-  `DeserializationError`, `FunctionNotFound`, `Timeout`) и `DecisionEngineError`
+- **`DecisionEngine`** — the facade. The constructor takes the JSON config and the core/stdlib preamble
+  texts, creates a `LuaExecutor` per player with the concatenated preamble `core + stdlib + team`, and writes
+  `GAME_DATA` from the player's `static_data`. `make_decision(player_index, context)` calls the Lua
+  function `make_decision`, validates the result via `LuaDecision`, and returns raw JSON.
+- **`LuaExecutor`** — a low-level wrapper over `mlua`: sandbox, preamble, timeout,
+  `set_global`, `execute(script, fn, context)`, and `execute_with_args(...)` (the first delegates to
+  the second with an empty argument list). The context is placed in the global variable `context`.
+- **`LuaDecision`** (`lua_format.rs`) — the serde schema of allowed decisions (`Stop` / `Run` / `Kick`),
+  used only for format validation, without translation into domain types.
+- Errors: `ScriptError` (`SyntaxError`, `RuntimeError`, `SerializationError`,
+  `DeserializationError`, `FunctionNotFound`, `Timeout`) and `DecisionEngineError`
   (`ScriptError`, `RuntimeError`, `Timeout`, `InvalidPlayerIndex`, `InvalidConfig`).
 
 ---
 
 ## 5. `ynwa-football`
 
-Правила футбола поверх ядра: геометрия поля с 19 зонами, стадии матча и стандартные положения
-(16 обязательных ключей расстановки, маркер `"on_ball"` для исполнителя), детекция событий
-(гол, ауты, конец матча) и фабрика готового `World` —
-`create_football_world(repo, preambles_path)`. Для воспроизведения записи —
-`create_football_replay_world(record)` (сокращённый набор систем: `ReplaySetupBallPlacer` →
-`ReplayDriver` → `PhysicsSystem`) и `decode_football_events` для извлечения событий из журнала
-(см. `context_serialization.md`). Крейт зависит от trait `TeamRepository`, а не от
-конкретного хранилища, и является единственным местом, знающим смысл стадий `Setup`.
+Football rules on top of the core: field geometry with 19 zones, match stages and set pieces
+(16 mandatory setup keys, the `"on_ball"` marker for the taker), event detection
+(goal, out of play, end of match), and a ready-made `World` factory —
+`create_football_world(repo, preambles_path)`. For replaying a record —
+`create_football_replay_world(record)` (a reduced system set: `ReplaySetupBallPlacer` →
+`ReplayDriver` → `PhysicsSystem`) and `decode_football_events` for extracting events from the journal
+(see `context_serialization.md`). The crate depends on the `TeamRepository` trait, not on a
+concrete store, and is the only place that knows the meaning of `Setup` stages.
 
-Подробное описание — в `context_football.md`.
+Detailed description — in `context_football.md`.
 
 ---
 
 ## 6. `ynwa-repository`
 
-Файловая реализация `TeamRepository`: чтение команды из каталога `teams/<team_id>/`
-(`FsTeamRepository::new(base_path)`). Что именно лежит в каталоге и как оно превращается в DTO
-ядра — `protocols.md` §2–3.
+File-based `TeamRepository` implementation: reads a team from the `teams/<team_id>/` directory
+(`FsTeamRepository::new(base_path)`). What exactly lives in the directory and how it becomes the core's
+DTOs — `protocols.md` §2–3.
 
-Принятые решения:
+Decisions made:
 
-- Изоляция способа хранения: заменив этот крейт на реализацию поверх БД, остальной код менять не
-  нужно — ядро и футбольный слой знают только про trait.
-- Каталоги игроков сортируются по имени — порядок загрузки детерминирован (`01`, `02`, …), и от
-  него зависит глобальный индекс игрока.
+- Storage-mechanism isolation: replacing this crate with a DB-backed implementation requires no
+  changes elsewhere — the core and the football layer know only the trait.
+- Player directories are sorted by name — load order is deterministic (`01`, `02`, …), and the
+  player's global index depends on it.
 
 ---
 
-## 7. Контракт Lua-скриптов
+## 7. Lua Scripting Contract
 
-Пользовательский ИИ игрока — это Lua-скрипт, работающий поверх двух библиотечных преамбул
-(`ynwa-scripts/preambles/`) и командной преамбулы. Среда скрипта складывается из четырёх уровней:
-`core.lua`, `stdlib.lua`, `preamble.lua` команды и `script.lua` игрока. За что отвечает каждый
-уровень, порядок загрузки, правила написания и примеры — в
-[`scripting_developer.md`](scripting_developer.md); справочник функций и структур для игрока — в
+The user's player AI is a Lua script running on top of two library preambles
+(`ynwa-scripts/preambles/`) and a team preamble. The script environment consists of four levels:
+`core.lua`, `stdlib.lua`, the team `preamble.lua`, and the player `script.lua`. What each level is
+responsible for, the load order, authoring rules, and examples — in
+[`scripting_developer.md`](scripting_developer.md); the function and structure reference for the player — in
 [`scripting_player.md`](scripting_player.md).
 
-Коротко:
+In short:
 
-- `core.lua` — элементарный доступ к состоянию (`my_position()`, `ball_position()`, …);
-- `stdlib.lua` — утилиты, запросы состояния, примитивные и тактические действия, диспетчер
+- `core.lua` — elementary state access (`my_position()`, `ball_position()`, …);
+- `stdlib.lua` — utilities, state queries, primitive and tactical actions, the dispatcher
   `make_decision()`;
-- `preamble.lua` команды — тактика команды: таблица `team_play` и общие таблицы (например,
+- team `preamble.lua` — team tactics: the `team_play` table and common tables (e.g.,
   `goalkeeper_play`);
-- `script.lua` игрока — необязательное частичное переопределение через `player_play`.
+- player `script.lua` — optional partial override via `player_play`.
 
-`core.lua` и `stdlib.lua` — код проекта, команды их не изменяют; `preamble.lua` и `script.lua` —
-код команды.
+`core.lua` and `stdlib.lua` are project code; teams do not modify them; `preamble.lua` and `script.lua` are
+team code.
 
-Формат контекста (`context`, `GAME_DATA`) и формат возвращаемого решения —
-[`protocols.md`](protocols.md) §1; формат данных команды на диске — [`protocols.md`](protocols.md) §2.
+The context format (`context`, `GAME_DATA`) and the returned decision format —
+[`protocols.md`](protocols.md) §1; the on-disk team data format — [`protocols.md`](protocols.md) §2.
 
 ---
 
 ## 8. `ynwa-script-tests`
 
-Инфраструктура проверки того, что Lua-скрипты через полный конвейер систем дают ожидаемые решения.
+Infrastructure for verifying that Lua scripts yield the expected decisions through the full system pipeline.
 
-- `src/lib.rs` — хелперы построения мини-игр: игра с одним игроком и заданным скриптом, с
-  преамбулами и без, на заданной стадии; загрузка фикстур; `request_decisions_for_all` для обхода
-  таймингов `PlayerReactionSystem`.
-- `fixtures/` — минимальные таблицы диспетчеризации и скрипт-шпион.
-- `scenarios/<name>/teams/` — самодостаточные наборы команд для **визуальной** проверки конкретных
-  игровых ситуаций; визуальный просмотр — по записи: `./replay.sh <путь_к_записи>` (например,
+- `src/lib.rs` — helpers for building mini-games: a game with one player and a given script, with
+  preambles and without, at a given stage; fixture loading; `request_decisions_for_all` to bypass
+  `PlayerReactionSystem` timings.
+- `fixtures/` — minimal dispatch tables and a script spy.
+- `scenarios/<name>/teams/` — self-contained team sets for **visual** verification of specific
+  game situations; visual review is done from a record: `./replay.sh <path_to_record>` (e.g.,
   `~/.ynwa/scenarios/<scenario>.jsonl`).
 
 ---
 
-## 9. Интеграционное тестирование (`ynwa-integration-testing`)
+## 9. Integration Testing (`ynwa-integration-testing`)
 
-Для защиты от регресса всей цепочки «ядро — стандартная библиотека — скрипты игрока» в проекте
-есть крейт `ynwa-integration-testing`: он прогоняет гранулярные **сценарии** автоматически, в
-рамках обычного `cargo test`, без участия человека и реального времени.
+To protect the full "core — standard library — player scripts" chain against regression, the project
+has the `ynwa-integration-testing` crate: it runs granular **scenarios** automatically, as part of
+ordinary `cargo test`, without human involvement and without real time.
 
-Каждый сценарий — это каталог с частичным начальным состоянием (`initial_state.toml`), планом
-прогона и ожиданиями (`scenario.toml`), опциональным ожидаемым конечным состоянием
-(`final_state.toml`) и набором команд (`teams/`). Раннер детерминированно собирает футбольный мир
-(фиксированный RNG-сид, нулевая температура), применяет начальный снапшот, шагает
-`world.step(dt)` до первого сработавшего критерия остановки и сверяет факт с ожиданиями: журнал
-событий, причину остановки и число шагов, итоговое состояние (стадия, позиции, владение, счёт).
-Расхождения выводятся как человекочитаемый дифф в выводе `cargo test`.
+Each scenario is a directory with a partial initial state (`initial_state.toml`), a run plan and
+expectations (`scenario.toml`), an optional expected final state
+(`final_state.toml`), and a team set (`teams/`). The runner deterministically builds the football world
+(fixed RNG seed, zero temperature), applies the initial snapshot, steps
+`world.step(dt)` until the first triggered stop criterion, and compares the facts against the expectations: the event
+journal, the stop reason and step count, and the final state (stage, positions, possession, score).
+Discrepancies are printed as a human-readable diff in the `cargo test` output.
 
-Как создать свой сценарий — в [`integration_testing.md`](integration_testing.md); точные форматы
-файлов сценария — [`protocols.md`](protocols.md) §4.
+How to create your own scenario — in [`integration_testing.md`](integration_testing.md); the exact
+scenario file formats — [`protocols.md`](protocols.md) §4.
 
 ---
 
-## 10. Известные несоответствия и незавершённые места
+## 10. Known Discrepancies and Unfinished Places
 
-Проверено по коду на момент написания — полезно знать, чтобы не доверять старым докам.
-Футбольно-специфичные несоответствия перечислены в `context_football.md` §7.
+Verified against the code as of writing — useful to know so as not to trust old docs.
+Football-specific discrepancies are listed in `context_football.md` §7.
 
-- **Размеры поля.** Старые доки упоминают 60 × 101.5 м и сетку 26 × 44 — это параметры тестовых
-  полей. Продакшн-поле: 68 × 104.615 м, сетка 26 × 40 (`field_builder.rs`).
-- **Границы сетки для решений из Lua не валидируются** в парсере — некорректный регион всплывёт
-  позже, при расчёте центра.
-- **Судья** (`RefereeDef`/`RefereeState`) существует как заготовка, ни одна система его не двигает.
-- Ссылки в старых доках на `ynwa-scripts/context.md` и `config.rs` неактуальны: таких файлов нет.
+- **Field dimensions.** Old docs mention 60 × 101.5 m and a 26 × 44 grid — these are test-field
+  parameters. The production field: 68 × 104.615 m, grid 26 × 40 (`field_builder.rs`).
+- **Grid bounds for Lua decisions are not validated** in the parser — an invalid region surfaces
+  later, when computing the center.
+- **The referee** (`RefereeDef`/`RefereeState`) exists as a stub; no system moves it.
+- References in old docs to `ynwa-scripts/context.md` and `config.rs` are outdated: such files do not exist.

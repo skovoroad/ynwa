@@ -1,29 +1,29 @@
-# Задача
+# Task
 
-Реализовать версионирование формата записи и проверку версий при десериализации.
+Implement record-format versioning and version checks on deserialization.
 
-Выделено из задачи сериализации (`task_3_game_serialization`).
+Extracted from the serialization task (`task_3_game_serialization`).
 
-# Итоги обсуждения — предложения
+# Discussion Results — Proposals
 
-## 1. Версионирование
+## 1. Versioning
 
-Конверт записи содержит:
+The record envelope contains:
 
-- `format_version` — версия схемы журнала/снапшота (сериализация).
-- `engine_version` — версия семантики симуляции (`ynwa-core` + `ynwa-football`), поддерживается
-  вручную и поднимается при любом изменении поведения (правила, константы, формулы). Не код-хеш —
-  он даёт ложные отказы при рефакторинге.
-- Встроенный [`GameConfig`](ynwa-core/src/game.rs:228) — запись самодостаточна и не зависит от
-  изменившихся файлов команд/преамбул.
+- `format_version` — the journal/snapshot schema version (serialization).
+- `engine_version` — the simulation semantics version (`ynwa-core` + `ynwa-football`), maintained
+  manually and bumped on any behavior change (rules, constants, formulas). Not a code hash —
+  that gives false failures on refactoring.
+- The embedded [`GameConfig`](ynwa-core/src/game.rs:228) — the record is self-contained and does not depend on
+  changed team/preamble files.
 
-При десериализации — отказ при несовпадении `engine_version` с явным сообщением; опционально режим
-принудительного чтения для отладки.
+On deserialization — a failure on `engine_version` mismatch with an explicit message; optionally a
+forced-read mode for debugging.
 
-Снапшоты не исправляют логическое расхождение версий — его закрывает версионирование.
+Snapshots do not fix logical version divergence — versioning closes that.
 
-## 2. Требуемые доработки (вынесены из task_3)
+## 2. Required Changes (extracted from task_3)
 
-- Поля `format_version`/`engine_version` в модели `Record`.
-- Константы `FORMAT_VERSION`, `ENGINE_VERSION` и `Record::validate_versions()`.
-- Режим принудительного чтения (`RecordCodec`/API с `force`).
+- `format_version`/`engine_version` fields in the `Record` model.
+- Constants `FORMAT_VERSION`, `ENGINE_VERSION`, and `Record::validate_versions()`.
+- A forced-read mode (`RecordCodec`/API with `force`).

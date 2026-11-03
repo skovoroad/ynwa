@@ -1,57 +1,57 @@
-# YNWA — руководство по созданию интеграционных тестов
+# YNWA — Guide to Writing Integration Tests
 
-Документ объясняет, как написать интеграционный тест всей цепочки «ядро — стандартная библиотека —
-скрипты игрока» в виде гранулярного сценария. Точные форматы файлов и все допустимые поля —
-в [`protocols.md`](protocols.md) §4; здесь — как устроен сценарий, как его запускать и по каким
-правилам он прогоняется.
+This document explains how to write an integration test of the whole "core — standard library —
+player scripts" chain as a granular scenario. The exact file formats and all allowed fields —
+in [`protocols.md`](protocols.md) §4; here — how a scenario is structured, how to run it, and by which
+rules it is executed.
 
-Общий контекст проекта — в [`context.md`](context.md).
+General project context — in [`context.md`](context.md).
 
 ---
 
-## 1. Что это и зачем
+## 1. What It Is and Why
 
-`ynwa-integration-testing` прогоняет футбольный матч в детерминированном режиме и сверяет факт с
-ожиданиями. В отличие от `ynwa-script-tests`, проверка автоматическая: не нужно глазами смотреть
-плеер — сценарий либо проходит, либо `cargo test` выводит читаемый дифф (ожидание/факт).
+`ynwa-integration-testing` runs a football match in deterministic mode and compares the facts with
+expectations. Unlike `ynwa-script-tests`, the check is automatic: there is no need to watch the
+player visually — the scenario either passes or `cargo test` prints a readable diff (expected/actual).
 
-Сценарий проверяет три вещи:
+A scenario checks three things:
 
-- **журнал событий** — какие решения приняли игроки, кто завладел мячом, с какой скоростью улетел
-  мяч после удара, смены стадий и футбольные события (`Goal`, `Touchline`, `GoalLine`, `GameEnd`);
-- **критерий остановки** — по какой причине закончился прогон и сколько шагов занял;
-- **итоговое состояние** — стадия, позиции игроков, позиция и владение мячом, счёт,
+- **the event journal** — which decisions players made, who took possession, at what speed the
+  ball flew after a kick, stage changes, and football events (`Goal`, `Touchline`, `GoalLine`, `GameEnd`);
+- **the stop criterion** — for what reason the run ended and how many steps it took;
+- **the final state** — stage, player positions, ball position and possession, score,
   `restart_position`/`restart_team`.
 
-Прогон полностью воспроизводим: раннер использует фиксированный RNG-сид и нулевую температуру
-(`temperature = 0.0`), поэтому результат не меняется от запуска к запуску.
+The run is fully reproducible: the runner uses a fixed RNG seed and zero temperature
+(`temperature = 0.0`), so the result does not change from run to run.
 
 ---
 
-## 2. Запуск
+## 2. Running
 
 ```sh
 cargo test -p ynwa-integration-testing
 ```
 
-Harness `tests/scenarios.rs` обходит каталог `ynwa-integration-testing/scenarios/` и прогоняет
-каждый подкаталог, содержащий `scenario.toml`. Для отладки одного сценария:
+The harness `tests/scenarios.rs` walks the `ynwa-integration-testing/scenarios/` directory and runs
+each subdirectory containing a `scenario.toml`. To debug one scenario:
 
 ```sh
 YNWA_SCENARIO=goal_into_b cargo test -p ynwa-integration-testing
 ```
 
-Неизвестное имя — ошибка со списком доступных сценариев.
+An unknown name — an error listing the available scenarios.
 
 ---
 
-## 3. Структура каталога сценария
+## 3. Scenario Directory Structure
 
 ```
-ynwa-integration-testing/scenarios/<имя>/
-  initial_state.toml   # частичное начальное состояние (вход)
-  scenario.toml        # план прогона [run] + ожидания [expect]
-  final_state.toml     # ожидаемое конечное состояние (необязательно)
+ynwa-integration-testing/scenarios/<name>/
+  initial_state.toml   # partial initial state (input)
+  scenario.toml        # run plan [run] + expectations [expect]
+  final_state.toml     # expected final state (optional)
   teams/
     team_a/
       preamble.lua
@@ -60,30 +60,30 @@ ynwa-integration-testing/scenarios/<имя>/
       ...
 ```
 
-- `teams/` — обычные команды в формате [`protocols.md`](protocols.md) §2–3; читаются
-  существующим `FsTeamRepository`. Состав, характеристики, регионы и тактика задаются этими же
-  механизмами, без дублирования.
-- преамбулы ядра и стандартной библиотеки (`core.lua`, `stdlib.lua`) берутся из
-  `ynwa-scripts/preambles`, как в обычной сборке мира.
+- `teams/` — ordinary teams in the [`protocols.md`](protocols.md) §2–3 format; they are read by
+  the existing `FsTeamRepository`. Roster, attributes, regions, and tactics are set by the same
+  mechanisms, without duplication.
+- the core and standard-library preambles (`core.lua`, `stdlib.lua`) are taken from
+  `ynwa-scripts/preambles`, as in a normal world build.
 
-Сценарий задаёт не полное состояние, а **частичное**: перечисляются только нужные поля, остальное
-заполняется детерминированными значениями по умолчанию (недостающие поля добавляются по мере
-необходимости).
+A scenario specifies not the full state but a **partial** one: only the needed fields are listed, the rest
+are filled with deterministic defaults (missing fields are added as
+needed).
 
 ---
 
-## 4. Как создать сценарий: по шагам
+## 4. How to Create a Scenario: Step by Step
 
-### 4.1 Команды (`teams/`)
+### 4.1 Teams (`teams/`)
 
-Создайте минимальные `team_a` и `team_b`: у каждой — `preamble.lua` и хотя бы один игрок с
-`static.toml` и `tactical.toml`. Для большинства сценариев достаточно одного-двух игроков на
-команду; `script.lua` опционален.
+Create minimal `team_a` and `team_b`: each with a `preamble.lua` and at least one player with
+`static.toml` and `tactical.toml`. For most scenarios one or two players per
+team suffice; `script.lua` is optional.
 
-### 4.2 Начальное состояние (`initial_state.toml`)
+### 4.2 Initial State (`initial_state.toml`)
 
-Задайте стартовую стадию и положения мяча/игроков, достаточные, чтобы спровоцировать нужную
-ситуацию:
+Set the starting stage and ball/player positions sufficient to provoke the needed
+situation:
 
 ```toml
 stage = "Play"
@@ -94,53 +94,53 @@ velocity = { x = 0.0, y = 0.0, z = 20.0 }
 last_possessing_team = "A"
 ```
 
-Правила, важные при написании:
+Rules that matter when writing:
 
-- `stage` может быть `"Play"`, `"Setup"` (с необязательным `setup_reason`) или `"GameOver"`; если
-  стадия не указана, мир стартует в `Setup("kick off")`.
-- при старте в `Setup` поля `[ball]` задавать **нельзя** (ошибка загрузки): первый тик
-  `FootballGameManager` безусловно перезаписывает мяч. Управление мячом в `Setup` — только через
+- `stage` may be `"Play"`, `"Setup"` (with an optional `setup_reason`), or `"GameOver"`; if
+  the stage is absent, the world starts in `Setup("kick off")`.
+- when starting in `Setup`, the `[ball]` fields must **not** be set (a load error): the first
+  `FootballGameManager` tick unconditionally overwrites the ball. Ball control in `Setup` — only via
   `[setup]` (`restart_position`, `restart_team`).
-- `[[players]]` задаёт точные позиции в метрах и переопределяет только начальную позицию игрока;
-  тактические регионы, ключи стандартных положений и роли из `tactical.toml` остаются нетронутыми
-  и по-прежнему видны скриптам. Игрок адресуется парой `{team, number}` (номер — из
-  `tactical.toml`); игроки, не перечисленные в списке, получают фабричную позицию.
-- случайность не настраивается: раннер всегда использует детерминированный RNG.
+- `[[players]]` sets exact positions in meters and overrides only the player's initial position;
+  the tactical regions, set-piece keys, and roles from `tactical.toml` remain untouched
+  and still visible to scripts. A player is addressed by the pair `{team, number}` (number — from
+  `tactical.toml`); players not listed get the factory position.
+- randomness is not configurable: the runner always uses a deterministic RNG.
 
-### 4.3 План прогона (`scenario.toml`, секция `[run]`)
+### 4.3 Run Plan (`scenario.toml`, `[run]` section)
 
 ```toml
 [run]
-dt = 0.1                # длина шага, обязательна
+dt = 0.1                # step length, required
 
 [[run.stop]]
-when = "event"          # остановиться по событию
+when = "event"          # stop on an event
 event = "Goal"
 team = "B"
 
 [[run.stop]]
-when = "steps"          # страховочный лимит шагов
+when = "steps"          # safety step limit
 steps = 1000
 ```
 
-Критерии остановки — типизированный список; прогон останавливается **первым** сработавшим (в
-порядке объявления):
+Stop criteria — a typed list; the run stops at the **first** triggered one (in
+declaration order):
 
-- `when = "stage"` — смена стадии на целевую (`stage`, опционально `setup_reason`);
-- `when = "event"` — наступление футбольного события (`event`, опционально `team`);
-- `when = "steps"` — достигнут лимит шагов;
-- `when = "time"` — достигнуто модельное время.
+- `when = "stage"` — stage change to the target (`stage`, optional `setup_reason`);
+- `when = "event"` — occurrence of a football event (`event`, optional `team`);
+- `when = "steps"` — step limit reached;
+- `when = "time"` — model time reached.
 
-Обязателен хотя бы один страховочный критерий `steps` или `time` — защита от зацикливания. Критерии
-проверяются после каждого шага `world.step(dt)`.
+At least one safety criterion `steps` or `time` is required — protection against infinite loops. Criteria
+are checked after each `world.step(dt)`.
 
-### 4.4 Ожидания (`scenario.toml`, секция `[expect]`)
+### 4.4 Expectations (`scenario.toml`, `[expect]` section)
 
-Каждый пункт опционален; проверяются только перечисленные.
+Each item is optional; only the listed ones are checked.
 
 ```toml
 [expect]
-journal_match = "subsequence"   # "exact" (по умолчанию) | "subsequence"
+journal_match = "subsequence"   # "exact" (default) | "subsequence"
 
 [expect.stop]
 when = "event"
@@ -162,23 +162,23 @@ stage = "Setup"
 setup_reason = "kick off"
 ```
 
-- `[expect.stop]` — каким критерием завершился прогон; для `stage`/`event`/`time` можно
-  дополнительно указать точное число шагов `steps`.
-- `[[expect.journal]]` — ожидаемые записи журнала; сверяются тип и порядок, у каждой записи
-  проверяются только указанные поля. Игроки адресуются `{team, number}`.
-- `journal_match` задаёт способ сравнения списка: `"exact"` — длина и порядок совпадают полностью;
-  `"subsequence"` — перечисленные записи встречаются в фактическом журнале в указанном порядке,
-  прочие игнорируются. Режим `"subsequence"` удобен для сценариев, стартующих в `Setup`, — не нужно
-  перечислять служебные записи расстановки.
+- `[expect.stop]` — by which criterion the run ended; for `stage`/`event`/`time` one can
+  additionally specify the exact step count `steps`.
+- `[[expect.journal]]` — expected journal entries; the type and order are compared, and for each entry
+  only the specified fields are checked. Players are addressed by `{team, number}`.
+- `journal_match` specifies the comparison mode: `"exact"` — length and order match fully;
+  `"subsequence"` — the listed entries occur in the actual journal in the specified order,
+  the rest are ignored. The `"subsequence"` mode is convenient for scenarios starting in `Setup` — there is no need
+  to list the service positioning entries.
 
-Сравнение с допусками: координаты и скорости — с допуском `TOLERANCE` (`1e-4`), `timestamp` — с
-допуском `max(dt, 1e-4)`; целые, перечисления и строки — точно.
+Comparison with tolerances: coordinates and velocities — with tolerance `TOLERANCE` (`1e-4`), `timestamp` — with
+tolerance `max(dt, 1e-4)`; integers, enums, and strings — exact.
 
-### 4.5 Ожидаемое конечное состояние (`final_state.toml`)
+### 4.5 Expected Final State (`final_state.toml`)
 
-Файл опционален. Формат — тот же частичный снимок, но с семантикой «**отсутствующее поле = не
-проверять**»; присутствующее поле сравнивается (координаты — с допуском). Дополнительно задаётся
-счёт:
+The file is optional. The format is the same partial snapshot, but with the "**missing field = do not
+check**" semantics; a present field is compared (coordinates — with tolerance). Additionally, the score
+is specified:
 
 ```toml
 stage = "Setup"
@@ -188,25 +188,25 @@ score = { A = 1, B = 0 }
 
 ---
 
-## 5. Что ещё проверяется автоматически
+## 5. What Else Is Checked Automatically
 
-- **Строгая сборка.** Любая ошибка инициализации движка решений, чтения скрипта или преамбулы —
-  ошибка загрузки сценария, а не тихий откат на заглушку. Тестовый мир собирается строгим
-  `FootballWorldBuilder::build()`, без placeholder-фолбэка.
-- **Ошибки скриптов.** После прогона раннер проверяет, что ни у одного игрока не установлен
-  `player_state.last_error`; при наличии сценарий считается проваленным.
-- **Разрешение ссылок.** Каждая пара `{team, number}` резолвится в глобальный индекс поиском по
-  `config.players`; дубликат или отсутствие игрока — ошибка загрузки.
+- **Strict build.** Any error initializing the decision engine, reading a script or preamble —
+  a scenario load error, not a silent fallback to a stub. The test world is built by the strict
+  `FootballWorldBuilder::build()`, without a placeholder fallback.
+- **Script errors.** After the run, the runner checks that no player has
+  `player_state.last_error` set; if any do, the scenario is considered failed.
+- **Reference resolution.** Each `{team, number}` pair resolves to a global index by searching
+  `config.players`; a duplicate or a missing player — a load error.
 
 ---
 
-## 6. Готовые примеры
+## 6. Ready Examples
 
-- `scenarios/goal_into_b` — мяч в воротах команды B в игровой стадии: проверяется гол и переход в
-  `Setup("kick off")`, счёт `A = 1, B = 0`.
-- `scenarios/goal_kick` — мяч уходит за лицевую линию: проверяется событие `GoalLine` и переход в
-  `Setup("goal kick")` с `restart_team = "A"`.
-- `scenarios/throw_in` — мяч уходит за боковую: проверяется событие `Touchline` и переход в
-  `Setup("throw in")`.
-- `scenarios/stdlib_kick_to_goal` — проверка стандартной библиотеки: игрок команды A бьёт по
-  воротам (`kick_outcome`), гол в ворота B; точные позиции игроков заданы в метрах.
+- `scenarios/goal_into_b` — the ball in Team B's goal during the play stage: a goal and transition to
+  `Setup("kick off")`, score `A = 1, B = 0` are checked.
+- `scenarios/goal_kick` — the ball goes out over the goal line: the `GoalLine` event and transition to
+  `Setup("goal kick")` with `restart_team = "A"` are checked.
+- `scenarios/throw_in` — the ball goes out over the touchline: the `Touchline` event and transition to
+  `Setup("throw in")` are checked.
+- `scenarios/stdlib_kick_to_goal` — standard-library check: a Team A player shoots at
+  goal (`kick_outcome`), a goal into B's goal; exact player positions are set in meters.

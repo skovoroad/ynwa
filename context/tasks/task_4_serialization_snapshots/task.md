@@ -1,182 +1,180 @@
-# Задача
+# Task
 
-Реализовать снапшоты полного состояния игры в записи и их использование при воспроизведении.
+Implement full game-state snapshots in the record and their use during replay.
 
-У нас есть частичные снапшоты для целей интеграционного тестирования, реализованного в модуле ynwa-integration-testing. Они позволяют скорректировать начальное состояние игры и проверить конечное состояние игры при прогоне тестового сценария.
+We already have partial snapshots for integration-testing purposes, implemented in the ynwa-integration-testing module. They allow adjusting the initial game state and checking the final game state when running a test scenario.
 
-Однако мы хотим развить их использование:
+However, we want to extend their use:
 
-1. Проигрывание сценариев интеграционного тестирования в плеере. Симуляция должна записываться средствами ядра (они есть) так, чтобы потом воспроизвестись в плеере. Но в записи игры нет начального состояния, только начальная расстановка команд, а в тестовом сценарии она может быть скорректирована.
-2. Перемотка в плеере.
-3. Коррекция численного дрейфа при проигрывании сценария (т.к. физика пересимулируется)
+1. Playing integration-testing scenarios in the player. The simulation must be recorded using the core's facilities (which exist) so it can later be replayed in the player. But the game record has no initial state, only the initial team lineup, and in a test scenario it may be adjusted.
+2. Rewinding in the player.
+3. Correcting numerical drift when playing a scenario (because physics is re-simulated).
 
-Наша цель — реализовать поддержку снапшотов для цели 1, так, чтобы в будущем можно было реализовать цели 2 и 3.
+Our goal — implement snapshot support for goal 1, so that goals 2 and 3 can be implemented in the future.
 
-Для цели 1 достаточно:
+For goal 1 it is sufficient to:
 
-- сериализовать полное состояние игры (`GameState`) и класть в запись снапшот начального состояния;
-- применять этот снапшот при создании replay-мира, чтобы воспроизведение стартовало из того же состояния, что и сценарий (стадия, позиции/скорости игроков и мяча, владение, счёт, `restart_*`);
-- чтобы прогон сценария `ynwa-integration-testing` записывал результат в файл формата записи (JSON Lines), а плеер открывал его в режиме Replay.
+- serialize the full game state (`GameState`) and place an initial-state snapshot in the record;
+- apply this snapshot when creating the replay world, so replay starts from the same state as the scenario (stage, player/ball positions/velocities, possession, score, `restart_*`);
+- make the `ynwa-integration-testing` scenario run write its result to a record-format file (JSON Lines), and have the player open it in Replay mode.
 
 DOD:
 
-- механизм снапшотов и записи игры доработан так, чтобы сценарии интеграционного тестирования можно было проверить визуально, запуская их записи в плеере;
-- результат проверяется автоматически: replay-мир, стартующий из снапшота начального состояния, эквивалентен оригинальному прогону сценария (lockstep-сравнение, как в существующих replay-тестах).
+- the snapshot and game-recording mechanism is extended so that integration-testing scenarios can be verified visually by running their records in the player;
+- the result is checked automatically: a replay world starting from the initial-state snapshot is equivalent to the original scenario run (lockstep comparison, as in the existing replay tests).
 
-Примечание для архитектурного решения: в `ynwa-core` уже есть тип `PartialStateSpec` (частичная спецификация состояния для интеграционного тестирования). Полное состояние в записи представлено самим `GameState`, поэтому конфликта имён нет.
+Note for the architectural decision: `ynwa-core` already has the type `PartialStateSpec` (partial state specification for integration testing). The full state in the record is represented by `GameState` itself, so there is no name conflict.
 
 ---
 
-# Архитектурное решение
+# Architectural Decision
 
-## 1. Общая схема
+## 1. General Scheme
 
-В запись (`Record`) добавляется полное начальное состояние игры. Replay-мир строит начальное
-состояние в те же две фазы, что и сценарий: сначала из `config` собирается `Game`, затем поверх
-применяется снапшот начального состояния из записи. `config` остаётся в заголовке (см. ниже) —
-из него строится `Game` и берутся статические данные для replay-физики. Это закрывает цель 1
-задачи: прогон сценария `ynwa-integration-testing` (где начальное состояние скорректировано
-частичным `PartialStateSpec`) записывается в файл JSON Lines, а плеер открывает его в `--replay`
-и видит ровно тот же старт сценария.
+The full initial game state is added to the record (`Record`). The replay world builds the initial
+state in the same two phases as the scenario: first a `Game` is assembled from `config`, then the
+initial-state snapshot from the record is applied on top. `config` stays in the header (see below) —
+`Game` is built from it, and static data for replay physics is taken from it. This closes goal 1
+of the task: the `ynwa-integration-testing` scenario run (where the initial state is adjusted
+by a partial `PartialStateSpec`) is written to a JSON Lines file, and the player opens it in `--replay`
+and sees exactly the same scenario start.
 
-Полным состоянием в записи является сам `GameState` — он получает serde. Отдельного типа
-«снапшота записи» не вводим: частичный `PartialStateSpec` остаётся для сценариев интеграционного
-тестирования, а в записи лежит сериализованный [`GameState`](ynwa-core/src/game.rs:261). Тем самым
-конфликт имён исключён, а для будущих целей 2–3 (перемотка, коррекция дрейфа) тот же `GameState`
-можно будет класть в запись и на произвольном шаге.
+The full state in the record is `GameState` itself — it gets serde. We do not introduce a separate
+"record snapshot" type: the partial `PartialStateSpec` remains for integration-testing
+scenarios, and the serialized [`GameState`](ynwa-core/src/game.rs:261) lies in the record. Thus
+name conflict is ruled out, and for the future goals 2–3 (rewind, drift correction) the same `GameState`
+can be placed in the record at an arbitrary step as well.
 
-[`RecordHeader`](ynwa-core/src/record.rs:9) меняется: `{ config, fixed_dt, initial_state: GameState }`
-вместо `{ config, initial_stage, fixed_dt }`. Стадия содержится в `initial_state.stage`, отдельное
-поле `initial_stage` удаляется — одно поле правды, невозможность их расхождения.
+[`RecordHeader`](ynwa-core/src/record.rs:9) changes: `{ config, fixed_dt, initial_state: GameState }`
+instead of `{ config, initial_stage, fixed_dt }`. The stage is contained in `initial_state.stage`, the separate
+field `initial_stage` is removed — one source of truth, no possibility of divergence.
 
-`config` в заголовке остаётся: из него replay-мир строит `Game` и берёт статические данные
-(`PlayerDef`, `Field`, скрипты), а `ReplayDriver` — характеристики игроков (`speed_rate`) для
-расчёта физики. Снапшот заменяет только *начальное состояние* (`state`), а не конфигурацию матча.
+`config` remains in the header: the replay world builds `Game` from it and takes static data
+(`PlayerDef`, `Field`, scripts), and `ReplayDriver` takes player attributes (`speed_rate`) for
+physics calculation. The snapshot replaces only the *initial state* (`state`), not the match configuration.
 
-Поток для сценария:
+Flow for a scenario:
 
-1. `ScenarioLoader` собирает мир и применяет частичный `PartialStateSpec` (как сейчас).
-2. [`run()`](ynwa-integration-testing/src/runner.rs:34) в начале захватывает
-   `RecordHeader::from_game(world.game(), run.dt)` — это и есть полный снапшот начального состояния
-   сценария.
-3. Прогон пишет журнал в `CollectJournalRecorder` (как сейчас).
-4. После прогона `run()` собирает `Record` и возвращает его в `RunOutcome`.
-5. `run_scenario()` сериализует `Record` в `~/.ynwa/scenarios/<scenario>.jsonl` (JSON Lines;
-   рядом с `~/.ynwa/games`, куда пишет записи игр плеер) и возвращает `ScenarioReport` (как сейчас).
-6. Плеер открывает файл в `--replay`: `create_football_replay_world` применяет `initial_state` и
-   воспроизводит сценарий.
+1. `ScenarioLoader` assembles the world and applies the partial `PartialStateSpec` (as now).
+2. [`run()`](ynwa-integration-testing/src/runner.rs:34) at the start captures
+   `RecordHeader::from_game(world.game(), run.dt)` — that is the full initial-state snapshot
+   of the scenario.
+3. The run writes the journal to a `CollectJournalRecorder` (as now).
+4. After the run, `run()` assembles a `Record` and returns it in `RunOutcome`.
+5. `run_scenario()` serializes the `Record` to `~/.ynwa/scenarios/<scenario>.jsonl` (JSON Lines;
+   next to `~/.ynwa/games`, where the player writes game records) and returns `ScenarioReport` (as now).
+6. The player opens the file in `--replay`: `create_football_replay_world` applies `initial_state` and
+   replays the scenario.
 
-`ynwa-player` не требует изменений: `--replay <file>` уже читает `Record` и строит replay-мир через
-`create_football_replay_world`; после правок этапов 1–2 он автоматически стартует из `initial_state`.
-Останется только вручную проверить открытие записи сценария.
+`ynwa-player` requires no changes: `--replay <file>` already reads `Record` and builds the replay world via
+`create_football_replay_world`; after the Stage 1–2 changes it automatically starts from `initial_state`.
+All that remains is to manually verify opening a scenario record.
 
-## Этап 1. `ynwa-core`: сериализация состояния и модель записи
+## Stage 1. `ynwa-core`: state serialization and record model
 
-Цель: сделать `GameState` сериализуемым, класть его в `RecordHeader`, уметь применять полное
-состояние и записывать готовый `Record` в файл.
+Goal: make `GameState` serializable, place it in `RecordHeader`, be able to apply the full
+state, and write a ready `Record` to a file.
 
-Изменения:
+Changes:
 
 - [`game.rs`](ynwa-core/src/game.rs:1):
   - [`PlayerState`](ynwa-core/src/game.rs:154), [`BallState`](ynwa-core/src/game.rs:183),
-    [`RefereeState`](ynwa-core/src/game.rs:207) и [`GameState`](ynwa-core/src/game.rs:261) получают
-    `Serialize, Deserialize` и `PartialEq` (все поля уже serde-совместимы: `Point3D`, `Velocity3D`,
-    `Decision`, `Team`, `GameStage`). `PartialEq` нужен, чтобы `RecordHeader`/`Record` остались
+    [`RefereeState`](ynwa-core/src/game.rs:207), and [`GameState`](ynwa-core/src/game.rs:261) get
+    `Serialize, Deserialize` and `PartialEq` (all fields are already serde-compatible: `Point3D`, `Velocity3D`,
+    `Decision`, `Team`, `GameStage`). `PartialEq` is needed so `RecordHeader`/`Record` remain
     `PartialEq`.
-  - [`StatSet`](ynwa-core/src/game.rs:31) получает `Serialize, Deserialize`; его `values`
-    сериализуется детерминированно через `sorted_collections::map`.
-  - `GameState.team_stats: HashMap<Team, StatSet>` сериализуется детерминированно (сортировка по
+  - [`StatSet`](ynwa-core/src/game.rs:31) gets `Serialize, Deserialize`; its `values`
+    serialize deterministically via `sorted_collections::map`.
+  - `GameState.team_stats: HashMap<Team, StatSet>` serializes deterministically (sorted by
     `Team`).
-  - `sorted_collections::map` обобщается на `K: Ord + Serialize` (сейчас ключ фиксирован `String`),
-    чтобы покрыть `HashMap<Team, StatSet>`; `sorted_collections::set` остаётся как есть.
-  - Новый метод `Game::apply_state(&mut self, state: GameState) -> Result<(), String>`: проверяет,
-    что длины `player_states`/`player_stats`/`referee_states` совпадают с `config` и что
-    `ball_state.possessed_by` в границах, затем заменяет `self.state`.
+  - `sorted_collections::map` is generalized to `K: Ord + Serialize` (currently the key is fixed to `String`),
+    to cover `HashMap<Team, StatSet>`; `sorted_collections::set` stays as is.
+  - New method `Game::apply_state(&mut self, state: GameState) -> Result<(), String>`: checks
+    that the lengths of `player_states`/`player_stats`/`referee_states` match `config` and that
+    `ball_state.possessed_by` is in bounds, then replaces `self.state`.
 - [`record.rs`](ynwa-core/src/record.rs:9): `RecordHeader { config, fixed_dt, initial_state }`;
-  `RecordHeader::from_game` захватывает `game.state().clone()`.
-- [`record_io.rs`](ynwa-core/src/record_io.rs:1): новый
-  `write_json_record(path, &Record) -> Result<(), String>` — открывает `JsonRecordWriter`, пишет
-  header, все события, footer.
+  `RecordHeader::from_game` captures `game.state().clone()`.
+- [`record_io.rs`](ynwa-core/src/record_io.rs:1): new
+  `write_json_record(path, &Record) -> Result<(), String>` — opens `JsonRecordWriter`, writes
+  the header, all events, the footer.
 
-DOD: `cargo test -p ynwa-core` зелёный; round-trip тесты `GameState` и вложенных типов,
-детерминированности `StatSet`/`team_stats`, round-trip `Record` через JSON Lines; тесты
-`Game::apply_state` (валидное состояние и ошибки валидации индексов).
+DOD: `cargo test -p ynwa-core` green; round-trip tests for `GameState` and nested types,
+`StatSet`/`team_stats` determinism, round-trip of `Record` through JSON Lines; tests for
+`Game::apply_state` (valid state and index validation errors).
 
-## Этап 2. `ynwa-football`: replay из снапшота
+## Stage 2. `ynwa-football`: replay from a snapshot
 
-Цель: `create_football_replay_world` применяет `initial_state` из записи.
+Goal: `create_football_replay_world` applies `initial_state` from the record.
 
-Изменения:
+Changes:
 
-- [`replay.rs::create_football_replay_world`](ynwa-football/src/replay.rs:42): строит
-  `Game::new(record.header.config, rng)`, затем `game.apply_state(record.header.initial_state)?`;
-  набор систем не меняется (`ReplaySetupBallPlacer` → `ReplayDriver` → `PhysicsSystem`).
-  Это повторяет настройку сценария в две фазы: сначала мир собирается из конфигурации (сценарий —
-  из настроек команд), затем поверх применяется снапшот. Разница в том, что снапшот сценария
-  частичный и сливается поверх, а снапшот записи полный (`GameState`) — это уже результат обеих
-  фаз сценария, поэтому `apply_state` заменяет состояние целиком, а не сливает отдельные поля.
-- Обновить [`replay_tests.rs`](ynwa-football/src/tests/replay_tests.rs:1) и
-  [`lockstep_tests.rs`](ynwa-football/src/tests/lockstep_tests.rs:1) под новый `RecordHeader`
-  (поле `initial_state` вместо `initial_stage`).
-- Новый lockstep-тест: прогон с заведомо нестандартным начальным состоянием (мяч в углу с начальной
-  скоростью, игроки с начальными скоростями) записывается с `initial_state`; replay стартует из
-  него и пошагово совпадает с оригиналом (`run_lockstep` + `assert_equivalent`).
+- [`replay.rs::create_football_replay_world`](ynwa-football/src/replay.rs:42): builds
+  `Game::new(record.header.config, rng)`, then `game.apply_state(record.header.initial_state)?`;
+  the system set does not change (`ReplaySetupBallPlacer` → `ReplayDriver` → `PhysicsSystem`).
+  This repeats the two-phase scenario setup: first the world is assembled from the configuration (the scenario —
+  from team settings), then the snapshot is applied on top. The difference is that the scenario snapshot
+  is partial and merged on top, while the record snapshot is full (`GameState`) — it is already the result of both
+  scenario phases, so `apply_state` replaces the state entirely rather than merging individual fields.
+- Update [`replay_tests.rs`](ynwa-football/src/tests/replay_tests.rs:1) and
+  [`lockstep_tests.rs`](ynwa-football/src/tests/lockstep_tests.rs:1) for the new `RecordHeader`
+  (the `initial_state` field instead of `initial_stage`).
+- New lockstep test: a run with a deliberately non-standard initial state (ball in the corner with initial
+  velocity, players with initial velocities) is recorded with `initial_state`; replay starts from
+  it and matches the original step by step (`run_lockstep` + `assert_equivalent`).
 
-DOD: `cargo test -p ynwa-football` зелёный; replay-тесты проходят; lockstep-тест подтверждает
-эквивалентность при нестандартном старте.
+DOD: `cargo test -p ynwa-football` green; replay tests pass; the lockstep test confirms
+equivalence for a non-standard start.
 
-## Этап 3. `ynwa-integration-testing`: запись прогона в файл и проверка
+## Stage 3. `ynwa-integration-testing`: writing the run to a file and verification
 
-Цель: прогон сценария оставляет JSON Lines-запись, читаемую плеером; автоматическая проверка
-«запись → replay → эквивалентность».
+Goal: a scenario run leaves a JSON Lines record readable by the player; automatic "record → replay → equivalence" verification.
 
-Изменения:
+Changes:
 
-- [`runner.rs`](ynwa-integration-testing/src/runner.rs:22): `RunOutcome` вместо
-  `journal: Vec<JournalEntry>` содержит `record: Record` (в нём и journal, и header с
-  `initial_state`). В начале `run()` захватывается `RecordHeader::from_game(world.game(), run.dt)`;
-  после цикла — `finish_journal` и `collection.take_record(header)`.
-- [`compare.rs::compare_outcome`](ynwa-integration-testing/src/compare.rs:35): журнал берётся из
+- [`runner.rs`](ynwa-integration-testing/src/runner.rs:22): `RunOutcome` instead of
+  `journal: Vec<JournalEntry>` contains `record: Record` (in it both the journal and the header with
+  `initial_state`). At the start of `run()` `RecordHeader::from_game(world.game(), run.dt)` is captured;
+  after the loop — `finish_journal` and `collection.take_record(header)`.
+- [`compare.rs::compare_outcome`](ynwa-integration-testing/src/compare.rs:35): the journal is taken from
   `outcome.record.journal`.
-- [`scenario.rs::run_scenario`](ynwa-integration-testing/src/scenario.rs:19): после `run(...)`
-  пишет `outcome.record` в `~/.ynwa/scenarios/<scenario>.jsonl` через `write_json_record` (каталог
-  создаётся при необходимости; запись выполняется до сверки ожиданий, поэтому файл есть и для
-  упавшего сценария).
-- Тесты:
-  - юнит: `run()` возвращает `Record`, у которого `header.initial_state` соответствует начальному
-    состоянию мира, а `journal`/`total_steps` — прогону;
-  - юнит: файл записи читается обратно `json_journal_file_reader` в `Record` с тем же
+- [`scenario.rs::run_scenario`](ynwa-integration-testing/src/scenario.rs:19): after `run(...)`
+  writes `outcome.record` to `~/.ynwa/scenarios/<scenario>.jsonl` via `write_json_record` (the directory
+  is created if necessary; the write happens before expectation comparison, so the file exists even for
+  a failed scenario).
+- Tests:
+  - unit: `run()` returns a `Record` whose `header.initial_state` corresponds to the initial
+    world state, and whose `journal`/`total_steps` correspond to the run;
+  - unit: the record file is read back by `json_journal_file_reader` into a `Record` with the same
     `initial_state`/`journal`/`total_steps`;
-  - интеграционный: для реального сценария (например, `stdlib_kick_to_goal`) запись из
-    `run_scenario` воспроизводится `create_football_replay_world` и даёт состояние, эквивалентное
-    оригинальному прогону (сравнение с допуском `TOLERANCE` по контракту replay, локальный хелпер
-    в тестах).
+  - integration: for a real scenario (e.g., `stdlib_kick_to_goal`), the record from
+    `run_scenario` is replayed by `create_football_replay_world` and yields a state equivalent to
+    the original run (comparison with tolerance `TOLERANCE` under the replay contract, a local helper
+    in tests).
 
-DOD: `cargo test -p ynwa-integration-testing` зелёный; в `~/.ynwa/scenarios/` появляются JSON
-Lines-файлы сценариев; запись читается плеером в `--replay` и replay эквивалентен прогону.
+DOD: `cargo test -p ynwa-integration-testing` green; JSON Lines scenario files appear in `~/.ynwa/scenarios/`;
+the record is read by the player in `--replay` and replay is equivalent to the run.
 
-## Проверка DOD
+## DOD Verification
 
-- сценарий записывается в JSON Lines и открывается в плеере `--replay` — Этап 3 и примечание в
-  «Общей схеме»;
-- автоматическая проверка эквивалентности replay из снапшота оригиналу — lockstep-тест Этапа 2
-  (механизм ядра/футбола) и интеграционный тест Этапа 3 (связка «сценарий → запись → replay»).
+- the scenario is written to JSON Lines and opened in the player `--replay` — Stage 3 and the note in
+  "General Scheme";
+- automatic verification of replay-from-snapshot equivalence to the original — the Stage 2 lockstep test
+  (core/football mechanism) and the Stage 3 integration test (the "scenario → record → replay" chain).
 
-## Ревью архитектурного решения
+## Architectural Decision Review
 
-Ревью пройдено, архитектурное решение согласовано. Замечания признаны незначительными и
-учитываются при разработке:
+The review is complete, the architectural decision is agreed. Comments are considered minor and
+are taken into account during development:
 
-- Дополнительно к перечисленным изменениям обновить тесты, ссылающиеся на
+- In addition to the listed changes, update tests referencing
   `RecordHeader.initial_stage`: `ynwa-core/src/tests/codec_tests.rs`,
   `ynwa-core/src/tests/journal_tests.rs`, `ynwa-core/src/tests/record_tests.rs`,
   `ynwa-football/src/tests/journal_integration_tests.rs`.
-- Обновить `ynwa-integration-testing/src/tests/compare_tests.rs` под замену
-  `RunOutcome.journal` на `RunOutcome.record`.
-- Функцию `write_json_record` сделать публичной в `ynwa-core/src/record_io.rs` и ре-экспортировать
-  из `ynwa-core/src/lib.rs`.
-- Путь записи `~/.ynwa/scenarios/<scenario>.jsonl` брать из домашнего каталога (`env_home`), как это
-  делает плеер для записей игр, а не привязывать к текущему рабочему каталогу или `CARGO_MANIFEST_DIR`.
-- В `Game::apply_state` дополнительно проверить ключи `team_stats` на соответствие командам из
-  `config` (либо явно задекларировать ответственность вызывающего).
-
+- Update `ynwa-integration-testing/src/tests/compare_tests.rs` for the replacement of
+  `RunOutcome.journal` with `RunOutcome.record`.
+- Make `write_json_record` public in `ynwa-core/src/record_io.rs` and re-export it
+  from `ynwa-core/src/lib.rs`.
+- Take the record path `~/.ynwa/scenarios/<scenario>.jsonl` from the home directory (`env_home`), as
+  the player does for game records, rather than tying it to the current working directory or `CARGO_MANIFEST_DIR`.
+- In `Game::apply_state`, additionally check the `team_stats` keys against the teams from
+  `config` (or explicitly declare the caller's responsibility).

@@ -1,30 +1,30 @@
-# YNWA — форматы данных и протоколы
+# YNWA — Data Formats and Protocols
 
-Документ собирает в одном месте все «контракты на данных»: JSON-протокол между игровым ядром и
-движком решений, формат хранения команды на диске и то, что именно читает репозиторий, а также
-форматы файлов сценариев интеграционного тестирования (§4).
-Общий контекст проекта — в `context.md`.
+This document gathers in one place all the "data contracts": the JSON protocol between the game core and the
+decision engine, the on-disk team storage format and what the repository actually reads, and the
+integration-testing scenario file formats (§4).
+General project context — in `context.md`.
 
 ---
 
-## 1. JSON-протокол `ynwa-core` ↔ `ynwa-decisions`
+## 1. JSON Protocol `ynwa-core` ↔ `ynwa-decisions`
 
-`ynwa-decisions` — игро-независимая библиотека: она не знает доменных типов ядра и общается с ним
-только через `serde_json::Value`. Протокол состоит из трёх частей: конфигурация (один раз при
-создании движка), контекст (на каждый вызов) и решение (возврат из Lua). Со стороны ядра протокол
-реализует `ScriptedDecisionMaker` (`ynwa-core/src/systems/decision/scripted_decision_maker.rs`),
-со стороны движка — `DecisionEngine` (`ynwa-decisions/src/decision_engine.rs`).
+`ynwa-decisions` is a game-independent library: it does not know the core's domain types and communicates with it
+only via `serde_json::Value`. The protocol consists of three parts: configuration (once at
+engine creation), context (per call), and decision (the return from Lua). On the core side the protocol
+is implemented by `ScriptedDecisionMaker` (`ynwa-core/src/systems/decision/scripted_decision_maker.rs`),
+on the engine side — by `DecisionEngine` (`ynwa-decisions/src/decision_engine.rs`).
 
-### 1.1 Конфигурация (при создании движка)
+### 1.1 Configuration (at engine creation)
 
 ```jsonc
 {
   "team_preambles": { "team_a": "<lua>", "team_b": "<lua>" },
   "players": [
     {
-      "script": "<lua или пустая строка>",
-      "team": "team_a",              // ключ в team_preambles
-      "static_data": {               // становится глобалью GAME_DATA в VM игрока
+      "script": "<lua or empty string>",
+      "team": "team_a",              // key in team_preambles
+      "static_data": {               // becomes the GAME_DATA global in the player's VM
         "zones": { "goal_a": {...}, "penalty_area_b": {...}, "center_circle": {...} },
         "field": { "width": 68.0, "length": 104.6, "columns": 26, "rows": 40 }
       }
@@ -33,88 +33,88 @@
 }
 ```
 
-*Примечание:* поле `static_data` намеренно дублируется для каждого игрока. Это позволяет
-трансформировать (отразить по осям X и Z) координаты зон индивидуально для каждой команды. Таким
-образом, скрипты обеих команд видят поле со своей собственной «домашней» перспективы (где свои
-ворота всегда сзади), сохраняя единый код.
+*Note:* the `static_data` field is deliberately duplicated for each player. This allows
+transforming (mirroring along the X and Z axes) zone coordinates individually for each team. Thus,
+both teams' scripts see the field from their own "home" perspective (where their own
+goal is always behind), while keeping a single codebase.
 
-Геометрия зоны — один из вариантов:
+Zone geometry is one of the variants:
 `{"type":"rectangle","min_x","max_x","min_z","max_z"}`,
 `{"type":"circle","center_x","center_z","radius"}`,
-`{"type":"arc","center_x","center_z","radius","start_angle","end_angle"}` (градусы),
+`{"type":"arc","center_x","center_z","radius","start_angle","end_angle"}` (degrees),
 `{"type":"point","x","z","tolerance"}`.
-Имя зоны в JSON = `имя` + суффикс `_a`/`_b` для командных зон (нейтральные — без суффикса).
+The zone name in JSON = `name` + `_a`/`_b` suffix for team zones (neutral zones — without a suffix).
 
-### 1.2 Контекст (каждый вызов, Lua-глобаль `context`)
+### 1.2 Context (every call, the Lua global `context`)
 
 ```jsonc
 {
   "me": {
     "team": "A",                 // "A" | "B"
-    "number": 10,                // тактический номер в команде
-    "index": 5,                  // глобальный индекс в массиве игроков (A: 0..10, B: 11..21)
+    "number": 10,                // tactical number within the team
+    "index": 5,                  // global index in the players array (A: 0..10, B: 11..21)
     "position": {"x":..,"y":..,"z":..},
     "regions": {
       "start":   {"min_x":..,"max_x":..,"min_z":..,"max_z":.., "display_notation":"M3"},
       "attack":  {...}, "defence": {...}, "goal kick own": {...}, ...
     }
   },
-  "teammates": [ {"index":0,"number":1,"position":{...}}, ... ],   // без самого игрока
+  "teammates": [ {"index":0,"number":1,"position":{...}}, ... ],   // excluding self
   "opponents": [ {"index":11,"number":1,"position":{...}}, ... ],
   "ball": {
     "position": {"x":..,"y":..,"z":..},
-    "owner_index": 5,            // null, если мяч свободен
-    "owner_team": "A"            // "A" | "B" | "None"; сохраняется во время передач
+    "owner_index": 5,            // null if the ball is free
+    "owner_team": "A"            // "A" | "B" | "None"; preserved during passes
   },
   "game": { "elapsed_time": 125.5 }
 }
 ```
 
-Все координаты и регионы уже приведены к перспективе команды игрока.
+All coordinates and regions are already brought into the player's team perspective.
 
-Поле `display_notation` региона: для команды A — обычная нотация (`"M3"`), для команды B —
-`"display (team)"`, например `"R42 (M3)"`, чтобы в логах/UI было видно и абсолютную, и «свою»
-координату.
+The region's `display_notation` field: for Team A — ordinary notation (`"M3"`), for Team B —
+`"display (team)"`, e.g. `"R42 (M3)"`, so logs/UI show both the absolute and the "own"
+coordinate.
 
-*Примечание по производительности:* хотя регионы и метаданные игрока стабильны во время матча,
-они передаются на каждом тике в составе `context` для упрощения API со стороны Lua-скриптов.
-В будущем это может быть оптимизировано (разделение на статический и динамический контексты),
-если профилирование выявит проблемы с сериализацией.
+*Performance note:* although a player's regions and metadata are stable during a match,
+they are passed on every tick as part of `context` to simplify the Lua-script API.
+In the future this may be optimized (splitting into static and dynamic contexts)
+if profiling reveals serialization problems.
 
-### 1.3 Решение (возврат из Lua)
+### 1.3 Decision (the return from Lua)
 
 ```lua
 {action = "stop"}
 {action = "run", target_type = "point",  target = {x = .., z = .., y = 0}}
 {action = "run", target_type = "cell",   target = "C7"}
 {action = "run", target_type = "region", target = {from = "A5", to = "C7"}}
-{action = "run", target_type = "ball"}                 -- поле target не нужно
+{action = "run", target_type = "ball"}                 -- the target field is not needed
 {action = "kick", target = {x = .., z = .., y = 0}}
 ```
 
-Любое решение может содержать необязательное строковое поле `reason` — оно сохраняется в
-`player_state.decision_reason` и показывается в UI/логах. Это главный инструмент отладки поведения,
-заполнять его следует всегда.
+Any decision may contain an optional string field `reason` — it is stored in
+`player_state.decision_reason` and shown in the UI/logs. It is the main behavior-debugging tool,
+and should always be filled in.
 
-Формат валидируется в `ynwa-decisions` схемой `LuaDecision` (`lua_format.rs`), перевод в доменные
-типы ядра делает `decision_parser.rs` в `ynwa-core`. Границы сетки в парсере не проверяются —
-некорректный регион всплывёт позже, при расчёте центра.
+The format is validated in `ynwa-decisions` by the `LuaDecision` schema (`lua_format.rs`), and translation into the core's domain
+types is done by `decision_parser.rs` in `ynwa-core`. Grid bounds are not checked in the parser —
+an invalid region surfaces later, when computing the center.
 
 ---
 
-## 2. Формат данных команды на диске (`teams/<team_id>/`)
+## 2. On-Disk Team Data Format (`teams/<team_id>/`)
 
-Команда — это каталог с тактикой на Lua и подкаталогами игроков. Именно эту структуру читает
-`FsTeamRepository` (см. §3). Каталоги игроков сортируются по имени, порядок задаёт глобальный
-индекс игрока.
+A team is a directory with Lua tactics and player subdirectories. This is exactly the structure that
+`FsTeamRepository` reads (see §3). Player directories are sorted by name; the order determines the global
+player index.
 
 ```
-meta.toml        # отображаемое имя команды (сейчас репозиторием не читается)
-preamble.lua     # тактика команды: таблица team_play (и общие таблицы вроде goalkeeper_play)
+meta.toml        # the team's display name (currently not read by the repository)
+preamble.lua     # team tactics: the team_play table (and common tables like goalkeeper_play)
 players/NN/
   static.toml    # name, reaction_rate, speed_rate, tackle_rate, shot_power, shot_accuracy (10..100)
   tactical.toml  # number, [play_positions], [set_piece_positions]
-  script.lua     # необязательно: player_play
+  script.lua     # optional: player_play
 ```
 
 ### `tactical.toml`
@@ -128,7 +128,7 @@ defence = "N1"
 
 [set_piece_positions]
 "kick off own"                = "N3"
-"kick off opp"                = "N3"     # дополнительно регистрируется как "start"
+"kick off opp"                = "N3"     # additionally registered as "start"
 "goal kick own"               = "on_ball"
 "goal kick opp"               = "N5"
 "corner own left"             = "N34"
@@ -145,201 +145,201 @@ defence = "N1"
 "throw in opp right opp half" = "N3"
 ```
 
-Правила:
+Rules:
 
-- Значение — нотация клетки/региона (`"K7"`, `"A1:B2"`) либо маркер `"on_ball"`
-  (игрок — исполнитель стандарта; см. `context_football.md`).
-- Все 16 ключей стандартных положений обязательны; `"on_ball"` допустим только в ключах `own`
-  и ровно у одного игрока на ключ. Валидация выполняется при запуске (`ynwa-football`).
-- Позиции пишутся в перспективе своей команды; для команды B движок отражает их при загрузке.
-- `number` — тактический номер (1…N, без пропусков внутри команды). Игровые номера на футболках —
-  отдельная будущая сущность.
-- Ключи `[play_positions]` (`attack`, `defence`) используются только скриптами через
+- The value is a cell/region notation (`"K7"`, `"A1:B2"`) or the `"on_ball"` marker
+  (the player is the set-piece taker; see `context_football.md`).
+- All 16 set-piece keys are mandatory; `"on_ball"` is allowed only in `own` keys
+  and for exactly one player per key. Validation is performed at startup (`ynwa-football`).
+- Positions are written in the team's own perspective; for Team B the engine mirrors them at load.
+- `number` — the tactical number (1…N, no gaps within a team). Shirt numbers are
+  a separate future entity.
+- The `[play_positions]` keys (`attack`, `defence`) are used only by scripts through
   `my_regions()`.
 
 ---
 
-## 3. Что читает `ynwa-repository`
+## 3. What `ynwa-repository` Reads
 
-`FsTeamRepository::load_team(team_id)` читает каталог `<base>/<team_id>/` и превращает его в DTO
-ядра (`TeamRecord` / `PlayerRecord`, определены в `ynwa-core/src/repository.rs`):
+`FsTeamRepository::load_team(team_id)` reads the `<base>/<team_id>/` directory and turns it into the core's
+DTOs (`TeamRecord` / `PlayerRecord`, defined in `ynwa-core/src/repository.rs`):
 
-- `preamble.lua` — обязателен → `TeamRecord.preamble`;
-- `players/NN/static.toml` — обязателен → `PlayerStatic` (имя и 5 характеристик);
-- `players/NN/tactical.toml` — обязателен → `PlayerTactical { number, play_positions,
-  set_piece_positions }`; ключи обеих карт позиций — строки, их смысл задаёт спорт-слой;
-- `players/NN/script.lua` — необязателен (`None` ≡ пустой скрипт, игрок целиком играет по тактике
-  команды);
-- пустой список игроков — ошибка;
-- `meta.toml` сейчас не читается.
+- `preamble.lua` — required → `TeamRecord.preamble`;
+- `players/NN/static.toml` — required → `PlayerStatic` (name and 5 attributes);
+- `players/NN/tactical.toml` — required → `PlayerTactical { number, play_positions,
+  set_piece_positions }`; keys of both position maps are strings, the sport layer assigns their meaning;
+- `players/NN/script.lua` — optional (`None` ≡ an empty script; the player plays entirely by the team's
+  tactics);
+- an empty player list — an error;
+- `meta.toml` is currently not read.
 
 ---
 
-## 4. Форматы файлов сценариев интеграционного тестирования
+## 4. Integration-Testing Scenario File Formats
 
-Сценарий `ynwa-integration-testing` — каталог с тремя TOML-файлами и набором команд. Все файлы
-парсятся serde-структурами с `deny_unknown_fields`: неизвестный ключ — ошибка загрузки. Кодировки
-значений: `Point3D` — `{x, y, z}` в метрах, `Velocity3D` — `{x, y, z}` в м/с, `Team` — `"A"`/`"B"`.
-Начальное и конечное состояния используют **один и тот же частичный формат**: отсутствующее поле
-для входа означает «не задавать», для выхода — «не проверять».
+A `ynwa-integration-testing` scenario is a directory with three TOML files and a team set. All files
+are parsed by serde structs with `deny_unknown_fields`: an unknown key is a load error. Value encodings:
+`Point3D` — `{x, y, z}` in meters, `Velocity3D` — `{x, y, z}` in m/s, `Team` — `"A"`/`"B"`.
+The initial and final states use **the same partial format**: a missing field
+on input means "do not set", on output — "do not check".
 
-Как собрать сценарий целиком — в [`integration_testing.md`](integration_testing.md).
+How to assemble a scenario end to end — in [`integration_testing.md`](integration_testing.md).
 
-### 4.1 `initial_state.toml` — частичное начальное состояние
+### 4.1 `initial_state.toml` — partial initial state
 
 ```toml
-stage = "Play"                  # необязательно: "Play" | "Setup" | "GameOver"; по умолчанию Setup("kick off")
-setup_reason = "kick off"       # имеет смысл только при stage = "Setup" (или без stage)
+stage = "Play"                  # optional: "Play" | "Setup" | "GameOver"; default Setup("kick off")
+setup_reason = "kick off"       # meaningful only with stage = "Setup" (or without stage)
 
-[ball]                          # необязательно
+[ball]                          # optional
 position = { x = 34.0, y = 0.0, z = 99.0 }
 velocity = { x = 0.0, y = 0.0, z = 20.0 }
-possessed_by = { team = "A", number = 9 }   # или "none" — мяч свободен
-last_possessing_team = "A"                  # или "none"
+possessed_by = { team = "A", number = 9 }   # or "none" — the ball is free
+last_possessing_team = "A"                  # or "none"
 
-[setup]                         # имеет смысл только при stage = "Setup"
+[setup]                         # meaningful only with stage = "Setup"
 restart_position = { x = 34.0, y = 0.0, z = 5.5 }
-restart_team = "A"              # или "none"
+restart_team = "A"              # or "none"
 
-[[players]]                     # необязательный список точных позиций в метрах
+[[players]]                     # optional list of exact positions in meters
 team = "A"
 number = 9
 position = { x = 34.0, y = 0.0, z = 10.0 }
 ```
 
-Правила:
+Rules:
 
-- `stage` не указан — мир стартует в `Setup("kick off")`; `setup_reason` учитывается и при явном
-  `stage = "Setup"`, и при отсутствии `stage`.
-- при старте в `Setup` (`stage` отсутствует или `"Setup"`) задание `[ball]` — **ошибка загрузки**:
-  первый тик `FootballGameManager` безусловно перезаписывает мяч. Управление мячом в `Setup` —
-  только через `[setup]`.
-- случайность не настраивается: раннер жёстко использует детерминированный RNG (`temperature = 0.0`,
-  фиксированный `seed`).
-- `[[players]]` переопределяет только начальную позицию `PlayerState.position`; тактические
-  регионы, ключи `set_piece_positions` и роли исполнителя из `tactical.toml` не меняются и видны
-  скриптам. Игрок адресуется `{team, number}` (номер — из `tactical.toml`); номер должен быть
-  положительным. Игроки, не указанные в списке, получают фабричную позицию.
+- if `stage` is absent — the world starts in `Setup("kick off")`; `setup_reason` is honored both with an explicit
+  `stage = "Setup"` and without `stage`.
+- when starting in `Setup` (`stage` absent or `"Setup"`), setting `[ball]` is a **load error**:
+  the first `FootballGameManager` tick unconditionally overwrites the ball. Ball control in `Setup` —
+  only via `[setup]`.
+- randomness is not configurable: the runner strictly uses a deterministic RNG (`temperature = 0.0`,
+  fixed `seed`).
+- `[[players]]` overrides only the initial position `PlayerState.position`; the tactical
+  regions, the `set_piece_positions` keys, and the taker roles from `tactical.toml` do not change and remain visible
+  to scripts. A player is addressed by `{team, number}` (number — from `tactical.toml`); the number must be
+  positive. Players not listed get the factory position.
 
-### 4.2 `scenario.toml` — план прогона `[run]`
+### 4.2 `scenario.toml` — run plan `[run]`
 
 ```toml
 [run]
-dt = 0.1                # длина шага, обязательна, положительное конечное число
+dt = 0.1                # step length, required, a positive finite number
 
-[[run.stop]]            # типизированный список; останавливает ЛЮБОЙ критерий
-when = "stage"          # смена стадии на целевую
+[[run.stop]]            # typed list; ANY criterion stops the run
+when = "stage"          # stage change to the target
 stage = "Setup"         # "Play" | "Setup" | "GameOver"
-setup_reason = "kick off"   # необязательно: точная причина Setup
+setup_reason = "kick off"   # optional: the exact Setup reason
 
 [[run.stop]]
-when = "event"          # наступление события
+when = "event"          # event occurrence
 event = "Goal"          # Goal | Touchline | GoalLine | GameEnd
-team = "B"              # необязательно; у GameEnd команда запрещена
+team = "B"              # optional; forbidden for GameEnd
 
 [[run.stop]]
-when = "steps"          # лимит шагов — страховочный критерий
+when = "steps"          # step limit — a safety criterion
 steps = 1000
 
 # [[run.stop]]
-# when = "time"         # лимит модельного времени — страховочный критерий
+# when = "time"         # model-time limit — a safety criterion
 # time = 60.0
 ```
 
-Типы критериев (`when`): `"stage"`, `"event"`, `"steps"`, `"time"`.
+Criterion types (`when`): `"stage"`, `"event"`, `"steps"`, `"time"`.
 
-- `stage` — `stage` + необязательный `setup_reason`; `Setup` без `setup_reason` матчится с любой
-  причиной.
-- `event` — `event` + необязательный `team`; `GameEnd` не несёт команду, пара `GameEnd` + `team` —
-  ошибка загрузки.
-- `steps` — лимит шагов; `time` — лимит модельного времени.
+- `stage` — `stage` + optional `setup_reason`; `Setup` without `setup_reason` matches any
+  reason.
+- `event` — `event` + optional `team`; `GameEnd` carries no team, the pair `GameEnd` + `team` —
+  a load error.
+- `steps` — step limit; `time` — model-time limit.
 
-Обязателен хотя бы один страховочный критерий `steps` или `time` (иначе ошибка загрузки) — защита
-от зацикливания. Критерии проверяются после каждого шага в порядке объявления; первый сработавший
-попадает в `StopReason`.
+At least one safety criterion `steps` or `time` is required (otherwise a load error) — protection
+against infinite loops. Criteria are checked after each step in declaration order; the first triggered
+one goes into `StopReason`.
 
-### 4.3 `scenario.toml` — ожидания `[expect]`
+### 4.3 `scenario.toml` — expectations `[expect]`
 
-Каждый пункт опционален; проверяются только перечисленные поля.
+Each item is optional; only the listed fields are checked.
 
 ```toml
 [expect]
-journal_match = "exact"     # "exact" (по умолчанию) | "subsequence"
+journal_match = "exact"     # "exact" (default) | "subsequence"
 
-[expect.stop]               # необязательно
+[expect.stop]               # optional
 when = "event"
 event = "Goal"
 team = "B"
-steps = 15                  # необязательно: точное число шагов (для stage/event/time)
+steps = 15                  # optional: the exact step count (for stage/event/time)
 
-[[expect.journal]]          # необязательно; по одной записи на строку
+[[expect.journal]]          # optional; one entry per line
 type = "kick_outcome"
 player = { team = "A", number = 1 }
-at = 1.5                    # необязательно: абсолютный timestamp (с допуском)
+at = 1.5                    # optional: absolute timestamp (with tolerance)
 ```
 
-`[expect.stop]` — каким критерием завершился прогон (`when` и поля те же, что у `[[run.stop]]`),
-плюс необязательное точное число шагов `steps` для `stage`/`event`/`time`; для `when = "steps"`
-значение `steps` одновременно является и лимитом, и ожидаемым числом шагов.
+`[expect.stop]` — by which criterion the run finished (`when` and the fields are the same as for `[[run.stop]]`),
+plus an optional exact step count `steps` for `stage`/`event`/`time`; for `when = "steps"`
+the `steps` value is both the limit and the expected step count.
 
-`[[expect.journal]]` — по одной ожидаемой записи журнала, дискриминатор `type`:
+`[[expect.journal]]` — one expected journal entry, discriminator `type`:
 
-| `type` | Необязательные поля |
+| `type` | Optional fields |
 |---|---|
 | `decision_assigned` | `player = {team, number}`, `decision`, `reason`, `at` |
 | `possession_change` | `possessed_by = {team, number} \| "none"`, `last_possessing_team`, `at` |
 | `kick_outcome` | `player = {team, number}`, `ball_velocity`, `at` |
-| `stage_change` | `stage` (+ `setup_reason` для `Setup`), `at` |
+| `stage_change` | `stage` (+ `setup_reason` for `Setup`), `at` |
 | `restart_set` | `position`, `team`, `at` |
 | `decisions_reset` | `at` |
 | `stat_update` | `team`, `key`, `delta`, `at` |
-| `football_event` | `event` (обязателен: `Goal`/`Touchline`/`GoalLine`/`GameEnd`), `team`, `at` |
+| `football_event` | `event` (required: `Goal`/`Touchline`/`GoalLine`/`GameEnd`), `team`, `at` |
 
-`decision` в `decision_assigned` задаётся видом решения (`"Stop"` / `"Run"` / `"Kick"`); цель
-решения не сравнивается. Игроки везде адресуются `{team, number}` (номер — `tactical.toml.number`);
-раннер резолвит пару в глобальный индекс поиском по `config.players`, дубликат или отсутствие —
-ошибка загрузки. Поля владения/команды (`possessed_by`, `last_possessing_team`, `restart_set.team`)
-принимают `{team, number}` / `"A"` / `"B"` либо `"none"`.
+`decision` in `decision_assigned` is specified by the decision kind (`"Stop"` / `"Run"` / `"Kick"`); the decision
+target is not compared. Players are everywhere addressed by `{team, number}` (number — `tactical.toml.number`);
+the runner resolves the pair to a global index by searching `config.players`, a duplicate or absence —
+a load error. Possession/team fields (`possessed_by`, `last_possessing_team`, `restart_set.team`)
+accept `{team, number}` / `"A"` / `"B"` or `"none"`.
 
-`journal_match` задаёт способ сравнения `[[expect.journal]]`:
+`journal_match` specifies how `[[expect.journal]]` is compared:
 
-- `"exact"` (по умолчанию) — полное совпадение длины и порядка;
-- `"subsequence"` — перечисленные записи встречаются в фактическом журнале в указанном порядке,
-  прочие игнорируются.
+- `"exact"` (default) — full match of length and order;
+- `"subsequence"` — the listed entries appear in the actual journal in the specified order,
+  the rest are ignored.
 
-Сравнение: типы и порядок — точно; целые, перечисления, строки — точно; float-поля (`Point3D`,
-`Velocity3D`, `delta`) — с допуском `TOLERANCE` (`1e-4`); `timestamp` (`at`) — с допуском
-`max(dt, 1e-4)`. `at` — абсолютный timestamp от старта прогона (прогон всегда стартует с нулевого
-модельного времени).
+Comparison: types and order — exact; integers, enums, strings — exact; float fields (`Point3D`,
+`Velocity3D`, `delta`) — with tolerance `TOLERANCE` (`1e-4`); `timestamp` (`at`) — with tolerance
+`max(dt, 1e-4)`. `at` is the absolute timestamp from the run start (the run always starts at zero
+model time).
 
-### 4.4 `final_state.toml` — ожидаемое конечное состояние
+### 4.4 `final_state.toml` — expected final state
 
-Тот же частичный формат, что и `initial_state.toml`, но «**отсутствующее поле = не проверять**»;
-присутствующее поле сравнивается (координаты — с допуском). Дополнительно задаётся счёт. Файл
-опционален: если его нет, конечное состояние не проверяется.
+The same partial format as `initial_state.toml`, but with the "**missing field = do not check**" semantics;
+a present field is compared (coordinates — with tolerance). Additionally, the score is specified. The file
+is optional: if absent, the final state is not checked.
 
 ```toml
-stage = "Setup"                # необязательно
-setup_reason = "kick off"      # необязательно; с stage = "Setup" или без
-score = { A = 1, B = 0 }       # необязательно: счёт по командам
+stage = "Setup"                # optional
+setup_reason = "kick off"      # optional; with stage = "Setup" or without
+score = { A = 1, B = 0 }       # optional: score by team
 
-[ball]                         # необязательно
+[ball]                         # optional
 position = { x = 34.0, y = 0.0, z = 10.0 }
 velocity = { x = 0.0, y = 0.0, z = 0.0 }
-possessed_by = { team = "A", number = 9 }   # или "none"
-last_possessing_team = "A"                  # или "none"
+possessed_by = { team = "A", number = 9 }   # or "none"
+last_possessing_team = "A"                  # or "none"
 
-[setup]                        # необязательно
+[setup]                        # optional
 restart_position = { x = 34.0, y = 0.0, z = 5.5 }
-restart_team = "B"             # или "none"
+restart_team = "B"             # or "none"
 
-[[players]]                    # необязательно
+[[players]]                    # optional
 team = "A"
 number = 9
 position = { x = 34.0, y = 0.0, z = 10.0 }
 ```
 
-`stage = "Setup"` без `setup_reason` — проверяется только, что стадия `Setup` (любой причины); с
-`setup_reason` — точная причина. `score` сверяется со значением `"score"` в `team_stats` каждой
-команды (с допуском). Позиции игроков и мяча — с допуском `TOLERANCE`; скорость мяча — также с
-допуском.
+`stage = "Setup"` without `setup_reason` — only the `Setup` stage is checked (any reason); with
+`setup_reason` — the exact reason. `score` is compared against the `"score"` value in each
+team's `team_stats` (with tolerance). Player and ball positions — with tolerance `TOLERANCE`; ball velocity — also with
+tolerance.

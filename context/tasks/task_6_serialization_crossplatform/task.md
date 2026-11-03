@@ -1,22 +1,22 @@
-# Задача
+# Task
 
-Обеспечить кроссплатформенный детерминизм воспроизведения записи.
+Ensure cross-platform determinism of record replay.
 
-Выделено из задачи сериализации (`task_3_game_serialization`).
+Extracted from the serialization task (`task_3_game_serialization`).
 
-# Итоги обсуждения — предложения
+# Discussion Results — Proposals
 
-## 1. Кроссплатформенный детерминизм
+## 1. Cross-Platform Determinism
 
-Единственный реальный источник разброса между платформами — трансцендентные функции (`sin`/`cos`
-в направлении удара и `Arc`-зонах); при появлении требования кросс-платформенности — перейти на
+The only real source of spread between platforms is transcendental functions (`sin`/`cos`
+in kick direction and `Arc` zones); when the cross-platform requirement appears — switch to
 `libm`.
 
-В `task_3_game_serialization` гарантируется детерминизм в рамках одной платформы; эта задача
-вводит кросс-платформенную гарантию.
+`task_3_game_serialization` guarantees determinism within a single platform; this task
+introduces a cross-platform guarantee.
 
-## 2. Требуемые доработки
+## 2. Required Changes
 
-- Замена трансцендентных функций на детерминированную реализацию (`libm`).
-- Документирование кросс-платформенной гарантии.
-- Тесты, подтверждающие идентичность воспроизведения между платформами (по возможности).
+- Replace transcendental functions with a deterministic implementation (`libm`).
+- Document the cross-platform guarantee.
+- Tests confirming identical replay between platforms (where possible).

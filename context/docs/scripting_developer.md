@@ -1,69 +1,69 @@
-# Lua-скрипты: руководство разработчика
+# Lua Scripts: Developer Guide
 
-Документ для тех, кто разрабатывает скриптовую часть проекта: функции ядра и стандартную
-библиотеку ([`ynwa-scripts/preambles/`](../ynwa-scripts/preambles)), преамбулы команд и скрипты
-игроков. Как скрипты выполняются (VM, системы, таймеры), здесь не описывается — см.
-[`context.md`](context.md) §4 и [`context_game_step.md`](context_game_step.md). Протокол обмена
-ядро ↔ движок решений — [`protocols.md`](protocols.md); здесь на него только ссылки. Формат данных
-команды на диске — [`protocols.md`](protocols.md) §2.
+Documentation for those developing the scripting part of the project: the core functions and the standard
+library ([`ynwa-scripts/preambles/`](../ynwa-scripts/preambles)), team preambles, and player
+scripts. How scripts are executed (VM, systems, timers) is not described here — see
+[`context.md`](context.md) §4 and [`context_game_step.md`](context_game_step.md). The core ↔ decision-engine
+exchange protocol — [`protocols.md`](protocols.md); here only references to it. The on-disk team data
+format — [`protocols.md`](protocols.md) §2.
 
-## 1. Уровни скриптов и их ответственность
+## 1. Script Levels and Their Responsibilities
 
-| Уровень | Файл | Кто пишет | Ответственность |
+| Level | File | Author | Responsibility |
 |---|---|---|---|
-| Функции ядра | [`core.lua`](../ynwa-scripts/preambles/core.lua) | проект | Тонкий доступ к состоянию: обёртки над `context`/`GAME_DATA`. Скрывают привязку к команде (`own`/`opponent`). Без игровой логики. |
-| Стандартная библиотека | [`stdlib.lua`](../ynwa-scripts/preambles/stdlib.lua) | проект | Утилиты, запросы состояния, примитивные и тактические действия, диспетчер [`make_decision()`](../ynwa-scripts/preambles/stdlib.lua:229). |
-| Преамбула команды | `teams/<id>/preamble.lua` | команда | Тактика команды: таблица `team_play` и общие тактические таблицы (например, `goalkeeper_play`). |
-| Скрипт игрока | `teams/<id>/players/NN/script.lua` | команда | Индивидуальная тактика: частичное переопределение через `player_play`. |
+| Core functions | [`core.lua`](../ynwa-scripts/preambles/core.lua) | project | Thin state access: wrappers over `context`/`GAME_DATA`. Hide the team binding (`own`/`opponent`). No game logic. |
+| Standard library | [`stdlib.lua`](../ynwa-scripts/preambles/stdlib.lua) | project | Utilities, state queries, primitive and tactical actions, the [`make_decision()`](../ynwa-scripts/preambles/stdlib.lua:229) dispatcher. |
+| Team preamble | `teams/<id>/preamble.lua` | team | Team tactics: the `team_play` table and common tactical tables (e.g., `goalkeeper_play`). |
+| Player script | `teams/<id>/players/NN/script.lua` | team | Individual tactics: partial override via `player_play`. |
 
-`core.lua` и `stdlib.lua` команды не изменяют; `preamble.lua` и `script.lua` пишет команда.
+Teams do not modify `core.lua` and `stdlib.lua`; the team writes `preamble.lua` and `script.lua`.
 
-ВАЖНО: написание пользователем скриптов на Lua (преамбулы команды, скрипты игрока) это промежуточное состояние. В будущем будет разработан специальный язык для пользователя, который будет транспилироваться в Lua. Поэтому на этапе разработки многие возможности пользовательских Lua-скриптов (например, прямой вызов функций core.lua) не ограничиваются: они не будут доступны пользователю в реальном языке программирования пользователя. Тем не менее следует соблюдать разделение уровней абстракции.
+IMPORTANT: user-authored Lua scripts (team preambles, player scripts) are an intermediate state. In the future a dedicated user language will be developed and transpiled to Lua. Therefore, at the development stage many capabilities of user Lua scripts (for example, direct calls to core.lua functions) are not restricted: they will not be available to the user in the real user programming language. Nevertheless, the separation of abstraction levels must be observed.
 
-## 2. Загрузка, перспектива, состояние
+## 2. Loading, Perspective, State
 
-Кратко, без вывода:
+Briefly, without derivation:
 
-- Порядок загрузки: `core.lua` + `stdlib.lua` + `preamble.lua` команды + `script.lua` игрока.
-- Преамбулы исполняются один раз при создании VM игрока; скрипт игрока перезагружается на каждом
-  вызове.
-- Перспектива: скрипты обеих команд пишутся одинаково — вход (`context`, `GAME_DATA`, регионы)
-  отражается под команду игрока, выход (решение) отражается обратно. Командоспецифичное доступно
-  только через функции `own`/`opponent`.
-- Состояние: у каждого игрока своя VM. Глобали, выставленные преамбулой, сохраняются между
-  вызовами в пределах VM этого игрока; глобали скрипта игрока — нет.
+- Load order: `core.lua` + `stdlib.lua` + team `preamble.lua` + player `script.lua`.
+- Preambles are executed once when the player's VM is created; the player script is reloaded on every
+  call.
+- Perspective: both teams' scripts are written identically — the input (`context`, `GAME_DATA`, regions)
+  is mirrored to the player's team, the output (decision) is mirrored back. Team-specific data is accessible
+  only through the `own`/`opponent` functions.
+- State: each player has their own VM. Globals set by the preamble are preserved between
+  calls within that player's VM; player-script globals are not.
 
-## 3. Правила написания скриптов
+## 3. Script Authoring Rules
 
-1. Не обращаться к `context` и `GAME_DATA` напрямую вне `core.lua` — только через функции-обёртки;
-   прямой доступ по сырым ключам (`GAME_DATA.zones.goal_a`) непереносим между командами.
-2. Не переопределять `make_decision()`.
-3. Не собирать таблицы `{action = ...}` вручную, если есть готовая функция stdlib.
-4. Предпочитать point-free стиль: `team_has_ball = chase_ball`, а не обёртку в лямбду.
+1. Do not access `context` and `GAME_DATA` directly outside `core.lua` — only through wrapper functions;
+   direct access by raw keys (`GAME_DATA.zones.goal_a`) is not portable between teams.
+2. Do not override `make_decision()`.
+3. Do not assemble `{action = ...}` tables by hand if a ready stdlib function exists.
+4. Prefer point-free style: `team_has_ball = chase_ball`, not a lambda wrapper.
 
-## 4. Диспетчер `make_decision()`
+## 4. The `make_decision()` Dispatcher
 
-[`make_decision()`](../ynwa-scripts/preambles/stdlib.lua:229) определён в `stdlib.lua`;
-переопределять его нельзя. Он определяет состояние владения мячом и вызывает обработчик:
+[`make_decision()`](../ynwa-scripts/preambles/stdlib.lua:229) is defined in `stdlib.lua`;
+it cannot be overridden. It determines the ball-possession state and calls the handler:
 
 ```
 player_play[state] → team_play[state] → error()
 ```
 
-Состояния: `"i_have_ball"`, `"ball_is_free"`, `"team_has_ball"`, `"opponent_has_ball"`.
+States: `"i_have_ball"`, `"ball_is_free"`, `"team_has_ball"`, `"opponent_has_ball"`.
 
-`team_play` задаётся в преамбуле команды и определяет поведение по умолчанию для всех игроков.
-`player_play` — необязательное частичное переопределение в скрипте игрока: неуказанные состояния
-падают в `team_play`.
+`team_play` is set in the team preamble and defines the default behavior for all players.
+`player_play` — an optional partial override in the player script: unspecified states
+fall back to `team_play`.
 
-Тонкость: `"ball_is_free"` возникает только когда `owner_team == "None"`; после передачи владение
-командой сохраняется, и состояние будет `"team_has_ball"`.
+Subtlety: `"ball_is_free"` occurs only when `owner_team == "None"`; after a pass, team possession
+is preserved and the state becomes `"team_has_ball"`.
 
-## 5. Примеры уровней
+## 5. Level Examples
 
-Краткие примеры каждого уровня с границей «можно/нельзя».
+Brief examples of each level with the "allowed/forbidden" boundary.
 
-`core.lua` — только чтение `context`/`GAME_DATA`, без игровой логики:
+`core.lua` — only reads `context`/`GAME_DATA`, without game logic:
 
 ```lua
 function ball_owner()
@@ -71,7 +71,7 @@ function ball_owner()
 end
 ```
 
-`stdlib.lua` — готовые действия; `make_decision()` переопределять нельзя:
+`stdlib.lua` — ready actions; `make_decision()` must not be overridden:
 
 ```lua
 function stop(reason)
@@ -79,7 +79,7 @@ function stop(reason)
 end
 ```
 
-`preamble.lua` — `team_play` и общие тактические таблицы:
+`preamble.lua` — `team_play` and common tactical tables:
 
 ```lua
 team_play = {
@@ -89,13 +89,13 @@ team_play = {
 }
 ```
 
-`script.lua` — частичное переопределение; неуказанные состояния падают в `team_play`:
+`script.lua` — partial override; unspecified states fall back to `team_play`:
 
 ```lua
 player_play = { i_have_ball = forward_with_ball }
 ```
 
-## 6. Формат решения и данные
+## 6. Decision Format and Data
 
-Формат возвращаемого решения, контекста (`context`) и статических данных (`GAME_DATA`) —
-[`protocols.md`](protocols.md) §1. Здесь не повторяется.
+The format of the returned decision, the context (`context`), and the static data (`GAME_DATA`) —
+[`protocols.md`](protocols.md) §1. Not repeated here.

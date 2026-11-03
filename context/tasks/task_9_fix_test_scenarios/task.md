@@ -1,9 +1,9 @@
-После того, как были реализованы задачи по сериализации игры, появилась возможность проигрывать тестовые сценарии в плеере и визуально отслеживать их корректное исполнение. Например, команда, проигрывающая сценарий проверки обработки углового:
+After the game serialization tasks were implemented, it became possible to play test scenarios in the player and visually track their correct execution. For example, the command that plays the corner-handling check scenario:
 
 ./replay.sh /home/lipkin/.ynwa/scenarios/corner.jsonl
 
-При этом ожидалось, что запись и проигрывание сценария целиком воспроизводят игровую ситуацию. Т.е. при проигрывании сценария через плеер разработчик будет наблюдать на экране изначальную расстановку игроков (элементарную, по одному игроку на команду), мяч, уходящий за лицевую линию, остановка теста (угловой состоялся)
+It was expected that recording and playing the scenario would fully reproduce the game situation. That is, when playing the scenario through the player, the developer would observe on screen the initial player positioning (elementary, one player per team), the ball going out over the goal line, and the test stopping (the corner took place).
 
-На практике сценарий завершается фактически мгновенно, проанализировать его работоспособность визуально невозможно.
+In practice, the scenario finishes virtually instantly, and it is impossible to analyze its correctness visually.
 
-Необходимо исправить эту ситуацию.
+This situation must be fixed.

@@ -1,46 +1,46 @@
-# Lua-скрипты: справочник игрока
+# Lua Scripts: Player Reference
 
-Документация на этапе разработки: справочник по скриптовой части для тех, кто настраивает
-игроков и команды. Полные форматы данных (`static.toml`, `tactical.toml`, `context`, `GAME_DATA`,
-решение) — [`protocols.md`](protocols.md); общий контекст — [`context.md`](context.md);
-внутреннее устройство скриптов — [`scripting_developer.md`](scripting_developer.md).
+Development-stage documentation: a scripting reference for those configuring
+players and teams. Full data formats (`static.toml`, `tactical.toml`, `context`, `GAME_DATA`,
+decision) — [`protocols.md`](protocols.md); general context — [`context.md`](context.md);
+script internals — [`scripting_developer.md`](scripting_developer.md).
 
-ВАЖНО: написание пользователем скриптов на Lua это промежуточное состояние. В будущем будет разработан специальный язык для пользователя, который будет транспилироваться в Lua. Поэтому на этапе разработки многие возможности пользовательских Lua-скриптов (например, прямой вызов функций core.lua) не ограничиваются: они не будут доступны пользователю в реальном языке программирования пользователя. Тем не менее следует соблюдать разделение уровней абстракции.
+IMPORTANT: user-authored Lua scripts are an intermediate state. In the future a dedicated user language will be developed and transpiled to Lua. Therefore, at the development stage many capabilities of user Lua scripts (for example, direct calls to core.lua functions) are not restricted: they will not be available to the user in the real user programming language. Nevertheless, the separation of abstraction levels must be observed.
 
-## 1. Поле, координаты и сетка
+## 1. Field, Coordinates, and Grid
 
-Кратко:
+Briefly:
 
-- Правая система координат: **X** — ширина поля, **Z** — длина поля; свои ворота всегда «сзади»
-  (меньший Z), ворота соперника «впереди» (больший Z).
-- Скрипт всегда видит поле **со стороны своей команды**; позиции в файлах пишутся в своей
-  перспективе, для команды B движок отражает их автоматически. Поэтому один и тот же код работает
-  за обе команды.
-- Сетка: колонки — по X в Excel-нотации (`A`…`Z`, затем `AA`), ряды — по Z, нумерация 1-based.
-  Клетка — `"M22"`, регион — `"A1:B2"`.
+- Right-handed coordinate system: **X** — field width, **Z** — field length; the own goal is always "behind"
+  (smaller Z), the opponent's goal "ahead" (larger Z).
+- The script always sees the field **from its own team's side**; positions in files are written from its own
+  perspective, and for Team B the engine mirrors them automatically. Therefore the same code works
+  for both teams.
+- Grid: columns along X in Excel notation (`A`…`Z`, then `AA`), rows along Z, 1-based numbering.
+  A cell is `"M22"`, a region is `"A1:B2"`.
 
-## 2. Характеристики и позиции игрока
+## 2. Player Attributes and Positions
 
-**Статические характеристики** (`static.toml`):
+**Static attributes** (`static.toml`):
 
-| Поле | Диапазон |
+| Field | Range |
 |---|---|
-| `name` | строка |
+| `name` | string |
 | `reaction_rate` | 10–100 |
 | `speed_rate` | 10–100 |
 | `tackle_rate` | 10–100 |
 | `shot_power` | 10–100 |
 | `shot_accuracy` | 10–100 |
 
-**Тактические данные** (`tactical.toml`):
+**Tactical data** (`tactical.toml`):
 
-| Поле | Смысл |
+| Field | Meaning |
 |---|---|
-| `number` | тактический номер (1…N) |
-| `[play_positions]` | `attack`, `defence` — обычные позиции (нотация клетки/региона) |
-| `[set_piece_positions]` | 16 ключей стандартных положений (см. ниже) |
+| `number` | tactical number (1…N) |
+| `[play_positions]` | `attack`, `defence` — regular positions (cell/region notation) |
+| `[set_piece_positions]` | 16 set-piece keys (see below) |
 
-**Стандартные позиции** — 16 обязательных ключей `[set_piece_positions]`:
+**Set-piece positions** — the 16 mandatory `[set_piece_positions]` keys:
 
 ```
 "kick off own", "kick off opp",
@@ -53,87 +53,87 @@
 "throw in opp right own half", "throw in opp right opp half"
 ```
 
-Значение ключа — нотация клетки/региона либо маркер `"on_ball"` (этот игрок — исполнитель
-стандарта; допустим только в ключах `own` и ровно у одного игрока на ключ). Ключ
-`"kick off opp"` дополнительно регистрируется как регион `start`.
+A key's value is a cell/region notation or the `"on_ball"` marker (this player is the set-piece
+taker; allowed only in `own` keys and exactly once per key). The
+`"kick off opp"` key is additionally registered as the `start` region.
 
-## 3. Доступные функции
+## 3. Available Functions
 
-### 3.1 Доступ к состоянию ([`core.lua`](../ynwa-scripts/preambles/core.lua))
+### 3.1 State Access ([`core.lua`](../ynwa-scripts/preambles/core.lua))
 
-| Функция | Возвращает |
+| Function | Returns |
 |---|---|
-| `ball_owner()` | глобальный индекс владельца мяча или `nil`, если мяч свободен |
-| `my_position()` | таблица `{x, y, z}` — моя позиция |
-| `my_regions()` | таблица `{имя = регион}` — мои именованные регионы |
-| `ball_position()` | таблица `{x, y, z}` — позиция мяча |
-| `get_teammates()` | массив партнёров `{index, number, position}` (без самого игрока) |
-| `my_index()` | мой глобальный индекс |
-| `my_team_name()` | `"A"` или `"B"` |
-| `get_ball_owner_team()` | `"A"`, `"B"` или `"None"` |
-| `get_opponent_goal()` | объект зоны ворот соперника |
-| `get_own_goal()` | объект зоны своих ворот |
-| `get_opponent_penalty_area()` | объект зоны штрафной соперника |
+| `ball_owner()` | global index of the ball owner or `nil` if the ball is free |
+| `my_position()` | table `{x, y, z}` — my position |
+| `my_regions()` | table `{name = region}` — my named regions |
+| `ball_position()` | table `{x, y, z}` — ball position |
+| `get_teammates()` | array of teammates `{index, number, position}` (excluding self) |
+| `my_index()` | my global index |
+| `my_team_name()` | `"A"` or `"B"` |
+| `get_ball_owner_team()` | `"A"`, `"B"`, or `"None"` |
+| `get_opponent_goal()` | the opponent's goal zone object |
+| `get_own_goal()` | the own goal zone object |
+| `get_opponent_penalty_area()` | the opponent's penalty-area zone object |
 
-### 3.2 Утилиты ([`stdlib.lua`](../ynwa-scripts/preambles/stdlib.lua))
+### 3.2 Utilities ([`stdlib.lua`](../ynwa-scripts/preambles/stdlib.lua))
 
-| Функция | Параметры | Возвращает |
+| Function | Parameters | Returns |
 |---|---|---|
-| `distance(p1, p2)` | две позиции | расстояние по горизонтали (без Y) |
-| `parse_col(s)` | строка колонки | номер колонки (`A`→1, `Z`→26, `AA`→27) |
-| `parse_notation(n)` | строка `"M22"` | `col, row` |
+| `distance(p1, p2)` | two positions | horizontal distance (without Y) |
+| `parse_col(s)` | column string | column number (`A`→1, `Z`→26, `AA`→27) |
+| `parse_notation(n)` | string `"M22"` | `col, row` |
 
-### 3.3 Проверки условий ([`stdlib.lua`](../ynwa-scripts/preambles/stdlib.lua))
+### 3.3 Condition Checks ([`stdlib.lua`](../ynwa-scripts/preambles/stdlib.lua))
 
-| Функция | Параметры | Возвращает |
+| Function | Parameters | Returns |
 |---|---|---|
-| `am_i_ball_owner()` | — | `true`, если мяч у меня |
-| `is_in_region_obj(region)` | регион | `true`, если я внутри региона |
-| `is_in_region(from, to)` | нотации углов | `true`, если я внутри региона `from:to` |
-| `is_in_opponent_penalty_area()` | — | `true`, если я в штрафной соперника |
-| `get_teammate_by_number(n)` | тактический номер | партнёр `{index, number, position}` или `nil` |
+| `am_i_ball_owner()` | — | `true` if I have the ball |
+| `is_in_region_obj(region)` | region | `true` if I am inside the region |
+| `is_in_region(from, to)` | corner notations | `true` if I am inside the region `from:to` |
+| `is_in_opponent_penalty_area()` | — | `true` if I am in the opponent's penalty area |
+| `get_teammate_by_number(n)` | tactical number | teammate `{index, number, position}` or `nil` |
 
-### 3.4 Функции принятия решения ([`stdlib.lua`](../ynwa-scripts/preambles/stdlib.lua))
+### 3.4 Decision-Making Functions ([`stdlib.lua`](../ynwa-scripts/preambles/stdlib.lua))
 
-Примитивные действия:
+Primitive actions:
 
-| Функция | Параметры | Действие |
+| Function | Parameters | Action |
 |---|---|---|
-| `stop(reason)` | причина | остановиться на месте |
-| `chase_ball()` | — | бежать за мячом |
-| `run_to_region_obj(r, reason)` | регион, причина | бежать в центр региона-объекта |
-| `run_to_region(from, to)` | нотации углов | бежать в центр региона |
-| `kick_to_cell(notation)` | клетка | удар в центр клетки |
-| `kick_to_region(from, to)` | нотации углов | удар в центр региона |
-| `kick_to_opponent_goal()` | — | удар по воротам соперника |
-| `pass_to_teammate(tm)` | партнёр | пас партнёру |
-| `pass_to_players_by_numbers(numbers)` | массив номеров | пас ближайшему из перечисленных; если никого — удар по воротам |
+| `stop(reason)` | reason | stop in place |
+| `chase_ball()` | — | run after the ball |
+| `run_to_region_obj(r, reason)` | region, reason | run to the center of the region object |
+| `run_to_region(from, to)` | corner notations | run to the center of the region |
+| `kick_to_cell(notation)` | cell | kick to the center of the cell |
+| `kick_to_region(from, to)` | corner notations | kick to the center of the region |
+| `kick_to_opponent_goal()` | — | kick at the opponent's goal |
+| `pass_to_teammate(tm)` | teammate | pass to a teammate |
+| `pass_to_players_by_numbers(numbers)` | array of numbers | pass to the nearest of the listed; if none — kick at goal |
 
-Тактические действия (используют именованные регионы игрока):
+Tactical actions (use the player's named regions):
 
-| Функция | Параметры | Действие |
+| Function | Parameters | Action |
 |---|---|---|
-| `run_to_start_position()` | — | бежать в центр региона `start` |
-| `run_to_attack_position()` | — | бежать в центр региона `attack` |
-| `run_to_defence_position()` | — | бежать в центр региона `defence` |
-| `run_to_opponent_penalty_area()` | — | бежать в центр штрафной соперника |
-| `default_goalkeeper_cover_position()` | — | занять позицию на линии ворот: Z из региона `defence`, X следует за мячом с зажимом по ширине ворот |
+| `run_to_start_position()` | — | run to the center of the `start` region |
+| `run_to_attack_position()` | — | run to the center of the `attack` region |
+| `run_to_defence_position()` | — | run to the center of the `defence` region |
+| `run_to_opponent_penalty_area()` | — | run to the center of the opponent's penalty area |
+| `default_goalkeeper_cover_position()` | — | take a position on the goal line: Z from the `defence` region, X follows the ball clamped by the goal width |
 
-## 4. Преамбула команды и `team_play`
+## 4. Team Preamble and `team_play`
 
-[`preamble.lua`](../teams/team_a/preamble.lua) — тактика команды. Определяет таблицу `team_play`
-(поведение по умолчанию для всех игроков) и общие таблицы (например, `goalkeeper_play`).
+[`preamble.lua`](../teams/team_a/preamble.lua) — team tactics. Defines the `team_play` table
+(default behavior for all players) and common tables (e.g., `goalkeeper_play`).
 
-`team_play` — таблица, ключи которой — состояния владения мячом:
+`team_play` is a table whose keys are ball-possession states:
 
-| Состояние | Смысл |
+| State | Meaning |
 |---|---|
-| `"i_have_ball"` | мяч у меня |
-| `"ball_is_free"` | мяч ничей (`owner_team == "None"`) |
-| `"team_has_ball"` | мяч у моей команды (не у меня) |
-| `"opponent_has_ball"` | мяч у соперника |
+| `"i_have_ball"` | I have the ball |
+| `"ball_is_free"` | the ball is neutral (`owner_team == "None"`) |
+| `"team_has_ball"` | my team has the ball (not me) |
+| `"opponent_has_ball"` | the opponent has the ball |
 
-Краткий пример:
+Brief example:
 
 ```lua
 team_play = {
@@ -143,42 +143,42 @@ team_play = {
 }
 ```
 
-Диспетчер `make_decision()` определён в stdlib и вызывает обработчик в порядке
+The `make_decision()` dispatcher is defined in stdlib and calls the handler in the order
 `player_play[state] → team_play[state] → error()`.
 
-## 5. Скрипт игрока и `player_play`
+## 5. Player Script and `player_play`
 
-[`script.lua`](../teams/team_a/players/10/script.lua) — необязательный скрипт игрока. Определяет
-таблицу `player_play` — частичное переопределение: указанные состояния заменяют `team_play`,
-неуказанные падают в `team_play`.
+[`script.lua`](../teams/team_a/players/10/script.lua) — the optional player script. Defines
+the `player_play` table — a partial override: specified states replace `team_play`,
+unspecified ones fall back to `team_play`.
 
-Краткие примеры:
+Brief examples:
 
 ```lua
--- наследовать готовую общую таблицу
+-- inherit a ready common table
 player_play = goalkeeper_play
 
--- или переопределить отдельные состояния
+-- or override individual states
 player_play = { i_have_ball = forward_with_ball }
 ```
 
-## 6. Регионы и зоны поля
+## 6. Regions and Field Zones
 
-**Регион игрока** в `my_regions()` — объект `{min_x, max_x, min_z, max_z, display_notation}`.
-Ключи: `start`, `attack`, `defence` и ключи стандартных положений из `[set_piece_positions]`.
-`display_notation` — нотация для показа в UI/логах.
+**A player's region** in `my_regions()` is an object `{min_x, max_x, min_z, max_z, display_notation}`.
+Keys: `start`, `attack`, `defence`, and the set-piece keys from `[set_piece_positions]`.
+`display_notation` is the notation shown in the UI/logs.
 
-**Зоны поля** лежат в `GAME_DATA.zones`; обращаться к ним следует через функции
-`get_own_goal()`, `get_opponent_goal()`, `get_opponent_penalty_area()`. Имя зоны = имя +
-суффикс `_a`/`_b` для командных зон (нейтральные — без суффикса).
+**Field zones** live in `GAME_DATA.zones`; access them through the functions
+`get_own_goal()`, `get_opponent_goal()`, `get_opponent_penalty_area()`. The zone name = name +
+`_a`/`_b` suffix for team zones (neutral zones — without suffix).
 
-Геометрии зон:
+Zone geometries:
 
 - `rectangle`: `{type, min_x, max_x, min_z, max_z}`;
 - `circle`: `{type, center_x, center_z, radius}`;
-- `arc`: `{type, center_x, center_z, radius, start_angle, end_angle}` (градусы);
+- `arc`: `{type, center_x, center_z, radius, start_angle, end_angle}` (degrees);
 - `point`: `{type, x, z, tolerance}`.
 
-19 зон поля: `field`, `half` (A/B), `goal_area` (A/B), `penalty_area` (A/B), `center_circle`,
+19 field zones: `field`, `half` (A/B), `goal_area` (A/B), `penalty_area` (A/B), `center_circle`,
 `penalty_arc` (A/B), `corner_arc_bottom`/`corner_arc_top` (A/B), `center_spot`,
 `penalty_spot` (A/B), `goal` (A/B).

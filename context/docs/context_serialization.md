@@ -1,79 +1,79 @@
-# Запись и воспроизведение матча
+# Match Recording and Replay
 
-Контекст по сериализации результатов обсчёта игры (task_3). Цели: запись/воспроизведение матча
-(игра, отладка) и интеграционные тесты по журналу событий. Снапшот начального состояния в записи
-реализован в `task_4` (цель 1). В отдельные задачи вынесены: перемотка/коррекция дрейфа (`task_4`,
-цели 2–3), версионирование формата (`task_5`), кроссплатформенный детерминизм (`task_6`),
-интеграция в плеер (`task_7`).
+Context on serializing game simulation results (task_3). Goals: match recording/replay
+(play, debugging) and event-journal integration tests. The initial-state snapshot in the record
+is implemented in `task_4` (goal 1). Extracted into separate tasks: rewind/drift correction (`task_4`,
+goals 2–3), format versioning (`task_5`), cross-platform determinism (`task_6`),
+player integration (`task_7`).
 
-## 1. Модель
+## 1. Model
 
-**Событийно-управляемая пересимуляция физики.** Покадровая запись не ведётся: в журнал пишутся
-только существенные события с таймстампами (абсолютное время шага — аргумент `System::update`).
-При воспроизведении Lua и системы принятия решений не запускаются — события подаются из журнала,
-заново считается только физика.
+**Event-driven physics re-simulation.** No per-frame recording is kept: only significant events with
+timestamps are written to the journal (the absolute step time — the `System::update` argument).
+During replay, Lua and the decision-making systems are not run — events are fed from the journal,
+and only physics is recomputed.
 
-- **RNG пишется исходами**, а не сырыми значениями: смена владения и фактическая скорость мяча
-  после удара. Replay не зависит от RNG.
-- **Шаг фиксированный**: в запись кладутся `fixed_dt` и `total_steps`.
-- **Модель записи отделена от кодирования**: `Record` — in-memory модель, байты — за трейтами
-  `RecordWriter`/`RecordReader`.
-- Детерминизм гарантируется в рамках одной платформы. Serde-вывод стабилен: `HashMap`/`HashSet`
-  сериализуются в отсортированном виде (`sorted_collections` в `game.rs`), зоны `Field` — в
-  детерминированном порядке.
+- **RNG is recorded by outcomes**, not raw values: the possession change and the actual ball speed
+  after a kick. Replay does not depend on RNG.
+- **The step is fixed**: `fixed_dt` and `total_steps` are stored in the record.
+- **The record model is separated from encoding**: `Record` — the in-memory model, bytes — behind the
+  `RecordWriter`/`RecordReader` traits.
+- Determinism is guaranteed within a single platform. Serde output is stable: `HashMap`/`HashSet`
+  serialize in sorted order (`sorted_collections` in `game.rs`), `Field` zones — in
+  deterministic order.
 
 ## 2. Serde
 
-`Serialize`/`Deserialize` есть у конфигурационных типов ядра (`GameConfig`, `PlayerDef`, `Field`,
-зоны, `Region`/`GridCell`, `Team`, `GameStage`, `Decision`, `Point3D`/`Velocity3D` и др.), у
-`JournalEntry`/`JournalEvent`, у `FootballEvent` и у полного состояния игры (`GameState` и
-вложенные `PlayerState`/`BallState`/`RefereeState`/`StatSet`). `GameState` кладётся в запись как
-снапшот начального состояния; `HashMap`/`HashSet` внутри него (в т.ч. `team_stats` по `Team`)
-сериализуются детерминированно через `sorted_collections`.
+`Serialize`/`Deserialize` are present on the core configuration types (`GameConfig`, `PlayerDef`, `Field`,
+zones, `Region`/`GridCell`, `Team`, `GameStage`, `Decision`, `Point3D`/`Velocity3D`, etc.), on
+`JournalEntry`/`JournalEvent`, on `FootballEvent`, and on the full game state (`GameState` and
+the nested `PlayerState`/`BallState`/`RefereeState`/`StatSet`). `GameState` is placed in the record as
+the initial-state snapshot; `HashMap`/`HashSet` inside it (including `team_stats` by `Team`)
+serialize deterministically via `sorted_collections`.
 
-## 3. Журнал (`ynwa-core/src/journal.rs`)
+## 3. Journal (`ynwa-core/src/journal.rs`)
 
-Журнал — единственный канал, через который игра сообщает о значимых событиях. Системы только
-сообщают о событии; что с ним сделать (выбросить, накопить, записать в файл), решает подключённый
-приёмник. Поэтому код систем не зависит от способа хранения.
+The journal is the only channel through which the game reports significant events. Systems only
+report an event; what to do with it (drop, accumulate, write to a file) is decided by the attached
+sink. Therefore system code does not depend on the storage mechanism.
 
 - `JournalEntry { timestamp, event }`; `JournalEvent`: `DecisionAssigned`, `PossessionChange`,
   `KickOutcome`, `StageChange`, `RestartSet`, `DecisionsReset`, `StatUpdate`,
-  `External { kind, data }` (спорт-специфичные события; ядро их не интерпретирует, футбол кладёт
-  туда `FootballEvent` с `kind = "football_event"`).
-- `trait JournalSink { push, finish_step, finish }` — чистый приёмник; куда девать события, решает
-  реализация. Шаги считает сам приёмник по `finish_step`.
-- Реализации: `NullJournalSink` (по умолчанию), `CollectJournalRecorder` (пишет во внешнюю
-  `Rc<RefCell<EventsCollection>>`; `EventsCollection::take_record(header)` собирает `Record`),
-  `FileJournalRecorder` (`codec.rs`, потоковая запись с flush каждой строки; ошибки записи копятся
-  и возвращаются из `finish`).
-- `Game` владеет приёмником: `set_journal_sink`, `record(timestamp, event)`, `finish_step`,
-  `finish_journal()` (отцепляет sink и финализирует). `World::step` в конце шага вызывает
-  `Game::finish_step`.
+  `External { kind, data }` (sport-specific events; the core does not interpret them, football places
+  `FootballEvent` there with `kind = "football_event"`).
+- `trait JournalSink { push, finish_step, finish }` — a pure sink; the implementation decides where events go.
+  The sink counts steps itself via `finish_step`.
+- Implementations: `NullJournalSink` (default), `CollectJournalRecorder` (writes to an external
+  `Rc<RefCell<EventsCollection>>`; `EventsCollection::take_record(header)` assembles a `Record`),
+  `FileJournalRecorder` (`codec.rs`, streaming write with flush per line; write errors accumulate
+  and are returned from `finish`).
+- `Game` owns the sink: `set_journal_sink`, `record(timestamp, event)`, `finish_step`,
+  `finish_journal()` (detaches the sink and finalizes). `World::step` calls
+  `Game::finish_step` at the end of each step.
 
-Точки записи: `DecisionSystem` (`DecisionAssigned`, в display-ориентации),
+Recording points: `DecisionSystem` (`DecisionAssigned`, in display orientation),
 `BallPossessionSystem` (`PossessionChange`), `ActionSystem` (`KickOutcome`),
-`FootballGameManager` (футбольное событие как `External`, затем его эффекты: `StageChange`,
-`RestartSet`, `DecisionsReset`, `StatUpdate`; решения расстановки `Setup` — `DecisionAssigned`).
+`FootballGameManager` (a football event as `External`, then its effects: `StageChange`,
+`RestartSet`, `DecisionsReset`, `StatUpdate`; `Setup` positioning decisions — `DecisionAssigned`).
 
-## 4. Запись и формат
+## 4. Record and Format
 
-Запись — это заголовок (всё, что нужно, чтобы заново собрать мир) плюс журнал и число шагов.
-Формат байтов вынесен за трейты, чтобы позже можно было добавить бинарный кодек без изменения
-модели.
+A record is a header (everything needed to rebuild the world) plus a journal and a step count.
+The byte format is kept behind traits so a binary codec can be added later without changing the
+model.
 
 - `record.rs`: `RecordHeader { config, initial_state: GameState, fixed_dt }`
-  (`RecordHeader::from_game` захватывает конфигурацию и текущее состояние), `Record { header,
-  total_steps, journal }`. Стадия — часть `initial_state.stage`; отдельного поля `initial_stage`
-  нет.
-- `codec.rs`: `RecordWriter`/`RecordReader`, JSON Lines-реализации `JsonRecordWriter`/
-  `JsonRecordReader`. Строки: `header`, `event`…, `footer { total_steps }`. Оборванный файл
-  (без футера) читается как валидный префикс.
-- `record_io.rs`: конструкторы `json_journal_file_writer/reader` и
-  `json_journal_memory_writer/reader` (`SharedBytes` — буфер в памяти), а также
-  `write_json_record(path, &Record)` — запись готового `Record` целиком (header, события, footer).
+  (`RecordHeader::from_game` captures the configuration and current state), `Record { header,
+  total_steps, journal }`. The stage is part of `initial_state.stage`; there is no separate `initial_stage`
+  field.
+- `codec.rs`: `RecordWriter`/`RecordReader`, the JSON Lines implementations `JsonRecordWriter`/
+  `JsonRecordReader`. Lines: `header`, `event`…, `footer { total_steps }`. A truncated file
+  (without a footer) reads as a valid prefix.
+- `record_io.rs`: constructors `json_journal_file_writer/reader` and
+  `json_journal_memory_writer/reader` (`SharedBytes` — an in-memory buffer), as well as
+  `write_json_record(path, &Record)` — writes a ready `Record` in full (header, events, footer).
 
-Типичное использование:
+Typical usage:
 
 ```rust
 let collection = Rc::new(RefCell::new(EventsCollection::default()));
@@ -84,30 +84,30 @@ world.game_mut().finish_journal()?;
 let record = collection.borrow_mut().take_record(header);
 ```
 
-## 5. Воспроизведение
+## 5. Replay
 
-Для воспроизведения собирается отдельный мир: в нём нет Lua и систем принятия решений, а решения и
-исходы случайных веток берутся из журнала. Физика при этом та же, что и в оригинале, поэтому
-результат совпадает с исходным прогоном.
+For replay, a separate world is built: it has no Lua and no decision-making systems, and decisions and
+random-branch outcomes are taken from the journal. Physics is the same as in the original, so the
+result matches the original run.
 
-- `ynwa-core/src/replay.rs`: `ReplayDriver` — система, применяющая записи журнала с
-  `timestamp <= текущий` по курсору. Расчёт скорости по решению общий с `ActionSystem`
-  (`systems/movement.rs`, `pub(crate)`), чтобы физика совпадала.
+- `ynwa-core/src/replay.rs`: `ReplayDriver` — a system that applies journal entries with
+  `timestamp <= current` by cursor. The velocity calculation from a decision is shared with `ActionSystem`
+  (`systems/movement.rs`, `pub(crate)`) so physics matches.
 - `ynwa-football/src/replay.rs`:
-  - `create_football_replay_world(record)` — строит `Game` из `record.header.config`, затем
-    применяет `record.header.initial_state` (`Game::apply_state`); набор систем:
-    `ReplaySetupBallPlacer` (пин мяча в `Setup`, как в менеджере) → `ReplayDriver` →
-    `PhysicsSystem`. Клиент делает `world.step(fixed_dt)` ровно `total_steps` раз.
-  - `decode_football_events(&[JournalEntry])` — извлечение `FootballEvent` из `External`.
+  - `create_football_replay_world(record)` — builds `Game` from `record.header.config`, then
+    applies `record.header.initial_state` (`Game::apply_state`); system set:
+    `ReplaySetupBallPlacer` (ball pin in `Setup`, as in the manager) → `ReplayDriver` →
+    `PhysicsSystem`. The client calls `world.step(fixed_dt)` exactly `total_steps` times.
+  - `decode_football_events(&[JournalEntry])` — extraction of `FootballEvent` from `External`.
 
-**Контракт эквивалентности replay**: совпадают позиции/скорости игроков и мяча, `possessed_by`,
+**Replay equivalence contract**: player and ball positions/velocities match, `possessed_by`,
 `last_possessing_team`, `last_possession_change_time`, `stage`, `team_stats`, `restart_*`,
-`elapsed_time`. Координационные флаги игроков (`needs_decision`, `is_ready`, `last_error`, …) не
-гарантируются.
+`elapsed_time`. Player coordination flags (`needs_decision`, `is_ready`, `last_error`, …) are not
+guaranteed.
 
-## 6. Тесты
+## 6. Tests
 
-Инфраструктура в `ynwa-football/src/test_utils.rs` (`assert_equivalent`, lockstep-прогон).
-Lockstep-тесты сравнивают оригинал и replay на каждом шаге; `check_events` снимается **до** шага
-и только в стадии `Play` (менеджер детектирует события первой системой на состоянии предыдущего
-тика). Покрыты: сквозной путь через файл, независимость от RNG, борьба за мяч.
+Infrastructure in `ynwa-football/src/test_utils.rs` (`assert_equivalent`, lockstep run).
+Lockstep tests compare the original and replay at each step; `check_events` is captured **before** the step
+and only in the `Play` stage (the manager detects events as the first system, on the previous
+tick's state). Covered: the end-to-end path through a file, RNG independence, ball contest.
