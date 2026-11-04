@@ -3,7 +3,10 @@ schema: spec-driven
 context: |
   Language: chat and dialogue in Russian; all OpenSpec artifacts and project docs in English.
 
-  Code style (source of truth: context/code_requirements.md):
+  Project overview:
+  YNWA is a programmable football manager. The user defines player attributes and tactical positions (regular play and set pieces) in TOML, writes player decision-making AI in Lua, and runs/watches matches. Simulation advances deterministically by caller-polled steps over custom kinematics (sport-agnostic `ynwa-core` + football rules in `ynwa-football`), and player AI in `Play` is delegated entirely to stateless per-tick Lua scripts (`ynwa-decisions`).
+
+  Code style:
   1. Keep code as simple as possible; avoid templates/traits in favor of plain structs and functions when possible.
   2. Avoid obvious comments; comment only non-obvious places and API. Function comments must not state where the function is called from.
   3. Use self-explanatory identifiers.
