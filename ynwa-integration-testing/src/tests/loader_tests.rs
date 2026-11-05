@@ -210,6 +210,16 @@ fn restart_team_none_maps_to_absent() {
     assert_eq!(setup.restart_team, None);
 }
 
+#[test]
+fn restart_position_none_maps_to_center() {
+    let game = test_game(&[(Team::A, 1)]);
+    let initial = parse_initial_state("stage = \"Setup\"\n[setup]\nrestart_position = \"none\"\n");
+
+    let setup = build_state_spec(&initial, &game).unwrap().setup.unwrap();
+
+    assert_eq!(setup.restart_position, None);
+}
+
 fn fixture(name: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests/fixtures")

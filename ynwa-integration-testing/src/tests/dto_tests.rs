@@ -1,4 +1,4 @@
-use crate::dto::NoneToken;
+use crate::dto::{DecisionTargetDto, NoneToken, PointOrNoneDto, ReasonOrNoneDto};
 use crate::*;
 use ynwa_core::team::Team;
 use ynwa_core::{Point3D, Score, Velocity3D};
@@ -85,9 +85,20 @@ restart_team = "A"
     let setup = state.setup.expect("setup present");
     assert_eq!(
         setup.restart_position,
-        Some(Point3D::from_meters(0.0, 0.0, 5.5))
+        Some(PointOrNoneDto::Point(Point3D::from_meters(0.0, 0.0, 5.5)))
     );
     assert_eq!(setup.restart_team, Some(TeamOrNoneDto::Team(Team::A)));
+}
+
+#[test]
+fn restart_position_accepts_none_marker() {
+    let state = parse_initial("stage = \"Setup\"\n[setup]\nrestart_position = \"none\"\n");
+
+    let setup = state.setup.expect("setup present");
+    assert_eq!(
+        setup.restart_position,
+        Some(PointOrNoneDto::None(NoneToken))
+    );
 }
 
 #[test]
@@ -108,6 +119,119 @@ last_possessing_team = "none"
         ball.last_possessing_team,
         Some(TeamOrNoneDto::None(NoneToken))
     );
+}
+
+#[test]
+fn journal_reason_and_restart_position_accept_none_marker() {
+    let scenario = parse_scenario(
+        r#"
+[run]
+timestep = 0.1
+
+[[run.stop]]
+when = "steps"
+steps = 10
+
+[[expect.journal]]
+type = "decision_assigned"
+reason = "none"
+
+[[expect.journal]]
+type = "restart_set"
+position = "none"
+"#,
+    );
+
+    use ExpectedEventDto::*;
+    assert_eq!(
+        scenario.expect.journal[0],
+        DecisionAssigned {
+            player: None,
+            decision: None,
+            target: None,
+            reason: Some(ReasonOrNoneDto::None(NoneToken)),
+            at: None,
+        }
+    );
+    assert_eq!(
+        scenario.expect.journal[1],
+        RestartSet {
+            position: Some(PointOrNoneDto::None(NoneToken)),
+            team: None,
+            at: None,
+        }
+    );
+}
+
+#[test]
+fn journal_target_parses_every_variant() {
+    let scenario = parse_scenario(
+        r#"
+[run]
+timestep = 0.1
+
+[[run.stop]]
+when = "steps"
+steps = 10
+
+[[expect.journal]]
+type = "decision_assigned"
+target = { kind = "point", point = { x = 1.0, y = 0.0, z = 2.0 } }
+
+[[expect.journal]]
+type = "decision_assigned"
+target = { kind = "cell", cell = "M22" }
+
+[[expect.journal]]
+type = "decision_assigned"
+target = { kind = "region", region = "A1:B2" }
+
+[[expect.journal]]
+type = "decision_assigned"
+target = { kind = "ball" }
+"#,
+    );
+
+    let targets = scenario
+        .expect
+        .journal
+        .iter()
+        .map(|entry| match entry {
+            ExpectedEventDto::DecisionAssigned { target, .. } => target.clone(),
+            other => panic!("unexpected entry: {other:?}"),
+        })
+        .collect::<Vec<_>>();
+
+    assert_eq!(
+        targets,
+        vec![
+            Some(DecisionTargetDto::Point {
+                point: Point3D::from_meters(1.0, 0.0, 2.0),
+            }),
+            Some(DecisionTargetDto::Cell {
+                cell: "M22".to_string(),
+            }),
+            Some(DecisionTargetDto::Region {
+                region: "A1:B2".to_string(),
+            }),
+            Some(DecisionTargetDto::Ball {}),
+        ]
+    );
+}
+
+#[test]
+fn journal_target_rejects_unknown_fields() {
+    let scenario = |target: &str| {
+        ScenarioDto::parse(&format!(
+            "[run]\ntimestep = 0.1\n[[run.stop]]\nwhen = \"steps\"\nsteps = 10\n[[expect.journal]]\ntype = \"decision_assigned\"\ntarget = {target}\n"
+        ))
+    };
+
+    assert!(scenario("{ kind = \"ball\", bogus = 1 }").is_err());
+    assert!(
+        scenario("{ kind = \"point\", point = { x = 1.0, y = 0.0, z = 2.0 }, bogus = 1 }").is_err()
+    );
+    assert!(scenario("{ kind = \"bogus\" }").is_err());
 }
 
 #[test]
@@ -406,7 +530,8 @@ team = "A"
                 number: 9
             }),
             decision: Some("Stop".to_string()),
-            reason: Some("hold".to_string()),
+            target: None,
+            reason: Some(ReasonOrNoneDto::Reason("hold".to_string())),
             at: None,
         }
     );
@@ -443,7 +568,7 @@ team = "A"
     assert_eq!(
         journal[4],
         RestartSet {
-            position: Some(Point3D::from_meters(1.0, 0.0, 2.0)),
+            position: Some(PointOrNoneDto::Point(Point3D::from_meters(1.0, 0.0, 2.0))),
             team: Some(TeamOrNoneDto::Team(Team::A)),
             at: None,
         }

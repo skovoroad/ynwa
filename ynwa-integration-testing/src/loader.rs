@@ -14,12 +14,13 @@ use ynwa_core::state_spec::{
 };
 use ynwa_core::team::Team;
 use ynwa_core::world::World;
+use ynwa_core::Point3D;
 use ynwa_football::FootballWorldBuilder;
 use ynwa_repository::FsTeamRepository;
 
 use crate::dto::{
-    BallOwnerDto, BallStateDto, ExpectDto, ExpectedFinalStateDto, InitialStateDto, RunPlanDto,
-    ScenarioDto, StageNameDto, TeamOrNoneDto,
+    BallOwnerDto, BallStateDto, ExpectDto, ExpectedFinalStateDto, InitialStateDto, PointOrNoneDto,
+    RunPlanDto, ScenarioDto, StageNameDto, TeamOrNoneDto,
 };
 
 /// Fixed RNG state: scenarios must be fully reproducible, so temperature is zero and the seed is
@@ -168,7 +169,7 @@ fn build_state_spec(
         })
         .collect::<Result<Vec<_>, ScenarioError>>()?;
     let setup = initial.setup.as_ref().map(|setup| PartialSetupSpec {
-        restart_position: setup.restart_position,
+        restart_position: point_option(setup.restart_position),
         restart_team: team_option(setup.restart_team),
     });
 
@@ -246,6 +247,13 @@ fn team_option(value: Option<TeamOrNoneDto>) -> Option<Team> {
     match value {
         Some(TeamOrNoneDto::Team(team)) => Some(team),
         Some(TeamOrNoneDto::None(_)) | None => None,
+    }
+}
+
+fn point_option(value: Option<PointOrNoneDto>) -> Option<Point3D> {
+    match value {
+        Some(PointOrNoneDto::Point(point)) => Some(point),
+        Some(PointOrNoneDto::None(_)) | None => None,
     }
 }
 

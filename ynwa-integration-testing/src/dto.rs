@@ -71,6 +71,33 @@ pub enum TeamOrNoneDto {
     None(NoneToken),
 }
 
+/// A point or the absent-position marker `"none"`.
+#[derive(Debug, Clone, Copy, PartialEq, Deserialize)]
+#[serde(untagged)]
+pub enum PointOrNoneDto {
+    Point(Point3D),
+    None(NoneToken),
+}
+
+/// A decision reason or the absent-reason marker `"none"`.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(untagged)]
+pub enum ReasonOrNoneDto {
+    None(NoneToken),
+    Reason(String),
+}
+
+/// Decision target as written in `decision_assigned`; cell and region notation is resolved during
+/// comparison, where the field grid dimensions are known.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum DecisionTargetDto {
+    Point { point: Point3D },
+    Cell { cell: String },
+    Region { region: String },
+    Ball {},
+}
+
 /// Ball fields of a partial state. `velocity` is only meaningful for the initial state.
 #[derive(Debug, Clone, Default, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -90,7 +117,7 @@ pub struct BallStateDto {
 #[serde(deny_unknown_fields)]
 pub struct SetupDto {
     #[serde(default)]
-    pub restart_position: Option<Point3D>,
+    pub restart_position: Option<PointOrNoneDto>,
     #[serde(default)]
     pub restart_team: Option<TeamOrNoneDto>,
 }
@@ -271,7 +298,9 @@ pub enum ExpectedEventDto {
         #[serde(default)]
         decision: Option<String>,
         #[serde(default)]
-        reason: Option<String>,
+        target: Option<DecisionTargetDto>,
+        #[serde(default)]
+        reason: Option<ReasonOrNoneDto>,
         #[serde(default)]
         at: Option<f32>,
     },
@@ -301,7 +330,7 @@ pub enum ExpectedEventDto {
     },
     RestartSet {
         #[serde(default)]
-        position: Option<Point3D>,
+        position: Option<PointOrNoneDto>,
         #[serde(default)]
         team: Option<TeamOrNoneDto>,
         #[serde(default)]

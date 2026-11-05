@@ -12,8 +12,9 @@
 use uom::si::length::meter;
 use uom::si::velocity::meter_per_second;
 
-use ynwa_core::game::{Decision, GameConfig, GameStage, GameState};
+use ynwa_core::game::{Decision, DecisionTarget, GameConfig, GameStage, GameState};
 use ynwa_core::journal::{JournalEntry, JournalEvent};
+use ynwa_core::region::{GridCell, Region};
 use ynwa_core::team::Team;
 use ynwa_core::{Point3D, Velocity3D};
 use ynwa_football::decode_football_events;
@@ -21,8 +22,9 @@ use ynwa_football::events::FootballEvent;
 
 use crate::criterion::{EventMatcher, StageMatcher, StopReason};
 use crate::dto::{
-    BallOwnerDto, BallStateDto, ExpectDto, ExpectedEventDto, ExpectedFinalStateDto,
-    JournalMatchDto, PlayerRefDto, SetupDto, StageNameDto, StopExpectationDto, TeamOrNoneDto,
+    BallOwnerDto, BallStateDto, DecisionTargetDto, ExpectDto, ExpectedEventDto,
+    ExpectedFinalStateDto, JournalMatchDto, PlayerRefDto, PointOrNoneDto, ReasonOrNoneDto,
+    SetupDto, StageNameDto, StopExpectationDto, TeamOrNoneDto,
 };
 use crate::loader::{resolve_player_index, ScenarioError};
 use crate::runner::RunOutcome;
@@ -125,6 +127,7 @@ fn entry_matches(
             ExpectedEventDto::DecisionAssigned {
                 player,
                 decision,
+                target,
                 reason,
                 ..
             },
@@ -136,7 +139,8 @@ fn entry_matches(
         ) => {
             player_matches(player, *player_index, config)?
                 && decision_field_matches(decision, actual_decision)
-                && optional_field_eq(reason, actual_reason)
+                && decision_target_matches(target, actual_decision, config)?
+                && reason_matches(reason, actual_reason)
         }
         (
             ExpectedEventDto::PossessionChange {
@@ -182,7 +186,10 @@ fn entry_matches(
                 restart_position: actual_position,
                 restart_team: actual_team,
             },
-        ) => point_field_matches(position, actual_position) && team_matches(team, *actual_team),
+        ) => {
+            point_or_none_field_matches(position, actual_position)
+                && team_matches(team, *actual_team)
+        }
         (ExpectedEventDto::DecisionsReset { .. }, JournalEvent::DecisionsReset) => true,
         (
             ExpectedEventDto::StatUpdate {
@@ -395,10 +402,13 @@ fn compare_final_ball(
 fn compare_final_setup(setup: &SetupDto, actual: &GameState) -> Vec<String> {
     let mut diffs = Vec::new();
 
-    if let Some(position) = setup.restart_position {
-        let close = actual
-            .restart_position
-            .is_some_and(|actual_position| point_close(position, actual_position));
+    if let Some(position) = &setup.restart_position {
+        let close = match position {
+            PointOrNoneDto::None(_) => actual.restart_position.is_none(),
+            PointOrNoneDto::Point(position) => actual
+                .restart_position
+                .is_some_and(|actual_position| point_close(*position, actual_position)),
+        };
         record(&mut diffs, close, || {
             format!(
                 "final_state.setup.restart_position: expected {position:?}, got {:?}",
@@ -432,9 +442,13 @@ fn field_eq<T: PartialEq>(expected: &Option<T>, actual: &T) -> bool {
     expected.as_ref().is_none_or(|expected| expected == actual)
 }
 
-/// Like [`field_eq`] for an actual field that is itself optional.
-fn optional_field_eq<T: PartialEq>(expected: &Option<T>, actual: &Option<T>) -> bool {
-    expected.is_none() || expected == actual
+/// `None` expected means "not checked"; `"none"` means the recorded reason must be absent.
+fn reason_matches(expected: &Option<ReasonOrNoneDto>, actual: &Option<String>) -> bool {
+    match expected {
+        None => true,
+        Some(ReasonOrNoneDto::None(_)) => actual.is_none(),
+        Some(ReasonOrNoneDto::Reason(reason)) => actual.as_deref() == Some(reason.as_str()),
+    }
 }
 
 fn delta_field_matches(expected: &Option<f64>, actual: f64) -> bool {
@@ -445,8 +459,57 @@ fn velocity_field_matches(expected: &Option<Velocity3D>, actual: &Velocity3D) ->
     expected.is_none_or(|expected| velocity_close(expected, *actual))
 }
 
-fn point_field_matches(expected: &Option<Point3D>, actual: &Option<Point3D>) -> bool {
-    expected.is_none_or(|expected| actual.is_some_and(|actual| point_close(expected, actual)))
+fn point_or_none_field_matches(
+    expected: &Option<PointOrNoneDto>,
+    actual: &Option<Point3D>,
+) -> bool {
+    match expected {
+        None => true,
+        Some(PointOrNoneDto::None(_)) => actual.is_none(),
+        Some(PointOrNoneDto::Point(expected)) => {
+            actual.is_some_and(|actual| point_close(*expected, actual))
+        }
+    }
+}
+
+/// `None` expected means "not checked"; otherwise the target must match the recorded decision.
+/// `Run` and `Kick` carry a target, `Stop` never does.
+fn decision_target_matches(
+    expected: &Option<DecisionTargetDto>,
+    actual: &Decision,
+    config: &GameConfig,
+) -> Result<bool, ScenarioError> {
+    let Some(expected) = expected else {
+        return Ok(true);
+    };
+    match expected {
+        DecisionTargetDto::Point { point } => Ok(match actual {
+            Decision::Run(DecisionTarget::Point(actual_target)) | Decision::Kick(actual_target) => {
+                point_close(*point, *actual_target)
+            }
+            _ => false,
+        }),
+        DecisionTargetDto::Cell { cell } => {
+            let expected_target = GridCell::from_notation(cell)
+                .map_err(|error| ScenarioError::new(error.to_string()))?;
+            Ok(matches!(
+                actual,
+                Decision::Run(DecisionTarget::GridCell(actual_target))
+                    if *actual_target == expected_target
+            ))
+        }
+        DecisionTargetDto::Region { region } => {
+            let expected_target =
+                Region::from_grid_notation(region, config.field.grid_dimensions())
+                    .map_err(|error| ScenarioError::new(error.to_string()))?;
+            Ok(matches!(
+                actual,
+                Decision::Run(DecisionTarget::Region(actual_target))
+                    if *actual_target == expected_target
+            ))
+        }
+        DecisionTargetDto::Ball {} => Ok(matches!(actual, Decision::Run(DecisionTarget::Ball))),
+    }
 }
 
 fn decision_field_matches(expected: &Option<String>, actual: &Decision) -> bool {

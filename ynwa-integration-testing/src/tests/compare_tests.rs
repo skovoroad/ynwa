@@ -2,7 +2,8 @@ use std::collections::HashMap;
 
 use super::*;
 use crate::dto::{
-    BallStateDto, EventKindDto, NoneToken, PlayerPlacementDto, PlayerRefDto, SetupDto,
+    BallStateDto, DecisionTargetDto, EventKindDto, NoneToken, PlayerPlacementDto, PlayerRefDto,
+    PointOrNoneDto, ReasonOrNoneDto, SetupDto,
 };
 use ynwa_core::field::Field;
 use ynwa_core::game::{
@@ -107,7 +108,8 @@ fn exact_journal_match_passes() {
             number: 9,
         }),
         decision: Some("Stop".to_string()),
-        reason: Some("hold".to_string()),
+        target: None,
+        reason: Some(ReasonOrNoneDto::Reason("hold".to_string())),
         at: None,
     }];
     let actual = vec![entry(
@@ -133,6 +135,7 @@ fn exact_journal_reports_length_and_field_mismatch() {
             number: 9,
         }),
         decision: Some("Run".to_string()),
+        target: None,
         reason: None,
         at: None,
     }];
@@ -306,6 +309,7 @@ fn unknown_player_reference_is_a_hard_error() {
             number: 5,
         }),
         decision: None,
+        target: None,
         reason: None,
         at: None,
     }];
@@ -465,7 +469,7 @@ fn final_state_checks_setup_restart() {
         setup_reason: None,
         ball: None,
         setup: Some(SetupDto {
-            restart_position: Some(Point3D::from_meters(1.0, 0.0, 2.0)),
+            restart_position: Some(PointOrNoneDto::Point(Point3D::from_meters(1.0, 0.0, 2.0))),
             restart_team: Some(TeamOrNoneDto::Team(Team::B)),
         }),
         players: vec![],
@@ -506,7 +510,7 @@ fn journal_restart_set_and_stat_update_match() {
     let config = test_config(&[(Team::A, 9)]);
     let expected = vec![
         ExpectedEventDto::RestartSet {
-            position: Some(Point3D::from_meters(1.0, 0.0, 2.0)),
+            position: Some(PointOrNoneDto::Point(Point3D::from_meters(1.0, 0.0, 2.0))),
             team: Some(TeamOrNoneDto::Team(Team::A)),
             at: None,
         },
@@ -556,6 +560,7 @@ fn journal_matches_every_decision_kind() {
         let expected = vec![ExpectedEventDto::DecisionAssigned {
             player: None,
             decision: Some(kind.to_string()),
+            target: None,
             reason: None,
             at: None,
         }];
@@ -639,7 +644,8 @@ fn journal_reports_reason_mismatch() {
     let expected = vec![ExpectedEventDto::DecisionAssigned {
         player: None,
         decision: None,
-        reason: Some("hold".to_string()),
+        target: None,
+        reason: Some(ReasonOrNoneDto::Reason("hold".to_string())),
         at: None,
     }];
     let actual = vec![entry(
@@ -722,7 +728,7 @@ fn final_state_reports_setup_restart_mismatch() {
 
     let expected = ExpectedFinalStateDto {
         setup: Some(SetupDto {
-            restart_position: Some(Point3D::from_meters(9.0, 0.0, 9.0)),
+            restart_position: Some(PointOrNoneDto::Point(Point3D::from_meters(9.0, 0.0, 9.0))),
             restart_team: Some(TeamOrNoneDto::Team(Team::B)),
         }),
         ..ExpectedFinalStateDto::default()
@@ -860,7 +866,7 @@ fn kick_outcome_reports_velocity_outside_tolerance() {
 fn restart_set_reports_position_mismatch() {
     let config = test_config(&[(Team::A, 9)]);
     let expected = vec![ExpectedEventDto::RestartSet {
-        position: Some(Point3D::from_meters(1.0, 0.0, 2.0)),
+        position: Some(PointOrNoneDto::Point(Point3D::from_meters(1.0, 0.0, 2.0))),
         team: Some(TeamOrNoneDto::Team(Team::A)),
         at: None,
     }];
@@ -917,4 +923,178 @@ fn subsequence_does_not_reuse_a_matched_entry() {
 
     assert_eq!(diffs.len(), 1, "{diffs:?}");
     assert!(diffs[0].contains("not found"), "{diffs:?}");
+}
+
+fn decision_with_target(target: DecisionTargetDto) -> ExpectedEventDto {
+    ExpectedEventDto::DecisionAssigned {
+        player: None,
+        decision: None,
+        target: Some(target),
+        reason: None,
+        at: None,
+    }
+}
+
+#[test]
+fn decision_target_matches_every_variant() {
+    let config = test_config(&[(Team::A, 1)]);
+    let grid_dims = config.field.grid_dimensions();
+    let point = Point3D::from_meters(1.0, 0.0, 2.0);
+    let cell = GridCell::new(3, 4).unwrap();
+    let region = grid_dims
+        .create_region(GridCell::new(1, 1).unwrap(), GridCell::new(2, 2).unwrap())
+        .unwrap();
+
+    let cases = [
+        (
+            "point run",
+            DecisionTargetDto::Point { point },
+            Decision::Run(DecisionTarget::Point(point)),
+            true,
+        ),
+        (
+            "point kick",
+            DecisionTargetDto::Point { point },
+            Decision::Kick(point),
+            true,
+        ),
+        (
+            "cell",
+            DecisionTargetDto::Cell {
+                cell: "C4".to_string(),
+            },
+            Decision::Run(DecisionTarget::GridCell(cell)),
+            true,
+        ),
+        (
+            "region",
+            DecisionTargetDto::Region {
+                region: "A1:B2".to_string(),
+            },
+            Decision::Run(DecisionTarget::Region(region)),
+            true,
+        ),
+        (
+            "ball",
+            DecisionTargetDto::Ball {},
+            Decision::Run(DecisionTarget::Ball),
+            true,
+        ),
+        (
+            "point against another run target",
+            DecisionTargetDto::Point { point },
+            Decision::Run(DecisionTarget::Ball),
+            false,
+        ),
+        (
+            "target against stop",
+            DecisionTargetDto::Point { point },
+            Decision::Stop,
+            false,
+        ),
+        (
+            "cell against kick",
+            DecisionTargetDto::Cell {
+                cell: "C4".to_string(),
+            },
+            Decision::Kick(point),
+            false,
+        ),
+    ];
+
+    for (label, target, decision, expected) in cases {
+        let expected_event = decision_with_target(target);
+        let actual = vec![entry(0.1, decision_assigned(0, decision))];
+        let diffs = journal_diffs(
+            std::slice::from_ref(&expected_event),
+            &actual,
+            JournalMatchDto::Exact,
+            &config,
+        );
+
+        assert_eq!(diffs.is_empty(), expected, "{label}: {diffs:?}");
+    }
+}
+
+#[test]
+fn invalid_cell_and_region_notation_are_hard_errors() {
+    let config = test_config(&[(Team::A, 1)]);
+    let targets = [
+        DecisionTargetDto::Cell {
+            cell: "1A".to_string(),
+        },
+        DecisionTargetDto::Region {
+            region: "A1:B2:C3".to_string(),
+        },
+    ];
+
+    for target in targets {
+        let expected_event = decision_with_target(target);
+        let actual = vec![entry(
+            0.1,
+            decision_assigned(
+                0,
+                Decision::Run(DecisionTarget::Point(Point3D::from_meters(1.0, 0.0, 2.0))),
+            ),
+        )];
+
+        assert!(compare_journal(
+            std::slice::from_ref(&expected_event),
+            &actual,
+            JournalMatchDto::Exact,
+            &config,
+            0.1
+        )
+        .is_err());
+    }
+}
+
+#[test]
+fn journal_reason_none_requires_absent_reason() {
+    let config = test_config(&[(Team::A, 1)]);
+    let expected = vec![ExpectedEventDto::DecisionAssigned {
+        player: None,
+        decision: None,
+        target: None,
+        reason: Some(ReasonOrNoneDto::None(NoneToken)),
+        at: None,
+    }];
+
+    let absent = vec![entry(0.1, decision_assigned(0, Decision::Stop))];
+    let present = vec![entry(
+        0.1,
+        JournalEvent::DecisionAssigned {
+            player_index: 0,
+            decision: Decision::Stop,
+            reason: Some("hold".to_string()),
+        },
+    )];
+
+    assert!(journal_diffs(&expected, &absent, JournalMatchDto::Exact, &config).is_empty());
+    assert_eq!(
+        journal_diffs(&expected, &present, JournalMatchDto::Exact, &config).len(),
+        1
+    );
+}
+
+#[test]
+fn final_state_restart_none_requires_center() {
+    let (config, mut state) = test_state(&[(Team::A, 9)]);
+    let expected = ExpectedFinalStateDto {
+        setup: Some(SetupDto {
+            restart_position: Some(PointOrNoneDto::None(NoneToken)),
+            restart_team: None,
+        }),
+        ..ExpectedFinalStateDto::default()
+    };
+
+    assert!(compare_final_state(&expected, &state, &config)
+        .unwrap()
+        .is_empty());
+
+    state.restart_position = Some(Point3D::from_meters(1.0, 0.0, 2.0));
+    let diffs = compare_final_state(&expected, &state, &config).unwrap();
+
+    assert_eq!(diffs.len(), 1, "{diffs:?}");
+    assert!(diffs[0].contains("restart_position"), "{diffs:?}");
 }
