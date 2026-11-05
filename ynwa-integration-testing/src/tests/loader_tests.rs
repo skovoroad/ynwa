@@ -238,7 +238,7 @@ fn loads_scenario_directory_into_world() {
         Point3D::from_meters(35.0, 0.0, 11.0)
     );
 
-    assert_eq!(loaded.run.dt, 0.1);
+    assert_eq!(loaded.run.timestep, 0.1);
     assert_eq!(loaded.expect.journal_match, JournalMatchDto::Subsequence);
     assert_eq!(
         loaded.final_state.unwrap().score,

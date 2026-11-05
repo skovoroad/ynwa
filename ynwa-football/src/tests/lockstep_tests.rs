@@ -7,7 +7,7 @@
 use crate::events::FootballEvent;
 use crate::field_builder::create_football_field;
 use crate::replay::{create_football_replay_world, decode_football_events};
-use crate::test_utils::{assert_equivalent, build_recording_world_with, run_lockstep, FIXED_DT};
+use crate::test_utils::{assert_equivalent, build_recording_world_with, run_lockstep, TIMESTEP};
 use std::collections::{HashMap, HashSet};
 use uom::si::length::meter;
 use ynwa_core::field::zones::{Point3D, Velocity3D};
@@ -107,7 +107,7 @@ fn lockstep_matches_on_every_step() {
         GameStage::Play,
         Box::new(GoalThenTouchline { kicks: 0 }),
     );
-    let header = RecordHeader::from_game(world.game(), FIXED_DT);
+    let header = RecordHeader::from_game(world.game(), TIMESTEP);
 
     let (original_before, original_events) = run_lockstep(&mut world, LOCKSTEP_STEPS);
     world.game_mut().finish_journal().unwrap();
@@ -171,7 +171,7 @@ fn lockstep_matches_from_non_standard_initial_state() {
         state.player_states[0].position = Point3D::from_meters(10.0, 0.0, 20.0);
         state.player_states[0].velocity = Velocity3D::from_meters_per_second(-2.0, 0.0, 1.0);
     }
-    let header = RecordHeader::from_game(world.game(), FIXED_DT);
+    let header = RecordHeader::from_game(world.game(), TIMESTEP);
     let recorded_start = header.initial_state.clone();
 
     let (original_before, original_events) = run_lockstep(&mut world, LOCKSTEP_STEPS);

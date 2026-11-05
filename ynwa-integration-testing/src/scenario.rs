@@ -37,7 +37,13 @@ pub fn run_scenario(dir: &Path) -> Result<ScenarioReport, ScenarioError> {
     let config = world.game().config().clone();
     let outcome = run(world, &plan)?;
     write_record(&name, &outcome.record)?;
-    let diffs = compare_outcome(&outcome, &expect, final_state.as_ref(), &config, plan.dt)?;
+    let diffs = compare_outcome(
+        &outcome,
+        &expect,
+        final_state.as_ref(),
+        &config,
+        plan.timestep,
+    )?;
 
     let diff = if diffs.is_empty() {
         None

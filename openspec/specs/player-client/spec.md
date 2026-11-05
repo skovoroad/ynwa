@@ -16,15 +16,15 @@ Defines the interactive `macroquad` desktop client (`ynwa-player`), including CL
 
 #### Scenario: Truncated replay step count recovery
 - **WHEN** `ynwa-player` loads a crashed recording via `--replay` where `record.total_steps == 0`
-- **THEN** it computes `effective_steps = ceil(last_journal_timestamp / fixed_dt) as u64` (`0` if `journal` is empty) so playback advances through all recovered events
+- **THEN** it computes `effective_steps = ceil(last_journal_timestamp / timestep) as u64` (`0` if `journal` is empty) so playback advances through all recovered events
 
 ### Requirement: Simulation Pacing and Keyboard Controls
 
-`ynwa-player` SHALL open a resizable `1200 × 900` window (`"YNWA Football Simulator"`). `Play` and `Record` start at `60.0` Hz (`step_delta = 1/60` s); `Replay` runs at `rate = 1.0 / fixed_dt` and stops stepping at `effective_steps`. `Space` pauses/resumes, `F11` toggles fullscreen, `Escape` exits cleanly (flushing the recording footer in `Record`), and `+`/`=`/`KP_ADD` (`*2` up to `100` Hz) and `-`/`KP_SUBTRACT` (`/2` down to `1` Hz) apply **ONLY in `Play` mode**.
+`ynwa-player` SHALL open a resizable `1200 × 900` window (`"YNWA Football Simulator"`). `Play` and `Record` start at `60.0` Hz (`timestep = 1/60` s); `Replay` runs at `rate = 1.0 / timestep` and stops stepping at `effective_steps`. `Space` pauses/resumes, `F11` toggles fullscreen, `Escape` exits cleanly (flushing the recording footer in `Record`), and `+`/`=`/`KP_ADD` (`*2` up to `100` Hz) and `-`/`KP_SUBTRACT` (`/2` down to `1` Hz) apply **ONLY in `Play` mode**.
 
 #### Scenario: Preventing timestep drift in Record and Replay modes
 - **WHEN** `+` or `-` keys are pressed in `Record` or `Replay` mode
-- **THEN** playback rate and simulation `step_delta` remain locked so steps stay aligned with `RecordHeader::fixed_dt`
+- **THEN** playback rate and simulation `timestep` remain locked so steps stay aligned with `RecordHeader::timestep`
 
 ### Requirement: Top-Down 2D Field Projection and Pitch/Zone Rendering
 

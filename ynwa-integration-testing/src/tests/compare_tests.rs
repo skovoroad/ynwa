@@ -55,7 +55,7 @@ fn test_outcome(config: &GameConfig, state: GameState, journal: Vec<JournalEntry
             header: RecordHeader {
                 config: config.clone(),
                 initial_state: state.clone(),
-                fixed_dt: 0.1,
+                timestep: 0.1,
             },
             total_steps: 10,
             journal,

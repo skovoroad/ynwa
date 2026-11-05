@@ -51,7 +51,7 @@ fn from_game_captures_config_state_and_step() {
     assert_eq!(header.config, test_config());
     assert_eq!(header.initial_state, game.state().clone());
     assert_eq!(header.initial_state.stage, stage);
-    assert_eq!(header.fixed_dt, 0.05);
+    assert_eq!(header.timestep, 0.05);
 }
 
 #[test]

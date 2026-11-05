@@ -43,7 +43,7 @@ fn recorded_scenario_replays_equivalently() {
         .expect("the scenario must leave a recording")
         .read()
         .expect("the recording must parse");
-    let dt = record.header.fixed_dt;
+    let timestep = record.header.timestep;
     let total_steps = record.total_steps;
     assert!(total_steps > 0, "the scenario must run at least one step");
 
@@ -52,7 +52,7 @@ fn recorded_scenario_replays_equivalently() {
         run: plan,
         ..
     } = load_scenario(&scenario_dir()).expect("scenario must load");
-    assert_eq!(plan.dt, dt);
+    assert_eq!(plan.timestep, timestep);
     assert_eq!(
         world.game().state(),
         &record.header.initial_state,
@@ -63,8 +63,8 @@ fn recorded_scenario_replays_equivalently() {
 
     for step in 0..total_steps {
         assert_equivalent(world.game().state(), replay.game().state(), step);
-        world.step(dt);
-        replay.step(dt);
+        world.step(timestep);
+        replay.step(timestep);
     }
     assert_equivalent(world.game().state(), replay.game().state(), total_steps);
 }

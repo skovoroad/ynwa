@@ -6,7 +6,7 @@ use crate::events::{FootballEvent, BALL_RADIUS, GAME_DURATION};
 use crate::field_builder::create_football_field;
 use crate::replay::{create_football_replay_world, decode_football_events};
 use crate::test_utils::{
-    assert_equivalent, build_recording_world, build_recording_world_with, FIXED_DT, STEPS,
+    assert_equivalent, build_recording_world, build_recording_world_with, STEPS, TIMESTEP,
 };
 use std::collections::HashMap;
 use uom::si::length::meter;
@@ -25,9 +25,9 @@ use ynwa_core::world::World;
 /// Runs the short recordable game to completion; returns the finished world and its record.
 fn record_short_game() -> (World, Record) {
     let (mut world, collection) = build_recording_world();
-    let header = RecordHeader::from_game(world.game(), FIXED_DT);
+    let header = RecordHeader::from_game(world.game(), TIMESTEP);
     for _ in 0..STEPS {
-        world.step(FIXED_DT);
+        world.step(TIMESTEP);
     }
     world.game_mut().finish_journal().unwrap();
 
@@ -42,7 +42,7 @@ fn replay_reproduces_physical_state() {
 
     let mut replay = create_football_replay_world(record).unwrap();
     for _ in 0..total_steps {
-        replay.step(FIXED_DT);
+        replay.step(TIMESTEP);
     }
 
     assert_equivalent(original.game().state(), replay.game().state());
@@ -80,7 +80,7 @@ fn replay_ball_matches_recorded_event_conditions() {
     let mut steps = 0;
     for (timestamp, event) in &events {
         while replay.game().state.elapsed_time < *timestamp && steps < total_steps {
-            replay.step(FIXED_DT);
+            replay.step(TIMESTEP);
             steps += 1;
         }
         let ball = replay.game().state.ball_state.position;
@@ -246,9 +246,9 @@ fn replay_reproduces_state_after_a_goal() {
     let config = goal_scenario_config();
     let (mut world, collection) =
         build_recording_world_with(config, GameStage::Play, Box::new(ShootAtOpponentGoal));
-    let header = RecordHeader::from_game(world.game(), FIXED_DT);
+    let header = RecordHeader::from_game(world.game(), TIMESTEP);
     for _ in 0..GOAL_SCENARIO_STEPS {
-        world.step(FIXED_DT);
+        world.step(TIMESTEP);
     }
     world.game_mut().finish_journal().unwrap();
 
@@ -266,7 +266,7 @@ fn replay_reproduces_state_after_a_goal() {
     let total_steps = record.total_steps;
     let mut replay = create_football_replay_world(record).unwrap();
     for _ in 0..total_steps {
-        replay.step(FIXED_DT);
+        replay.step(TIMESTEP);
     }
 
     assert_equivalent(world.game().state(), replay.game().state());

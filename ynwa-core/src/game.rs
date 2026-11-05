@@ -396,8 +396,8 @@ impl Game {
         sink.finish()
     }
 
-    pub fn step(&mut self, delta_time: f32) {
-        self.state.elapsed_time += delta_time;
+    pub fn step(&mut self, timestep: f32) {
+        self.state.elapsed_time += timestep;
     }
 
     pub fn state(&self) -> &GameState {

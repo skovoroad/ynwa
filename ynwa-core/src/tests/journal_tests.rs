@@ -117,7 +117,7 @@ fn take_record_moves_events_and_step_count() {
     assert_eq!(record.total_steps, 42);
     assert_eq!(record.journal.len(), 2);
     assert_eq!(record.journal[0].timestamp, 0.1);
-    assert_eq!(record.header.fixed_dt, 0.016);
+    assert_eq!(record.header.timestep, 0.016);
     assert_eq!(
         record.header.initial_state.stage,
         GameStage::Setup("kick off".to_string())

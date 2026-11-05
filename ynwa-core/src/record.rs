@@ -11,17 +11,17 @@ pub struct RecordHeader {
     /// Full state of the game at the moment the recording started; the stage is part of it.
     pub initial_state: GameState,
     /// Fixed simulation step used for physics integration during replay.
-    pub fixed_dt: f32,
+    pub timestep: f32,
 }
 
 impl RecordHeader {
     /// Builds a header from the current configuration and state of `game`, so callers do not
     /// duplicate `config`/`initial_state` when starting a recording.
-    pub fn from_game(game: &Game, fixed_dt: f32) -> Self {
+    pub fn from_game(game: &Game, timestep: f32) -> Self {
         Self {
             config: game.config().clone(),
             initial_state: game.state().clone(),
-            fixed_dt,
+            timestep,
         }
     }
 }

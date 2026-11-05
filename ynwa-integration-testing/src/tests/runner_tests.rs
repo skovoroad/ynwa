@@ -17,7 +17,7 @@ fn fixture(name: &str) -> std::path::PathBuf {
 fn compile_criteria_preserves_order_and_parameters() {
     let plan = RunPlanDto::parse(
         r#"
-dt = 0.1
+timestep = 0.1
 
 [[stop]]
 when = "stage"
@@ -53,7 +53,7 @@ steps = 100
 #[test]
 fn compile_rejects_team_on_game_end() {
     let plan = RunPlanDto {
-        dt: 0.1,
+        timestep: 0.1,
         stop: vec![StopCriterionDto::Event {
             event: EventKindDto::GameEnd,
             team: Some(Team::A),
@@ -92,7 +92,7 @@ fn run_returns_a_record_of_the_initial_state_and_the_run() {
     let outcome = run(world, &plan).expect("trivial run must succeed");
 
     assert_eq!(outcome.record.header.initial_state, initial_state);
-    assert_eq!(outcome.record.header.fixed_dt, plan.dt);
+    assert_eq!(outcome.record.header.timestep, plan.timestep);
     assert_eq!(outcome.record.total_steps, outcome.steps);
     assert!(
         !outcome.record.journal.is_empty(),
@@ -103,7 +103,7 @@ fn run_returns_a_record_of_the_initial_state_and_the_run() {
 #[test]
 fn compile_criteria_covers_time() {
     let plan = RunPlanDto {
-        dt: 0.1,
+        timestep: 0.1,
         stop: vec![
             StopCriterionDto::Time { time: 2.5 },
             StopCriterionDto::Steps { steps: 5 },
@@ -120,7 +120,7 @@ fn compile_criteria_covers_time() {
 fn stops_on_stage() {
     let LoadedScenario { world, .. } = load_scenario(&fixture("valid")).expect("fixture must load");
     let plan = RunPlanDto {
-        dt: 0.1,
+        timestep: 0.1,
         stop: vec![
             StopCriterionDto::Stage {
                 stage: StageNameDto::Play,
@@ -140,7 +140,7 @@ fn stops_on_stage() {
 fn stops_on_time() {
     let LoadedScenario { world, .. } = load_scenario(&fixture("valid")).expect("fixture must load");
     let plan = RunPlanDto {
-        dt: 0.1,
+        timestep: 0.1,
         stop: vec![
             StopCriterionDto::Time { time: 0.5 },
             StopCriterionDto::Steps { steps: 100 },
@@ -165,7 +165,7 @@ fn stops_on_football_event() {
         ball.last_possessing_team = Some(Team::A);
     }
     let plan = RunPlanDto {
-        dt: 0.1,
+        timestep: 0.1,
         stop: vec![
             StopCriterionDto::Event {
                 event: EventKindDto::Touchline,
@@ -195,7 +195,7 @@ fn player_error_fails_the_run() {
         load_scenario(&fixture("valid")).expect("fixture must load");
     world.game_mut().state.stage = GameStage::Setup("bogus".to_string());
     let plan = RunPlanDto {
-        dt: 0.1,
+        timestep: 0.1,
         stop: vec![StopCriterionDto::Steps { steps: 1 }],
     };
 

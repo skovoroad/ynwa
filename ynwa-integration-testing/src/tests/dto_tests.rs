@@ -203,7 +203,7 @@ fn invalid_stage_name_is_rejected() {
 fn run_plan_parses_all_criteria() {
     let plan = RunPlanDto::parse(
         r#"
-dt = 0.1
+timestep = 0.1
 
 [[stop]]
 when = "stage"
@@ -226,7 +226,7 @@ time = 60.0
     )
     .expect("run plan must parse");
 
-    assert_eq!(plan.dt, 0.1);
+    assert_eq!(plan.timestep, 0.1);
     assert_eq!(
         plan.stop,
         vec![
@@ -246,26 +246,26 @@ time = 60.0
 
 #[test]
 fn run_plan_requires_a_safety_criterion() {
-    let error =
-        RunPlanDto::parse("dt = 0.1\n[[stop]]\nwhen = \"stage\"\nstage = \"Play\"\n").unwrap_err();
+    let error = RunPlanDto::parse("timestep = 0.1\n[[stop]]\nwhen = \"stage\"\nstage = \"Play\"\n")
+        .unwrap_err();
 
     assert!(error.contains("steps"), "unexpected error: {error}");
 }
 
 #[test]
-fn run_plan_requires_positive_dt() {
-    for dt in ["0.0", "-0.5"] {
-        let source = format!("dt = {dt}\n[[stop]]\nwhen = \"steps\"\nsteps = 1\n");
+fn run_plan_requires_positive_timestep() {
+    for timestep in ["0.0", "-0.5"] {
+        let source = format!("timestep = {timestep}\n[[stop]]\nwhen = \"steps\"\nsteps = 1\n");
         assert!(
             RunPlanDto::parse(&source).is_err(),
-            "dt = {dt} must be rejected"
+            "timestep = {timestep} must be rejected"
         );
     }
 }
 
 #[test]
 fn invalid_stop_when_is_rejected() {
-    assert!(RunPlanDto::parse("dt = 0.1\n[[stop]]\nwhen = \"bogus\"\n").is_err());
+    assert!(RunPlanDto::parse("timestep = 0.1\n[[stop]]\nwhen = \"bogus\"\n").is_err());
 }
 
 #[test]
@@ -273,7 +273,7 @@ fn scenario_parses_run_and_expect() {
     let scenario = parse_scenario(
         r#"
 [run]
-dt = 0.1
+timestep = 0.1
 
 [[run.stop]]
 when = "event"
@@ -305,7 +305,7 @@ team = "B"
 "#,
     );
 
-    assert_eq!(scenario.run.dt, 0.1);
+    assert_eq!(scenario.run.timestep, 0.1);
     assert_eq!(scenario.expect.journal_match, JournalMatchDto::Subsequence);
     assert_eq!(
         scenario.expect.stop,
@@ -334,7 +334,8 @@ team = "B"
 
 #[test]
 fn expect_defaults_when_omitted() {
-    let scenario = parse_scenario("[run]\ndt = 0.1\n[[run.stop]]\nwhen = \"steps\"\nsteps = 3\n");
+    let scenario =
+        parse_scenario("[run]\ntimestep = 0.1\n[[run.stop]]\nwhen = \"steps\"\nsteps = 3\n");
 
     assert_eq!(scenario.expect.journal_match, JournalMatchDto::Exact);
     assert!(scenario.expect.stop.is_none());
@@ -346,7 +347,7 @@ fn parses_every_journal_record_type() {
     let scenario = parse_scenario(
         r#"
 [run]
-dt = 0.1
+timestep = 0.1
 
 [[run.stop]]
 when = "steps"
@@ -469,7 +470,7 @@ team = "A"
 
 #[test]
 fn stop_criterion_rejects_team_for_game_end() {
-    let source = "dt = 0.1\n[[stop]]\nwhen = \"event\"\nevent = \"GameEnd\"\nteam = \"A\"\n[[stop]]\nwhen = \"steps\"\nsteps = 1\n";
+    let source = "timestep = 0.1\n[[stop]]\nwhen = \"event\"\nevent = \"GameEnd\"\nteam = \"A\"\n[[stop]]\nwhen = \"steps\"\nsteps = 1\n";
 
     let error = RunPlanDto::parse(source).unwrap_err();
 
@@ -479,7 +480,7 @@ fn stop_criterion_rejects_team_for_game_end() {
 #[test]
 fn expect_stop_rejects_team_for_game_end() {
     let error = ScenarioDto::parse(
-        "[run]\ndt = 0.1\n[[run.stop]]\nwhen = \"steps\"\nsteps = 5\n[expect.stop]\nwhen = \"event\"\nevent = \"GameEnd\"\nteam = \"B\"\n",
+        "[run]\ntimestep = 0.1\n[[run.stop]]\nwhen = \"steps\"\nsteps = 5\n[expect.stop]\nwhen = \"event\"\nevent = \"GameEnd\"\nteam = \"B\"\n",
     )
     .unwrap_err();
 
@@ -489,7 +490,7 @@ fn expect_stop_rejects_team_for_game_end() {
 #[test]
 fn journal_football_event_rejects_team_for_game_end() {
     let error = ScenarioDto::parse(
-        "[run]\ndt = 0.1\n[[run.stop]]\nwhen = \"steps\"\nsteps = 5\n[[expect.journal]]\ntype = \"football_event\"\nevent = \"GameEnd\"\nteam = \"A\"\n",
+        "[run]\ntimestep = 0.1\n[[run.stop]]\nwhen = \"steps\"\nsteps = 5\n[[expect.journal]]\ntype = \"football_event\"\nevent = \"GameEnd\"\nteam = \"A\"\n",
     )
     .unwrap_err();
 
@@ -500,9 +501,10 @@ fn journal_football_event_rejects_team_for_game_end() {
 fn unknown_fields_are_rejected() {
     assert!(InitialStateDto::parse("stage = \"Play\"\nbogus = 1\n").is_err());
     assert!(ExpectedFinalStateDto::parse("stage = \"Play\"\nbogus = 1\n").is_err());
-    assert!(
-        RunPlanDto::parse("dt = 0.1\nbogus = 1\n[[stop]]\nwhen = \"steps\"\nsteps = 1\n").is_err()
-    );
+    assert!(RunPlanDto::parse(
+        "timestep = 0.1\nbogus = 1\n[[stop]]\nwhen = \"steps\"\nsteps = 1\n"
+    )
+    .is_err());
     assert!(InitialStateDto::parse("stage = \"Play\"\n[ball]\nbogus = 1\n").is_err());
     assert!(InitialStateDto::parse("stage = \"Setup\"\n[setup]\nbogus = 1\n").is_err());
     assert!(InitialStateDto::parse(
@@ -510,19 +512,20 @@ fn unknown_fields_are_rejected() {
     )
     .is_err());
     assert!(ScenarioDto::parse(
-        "bogus = 1\n[run]\ndt = 0.1\n[[run.stop]]\nwhen = \"steps\"\nsteps = 1\n"
+        "bogus = 1\n[run]\ntimestep = 0.1\n[[run.stop]]\nwhen = \"steps\"\nsteps = 1\n"
     )
     .is_err());
     assert!(ScenarioDto::parse(
-        "[run]\ndt = 0.1\n[[run.stop]]\nwhen = \"steps\"\nsteps = 1\n[[expect.journal]]\ntype = \"decision_assigned\"\nplayer = { team = \"A\", number = 1, bogus = 1 }\n"
+        "[run]\ntimestep = 0.1\n[[run.stop]]\nwhen = \"steps\"\nsteps = 1\n[[expect.journal]]\ntype = \"decision_assigned\"\nplayer = { team = \"A\", number = 1, bogus = 1 }\n"
     )
     .is_err());
 }
 
 #[test]
 fn stop_criterion_rejects_unknown_field() {
-    let error = RunPlanDto::parse("dt = 0.1\n[[stop]]\nwhen = \"steps\"\nsteps = 1\nbogus = 1\n")
-        .unwrap_err();
+    let error =
+        RunPlanDto::parse("timestep = 0.1\n[[stop]]\nwhen = \"steps\"\nsteps = 1\nbogus = 1\n")
+            .unwrap_err();
 
     assert!(error.contains("bogus"), "unexpected error: {error}");
 }
@@ -530,7 +533,7 @@ fn stop_criterion_rejects_unknown_field() {
 #[test]
 fn expect_stop_rejects_unknown_field() {
     let error = ScenarioDto::parse(
-        "[run]\ndt = 0.1\n[[run.stop]]\nwhen = \"steps\"\nsteps = 1\n[expect.stop]\nwhen = \"steps\"\nsteps = 1\nbogus = 1\n",
+        "[run]\ntimestep = 0.1\n[[run.stop]]\nwhen = \"steps\"\nsteps = 1\n[expect.stop]\nwhen = \"steps\"\nsteps = 1\nbogus = 1\n",
     )
     .unwrap_err();
 
@@ -540,7 +543,7 @@ fn expect_stop_rejects_unknown_field() {
 #[test]
 fn journal_entry_rejects_unknown_field() {
     let error = ScenarioDto::parse(
-        "[run]\ndt = 0.1\n[[run.stop]]\nwhen = \"steps\"\nsteps = 1\n[[expect.journal]]\ntype = \"decisions_reset\"\nbogus = 1\n",
+        "[run]\ntimestep = 0.1\n[[run.stop]]\nwhen = \"steps\"\nsteps = 1\n[[expect.journal]]\ntype = \"decisions_reset\"\nbogus = 1\n",
     )
     .unwrap_err();
 
@@ -550,7 +553,7 @@ fn journal_entry_rejects_unknown_field() {
 #[test]
 fn expect_stop_stage_requires_target_stage() {
     let error = ScenarioDto::parse(
-        "[run]\ndt = 0.1\n[[run.stop]]\nwhen = \"steps\"\nsteps = 5\n[expect.stop]\nwhen = \"stage\"\n",
+        "[run]\ntimestep = 0.1\n[[run.stop]]\nwhen = \"steps\"\nsteps = 5\n[expect.stop]\nwhen = \"stage\"\n",
     )
     .unwrap_err();
 
@@ -567,7 +570,7 @@ fn stop_criterion_requires_its_payload() {
     ];
 
     for (criterion, field) in cases {
-        let source = format!("dt = 0.1\n[[stop]]\n{criterion}\n");
+        let source = format!("timestep = 0.1\n[[stop]]\n{criterion}\n");
         let error = RunPlanDto::parse(&source).unwrap_err();
         assert!(
             error.contains(field),
@@ -577,12 +580,12 @@ fn stop_criterion_requires_its_payload() {
 }
 
 #[test]
-fn run_plan_rejects_non_finite_dt() {
-    for dt in ["nan", "inf"] {
-        let source = format!("dt = {dt}\n[[stop]]\nwhen = \"steps\"\nsteps = 1\n");
+fn run_plan_rejects_non_finite_timestep() {
+    for timestep in ["nan", "inf"] {
+        let source = format!("timestep = {timestep}\n[[stop]]\nwhen = \"steps\"\nsteps = 1\n");
         assert!(
             RunPlanDto::parse(&source).is_err(),
-            "dt = {dt} must be rejected"
+            "timestep = {timestep} must be rejected"
         );
     }
 }
@@ -590,7 +593,7 @@ fn run_plan_rejects_non_finite_dt() {
 #[test]
 fn expect_stop_requires_its_payload() {
     let error = ScenarioDto::parse(
-        "[run]\ndt = 0.1\n[[run.stop]]\nwhen = \"steps\"\nsteps = 5\n[expect.stop]\nwhen = \"event\"\n",
+        "[run]\ntimestep = 0.1\n[[run.stop]]\nwhen = \"steps\"\nsteps = 5\n[expect.stop]\nwhen = \"event\"\n",
     )
     .unwrap_err();
 
@@ -626,7 +629,7 @@ fn final_state_rejects_zero_ball_owner_number() {
 #[test]
 fn journal_football_event_requires_event() {
     let error = ScenarioDto::parse(
-        "[run]\ndt = 0.1\n[[run.stop]]\nwhen = \"steps\"\nsteps = 5\n[[expect.journal]]\ntype = \"football_event\"\nteam = \"A\"\n",
+        "[run]\ntimestep = 0.1\n[[run.stop]]\nwhen = \"steps\"\nsteps = 5\n[[expect.journal]]\ntype = \"football_event\"\nteam = \"A\"\n",
     )
     .unwrap_err();
 
@@ -641,7 +644,7 @@ fn parses_remaining_stage_and_event_variants() {
     let scenario = parse_scenario(
         r#"
 [run]
-dt = 0.1
+timestep = 0.1
 
 [[run.stop]]
 when = "event"

@@ -4,7 +4,7 @@
 use crate::events::{check_events, FootballEvent};
 use crate::game_manager::FootballGameManager;
 use crate::test_utils::{
-    attach_journal, build_recording_world, deterministic_rng, single_player_config, FIXED_DT, STEPS,
+    attach_journal, build_recording_world, deterministic_rng, single_player_config, STEPS, TIMESTEP,
 };
 use ynwa_core::field::zones::Point3D;
 use ynwa_core::game::{Decision, Game, GameStage};
@@ -20,10 +20,10 @@ fn play_game() -> Game {
 #[test]
 fn short_game_records_expected_events_and_builds_record() {
     let (mut world, collection) = build_recording_world();
-    let header = RecordHeader::from_game(world.game(), FIXED_DT);
+    let header = RecordHeader::from_game(world.game(), TIMESTEP);
 
     for _ in 0..STEPS {
-        world.step(FIXED_DT);
+        world.step(TIMESTEP);
     }
     world.game_mut().finish_journal().unwrap();
 
@@ -92,7 +92,7 @@ fn short_game_records_expected_events_and_builds_record() {
 
     assert_eq!(record.total_steps, STEPS);
     assert_eq!(record.journal.len(), entries.len());
-    assert_eq!(record.header.fixed_dt, FIXED_DT);
+    assert_eq!(record.header.timestep, TIMESTEP);
     assert_eq!(
         record.header.initial_state.stage,
         GameStage::Setup("kick off".to_string())

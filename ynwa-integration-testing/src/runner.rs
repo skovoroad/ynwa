@@ -1,6 +1,6 @@
 //! Deterministic scenario runner: step a loaded world until the first stop criterion fires.
 //!
-//! The world is stepped at the scenario's `dt`. After every step the criteria are evaluated in
+//! The world is stepped at the scenario's `timestep`. After every step the criteria are evaluated in
 //! declaration order and the first satisfied one becomes the [`StopReason`]. Football events are
 //! decoded incrementally from the journal, so an `OnEvent` criterion sees each event exactly once.
 
@@ -30,7 +30,7 @@ pub struct RunOutcome {
     pub final_state: GameState,
 }
 
-/// Runs `world` at `run.dt` until the first stop criterion is satisfied.
+/// Runs `world` at `run.timestep` until the first stop criterion is satisfied.
 ///
 /// Any player left with a script error (`last_error`) fails the run.
 pub fn run(world: World, run: &RunPlanDto) -> Result<RunOutcome, ScenarioError> {
@@ -41,14 +41,14 @@ pub fn run(world: World, run: &RunPlanDto) -> Result<RunOutcome, ScenarioError> 
     world
         .game_mut()
         .set_journal_sink(Box::new(CollectJournalRecorder::new(collection.clone())));
-    let header = RecordHeader::from_game(world.game(), run.dt);
+    let header = RecordHeader::from_game(world.game(), run.timestep);
 
     let mut steps: u64 = 0;
     let mut decoded_upto: usize = 0;
     let mut football_events: Vec<(f32, FootballEvent)> = Vec::new();
 
     let stop_reason = loop {
-        world.step(run.dt);
+        world.step(run.timestep);
         steps += 1;
 
         let new_events = {

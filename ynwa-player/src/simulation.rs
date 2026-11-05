@@ -1,10 +1,10 @@
 /// Simulation state and control.
 ///
 /// Real-time tempo (`rate`, frames per second used to accumulate frame time) is separated from
-/// the simulation step (`step_delta`): replay runs in real time but advances the recorded step.
+/// the simulation step (`timestep`): replay runs in real time but advances the recorded step.
 pub struct SimulationControl {
     rate: f32,
-    step_delta: f32,
+    timestep: f32,
     pub paused: bool,
     accumulator: f32,
     steps_done: u64,
@@ -15,7 +15,7 @@ impl SimulationControl {
     pub fn new(rate: f32) -> Self {
         Self {
             rate,
-            step_delta: 1.0 / rate,
+            timestep: 1.0 / rate,
             paused: false,
             accumulator: 0.0,
             steps_done: 0,
@@ -23,11 +23,11 @@ impl SimulationControl {
         }
     }
 
-    /// Replay runs in real time (`fixed_dt = 1/60` means 60 fps) but steps by the recorded `fixed_dt`.
-    pub fn for_replay(fixed_dt: f32, total_steps: u64) -> Self {
+    /// Replay runs in real time (`timestep = 1/60` means 60 fps) but steps by the recorded `timestep`.
+    pub fn for_replay(timestep: f32, total_steps: u64) -> Self {
         Self {
-            rate: 1.0 / fixed_dt,
-            step_delta: fixed_dt,
+            rate: 1.0 / timestep,
+            timestep,
             paused: false,
             accumulator: 0.0,
             steps_done: 0,
@@ -35,8 +35,8 @@ impl SimulationControl {
         }
     }
 
-    pub fn step_delta(&self) -> f32 {
-        self.step_delta
+    pub fn timestep(&self) -> f32 {
+        self.timestep
     }
 
     /// Frame-time interval that must accumulate before one step is due.
@@ -58,7 +58,7 @@ impl SimulationControl {
 
     fn set_rate(&mut self, rate: f32) {
         self.rate = rate;
-        self.step_delta = 1.0 / rate;
+        self.timestep = 1.0 / rate;
     }
 
     pub fn accumulate(&mut self, delta_time: f32) {

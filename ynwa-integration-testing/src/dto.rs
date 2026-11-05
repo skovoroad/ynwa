@@ -216,7 +216,7 @@ impl StopCriterionDto {
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RunPlanDto {
-    pub dt: f32,
+    pub timestep: f32,
     #[serde(default)]
     pub stop: Vec<StopCriterionDto>,
 }
@@ -230,8 +230,11 @@ impl RunPlanDto {
     }
 
     fn validate(&self) -> Result<(), String> {
-        if self.dt <= 0.0 || !self.dt.is_finite() {
-            return Err(format!("run.dt must be a positive number, got {}", self.dt));
+        if self.timestep <= 0.0 || !self.timestep.is_finite() {
+            return Err(format!(
+                "run.timestep must be a positive number, got {}",
+                self.timestep
+            ));
         }
         for criterion in &self.stop {
             criterion.validate()?;

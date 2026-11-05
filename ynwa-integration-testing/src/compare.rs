@@ -1,7 +1,7 @@
 //! Expectation matching: compare a finished run with the scenario's declared expectations.
 //!
 //! Every expectation is partial: an absent field is not checked. Coordinates, velocities and
-//! stat deltas are compared with [`TOLERANCE`]; timestamps with `max(dt, TOLERANCE)`. Mismatches
+//! stat deltas are compared with [`TOLERANCE`]; timestamps with `max(timestep, TOLERANCE)`. Mismatches
 //! are collected as human-readable `expected`/`actual` lines instead of failing on the first one;
 //! only a structural problem (an unresolvable player reference) is a hard error.
 //!
@@ -37,7 +37,7 @@ pub fn compare_outcome(
     expect: &ExpectDto,
     final_state: Option<&ExpectedFinalStateDto>,
     config: &GameConfig,
-    dt: f32,
+    timestep: f32,
 ) -> Result<Vec<String>, ScenarioError> {
     let mut diffs = if expect.journal.is_empty() {
         Vec::new()
@@ -47,7 +47,7 @@ pub fn compare_outcome(
             &outcome.record.journal,
             expect.journal_match,
             config,
-            dt,
+            timestep,
         )?
     };
     if let Some(stop) = &expect.stop {
@@ -69,7 +69,7 @@ fn compare_journal(
     actual: &[JournalEntry],
     mode: JournalMatchDto,
     config: &GameConfig,
-    dt: f32,
+    timestep: f32,
 ) -> Result<Vec<String>, ScenarioError> {
     let mut diffs = Vec::new();
     match mode {
@@ -82,7 +82,7 @@ fn compare_journal(
                 ));
             }
             for (index, (expected, actual)) in expected.iter().zip(actual).enumerate() {
-                if !entry_matches(expected, actual, config, dt)? {
+                if !entry_matches(expected, actual, config, timestep)? {
                     diffs.push(format!(
                         "journal[{index}]: expected {expected:?}, got {:?}",
                         actual.event
@@ -95,7 +95,7 @@ fn compare_journal(
             for expected in expected {
                 let mut matched_at = None;
                 for (offset, actual) in actual[cursor..].iter().enumerate() {
-                    if entry_matches(expected, actual, config, dt)? {
+                    if entry_matches(expected, actual, config, timestep)? {
                         matched_at = Some(cursor + offset);
                         break;
                     }
@@ -118,7 +118,7 @@ fn entry_matches(
     expected: &ExpectedEventDto,
     actual: &JournalEntry,
     config: &GameConfig,
-    dt: f32,
+    timestep: f32,
 ) -> Result<bool, ScenarioError> {
     let matched = match (expected, &actual.event) {
         (
@@ -206,7 +206,7 @@ fn entry_matches(
         _ => false,
     };
 
-    Ok(matched && entry_timestamp_matches(expected, actual.timestamp, dt))
+    Ok(matched && entry_timestamp_matches(expected, actual.timestamp, timestep))
 }
 
 fn compare_stop(expected: &StopExpectationDto, actual: &StopReason, steps: u64) -> Vec<String> {
@@ -544,8 +544,8 @@ fn stop_stage_matches(
         })
 }
 
-fn entry_timestamp_matches(expected: &ExpectedEventDto, actual: f32, dt: f32) -> bool {
-    expected_at(expected).is_none_or(|expected| timestamps_match(expected, actual, dt))
+fn entry_timestamp_matches(expected: &ExpectedEventDto, actual: f32, timestep: f32) -> bool {
+    expected_at(expected).is_none_or(|expected| timestamps_match(expected, actual, timestep))
 }
 
 /// Scenario files name a decision by its kind (`Stop` / `Run` / `Kick`); the target is not part
@@ -600,8 +600,8 @@ fn velocity_close(a: Velocity3D, b: Velocity3D) -> bool {
         && near(a.z.get::<meter_per_second>(), b.z.get::<meter_per_second>())
 }
 
-fn timestamps_match(expected: f32, actual: f32, dt: f32) -> bool {
-    (expected - actual).abs() <= dt.max(TOLERANCE)
+fn timestamps_match(expected: f32, actual: f32, timestep: f32) -> bool {
+    (expected - actual).abs() <= timestep.max(TOLERANCE)
 }
 
 fn near(a: f32, b: f32) -> bool {

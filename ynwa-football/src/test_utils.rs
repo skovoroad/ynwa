@@ -24,7 +24,7 @@ use ynwa_core::team::Team;
 use ynwa_core::world::World;
 
 /// Fixed step and length of the short game recorded by the journal and replay tests.
-pub(crate) const FIXED_DT: f32 = 0.1;
+pub(crate) const TIMESTEP: f32 = 0.1;
 pub(crate) const STEPS: u64 = 150;
 
 /// Random source with the given temperature and seed; temperature `0.0` is fully reproducible.
@@ -153,11 +153,11 @@ pub(crate) fn run_lockstep(
         let state = world.game().state().clone();
         if matches!(state.stage, GameStage::Play) {
             if let Some(event) = check_events(world.game()) {
-                detected.push((state.elapsed_time + FIXED_DT, event));
+                detected.push((state.elapsed_time + TIMESTEP, event));
             }
         }
         before.push(state);
-        world.step(FIXED_DT);
+        world.step(TIMESTEP);
     }
     (before, detected)
 }

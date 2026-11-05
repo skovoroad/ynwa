@@ -85,7 +85,7 @@ async fn run_record(cli: &Cli, is_fullscreen: &mut bool) {
 
     let field_ratio = field_width_ratio(&world);
     let mut simulation = SimulationControl::new(PLAYBACK_RATE);
-    let fixed_dt = simulation.step_delta();
+    let timestep = simulation.timestep();
 
     let dir = load_or_exit(
         games_dir(cli.out_dir.as_deref()),
@@ -93,7 +93,7 @@ async fn run_record(cli: &Cli, is_fullscreen: &mut bool) {
     );
     let path = load_or_exit(next_record_path(&dir), "choose recording path");
     let writer = load_or_exit(json_journal_file_writer(&path), "create recording file");
-    let header = RecordHeader::from_game(world.game(), fixed_dt);
+    let header = RecordHeader::from_game(world.game(), timestep);
     world
         .game_mut()
         .set_journal_sink(Box::new(FileJournalRecorder::new(
@@ -127,9 +127,9 @@ async fn run_replay(path: PathBuf, is_fullscreen: &mut bool) {
     let mut reader = load_or_exit(json_journal_file_reader(&path), "open recording");
     let record = load_or_exit(reader.read(), "read recording");
 
-    let fixed_dt = record.header.fixed_dt;
+    let timestep = record.header.timestep;
     let events = decode_football_events(&record.journal);
-    let total_steps = replay_steps(&record, fixed_dt);
+    let total_steps = replay_steps(&record, timestep);
     if total_steps == 0 {
         eprintln!("Warning: recording contains no replayable steps");
     } else if record.total_steps == 0 {
@@ -143,7 +143,7 @@ async fn run_replay(path: PathBuf, is_fullscreen: &mut bool) {
     println!("Replaying {} ({} steps)", path.display(), total_steps);
 
     let field_ratio = field_width_ratio(&world);
-    let mut simulation = SimulationControl::for_replay(fixed_dt, total_steps);
+    let mut simulation = SimulationControl::for_replay(timestep, total_steps);
     let mut visible_events: Vec<(f32, FootballEvent)> = Vec::new();
     let mut event_cursor = 0usize;
 
@@ -170,18 +170,18 @@ async fn run_replay(path: PathBuf, is_fullscreen: &mut bool) {
 ///
 /// A normally finished recording carries the count in its footer. A recording interrupted while
 /// being written has no footer, so it is replayed up to its last recorded event instead.
-fn replay_steps(recording: &Record, fixed_dt: f32) -> u64 {
+fn replay_steps(recording: &Record, timestep: f32) -> u64 {
     if recording.total_steps > 0 {
         return recording.total_steps;
     }
-    if fixed_dt <= 0.0 {
+    if timestep <= 0.0 {
         return 0;
     }
     let last_timestamp = recording
         .journal
         .last()
         .map_or(0.0, |entry| entry.timestamp);
-    (last_timestamp / fixed_dt).ceil() as u64
+    (last_timestamp / timestep).ceil() as u64
 }
 
 /// Accumulates frame time and advances the world by all due simulation steps.
@@ -189,7 +189,7 @@ fn advance(world: &mut World, simulation: &mut SimulationControl) {
     simulation.accumulate(get_frame_time());
 
     while simulation.should_step() {
-        world.step(simulation.step_delta());
+        world.step(simulation.timestep());
         simulation.consume_step();
     }
 }

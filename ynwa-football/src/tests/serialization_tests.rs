@@ -5,7 +5,7 @@
 use crate::replay::create_football_replay_world;
 use crate::test_utils::{
     assert_equivalent, build_recording_world_with, build_recording_world_with_rng, rng_with,
-    run_lockstep, single_player_config, ChaseAndKick, FIXED_DT, STEPS,
+    run_lockstep, single_player_config, ChaseAndKick, STEPS, TIMESTEP,
 };
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
@@ -47,7 +47,7 @@ fn file_round_trip_reproduces_the_recorded_run() {
 
     let (mut file_world, _) =
         build_recording_world_with(config.clone(), stage.clone(), Box::new(ChaseAndKick));
-    let header = RecordHeader::from_game(file_world.game(), FIXED_DT);
+    let header = RecordHeader::from_game(file_world.game(), TIMESTEP);
     let writer = json_journal_file_writer(&path).unwrap();
     file_world
         .game_mut()
@@ -56,15 +56,15 @@ fn file_round_trip_reproduces_the_recorded_run() {
             &header,
         )));
     for _ in 0..STEPS {
-        file_world.step(FIXED_DT);
+        file_world.step(TIMESTEP);
     }
     file_world.game_mut().finish_journal().unwrap();
 
     let (mut collected_world, collection) =
         build_recording_world_with(config, stage, Box::new(ChaseAndKick));
-    let collected_header = RecordHeader::from_game(collected_world.game(), FIXED_DT);
+    let collected_header = RecordHeader::from_game(collected_world.game(), TIMESTEP);
     for _ in 0..STEPS {
-        collected_world.step(FIXED_DT);
+        collected_world.step(TIMESTEP);
     }
     collected_world.game_mut().finish_journal().unwrap();
     let collected = collection.borrow_mut().take_record(collected_header);
@@ -81,7 +81,7 @@ fn file_round_trip_reproduces_the_recorded_run() {
     let total_steps = from_file.total_steps;
     let mut replay = create_football_replay_world(from_file).unwrap();
     for _ in 0..total_steps {
-        replay.step(FIXED_DT);
+        replay.step(TIMESTEP);
     }
 
     assert_equivalent(collected_world.game().state(), replay.game().state());
@@ -104,7 +104,7 @@ fn replay_is_independent_of_rng() {
         Box::new(ChaseAndKick),
         rng_with(1.0, 7),
     );
-    let header = RecordHeader::from_game(original.game(), FIXED_DT);
+    let header = RecordHeader::from_game(original.game(), TIMESTEP);
 
     let (original_before, _) = run_lockstep(&mut original, STEPS);
     original.game_mut().finish_journal().unwrap();
@@ -199,7 +199,7 @@ impl DecisionMaker for ChaseBall {
 fn replay_reproduces_a_multi_player_ball_contest() {
     let (mut original, collection) =
         build_recording_world_with(contest_config(), GameStage::Play, Box::new(ChaseBall));
-    let header = RecordHeader::from_game(original.game(), FIXED_DT);
+    let header = RecordHeader::from_game(original.game(), TIMESTEP);
 
     let (original_before, _) = run_lockstep(&mut original, CONTEST_STEPS);
     original.game_mut().finish_journal().unwrap();
