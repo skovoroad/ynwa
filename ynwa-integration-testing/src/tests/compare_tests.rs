@@ -2,8 +2,8 @@ use std::collections::HashMap;
 
 use super::*;
 use crate::dto::{
-    BallStateDto, DecisionTargetDto, EventKindDto, NoneToken, PlayerPlacementDto, PlayerRefDto,
-    PointOrNoneDto, ReasonOrNoneDto, SetupDto,
+    BallStateDto, DecisionTargetDto, EventKindDto, NoneToken, PlayerPlacementDto,
+    PlayerPositionDto, PlayerRefDto, PlayerRegionDto, PointOrNoneDto, ReasonOrNoneDto, SetupDto,
 };
 use ynwa_core::field::Field;
 use ynwa_core::game::{
@@ -410,17 +410,59 @@ fn final_state_checks_stage_score_ball_and_players() {
             last_possessing_team: Some(TeamOrNoneDto::Team(Team::A)),
         }),
         setup: None,
-        players: vec![PlayerPlacementDto {
+        players: vec![PlayerPlacementDto::Position(PlayerPositionDto {
             team: Team::A,
             number: 9,
             position: Point3D::from_meters(1.0, 0.0, 2.0),
-        }],
+        })],
         score: Some(Score { a: 2, b: 0 }),
     };
 
     let diffs = compare_final_state(&expected, &state, &config).unwrap();
 
     assert!(diffs.is_empty(), "{diffs:?}");
+}
+
+fn region_expectation(region: &str) -> ExpectedFinalStateDto {
+    ExpectedFinalStateDto {
+        players: vec![PlayerPlacementDto::Region(PlayerRegionDto {
+            team: Team::A,
+            number: 9,
+            region: region.to_string(),
+        })],
+        ..ExpectedFinalStateDto::default()
+    }
+}
+
+#[test]
+fn final_state_player_region_checks_containment() {
+    let (config, mut state) = test_state(&[(Team::A, 9)]);
+
+    state.player_states[0].position = Point3D::from_meters(1.0, 0.0, 1.0);
+    let diffs = compare_final_state(&region_expectation("A1:B2"), &state, &config).unwrap();
+    assert!(diffs.is_empty(), "{diffs:?}");
+
+    state.player_states[0].position = Point3D::from_meters(10.0, 0.0, 1.0);
+    let diffs = compare_final_state(&region_expectation("A1:B2"), &state, &config).unwrap();
+    assert_eq!(diffs.len(), 1, "{diffs:?}");
+    assert!(diffs[0].contains("region"), "{diffs:?}");
+}
+
+#[test]
+fn final_state_player_region_ignores_height() {
+    let (config, mut state) = test_state(&[(Team::A, 9)]);
+    state.player_states[0].position = Point3D::from_meters(1.0, 10.0, 1.0);
+
+    let diffs = compare_final_state(&region_expectation("A1:B2"), &state, &config).unwrap();
+
+    assert!(diffs.is_empty(), "{diffs:?}");
+}
+
+#[test]
+fn final_state_player_rejects_invalid_region_notation() {
+    let (config, state) = test_state(&[(Team::A, 9)]);
+
+    assert!(compare_final_state(&region_expectation("not a region"), &state, &config).is_err());
 }
 
 #[test]

@@ -59,7 +59,7 @@ position = { x = 34.0, y = 0.0, z = 10.0 }
     );
     assert_eq!(
         state.players,
-        vec![PlayerPlacementDto {
+        vec![PlayerPositionDto {
             team: Team::A,
             number: 9,
             position: Point3D::from_meters(34.0, 0.0, 10.0),
@@ -731,6 +731,68 @@ fn final_state_rejects_zero_player_number() {
         "[[players]]\nteam = \"A\"\nnumber = 0\nposition = { x = 0.0, y = 0.0, z = 0.0 }\n",
     )
     .unwrap_err();
+
+    assert!(
+        error.contains("number must be positive"),
+        "unexpected error: {error}"
+    );
+}
+
+#[test]
+fn final_state_players_accept_position_or_region() {
+    let state = parse_final(
+        r#"
+[[players]]
+team = "A"
+number = 9
+position = { x = 1.0, y = 0.0, z = 2.0 }
+
+[[players]]
+team = "B"
+number = 4
+region = "A1:B2"
+"#,
+    );
+
+    assert_eq!(
+        state.players,
+        vec![
+            PlayerPlacementDto::Position(PlayerPositionDto {
+                team: Team::A,
+                number: 9,
+                position: Point3D::from_meters(1.0, 0.0, 2.0),
+            }),
+            PlayerPlacementDto::Region(PlayerRegionDto {
+                team: Team::B,
+                number: 4,
+                region: "A1:B2".to_string(),
+            }),
+        ]
+    );
+}
+
+#[test]
+fn final_state_player_rejects_malformed_placement() {
+    let cases = [
+        "[[players]]\nteam = \"A\"\nnumber = 1\n",
+        "[[players]]\nteam = \"A\"\nnumber = 1\nposition = { x = 0.0, y = 0.0, z = 0.0 }\nregion = \"A1:B2\"\n",
+        "[[players]]\nteam = \"A\"\nnumber = 1\nregion = \"A1:B2\"\nbogus = 1\n",
+        "[[players]]\nteam = \"A\"\nnumber = 1\nposition = { x = 0.0, y = 0.0, z = 0.0 }\nbogus = 1\n",
+    ];
+
+    for source in cases {
+        assert!(
+            ExpectedFinalStateDto::parse(source).is_err(),
+            "must reject: {source}"
+        );
+    }
+}
+
+#[test]
+fn final_state_rejects_zero_region_player_number() {
+    let error =
+        ExpectedFinalStateDto::parse("[[players]]\nteam = \"A\"\nnumber = 0\nregion = \"A1:B2\"\n")
+            .unwrap_err();
 
     assert!(
         error.contains("number must be positive"),

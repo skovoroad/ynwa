@@ -23,8 +23,8 @@ use ynwa_football::events::FootballEvent;
 use crate::criterion::{EventMatcher, StageMatcher, StopReason};
 use crate::dto::{
     BallOwnerDto, BallStateDto, DecisionTargetDto, ExpectDto, ExpectedEventDto,
-    ExpectedFinalStateDto, JournalMatchDto, PlayerRefDto, PointOrNoneDto, ReasonOrNoneDto,
-    SetupDto, StageNameDto, StopExpectationDto, TeamOrNoneDto,
+    ExpectedFinalStateDto, JournalMatchDto, PlayerPlacementDto, PlayerRefDto, PointOrNoneDto,
+    ReasonOrNoneDto, SetupDto, StageNameDto, StopExpectationDto, TeamOrNoneDto,
 };
 use crate::loader::{resolve_player_index, ScenarioError};
 use crate::runner::RunOutcome;
@@ -269,18 +269,37 @@ fn compare_final_state(
         diffs.extend(compare_final_setup(setup, actual));
     }
     for placement in &expected.players {
-        let index = resolve_player_index(config, placement.team, placement.number)?;
+        let (team, number) = placement.player();
+        let index = resolve_player_index(config, team, number)?;
         let actual_position = actual.player_states[index].position;
-        record(
-            &mut diffs,
-            point_close(placement.position, actual_position),
-            || {
-                format!(
-                    "final_state.player {:?}#{}: expected {:?}, got {actual_position:?}",
-                    placement.team, placement.number, placement.position
-                )
-            },
-        );
+        match placement {
+            PlayerPlacementDto::Position(placement) => record(
+                &mut diffs,
+                point_close(placement.position, actual_position),
+                || {
+                    format!(
+                        "final_state.player {team:?}#{number}: expected {:?}, got {actual_position:?}",
+                        placement.position
+                    )
+                },
+            ),
+            PlayerPlacementDto::Region(placement) => {
+                let expected_region =
+                    Region::from_grid_notation(&placement.region, config.field.grid_dimensions())
+                        .map_err(|error| ScenarioError::new(error.to_string()))?;
+                let inside = expected_region.contains_point(
+                    config.field.grid_dimensions(),
+                    config.field.width().get::<meter>(),
+                    &actual_position,
+                );
+                record(&mut diffs, inside, || {
+                    format!(
+                        "final_state.player {team:?}#{number}: expected inside region {:?}, got {actual_position:?}",
+                        placement.region
+                    )
+                });
+            }
+        }
     }
 
     Ok(diffs)

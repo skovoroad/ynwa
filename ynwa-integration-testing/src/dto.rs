@@ -122,13 +122,41 @@ pub struct SetupDto {
     pub restart_team: Option<TeamOrNoneDto>,
 }
 
-/// Explicit player position in meters, overriding the tactic-defined start position.
+/// A player addressed by team and number with an exact position in meters.
 #[derive(Debug, Clone, Copy, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct PlayerPlacementDto {
+pub struct PlayerPositionDto {
     pub team: Team,
     pub number: u32,
     pub position: Point3D,
+}
+
+/// A player addressed by team and number with the grid-notation region they must be inside.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PlayerRegionDto {
+    pub team: Team,
+    pub number: u32,
+    pub region: String,
+}
+
+/// A player placement: an exact position or a region the player must be inside.
+/// The forms are mutually exclusive, so an entry carrying both fields is rejected.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(untagged)]
+pub enum PlayerPlacementDto {
+    Position(PlayerPositionDto),
+    Region(PlayerRegionDto),
+}
+
+impl PlayerPlacementDto {
+    /// Player addressed by this assertion.
+    pub fn player(&self) -> (Team, u32) {
+        match self {
+            Self::Position(placement) => (placement.team, placement.number),
+            Self::Region(placement) => (placement.team, placement.number),
+        }
+    }
 }
 
 /// Partial initial state (`initial_state.toml`).
@@ -144,7 +172,7 @@ pub struct InitialStateDto {
     #[serde(default)]
     pub setup: Option<SetupDto>,
     #[serde(default)]
-    pub players: Vec<PlayerPlacementDto>,
+    pub players: Vec<PlayerPositionDto>,
 }
 
 /// Partial expected final state (`final_state.toml`).
@@ -182,7 +210,7 @@ impl InitialStateDto {
                 "ball state cannot be set for a Setup stage; use [setup] instead".to_string(),
             );
         }
-        validate_players(&self.players)?;
+        validate_initial_players(&self.players)?;
         if let Some(ball) = &self.ball {
             validate_ball_owner(ball)?;
         }
@@ -199,7 +227,7 @@ impl ExpectedFinalStateDto {
     }
 
     fn validate(&self) -> Result<(), String> {
-        validate_players(&self.players)?;
+        validate_final_players(&self.players)?;
         if let Some(ball) = &self.ball {
             validate_ball_owner(ball)?;
         }
@@ -444,9 +472,17 @@ impl ScenarioDto {
     }
 }
 
-fn validate_players(players: &[PlayerPlacementDto]) -> Result<(), String> {
+fn validate_initial_players(players: &[PlayerPositionDto]) -> Result<(), String> {
     for player in players {
         validate_player_number(player.team, player.number)?;
+    }
+    Ok(())
+}
+
+fn validate_final_players(players: &[PlayerPlacementDto]) -> Result<(), String> {
+    for player in players {
+        let (team, number) = player.player();
+        validate_player_number(team, number)?;
     }
     Ok(())
 }

@@ -35,8 +35,8 @@ pub use criterion::{EventMatcher, StageMatcher, StopCriterion, StopReason};
 pub use dto::{
     BallOwnerDto, BallStateDto, DecisionTargetDto, EventKindDto, ExpectDto, ExpectedEventDto,
     ExpectedFinalStateDto, InitialStateDto, JournalMatchDto, NoneToken, PlayerPlacementDto,
-    PlayerRefDto, PointOrNoneDto, ReasonOrNoneDto, RunPlanDto, ScenarioDto, SetupDto, StageNameDto,
-    StopCriterionDto, StopExpectationDto, TeamOrNoneDto,
+    PlayerPositionDto, PlayerRefDto, PlayerRegionDto, PointOrNoneDto, ReasonOrNoneDto, RunPlanDto,
+    ScenarioDto, SetupDto, StageNameDto, StopCriterionDto, StopExpectationDto, TeamOrNoneDto,
 };
 pub use loader::{load_scenario, LoadedScenario, ScenarioError, ScenarioLoader};
 pub use runner::{run, RunOutcome};

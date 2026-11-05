@@ -15,7 +15,7 @@
 
 ## Decisions
 
-1. **Two mutually exclusive placement forms.** A `final_state.players` entry carries either `position = {x, y, z}` (exact, existing) or `region = "A1:B2"` (containment). `deny_unknown_fields` plus a tagged enum keeps the two forms exclusive. `initial_state.players` keeps the existing exact-only `PlayerPlacementDto`; the region-capable variant is a separate final-state placement type, so region assertions do not leak into `initial_state.toml`.
+1. **Two mutually exclusive placement forms.** A `final_state.players` entry carries either `position = {x, y, z}` (exact, existing) or `region = "A1:B2"` (containment). `deny_unknown_fields` on both forms plus an untagged enum keeps the two forms exclusive. `initial_state.players` keeps the existing exact-only `PlayerPositionDto`; `final_state.players` uses the `PlayerPlacementDto` union of `PlayerPositionDto` and `PlayerRegionDto`, so region assertions do not leak into `initial_state.toml`. Type names describe content rather than stage: a position, a region, or a placement that is either of them.
 
 2. **Resolve region notation at compare time.** Parse `region` with `Region::from_grid_notation(notation, grid_dims)`, where `grid_dims` comes from `GameConfig::field` already passed into `compare_final_state`. Invalid notation is a hard `ScenarioError`.
 
