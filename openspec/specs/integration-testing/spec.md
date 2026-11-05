@@ -16,16 +16,16 @@ Every scenario in `ynwa-integration-testing/scenarios/<name>/` SHALL contain `in
 
 ### Requirement: Strict Scenario TOML Schemas and Static Validation
 
-Scenario TOML files (`initial_state.toml`, `scenario.toml`, `final_state.toml`, and all nested tables) SHALL reject unknown fields and enforce static validation: (1) `initial_state.toml` MUST reject `[ball]` when `stage` is omitted or `"Setup"` (since `Setup` pins the ball from `[setup]`), (2) `scenario.toml` `[run]` MUST require finite `dt > 0.0` and at least one `"steps"` or `"time"` safety criterion in `[[run.stop]]`, and (3) `team` MUST be rejected on `event = "GameEnd"`.
+Scenario TOML files (`initial_state.toml`, `scenario.toml`, `final_state.toml`, and all nested tables) SHALL reject unknown fields and enforce static validation: (1) `initial_state.toml` MUST reject `[ball]` when `stage` is omitted or `"Setup"` (since `Setup` pins the ball from `[setup]`), (2) `scenario.toml` `[run]` MUST require finite `timestep > 0.0` and at least one `"steps"` or `"time"` safety criterion in `[[run.stop]]`, and (3) `team` MUST be rejected on `event = "GameEnd"`.
 
 #### Scenario: Supported fields in `initial_state.toml`, `final_state.toml`, and `[run]`
 - **WHEN** `initial_state.toml`, `final_state.toml`, and `scenario.toml` `[run]` are parsed
 - **THEN** `initial_state.toml` and `final_state.toml` accept optional `stage` (`"Play"|"Setup"|"GameOver"`), `setup_reason`, `ball` (`position`, `velocity`, `possessed_by = {team, number} | "none"`, `last_possessing_team = "A"|"B"|"none"`), `setup` (`restart_position`, `restart_team`), `players` (`[{team, number, position}]`, overriding only `PlayerState.position` while preserving `tactical.toml` regions/roles and leaving unlisted players at stage defaults), plus `score = { A = u32, B = u32 }` in `final_state.toml`
-- **AND** `scenario.toml` `[run]` accepts `dt: f32` and `[[run.stop]]` tagged by `when`: `"stage"` (`stage`, `setup_reason?`, where `stage = "Setup"` without `setup_reason` matches any `Setup` reason, as in `final_state.toml`), `"event"` (`event` in `"Goal"|"Touchline"|"GoalLine"|"GameEnd"`, `team?`), `"steps"` (`steps: u64`), or `"time"` (`time: f32`)
+- **AND** `scenario.toml` `[run]` accepts `timestep: f32` and `[[run.stop]]` tagged by `when`: `"stage"` (`stage`, `setup_reason?`, where `stage = "Setup"` without `setup_reason` matches any `Setup` reason, as in `final_state.toml`), `"event"` (`event` in `"Goal"|"Touchline"|"GoalLine"|"GameEnd"`, `team?`), `"steps"` (`steps: u64`), or `"time"` (`time: f32`)
 
 ### Requirement: Journal Expectation Per-Type Schema and Matching Rules
 
-`scenario.toml` `[expect]` SHALL accept `journal_match = "exact" | "subsequence"` (default `"exact"`), optional `stop` (`when = "stage"|"event"|"steps"|"time"`, with optional `steps: u64` on `"stage"|"event"|"time"` and required `steps: u64` on `"steps"`), and `[[expect.journal]]` entries tagged by `type` with optional `at: f32` (`|actual - expected| <= dt.max(1e-4)`). Omitted fields act as wildcards; `decision_assigned.decision` MUST compare **only the kind** (`"Stop"|"Run"|"Kick"`).
+`scenario.toml` `[expect]` SHALL accept `journal_match = "exact" | "subsequence"` (default `"exact"`), optional `stop` (`when = "stage"|"event"|"steps"|"time"`, with optional `steps: u64` on `"stage"|"event"|"time"` and required `steps: u64` on `"steps"`), and `[[expect.journal]]` entries tagged by `type` with optional `at: f32` (`|actual - expected| <= timestep.max(1e-4)`). Omitted fields act as wildcards; `decision_assigned.decision` MUST compare **only the kind** (`"Stop"|"Run"|"Kick"`).
 
 #### Scenario: Per-`type` optional and required fields in `[[expect.journal]]`
 - **WHEN** non-empty `[[expect.journal]]` entries are validated and matched against recorded `JournalEntry` items
