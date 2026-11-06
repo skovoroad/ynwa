@@ -2,14 +2,16 @@
 //!
 //! Scenario files declare stop criteria as data ([`StopCriterionDto`](crate::dto::StopCriterionDto));
 //! [`StopCriterion`] is the compiled form the runner checks after every step, and [`StopReason`]
-//! records which criterion ended the run. The matchers narrow the stage or football event a
-//! criterion reacts to.
+//! records which criterion ended the run. The matchers narrow the stage, football event or journal
+//! event a criterion reacts to.
 
-use ynwa_core::game::GameStage;
+use ynwa_core::game::{GameConfig, GameStage};
+use ynwa_core::journal::JournalEntry;
 use ynwa_core::team::Team;
 use ynwa_football::events::FootballEvent;
 
-use crate::dto::{EventKindDto, StageNameDto};
+use crate::dto::{EventKindDto, JournalStopPatternDto, StageNameDto};
+use crate::loader::ScenarioError;
 
 /// Target stage of an `OnStage` criterion. `Setup` with no reason matches any Setup reason.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -73,50 +75,82 @@ fn accepts(expected: Option<Team>, actual: Team) -> bool {
     expected.is_none_or(|team| team == actual)
 }
 
+/// Journal-event matcher for an `OnJournal` criterion. It carries the same per-type pattern as an
+/// `[[expect.journal]]` entry, without a timestamp.
+#[derive(Debug, Clone, PartialEq)]
+pub struct JournalMatcher {
+    pattern: JournalStopPatternDto,
+}
+
+impl JournalMatcher {
+    pub fn new(pattern: JournalStopPatternDto) -> Self {
+        Self { pattern }
+    }
+
+    /// First entry matching the pattern.
+    fn find<'a>(
+        &self,
+        entries: &'a [JournalEntry],
+        config: &GameConfig,
+    ) -> Result<Option<&'a JournalEntry>, ScenarioError> {
+        for entry in entries {
+            if crate::compare::journal_pattern_matches(self.pattern.entry_pattern(), entry, config)?
+            {
+                return Ok(Some(entry));
+            }
+        }
+        Ok(None)
+    }
+}
+
 /// A compiled stop criterion checked after every step.
 #[derive(Debug, Clone, PartialEq)]
 pub enum StopCriterion {
     OnStage(StageMatcher),
     OnEvent(EventMatcher),
+    OnJournal(JournalMatcher),
     OnSteps(u64),
     OnTime(f32),
 }
 
 impl StopCriterion {
-    /// Whether the criterion is satisfied by the state left after a step. `new_events` holds the
-    /// football events decoded from the journal entries appended during that step.
-    pub(crate) fn is_satisfied(
+    /// Why the criterion fired after a step, or `None` when it did not. `new_events` holds the
+    /// football events decoded from the journal entries appended during that step; `new_entries`
+    /// holds those same entries for journal matchers.
+    pub(crate) fn evaluate(
         &self,
         stage: &GameStage,
         elapsed: f32,
         steps: u64,
         new_events: &[(f32, FootballEvent)],
-    ) -> bool {
-        match self {
-            StopCriterion::OnStage(matcher) => matcher.matches(stage),
+        new_entries: &[JournalEntry],
+        config: &GameConfig,
+    ) -> Result<Option<StopReason>, ScenarioError> {
+        let reason = match self {
+            StopCriterion::OnStage(matcher) => matcher
+                .matches(stage)
+                .then(|| StopReason::Stage(matcher.clone())),
             StopCriterion::OnEvent(matcher) => new_events
                 .iter()
-                .any(|(_, event)| matcher.matches_football(event)),
-            StopCriterion::OnSteps(limit) => steps >= *limit,
-            StopCriterion::OnTime(limit) => elapsed >= *limit,
-        }
-    }
-
-    pub(crate) fn to_reason(&self) -> StopReason {
-        match self {
-            StopCriterion::OnStage(matcher) => StopReason::Stage(matcher.clone()),
-            StopCriterion::OnEvent(matcher) => StopReason::Event(*matcher),
-            StopCriterion::OnSteps(limit) => StopReason::Steps(*limit),
-            StopCriterion::OnTime(limit) => StopReason::Time(*limit),
-        }
+                .any(|(_, event)| matcher.matches_football(event))
+                .then_some(StopReason::Event(*matcher)),
+            StopCriterion::OnJournal(matcher) => matcher
+                .find(new_entries, config)?
+                .map(|entry| StopReason::Journal(entry.clone())),
+            StopCriterion::OnSteps(limit) => (steps >= *limit).then_some(StopReason::Steps(*limit)),
+            StopCriterion::OnTime(limit) => (elapsed >= *limit).then_some(StopReason::Time(*limit)),
+        };
+        Ok(reason)
     }
 }
 
-/// The criterion that ended a run, preserving the parameters it was declared with.
+/// The criterion that ended a run, preserving the parameters it was declared with. A journal stop
+/// keeps the event that triggered it.
 #[derive(Debug, Clone, PartialEq)]
 pub enum StopReason {
     Stage(StageMatcher),
     Event(EventMatcher),
+    Journal(JournalEntry),
     Steps(u64),
     Time(f32),
 }

@@ -1,8 +1,12 @@
 use super::{compile_criteria, run};
 use crate::criterion::{EventMatcher, StageMatcher, StopCriterion, StopReason};
-use crate::dto::{EventKindDto, RunPlanDto, StageNameDto, StopCriterionDto};
+use crate::dto::{
+    DecisionTargetDto, EventKindDto, JournalEntryPatternDto, PlayerRefDto, RunPlanDto,
+    StageNameDto, StopCriterionDto,
+};
 use crate::loader::{load_scenario, LoadedScenario};
 use ynwa_core::game::GameStage;
+use ynwa_core::journal::{JournalEntry, JournalEvent};
 use ynwa_core::team::Team;
 use ynwa_core::{Point3D, Velocity3D};
 use ynwa_football::events::FootballEvent;
@@ -187,6 +191,89 @@ fn stops_on_football_event() {
         outcome.football_events[0].1,
         FootballEvent::Touchline(_, _)
     ));
+}
+
+#[test]
+fn stops_on_journal_event() {
+    let LoadedScenario { world, .. } = load_scenario(&fixture("valid")).expect("fixture must load");
+    let plan = RunPlanDto {
+        timestep: 0.1,
+        stop: vec![
+            StopCriterionDto::Journal(
+                JournalEntryPatternDto::DecisionAssigned {
+                    player: None,
+                    decision: None,
+                    target: None,
+                    reason: None,
+                    at: None,
+                }
+                .try_into()
+                .unwrap(),
+            ),
+            StopCriterionDto::Steps { steps: 100 },
+        ],
+    };
+
+    let outcome = run(world, &plan).expect("run must succeed");
+
+    assert_eq!(outcome.steps, 1);
+    assert!(matches!(
+        outcome.stop_reason,
+        StopReason::Journal(JournalEntry {
+            event: JournalEvent::DecisionAssigned { .. },
+            ..
+        })
+    ));
+}
+
+#[test]
+fn journal_criterion_with_invalid_pattern_fails_the_run() {
+    let cases = [
+        (
+            JournalEntryPatternDto::DecisionAssigned {
+                player: Some(PlayerRefDto {
+                    team: Team::A,
+                    number: 99,
+                }),
+                decision: None,
+                target: None,
+                reason: None,
+                at: None,
+            },
+            "not declared",
+        ),
+        (
+            JournalEntryPatternDto::DecisionAssigned {
+                player: None,
+                decision: None,
+                target: Some(DecisionTargetDto::Region {
+                    region: "bogus".to_string(),
+                }),
+                reason: None,
+                at: None,
+            },
+            "bogus",
+        ),
+    ];
+
+    for (pattern, expected_error) in cases {
+        let LoadedScenario { world, .. } =
+            load_scenario(&fixture("valid")).expect("fixture must load");
+        let plan = RunPlanDto {
+            timestep: 0.1,
+            stop: vec![
+                StopCriterionDto::Journal(pattern.try_into().unwrap()),
+                StopCriterionDto::Steps { steps: 100 },
+            ],
+        };
+
+        let error = run(world, &plan).unwrap_err();
+
+        assert!(
+            error.message().contains(expected_error),
+            "unexpected error: {error}"
+        );
+    }
 }
 
 #[test]

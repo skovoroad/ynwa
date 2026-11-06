@@ -17,7 +17,7 @@ Scenario TOML files (`initial_state.toml`, `scenario.toml`, `final_state.toml`, 
 
 ### Requirement: Journal Expectation Per-Type Schema and Matching Rules
 
-`scenario.toml` `[expect]` SHALL accept `journal_match = "exact" | "subsequence"` (default `"exact"`), optional `stop` (`when = "stage"|"event"|"journal"|"steps"|"time"`, with optional `steps: u64` on `"stage"|"event"|"journal"|"time"` and required `steps: u64` on `"steps"`), and `[[expect.journal]]` entries tagged by `type` with optional `at: f32` (`|actual - expected| <= timestep.max(1e-4)`). Omitted fields act as wildcards. `decision_assigned.decision` compares the kind (`"Stop"|"Run"|"Kick"`); a present `decision_assigned.target` MUST additionally match the recorded decision's target.
+`scenario.toml` `[expect]` SHALL accept `journal_match = "exact" | "subsequence"` (default `"exact"`), optional `stop` (`when = "stage"|"event"|"journal"|"steps"|"time"`, with optional `steps: u64` on `"stage"|"event"|"time"` and required `steps: u64` on `"steps"`), and `[[expect.journal]]` entries tagged by `type` with optional `at: f32` (`|actual - expected| <= timestep.max(1e-4)`). Omitted fields act as wildcards. `decision_assigned.decision` compares the kind (`"Stop"|"Run"|"Kick"`); a present `decision_assigned.target` MUST additionally match the recorded decision's target.
 
 #### Scenario: Per-`type` optional and required fields in `[[expect.journal]]`
 - **WHEN** non-empty `[[expect.journal]]` entries are validated and matched against recorded `JournalEntry` items
@@ -26,4 +26,4 @@ Scenario TOML files (`initial_state.toml`, `scenario.toml`, `final_state.toml`, 
 
 #### Scenario: Journal-event stop criteria in `[[run.stop]]` and `[expect.stop]`
 - **WHEN** a `[[run.stop]]` entry uses `when = "journal"` with a `type` (e.g. `kick_outcome` or `possession_change`) and optional matcher fields, and the run stops on it
-- **THEN** the run stops on the first step whose new journal entries contain a matching `JournalEvent`, and a matching `[expect.stop]` (`when = "journal"`) records the terminating event and supports an optional `steps`
+- **THEN** the run stops on the first step whose new journal entries contain a matching `JournalEvent`, and a matching `[expect.stop]` (`when = "journal"`) records the terminating event

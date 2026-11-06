@@ -2,8 +2,9 @@ use std::collections::HashMap;
 
 use super::*;
 use crate::dto::{
-    BallStateDto, DecisionTargetDto, EventKindDto, NoneToken, PlayerPlacementDto,
-    PlayerPositionDto, PlayerRefDto, PlayerRegionDto, PointOrNoneDto, ReasonOrNoneDto, SetupDto,
+    BallStateDto, DecisionTargetDto, EventKindDto, JournalEntryPatternDto, NoneToken,
+    PlayerPlacementDto, PlayerPositionDto, PlayerRefDto, PlayerRegionDto, PointOrNoneDto,
+    ReasonOrNoneDto, SetupDto,
 };
 use ynwa_core::field::Field;
 use ynwa_core::game::{
@@ -322,18 +323,20 @@ fn unknown_player_reference_is_a_hard_error() {
 
 #[test]
 fn stop_matches_reason_and_step_count() {
+    let config = test_config(&[]);
     let expected = StopExpectationDto::Steps { steps: 7 };
 
-    let diffs = compare_stop(&expected, &StopReason::Steps(7), 7);
+    let diffs = compare_stop(&expected, &StopReason::Steps(7), 7, &config).unwrap();
     assert!(diffs.is_empty(), "{diffs:?}");
 
-    let diffs = compare_stop(&expected, &StopReason::Steps(7), 8);
+    let diffs = compare_stop(&expected, &StopReason::Steps(7), 8, &config).unwrap();
     assert_eq!(diffs.len(), 1, "{diffs:?}");
     assert!(diffs[0].contains("steps"), "{diffs:?}");
 }
 
 #[test]
 fn stop_event_matches_with_optional_steps() {
+    let config = test_config(&[]);
     let expected = StopExpectationDto::Event {
         event: EventKindDto::Goal,
         team: Some(Team::B),
@@ -346,7 +349,9 @@ fn stop_event_matches_with_optional_steps() {
             team: Some(Team::B),
         }),
         15,
-    );
+        &config,
+    )
+    .unwrap();
     assert!(diffs.is_empty(), "{diffs:?}");
 
     let diffs = compare_stop(
@@ -355,12 +360,55 @@ fn stop_event_matches_with_optional_steps() {
             team: Some(Team::A),
         }),
         15,
+        &config,
+    )
+    .unwrap();
+    assert_eq!(diffs.len(), 1, "{diffs:?}");
+}
+
+#[test]
+fn stop_journal_matches_the_terminating_event() {
+    let config = test_config(&[(Team::A, 9)]);
+    let expected = StopExpectationDto::Journal(
+        JournalEntryPatternDto::DecisionAssigned {
+            player: Some(PlayerRefDto {
+                team: Team::A,
+                number: 9,
+            }),
+            decision: Some("Stop".to_string()),
+            target: None,
+            reason: None,
+            at: None,
+        }
+        .try_into()
+        .unwrap(),
     );
+
+    let diffs = compare_stop(
+        &expected,
+        &StopReason::Journal(entry(0.4, decision_assigned(0, Decision::Stop))),
+        4,
+        &config,
+    )
+    .unwrap();
+    assert!(diffs.is_empty(), "{diffs:?}");
+
+    let diffs = compare_stop(
+        &expected,
+        &StopReason::Journal(entry(
+            0.4,
+            decision_assigned(0, Decision::Run(DecisionTarget::Ball)),
+        )),
+        4,
+        &config,
+    )
+    .unwrap();
     assert_eq!(diffs.len(), 1, "{diffs:?}");
 }
 
 #[test]
 fn stop_stage_and_time_are_compared() {
+    let config = test_config(&[]);
     let stage = StopExpectationDto::Stage {
         stage: StageNameDto::Setup,
         setup_reason: Some("throw in".to_string()),
@@ -372,14 +420,16 @@ fn stop_stage_and_time_are_compared() {
             reason: Some("throw in".to_string()),
         }),
         3,
-    );
+        &config,
+    )
+    .unwrap();
     assert!(diffs.is_empty(), "{diffs:?}");
 
     let time = StopExpectationDto::Time {
         time: 2.5,
         steps: None,
     };
-    let diffs = compare_stop(&time, &StopReason::Time(2.5), 25);
+    let diffs = compare_stop(&time, &StopReason::Time(2.5), 25, &config).unwrap();
     assert!(diffs.is_empty(), "{diffs:?}");
 }
 
@@ -707,14 +757,26 @@ fn journal_reports_reason_mismatch() {
 
 #[test]
 fn stop_stage_matches_target_stage() {
+    let config = test_config(&[]);
     let play = StopExpectationDto::Stage {
         stage: StageNameDto::Play,
         setup_reason: None,
         steps: None,
     };
-    assert!(compare_stop(&play, &StopReason::Stage(StageMatcher::Play), 1).is_empty());
+    assert!(
+        compare_stop(&play, &StopReason::Stage(StageMatcher::Play), 1, &config)
+            .unwrap()
+            .is_empty()
+    );
     assert_eq!(
-        compare_stop(&play, &StopReason::Stage(StageMatcher::GameOver), 1).len(),
+        compare_stop(
+            &play,
+            &StopReason::Stage(StageMatcher::GameOver),
+            1,
+            &config
+        )
+        .unwrap()
+        .len(),
         1
     );
 
@@ -729,7 +791,9 @@ fn stop_stage_matches_target_stage() {
             reason: Some("throw in".to_string()),
         }),
         3,
+        &config,
     )
+    .unwrap()
     .is_empty());
     assert_eq!(
         compare_stop(
@@ -738,7 +802,9 @@ fn stop_stage_matches_target_stage() {
                 reason: Some("corner".to_string()),
             }),
             3,
+            &config,
         )
+        .unwrap()
         .len(),
         1
     );

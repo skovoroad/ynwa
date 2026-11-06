@@ -23,8 +23,9 @@ use ynwa_football::events::FootballEvent;
 use crate::criterion::{EventMatcher, StageMatcher, StopReason};
 use crate::dto::{
     BallOwnerDto, BallStateDto, DecisionTargetDto, ExpectDto, ExpectedEventDto,
-    ExpectedFinalStateDto, JournalMatchDto, PlayerPlacementDto, PlayerRefDto, PointOrNoneDto,
-    ReasonOrNoneDto, SetupDto, StageNameDto, StopExpectationDto, TeamOrNoneDto,
+    ExpectedFinalStateDto, JournalEntryPatternDto, JournalMatchDto, PlayerPlacementDto,
+    PlayerRefDto, PointOrNoneDto, ReasonOrNoneDto, SetupDto, StageNameDto, StopExpectationDto,
+    TeamOrNoneDto,
 };
 use crate::loader::{resolve_player_index, ScenarioError};
 use crate::runner::RunOutcome;
@@ -53,7 +54,12 @@ pub fn compare_outcome(
         )?
     };
     if let Some(stop) = &expect.stop {
-        diffs.extend(compare_stop(stop, &outcome.stop_reason, outcome.steps));
+        diffs.extend(compare_stop(
+            stop,
+            &outcome.stop_reason,
+            outcome.steps,
+            config,
+        )?);
     }
     if let Some(final_state) = final_state {
         diffs.extend(compare_final_state(
@@ -117,7 +123,7 @@ fn compare_journal(
 /// Whether one expected journal record matches a concrete entry: the variant must be the same and
 /// every specified field must match.
 fn entry_matches(
-    expected: &ExpectedEventDto,
+    expected: &JournalEntryPatternDto,
     actual: &JournalEntry,
     config: &GameConfig,
     timestep: f32,
@@ -216,7 +222,22 @@ fn entry_matches(
     Ok(matched && entry_timestamp_matches(expected, actual.timestamp, timestep))
 }
 
-fn compare_stop(expected: &StopExpectationDto, actual: &StopReason, steps: u64) -> Vec<String> {
+/// Whether a journal stop pattern matches a recorded entry. Stop patterns carry no `at`, so the
+/// timestamp is not part of the match.
+pub(crate) fn journal_pattern_matches(
+    pattern: &JournalEntryPatternDto,
+    entry: &JournalEntry,
+    config: &GameConfig,
+) -> Result<bool, ScenarioError> {
+    entry_matches(pattern, entry, config, 0.0)
+}
+
+fn compare_stop(
+    expected: &StopExpectationDto,
+    actual: &StopReason,
+    steps: u64,
+    config: &GameConfig,
+) -> Result<Vec<String>, ScenarioError> {
     let mut diffs = Vec::new();
 
     let reason_matches = match expected {
@@ -234,6 +255,12 @@ fn compare_stop(expected: &StopExpectationDto, actual: &StopReason, steps: u64) 
                 Err(_) => false,
             }
         }
+        StopExpectationDto::Journal(pattern) => match actual {
+            StopReason::Journal(entry) => {
+                journal_pattern_matches(pattern.entry_pattern(), entry, config)?
+            }
+            _ => false,
+        },
         StopExpectationDto::Steps { steps } => actual == &StopReason::Steps(*steps),
         StopExpectationDto::Time { time, .. } => match actual {
             StopReason::Time(actual_time) => near(*time, *actual_time),
@@ -250,7 +277,7 @@ fn compare_stop(expected: &StopExpectationDto, actual: &StopReason, steps: u64) 
         });
     }
 
-    diffs
+    Ok(diffs)
 }
 
 fn compare_final_state(
@@ -626,7 +653,7 @@ fn stop_stage_matches(
         })
 }
 
-fn entry_timestamp_matches(expected: &ExpectedEventDto, actual: f32, timestep: f32) -> bool {
+fn entry_timestamp_matches(expected: &JournalEntryPatternDto, actual: f32, timestep: f32) -> bool {
     expected_at(expected).is_none_or(|expected| timestamps_match(expected, actual, timestep))
 }
 
@@ -641,16 +668,16 @@ fn decision_matches(expected: &str, actual: &Decision) -> bool {
     expected == actual
 }
 
-fn expected_at(expected: &ExpectedEventDto) -> Option<f32> {
+fn expected_at(expected: &JournalEntryPatternDto) -> Option<f32> {
     match expected {
-        ExpectedEventDto::DecisionAssigned { at, .. }
-        | ExpectedEventDto::PossessionChange { at, .. }
-        | ExpectedEventDto::KickOutcome { at, .. }
-        | ExpectedEventDto::StageChange { at, .. }
-        | ExpectedEventDto::RestartSet { at, .. }
-        | ExpectedEventDto::DecisionsReset { at }
-        | ExpectedEventDto::StatUpdate { at, .. }
-        | ExpectedEventDto::FootballEvent { at, .. } => *at,
+        JournalEntryPatternDto::DecisionAssigned { at, .. }
+        | JournalEntryPatternDto::PossessionChange { at, .. }
+        | JournalEntryPatternDto::KickOutcome { at, .. }
+        | JournalEntryPatternDto::StageChange { at, .. }
+        | JournalEntryPatternDto::RestartSet { at, .. }
+        | JournalEntryPatternDto::DecisionsReset { at }
+        | JournalEntryPatternDto::StatUpdate { at, .. }
+        | JournalEntryPatternDto::FootballEvent { at, .. } => *at,
     }
 }
 
@@ -659,6 +686,7 @@ fn expected_steps(expected: &StopExpectationDto) -> Option<u64> {
         StopExpectationDto::Stage { steps, .. }
         | StopExpectationDto::Event { steps, .. }
         | StopExpectationDto::Time { steps, .. } => *steps,
+        StopExpectationDto::Journal(_) => None,
         StopExpectationDto::Steps { steps } => Some(*steps),
     }
 }

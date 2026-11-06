@@ -249,6 +249,7 @@ pub enum StopCriterionDto {
         #[serde(default)]
         team: Option<Team>,
     },
+    Journal(JournalStopPatternDto),
     Steps {
         steps: u64,
     },
@@ -316,10 +317,12 @@ pub enum JournalMatchDto {
     Subsequence,
 }
 
-/// One expected journal record (`[[expect.journal]]`).
+/// Partial journal-record pattern shared by `[[expect.journal]]` and journal stop criteria.
+/// Omitted fields act as wildcards; `at` constrains the timestamp and is only allowed in
+/// `[[expect.journal]]`.
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
-pub enum ExpectedEventDto {
+pub enum JournalEntryPatternDto {
     DecisionAssigned {
         #[serde(default)]
         player: Option<PlayerRefDto>,
@@ -387,18 +390,60 @@ pub enum ExpectedEventDto {
     },
 }
 
-impl ExpectedEventDto {
+impl JournalEntryPatternDto {
     /// Rejects combinations the runtime matchers cannot represent (a team on `GameEnd`).
     fn validate(&self) -> Result<(), String> {
-        if let ExpectedEventDto::FootballEvent { event, team, .. } = self {
+        if let JournalEntryPatternDto::FootballEvent { event, team, .. } = self {
             EventMatcher::from_def(*event, *team)?;
         }
         Ok(())
     }
+
+    fn timestamp(&self) -> Option<f32> {
+        match self {
+            JournalEntryPatternDto::DecisionAssigned { at, .. }
+            | JournalEntryPatternDto::PossessionChange { at, .. }
+            | JournalEntryPatternDto::KickOutcome { at, .. }
+            | JournalEntryPatternDto::StageChange { at, .. }
+            | JournalEntryPatternDto::RestartSet { at, .. }
+            | JournalEntryPatternDto::DecisionsReset { at }
+            | JournalEntryPatternDto::StatUpdate { at, .. }
+            | JournalEntryPatternDto::FootballEvent { at, .. } => *at,
+        }
+    }
+}
+
+/// Name of [`JournalEntryPatternDto`] in the expectation context (`[[expect.journal]]`).
+pub type ExpectedEventDto = JournalEntryPatternDto;
+
+/// Journal stop pattern: a [`JournalEntryPatternDto`] that cannot carry `at`, since the stop
+/// timing cannot be predicted.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(try_from = "JournalEntryPatternDto")]
+pub struct JournalStopPatternDto(JournalEntryPatternDto);
+
+impl JournalStopPatternDto {
+    /// Underlying pattern, which carries no `at`.
+    pub fn entry_pattern(&self) -> &JournalEntryPatternDto {
+        &self.0
+    }
+}
+
+impl TryFrom<JournalEntryPatternDto> for JournalStopPatternDto {
+    type Error = String;
+
+    fn try_from(pattern: JournalEntryPatternDto) -> Result<Self, Self::Error> {
+        if pattern.timestamp().is_some() {
+            return Err("journal stop criterion must not set 'at'".to_string());
+        }
+        pattern.validate()?;
+        Ok(Self(pattern))
+    }
 }
 
 /// Expected stop in `[expect.stop]`: the criterion that ended the run, plus an optional exact
-/// number of steps taken. For `when = "steps"` the limit and the step count are the same field.
+/// number of steps taken (except for `journal`, which only asserts the terminating event). For
+/// `when = "steps"` the limit and the step count are the same field.
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(tag = "when", rename_all = "snake_case", deny_unknown_fields)]
 pub enum StopExpectationDto {
@@ -416,6 +461,7 @@ pub enum StopExpectationDto {
         #[serde(default)]
         steps: Option<u64>,
     },
+    Journal(JournalStopPatternDto),
     Steps {
         steps: u64,
     },

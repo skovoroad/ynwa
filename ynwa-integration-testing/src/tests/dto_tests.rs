@@ -142,7 +142,7 @@ position = "none"
 "#,
     );
 
-    use ExpectedEventDto::*;
+    use JournalEntryPatternDto::*;
     assert_eq!(
         scenario.expect.journal[0],
         DecisionAssigned {
@@ -340,6 +340,12 @@ event = "Goal"
 team = "B"
 
 [[stop]]
+when = "journal"
+type = "possession_change"
+possessed_by = { team = "A", number = 9 }
+last_possessing_team = "B"
+
+[[stop]]
 when = "steps"
 steps = 10000
 
@@ -362,9 +368,80 @@ time = 60.0
                 event: EventKindDto::Goal,
                 team: Some(Team::B),
             },
+            StopCriterionDto::Journal(
+                JournalEntryPatternDto::PossessionChange {
+                    possessed_by: Some(BallOwnerDto::Player(PlayerRefDto {
+                        team: Team::A,
+                        number: 9,
+                    })),
+                    last_possessing_team: Some(TeamOrNoneDto::Team(Team::B)),
+                    at: None,
+                }
+                .try_into()
+                .unwrap(),
+            ),
             StopCriterionDto::Steps { steps: 10000 },
             StopCriterionDto::Time { time: 60.0 },
         ]
+    );
+}
+
+#[test]
+fn scenario_parses_journal_stop_expectation() {
+    let scenario = parse_scenario(
+        "[run]\ntimestep = 0.1\n[[run.stop]]\nwhen = \"journal\"\ntype = \"kick_outcome\"\n[[run.stop]]\nwhen = \"steps\"\nsteps = 100\n[expect.stop]\nwhen = \"journal\"\ntype = \"kick_outcome\"\nplayer = { team = \"A\", number = 9 }\n",
+    );
+
+    assert_eq!(
+        scenario.expect.stop,
+        Some(StopExpectationDto::Journal(
+            JournalEntryPatternDto::KickOutcome {
+                player: Some(PlayerRefDto {
+                    team: Team::A,
+                    number: 9,
+                }),
+                ball_velocity: None,
+                at: None,
+            }
+            .try_into()
+            .unwrap(),
+        ))
+    );
+}
+
+#[test]
+fn journal_stop_expectation_rejects_steps() {
+    let error = ScenarioDto::parse(
+        "[run]\ntimestep = 0.1\n[[run.stop]]\nwhen = \"steps\"\nsteps = 1\n[expect.stop]\nwhen = \"journal\"\ntype = \"decisions_reset\"\nsteps = 3\n",
+    )
+    .unwrap_err();
+
+    assert!(error.contains("steps"), "unexpected error: {error}");
+}
+
+#[test]
+fn journal_stop_criterion_rejects_timestamp() {
+    let error = RunPlanDto::parse(
+        "timestep = 0.1\n[[stop]]\nwhen = \"journal\"\ntype = \"decisions_reset\"\nat = 1.0\n[[stop]]\nwhen = \"steps\"\nsteps = 1\n",
+    )
+    .unwrap_err();
+
+    assert!(
+        error.contains("must not set 'at'"),
+        "unexpected error: {error}"
+    );
+}
+
+#[test]
+fn journal_stop_expectation_rejects_timestamp() {
+    let error = ScenarioDto::parse(
+        "[run]\ntimestep = 0.1\n[[run.stop]]\nwhen = \"steps\"\nsteps = 1\n[expect.stop]\nwhen = \"journal\"\ntype = \"decisions_reset\"\nat = 1.0\n",
+    )
+    .unwrap_err();
+
+    assert!(
+        error.contains("must not set 'at'"),
+        "unexpected error: {error}"
     );
 }
 
@@ -519,7 +596,7 @@ team = "A"
 "#,
     );
 
-    use ExpectedEventDto::*;
+    use JournalEntryPatternDto::*;
     let journal = &scenario.expect.journal;
     assert_eq!(journal.len(), 8);
     assert_eq!(
@@ -613,6 +690,26 @@ fn expect_stop_rejects_team_for_game_end() {
 }
 
 #[test]
+fn journal_stop_rejects_team_for_game_end() {
+    let error = RunPlanDto::parse(
+        "timestep = 0.1\n[[stop]]\nwhen = \"journal\"\ntype = \"football_event\"\nevent = \"GameEnd\"\nteam = \"A\"\n[[stop]]\nwhen = \"steps\"\nsteps = 1\n",
+    )
+    .unwrap_err();
+
+    assert!(error.contains("GameEnd"), "unexpected error: {error}");
+}
+
+#[test]
+fn expect_stop_journal_rejects_team_for_game_end() {
+    let error = ScenarioDto::parse(
+        "[run]\ntimestep = 0.1\n[[run.stop]]\nwhen = \"steps\"\nsteps = 5\n[expect.stop]\nwhen = \"journal\"\ntype = \"football_event\"\nevent = \"GameEnd\"\nteam = \"B\"\n",
+    )
+    .unwrap_err();
+
+    assert!(error.contains("GameEnd"), "unexpected error: {error}");
+}
+
+#[test]
 fn journal_football_event_rejects_team_for_game_end() {
     let error = ScenarioDto::parse(
         "[run]\ntimestep = 0.1\n[[run.stop]]\nwhen = \"steps\"\nsteps = 5\n[[expect.journal]]\ntype = \"football_event\"\nevent = \"GameEnd\"\nteam = \"A\"\n",
@@ -690,6 +787,7 @@ fn stop_criterion_requires_its_payload() {
     let cases = [
         ("when = \"stage\"", "stage"),
         ("when = \"event\"", "event"),
+        ("when = \"journal\"", "type"),
         ("when = \"steps\"", "steps"),
         ("when = \"time\"", "time"),
     ];

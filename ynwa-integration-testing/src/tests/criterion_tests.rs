@@ -1,9 +1,21 @@
-use super::{EventMatcher, StageMatcher, StopCriterion};
-use crate::dto::{EventKindDto, StageNameDto};
-use ynwa_core::game::GameStage;
+use super::{EventMatcher, JournalMatcher, StageMatcher, StopCriterion, StopReason};
+use crate::dto::{EventKindDto, JournalEntryPatternDto, StageNameDto};
+use ynwa_core::field::Field;
+use ynwa_core::game::{BallDef, GameConfig, GameStage, ScriptingConfig};
+use ynwa_core::journal::{JournalEntry, JournalEvent};
 use ynwa_core::team::Team;
 use ynwa_core::Point3D;
 use ynwa_football::events::FootballEvent;
+
+fn test_config() -> GameConfig {
+    GameConfig {
+        field: Field::from_meters(68.0, 104.615_38, 26, 40),
+        players: Vec::new(),
+        ball: BallDef::default(),
+        referees: Vec::new(),
+        scripting: ScriptingConfig::empty(),
+    }
+}
 
 #[test]
 fn stage_matcher_covers_every_target() {
@@ -145,28 +157,114 @@ fn from_def_builds_matchers_and_rejects_team_on_game_end() {
 
 #[test]
 fn steps_and_time_criteria_fire_at_their_limits() {
+    let config = test_config();
     let steps = StopCriterion::OnSteps(5);
-    assert!(!steps.is_satisfied(&GameStage::Play, 0.0, 4, &[]));
-    assert!(steps.is_satisfied(&GameStage::Play, 0.0, 5, &[]));
+    assert_eq!(
+        steps
+            .evaluate(&GameStage::Play, 0.0, 4, &[], &[], &config)
+            .unwrap(),
+        None
+    );
+    assert_eq!(
+        steps
+            .evaluate(&GameStage::Play, 0.0, 5, &[], &[], &config)
+            .unwrap(),
+        Some(StopReason::Steps(5))
+    );
 
     let time = StopCriterion::OnTime(1.0);
-    assert!(!time.is_satisfied(&GameStage::Play, 0.9, 0, &[]));
-    assert!(time.is_satisfied(&GameStage::Play, 1.0, 0, &[]));
+    assert_eq!(
+        time.evaluate(&GameStage::Play, 0.9, 0, &[], &[], &config)
+            .unwrap(),
+        None
+    );
+    assert_eq!(
+        time.evaluate(&GameStage::Play, 1.0, 0, &[], &[], &config)
+            .unwrap(),
+        Some(StopReason::Time(1.0))
+    );
 }
 
 #[test]
 fn event_criterion_fires_on_a_new_matching_event() {
+    let config = test_config();
     let criterion = StopCriterion::OnEvent(EventMatcher::Goal {
         team: Some(Team::B),
     });
 
-    assert!(!criterion.is_satisfied(&GameStage::Play, 0.0, 1, &[]));
-    assert!(criterion.is_satisfied(
-        &GameStage::Play,
-        0.0,
-        1,
-        &[(0.5, FootballEvent::Goal(Team::B))],
+    assert_eq!(
+        criterion
+            .evaluate(&GameStage::Play, 0.0, 1, &[], &[], &config)
+            .unwrap(),
+        None
+    );
+    assert_eq!(
+        criterion
+            .evaluate(
+                &GameStage::Play,
+                0.0,
+                1,
+                &[(0.5, FootballEvent::Goal(Team::B))],
+                &[],
+                &config,
+            )
+            .unwrap(),
+        Some(StopReason::Event(EventMatcher::Goal {
+            team: Some(Team::B),
+        }))
+    );
+}
+
+#[test]
+fn journal_criterion_fires_on_a_matching_new_entry() {
+    let config = test_config();
+    let criterion = StopCriterion::OnJournal(JournalMatcher::new(
+        JournalEntryPatternDto::StageChange {
+            stage: Some(StageNameDto::Play),
+            setup_reason: None,
+            at: None,
+        }
+        .try_into()
+        .unwrap(),
     ));
+    let matching = JournalEntry {
+        timestamp: 0.5,
+        event: JournalEvent::StageChange {
+            stage: GameStage::Play,
+        },
+    };
+    let other = JournalEntry {
+        timestamp: 0.5,
+        event: JournalEvent::StageChange {
+            stage: GameStage::GameOver,
+        },
+    };
+
+    assert_eq!(
+        criterion
+            .evaluate(&GameStage::Play, 0.0, 1, &[], &[], &config)
+            .unwrap(),
+        None
+    );
+    assert_eq!(
+        criterion
+            .evaluate(&GameStage::Play, 0.0, 1, &[], &[other], &config)
+            .unwrap(),
+        None
+    );
+    assert_eq!(
+        criterion
+            .evaluate(
+                &GameStage::Play,
+                0.0,
+                1,
+                &[],
+                std::slice::from_ref(&matching),
+                &config,
+            )
+            .unwrap(),
+        Some(StopReason::Journal(matching))
+    );
 }
 
 #[test]
