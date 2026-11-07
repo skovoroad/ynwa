@@ -1,0 +1,6 @@
+stage = "Setup"
+setup_reason = "kick off"
+
+[setup]
+restart_position = "none"
+restart_team = "A"

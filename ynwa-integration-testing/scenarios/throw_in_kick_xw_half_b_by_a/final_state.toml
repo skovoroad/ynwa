@@ -1,0 +1,5 @@
+stage = "Play"
+
+[ball]
+possessed_by = "none"
+last_possessing_team = "B"

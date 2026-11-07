@@ -30,6 +30,11 @@ use uom::si::f32::Length;
 use uom::si::length::meter;
 
 const POSSESSION_RADIUS: f32 = 1.0; // meters
+/// Minimum interval between possession changes.
+///
+/// Scenario-facing consequence: a `Kick` releases the ball and resets the possession-change
+/// timestamp, so a pass receiver (or interceptor) cannot claim the ball until more than `1.0 s`
+/// after the kick. Integration scenarios asserting a pass reception must allow for this delay.
 const POSSESSION_COOLDOWN: f32 = 1.0; // seconds - minimum time between possession changes
 
 /// Ball possession system

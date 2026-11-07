@@ -1,0 +1,23 @@
+[run]
+timestep = 0.02
+
+[[run.stop]]
+when = "time"
+time = 2.0
+
+[[run.stop]]
+when = "steps"
+steps = 1000
+
+[expect]
+journal_match = "subsequence"
+
+[expect.stop]
+when = "time"
+time = 2.0
+
+[[expect.journal]]
+type = "decision_assigned"
+player = { team = "A", number = 1 }
+decision = "Stop"
+reason = "target:stop"

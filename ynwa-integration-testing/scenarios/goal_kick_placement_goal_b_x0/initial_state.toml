@@ -1,0 +1,6 @@
+stage = "Setup"
+setup_reason = "goal kick"
+
+[setup]
+restart_position = { x = 34, y = 0, z = 99.11538 }
+restart_team = "B"

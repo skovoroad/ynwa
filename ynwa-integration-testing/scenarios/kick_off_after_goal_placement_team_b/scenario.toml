@@ -1,0 +1,33 @@
+[run]
+timestep = 0.02
+
+[[run.stop]]
+when = "stage"
+stage = "Play"
+
+[[run.stop]]
+when = "steps"
+steps = 500
+
+[expect]
+journal_match = "subsequence"
+
+[expect.stop]
+when = "stage"
+stage = "Play"
+
+[[expect.journal]]
+type = "decision_assigned"
+player = { team = "B", number = 1 }
+decision = "Run"
+reason = "none"
+target = { kind = "point", point = { x = 34, y = 0, z = 52.30769 } }
+
+[[expect.journal]]
+type = "stage_change"
+stage = "Play"
+
+[[expect.journal]]
+type = "possession_change"
+possessed_by = { team = "B", number = 1 }
+last_possessing_team = "B"

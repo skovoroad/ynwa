@@ -28,7 +28,7 @@ The runner evaluates stop criteria in declaration order after every step and sto
    - Throw-in: `x0`/`xw` (side line) × `half_a`/`half_b` (half: `Z ∈ [0, length/2)` / `[length/2, length]`) × `by_a`/`by_b` (last-touch team) — e.g. `throw_in_awarded_x0_half_a_by_a`. The throw is awarded to the opposite of the `by_*` team.
    - Kick-off, pass and decision scenarios: `team_a`/`team_b` (kicking/passing/deciding team).
 
-2. **Visual replay via time-based stop.** `run.timestep = 0.02` (50 Hz). Scenarios whose natural outcome is a single journal entry emitted on the first step (`*_kick_*`, `decision_*`) must not stop on that entry — they stop on `when = "time"` and assert the outcome via `[[expect.journal]]`, with the `steps` safety criterion kept well above the duration. Target model durations: `*_kick_*` ≈ 2.5–3.0 s, `decision_*` ≈ 2.0–3.0 s. `*_awarded_*` and `goal_scored_*` stop on their football event (`GoalLine`/`Touchline`/`Goal`), which already spans multiple steps as the ball travels.
+2. **Visual replay via time-based stop.** `run.timestep = 0.02` (50 Hz). Scenarios whose natural outcome is a single journal entry emitted on the first step (`*_kick_*`, `decision_*`) must not stop on that entry — they stop on `when = "time"` and assert the outcome via `[[expect.journal]]`, with the `steps` safety criterion kept well above the duration. Target model durations: `*_kick_*` ≈ 2.5–3.0 s, `decision_*` ≈ 2.0–3.0 s. `*_awarded_*` and `goal_scored_*` also stop on their football event (`GoalLine`/`Touchline`/`Goal`), but their ball starts ≈33 m from the line/goal at `15 m/s` so the out-of-play travel itself lasts ≈2.5–3.0 s; players are placed clear of the longer ball path.
 
 3. **One directory per combination**, with the physical suffix from decision 1. The full enumeration (per group, with counts and names) is in `tasks.md`.
 
@@ -44,11 +44,17 @@ The runner evaluates stop criteria in declaration order after every step and sto
 
 9. **Granular decision scenarios.** `decision_targets_*` has one directory per (decision kind × target × team): `Stop`, `Run → point`, `Run → cell`, `Run → region`, `Run → ball`, `Kick → point`, each for `team_a` and `team_b` (12 directories). `decision_symmetry_*` checks mirrored situations for the coordinate-dependent targets `point`, `cell`, `region` and `kick` per team (2 directories).
 
-10. **Full `kick_off_placement_*` checks.** Restore all four checks from the document: (a) ball at center, stationary, free in `Setup`; (b) `on_ball` player at the ball's exact position (asserted by `position` — `on_ball` produces no region), others in their regions; (c) decision scripts not invoked during `Setup` (assert `reason = "none"` on every `DecisionAssigned`, or use an error-throwing script); (d) `Play` reached only after all players have stopped.
+10. **Full `kick_off_placement_*` checks.** Restore all four checks from the document: (a) ball at center, stationary, free in `Setup`; (b) the `on_ball` player ends on the ball — asserted via `final_state.ball.possessed_by = <taker>` after the transition to `Play` — while the other players are asserted inside their regions; (c) decision scripts not invoked during `Setup` (assert `reason = "none"` on every `DecisionAssigned` before the stage change); (d) `Play` reached only after all players have stopped.
 
 11. **Engine pitfalls for scenario authors.** Two behaviours must be documented in this file and in code comments (the code comments are an apply-phase task):
     - `final_state.toml` player regions are compared in **Display Orientation** (`Team::A` perspective) without a `Team::B` flip (`ynwa-integration-testing/src/compare.rs`), whereas `team_b/players/*/tactical.toml` is written in `Team::B` local orientation and flipped on load. Final-state regions must be written in field coordinates.
     - `POSSESSION_COOLDOWN = 1.0 s` (`ynwa-core/src/systems/ball_possession.rs`): in `pass_received_*`/`pass_intercepted_*` the receiver or interceptor must receive the ball more than `1.0 s` after the kick, or `BallPossessionSystem` ignores the reception.
+
+12. **Corner kicks cross into play.** `corner_kick_*` scripts kick into the opponent's penalty area (the opponent penalty spot in team-local coordinates, `(34, L - 11)`), not `kick_to_opponent_goal()`, which from a corner would run along the goal line and go out of bounds.
+
+13. **`*_kick_*` final-state guard.** Every `*_kick_*` scenario asserts `final_state.stage = "Play"`, `final_state.ball.possessed_by = "none"`, and `final_state.ball.last_possessing_team = <kicking team>`, so a kick that leaves the field (and triggers a restart) or is re-possessed before the stop fails the test. Player positions are fixed in each scenario, so the free ball is not contested within the run window.
+
+14. **Placement scenarios start off-field and use `journal_match = "exact"`.** Placement scenarios place no players in `initial_state.toml`, so every player starts at the `Setup` default off-field position and runs to its target at equal `speed_rate`; this exercises movement and makes the phase observable (~4.5–6.5 s). Equal speeds make the arrival order deterministic (descending distance), so the full `Run`/`Stop`/`StageChange`/`PossessionChange`/script sequence is asserted with `journal_match = "exact"`.
 
 ## Risks / Trade-offs
 

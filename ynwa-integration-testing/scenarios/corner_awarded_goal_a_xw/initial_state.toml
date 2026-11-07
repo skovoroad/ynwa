@@ -1,0 +1,27 @@
+stage = "Play"
+
+[ball]
+position = { x = 58, y = 0, z = 33 }
+velocity = { x = 0, y = 0, z = -15 }
+possessed_by = "none"
+last_possessing_team = "A"
+
+[[players]]
+team = "A"
+number = 1
+position = { x = 20, y = 0, z = 40 }
+
+[[players]]
+team = "A"
+number = 2
+position = { x = 45, y = 0, z = 65 }
+
+[[players]]
+team = "B"
+number = 1
+position = { x = 5, y = 0, z = 50 }
+
+[[players]]
+team = "B"
+number = 2
+position = { x = 63, y = 0, z = 55 }

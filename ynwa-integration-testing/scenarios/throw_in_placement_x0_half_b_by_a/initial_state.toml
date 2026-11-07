@@ -1,0 +1,6 @@
+stage = "Setup"
+setup_reason = "throw in"
+
+[setup]
+restart_position = { x = 0, y = 0, z = 80 }
+restart_team = "B"

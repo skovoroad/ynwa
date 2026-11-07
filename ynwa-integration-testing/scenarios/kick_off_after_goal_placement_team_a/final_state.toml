@@ -1,0 +1,31 @@
+stage = "Play"
+
+[ball]
+position = { x = 33.6, y = 0, z = 52.30769 }
+velocity = { x = 0, y = 0, z = 0 }
+possessed_by = { team = "A", number = 1 }
+last_possessing_team = "A"
+
+[setup]
+restart_position = "none"
+restart_team = "A"
+
+[[players]]
+team = "A"
+number = 1
+position = { x = 33.6, y = 0, z = 52.30769 }
+
+[[players]]
+team = "A"
+number = 2
+region = "M28"
+
+[[players]]
+team = "B"
+number = 1
+region = "M31"
+
+[[players]]
+team = "B"
+number = 2
+region = "N29"

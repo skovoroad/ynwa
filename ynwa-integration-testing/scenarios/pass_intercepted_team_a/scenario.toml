@@ -1,0 +1,30 @@
+[run]
+timestep = 0.02
+
+[[run.stop]]
+when = "journal"
+type = "possession_change"
+possessed_by = { team = "B", number = 1 }
+
+[[run.stop]]
+when = "steps"
+steps = 1000
+
+[expect]
+journal_match = "subsequence"
+
+[expect.stop]
+when = "journal"
+type = "possession_change"
+possessed_by = { team = "B", number = 1 }
+
+[[expect.journal]]
+type = "kick_outcome"
+player = { team = "A", number = 1 }
+at = 0.02
+
+[[expect.journal]]
+type = "possession_change"
+possessed_by = { team = "B", number = 1 }
+last_possessing_team = "B"
+at = 1.04

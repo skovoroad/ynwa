@@ -1,0 +1,98 @@
+[run]
+timestep = 0.02
+
+[[run.stop]]
+when = "stage"
+stage = "Play"
+
+[[run.stop]]
+when = "steps"
+steps = 1000
+
+[expect]
+journal_match = "exact"
+
+[expect.stop]
+when = "stage"
+stage = "Play"
+
+[[expect.journal]]
+type = "decision_assigned"
+player = { team = "A", number = 1 }
+decision = "Run"
+reason = "none"
+
+[[expect.journal]]
+type = "decision_assigned"
+player = { team = "A", number = 2 }
+decision = "Run"
+reason = "none"
+
+[[expect.journal]]
+type = "decision_assigned"
+player = { team = "B", number = 1 }
+decision = "Run"
+reason = "none"
+
+[[expect.journal]]
+type = "decision_assigned"
+player = { team = "B", number = 2 }
+decision = "Run"
+reason = "none"
+
+[[expect.journal]]
+type = "decision_assigned"
+player = { team = "A", number = 1 }
+decision = "Stop"
+reason = "none"
+
+[[expect.journal]]
+type = "decision_assigned"
+player = { team = "A", number = 2 }
+decision = "Stop"
+reason = "none"
+
+[[expect.journal]]
+type = "decision_assigned"
+player = { team = "B", number = 2 }
+decision = "Stop"
+reason = "none"
+
+[[expect.journal]]
+type = "decision_assigned"
+player = { team = "B", number = 1 }
+decision = "Stop"
+reason = "none"
+
+[[expect.journal]]
+type = "stage_change"
+stage = "Play"
+
+[[expect.journal]]
+type = "possession_change"
+possessed_by = { team = "A", number = 1 }
+last_possessing_team = "A"
+
+[[expect.journal]]
+type = "decision_assigned"
+player = { team = "A", number = 1 }
+decision = "Stop"
+reason = "script_invoked"
+
+[[expect.journal]]
+type = "decision_assigned"
+player = { team = "A", number = 2 }
+decision = "Stop"
+reason = "script_invoked"
+
+[[expect.journal]]
+type = "decision_assigned"
+player = { team = "B", number = 1 }
+decision = "Stop"
+reason = "script_invoked"
+
+[[expect.journal]]
+type = "decision_assigned"
+player = { team = "B", number = 2 }
+decision = "Stop"
+reason = "script_invoked"

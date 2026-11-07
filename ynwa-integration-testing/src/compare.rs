@@ -280,6 +280,11 @@ fn compare_stop(
     Ok(diffs)
 }
 
+/// Compares the expected final state.
+///
+/// Player regions are written and compared in Display Orientation (the `Team::A` perspective):
+/// unlike `tactical.toml`, whose regions for team B are flipped on load, final-state regions are
+/// used as-is, so scenario authors must express them in field coordinates.
 fn compare_final_state(
     expected: &ExpectedFinalStateDto,
     actual: &GameState,

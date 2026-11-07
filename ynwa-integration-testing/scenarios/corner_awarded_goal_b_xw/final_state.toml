@@ -1,0 +1,6 @@
+stage = "Setup"
+setup_reason = "corner"
+
+[setup]
+restart_position = { x = 68, y = 0, z = 104.61538 }
+restart_team = "A"

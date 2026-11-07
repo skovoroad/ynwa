@@ -1,0 +1,20 @@
+stage = "Play"
+
+[ball]
+possessed_by = { team = "B", number = 1 }
+last_possessing_team = "B"
+
+[[players]]
+team = "A"
+number = 1
+region = "N10"
+
+[[players]]
+team = "A"
+number = 2
+region = "M12"
+
+[[players]]
+team = "B"
+number = 2
+region = "N35"

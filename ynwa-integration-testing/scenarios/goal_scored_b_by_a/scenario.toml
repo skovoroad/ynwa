@@ -1,0 +1,43 @@
+[run]
+timestep = 0.02
+
+[[run.stop]]
+when = "event"
+event = "Goal"
+team = "B"
+
+[[run.stop]]
+when = "steps"
+steps = 1000
+
+[expect]
+journal_match = "subsequence"
+
+[expect.stop]
+when = "event"
+event = "Goal"
+team = "B"
+
+[[expect.journal]]
+type = "football_event"
+event = "Goal"
+team = "B"
+
+[[expect.journal]]
+type = "stat_update"
+team = "A"
+key = "score"
+delta = 1.0
+
+[[expect.journal]]
+type = "decisions_reset"
+
+[[expect.journal]]
+type = "restart_set"
+position = "none"
+team = "B"
+
+[[expect.journal]]
+type = "stage_change"
+stage = "Setup"
+setup_reason = "kick off"

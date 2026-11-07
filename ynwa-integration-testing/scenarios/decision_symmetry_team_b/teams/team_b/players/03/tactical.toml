@@ -1,0 +1,23 @@
+number = 3
+
+[play_positions]
+attack = "M30"
+defence = "M15"
+
+[set_piece_positions]
+"kick off own" = "M28"
+"kick off opp" = "M12"
+"goal kick own" = "M6"
+"goal kick opp" = "M12"
+"corner own left" = "M30"
+"corner own right" = "M30"
+"corner opp left" = "M8"
+"corner opp right" = "M8"
+"throw in own left own half" = "M20"
+"throw in own left opp half" = "M20"
+"throw in own right own half" = "M20"
+"throw in own right opp half" = "M20"
+"throw in opp left own half" = "M10"
+"throw in opp left opp half" = "M10"
+"throw in opp right own half" = "M10"
+"throw in opp right opp half" = "M10"
