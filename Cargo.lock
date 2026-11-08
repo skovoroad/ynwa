@@ -1128,6 +1128,7 @@ dependencies = [
  "chrono",
  "env_home",
  "macroquad",
+ "serde_json",
  "uom",
  "ynwa-core",
  "ynwa-football",

@@ -1,9 +1,13 @@
 use macroquad::prelude::*;
-use ynwa_core::game::{Decision, DecisionTarget, GameConfig, GameState};
+use ynwa_core::game::{Decision, DecisionTarget, GameConfig, GameState, PlayerState};
+use ynwa_core::journal::{JournalEntry, JournalEvent};
 use ynwa_core::team::Team;
 use ynwa_football::events::FootballEvent;
 
-/// How many of the most recent events the replay panel shows.
+/// `JournalEvent::External::kind` used by football semantic events.
+const FOOTBALL_EVENT_KIND: &str = "football_event";
+
+/// How many of the most recent events the replay panel shows at once.
 pub const EVENT_PANEL_SIZE: usize = 5;
 
 pub fn draw_control_panel(
@@ -11,7 +15,8 @@ pub fn draw_control_panel(
     game_config: &GameConfig,
     game_state: &GameState,
     is_paused: bool,
-    events: Option<&[(f32, FootballEvent)]>,
+    events: Option<&[JournalEntry]>,
+    event_scroll: usize,
 ) {
     let panel_x = panel_x + 20.0;
     let mut y_offset = 40.0;
@@ -42,9 +47,17 @@ pub fn draw_control_panel(
 
     // `Some` marks the replay panel (drawn even before the first event); `None` is play/record.
     if let Some(events) = events {
-        draw_event_panel(panel_x, y_offset, events);
+        draw_event_panel(panel_x, y_offset, events, event_scroll);
         let rows = events.len().clamp(1, EVENT_PANEL_SIZE);
         y_offset += 24.0 * (rows as f32 + 1.0) + 10.0;
+        draw_text(
+            "Wheel / Up / Down - scroll events",
+            panel_x,
+            y_offset,
+            16.0,
+            LIGHTGRAY,
+        );
+        y_offset += 20.0;
     }
 
     draw_text("Space - pause/resume", panel_x, y_offset, 20.0, LIGHTGRAY);
@@ -71,9 +84,9 @@ fn draw_score(x: f32, y: f32, game_state: &GameState) {
     );
 }
 
-fn player_decision_text(player_state: &ynwa_core::game::PlayerState) -> String {
-    match &player_state.current_decision {
-        Some(Decision::Run(target)) => match target {
+fn decision_text(decision: &Decision) -> String {
+    match decision {
+        Decision::Run(target) => match target {
             DecisionTarget::Region(region) => {
                 format!("Run to {:?}", region.to_grid_notation())
             }
@@ -84,15 +97,18 @@ fn player_decision_text(player_state: &ynwa_core::game::PlayerState) -> String {
             DecisionTarget::Point(_) => "Run to point".to_string(),
             DecisionTarget::Ball => "Chase ball".to_string(),
         },
-        Some(Decision::Stop) => "Stop".to_string(),
-        Some(Decision::Kick(_)) => "Kick".to_string(),
-        None => {
-            if let Some(error) = &player_state.last_error {
-                format!("ERROR: {}", error)
-            } else {
-                "—".to_string()
-            }
-        }
+        Decision::Stop => "Stop".to_string(),
+        Decision::Kick(_) => "Kick".to_string(),
+    }
+}
+
+fn player_decision_text(player_state: &PlayerState) -> String {
+    match &player_state.current_decision {
+        Some(decision) => decision_text(decision),
+        None => match &player_state.last_error {
+            Some(error) => format!("ERROR: {}", error),
+            None => "—".to_string(),
+        },
     }
 }
 
@@ -186,7 +202,7 @@ fn team_label(team: Team) -> &'static str {
     }
 }
 
-fn event_text(event: &FootballEvent) -> String {
+fn football_event_text(event: &FootballEvent) -> String {
     match event {
         // In a goal event the team is the one whose net was hit; the scorer is the opposite.
         FootballEvent::Goal(conceding_team) => {
@@ -202,8 +218,50 @@ fn event_text(event: &FootballEvent) -> String {
     }
 }
 
-/// Draws the last [`EVENT_PANEL_SIZE`] events with their timestamps.
-fn draw_event_panel(x: f32, y: f32, events: &[(f32, FootballEvent)]) {
+fn event_text(event: &JournalEvent) -> String {
+    match event {
+        JournalEvent::DecisionAssigned {
+            player_index,
+            decision,
+            reason,
+        } => match reason {
+            Some(reason) => format!("#{} {} ({})", player_index, decision_text(decision), reason),
+            None => format!("#{} {}", player_index, decision_text(decision)),
+        },
+        JournalEvent::PossessionChange {
+            possessed_by,
+            last_possessing_team,
+        } => {
+            let possessor = possessed_by.map_or("none".to_string(), |index| format!("#{}", index));
+            let last_team = last_possessing_team.map_or("none", team_label);
+            format!("Possession: {} (last team {})", possessor, last_team)
+        }
+        JournalEvent::KickOutcome { player_index, .. } => {
+            format!("Kick by #{}", player_index)
+        }
+        JournalEvent::StageChange { stage } => format!("Stage: {:?}", stage),
+        JournalEvent::RestartSet {
+            restart_position,
+            restart_team,
+        } => match (restart_position, restart_team) {
+            (Some(_), Some(team)) => format!("Restart: team {}", team_label(*team)),
+            _ => "Restart: cleared".to_string(),
+        },
+        JournalEvent::DecisionsReset => "Decisions reset".to_string(),
+        JournalEvent::StatUpdate { team, key, delta } => {
+            format!("Stat: team {} {} {:+}", team_label(*team), key, delta)
+        }
+        JournalEvent::External { kind, data } => {
+            match serde_json::from_value::<FootballEvent>(data.clone()) {
+                Ok(event) if kind == FOOTBALL_EVENT_KIND => football_event_text(&event),
+                _ => format!("External({}): {}", kind, data),
+            }
+        }
+    }
+}
+
+/// Draws the visible window of journal entries, newest at the bottom when `scroll` is `0`.
+fn draw_event_panel(x: f32, y: f32, events: &[JournalEntry], scroll: usize) {
     let line_height = 24.0;
     let title_color = Color::new(0.9, 0.9, 0.9, 1.0);
     let text_color = Color::new(0.8, 0.8, 0.8, 1.0);
@@ -217,9 +275,10 @@ fn draw_event_panel(x: f32, y: f32, events: &[(f32, FootballEvent)]) {
         return;
     }
 
-    let start = events.len().saturating_sub(EVENT_PANEL_SIZE);
-    for (timestamp, event) in &events[start..] {
-        let text = format!("{:.1}s  {}", timestamp, event_text(event));
+    let end = events.len().saturating_sub(scroll);
+    let start = end.saturating_sub(EVENT_PANEL_SIZE);
+    for entry in &events[start..end] {
+        let text = format!("{:.1}s  {}", entry.timestamp, event_text(&entry.event));
         draw_text(&text, x, cursor, 20.0, text_color);
         cursor += line_height;
     }
@@ -235,3 +294,7 @@ pub fn draw_separator(x: f32, screen_height: f32) {
         Color::new(0.2, 0.2, 0.2, 1.0),
     );
 }
+
+#[cfg(test)]
+#[path = "ui_tests.rs"]
+mod tests;

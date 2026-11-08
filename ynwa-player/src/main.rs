@@ -8,15 +8,14 @@ use macroquad::prelude::*;
 use std::path::PathBuf;
 use uom::si::length::meter;
 use ynwa_core::{
-    json_journal_file_reader, json_journal_file_writer, FileJournalRecorder, GameStage, Record,
-    RecordHeader, RecordReader, World,
+    json_journal_file_reader, json_journal_file_writer, FileJournalRecorder, GameStage,
+    JournalEntry, Record, RecordHeader, RecordReader, World,
 };
-use ynwa_football::events::FootballEvent;
-use ynwa_football::{create_football_replay_world, create_football_world, decode_football_events};
+use ynwa_football::{create_football_replay_world, create_football_world};
 use ynwa_repository::FsTeamRepository;
 
 use cli::{games_dir, next_record_path, parse, Cli, Mode};
-use input::handle_input;
+use input::{handle_input, EventPanelScroll};
 use renderer::render_field;
 use simulation::SimulationControl;
 use ui::{draw_control_panel, draw_separator};
@@ -64,12 +63,12 @@ async fn run_play(cli: &Cli, is_fullscreen: &mut bool) {
     let mut simulation = SimulationControl::new(PLAYBACK_RATE);
 
     loop {
-        if handle_input(&mut simulation, is_fullscreen, false) {
+        if handle_input(&mut simulation, is_fullscreen, false, None) {
             break;
         }
 
         advance(&mut world, &mut simulation);
-        render_scene(&world, &simulation, field_ratio, None);
+        render_scene(&world, &simulation, field_ratio, None, 0);
 
         next_frame().await
     }
@@ -103,7 +102,7 @@ async fn run_record(cli: &Cli, is_fullscreen: &mut bool) {
     println!("Recording to {}", path.display());
 
     loop {
-        if handle_input(&mut simulation, is_fullscreen, true) {
+        if handle_input(&mut simulation, is_fullscreen, true, None) {
             // Closed early: leave the file a valid JSON Lines prefix.
             let _ = world.game_mut().finish_journal();
             break;
@@ -117,7 +116,7 @@ async fn run_record(cli: &Cli, is_fullscreen: &mut bool) {
             break;
         }
 
-        render_scene(&world, &simulation, field_ratio, None);
+        render_scene(&world, &simulation, field_ratio, None, 0);
 
         next_frame().await
     }
@@ -128,7 +127,7 @@ async fn run_replay(path: PathBuf, is_fullscreen: &mut bool) {
     let record = load_or_exit(reader.read(), "read recording");
 
     let timestep = record.header.timestep;
-    let events = decode_football_events(&record.journal);
+    let events: Vec<JournalEntry> = record.journal.clone();
     let total_steps = replay_steps(&record, timestep);
     if total_steps == 0 {
         eprintln!("Warning: recording contains no replayable steps");
@@ -144,23 +143,35 @@ async fn run_replay(path: PathBuf, is_fullscreen: &mut bool) {
 
     let field_ratio = field_width_ratio(&world);
     let mut simulation = SimulationControl::for_replay(timestep, total_steps);
-    let mut visible_events: Vec<(f32, FootballEvent)> = Vec::new();
+    let mut visible_events: Vec<JournalEntry> = Vec::new();
     let mut event_cursor = 0usize;
+    let mut event_scroll = EventPanelScroll::default();
 
     loop {
-        if handle_input(&mut simulation, is_fullscreen, true) {
+        if handle_input(
+            &mut simulation,
+            is_fullscreen,
+            true,
+            Some((&mut event_scroll, visible_events.len())),
+        ) {
             break;
         }
 
         advance(&mut world, &mut simulation);
 
         let elapsed = world.game().state().elapsed_time;
-        while event_cursor < events.len() && events[event_cursor].0 <= elapsed {
+        while event_cursor < events.len() && events[event_cursor].timestamp <= elapsed {
             visible_events.push(events[event_cursor].clone());
             event_cursor += 1;
         }
 
-        render_scene(&world, &simulation, field_ratio, Some(&visible_events));
+        render_scene(
+            &world,
+            &simulation,
+            field_ratio,
+            Some(&visible_events),
+            event_scroll.offset(),
+        );
 
         next_frame().await
     }
@@ -210,7 +221,8 @@ fn render_scene(
     world: &World,
     simulation: &SimulationControl,
     field_width_ratio: f32,
-    events: Option<&[(f32, FootballEvent)]>,
+    events: Option<&[JournalEntry]>,
+    event_scroll: usize,
 ) {
     let screen_w = screen_width();
     let screen_h = screen_height();
@@ -249,6 +261,7 @@ fn render_scene(
             world.game().state(),
             simulation.paused,
             events,
+            event_scroll,
         );
     }
 }
