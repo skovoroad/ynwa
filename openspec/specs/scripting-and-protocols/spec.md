@@ -26,7 +26,7 @@ User-authored Lua (`preamble.lua`, `script.lua`) is an intermediate representati
 
 ### Requirement: Lua VM Lifecycle and Stage Gating
 
-At `DecisionEngine::new`, each VM SHALL execute `"{core_preamble}\n{stdlib_preamble}\n{team_preamble}"` **once** and bind `static_data` **once** to global `GAME_DATA`. On each `DecisionEngine::make_decision(idx, context)` call, the VM MUST overwrite global `context`, re-execute `script.lua`, and invoke `make_decision()`. `ScriptedDecisionMaker` MUST delegate in `Play`, return `Ok((Stop, None))` in `GameOver`, and return `Err(RuntimeError)` in `Setup(_)`.
+At `DecisionEngine::new`, each VM SHALL execute `"{core_preamble}\n{stdlib_preamble}\n{team_preamble}"` **once** and bind `static_data` **once** to global `GAME_DATA`. On each `DecisionEngine::make_decision(idx, context)` call, the VM MUST overwrite global `context`, re-execute `script.lua`, and invoke `make_decision()`. `ScriptedDecisionMaker` MUST delegate in `Play` and return `Err(RuntimeError)` in `Setup(_)`.
 
 #### Scenario: Preamble persistence vs player script re-execution
 - **WHEN** `DecisionEngine::make_decision` runs across consecutive ticks for the same player

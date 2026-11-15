@@ -20,7 +20,7 @@ Key domain concepts:
 
 ### Requirement: Game Initialization and Partial State Merging
 
-`Game::new` (defaulting to `Setup("kick off")`) and `Game::with_stage` SHALL initialize `GameState` deterministically at `elapsed_time = 0.0` and `step_count = 0`. Players start off-field at `(-5.0, 0.0, field_length / 2.0)` in `Setup(_)` or at `regions["start"].center()` (panicking if `"start"` is missing) in `Play` | `GameOver`, with `needs_decision = true`. `Game::apply_state_spec` MUST merge only `Some` fields from `PartialStateSpec` and reject out-of-bounds `player_index`.
+`Game::new` (defaulting to `Setup("kick off")`) and `Game::with_stage` SHALL initialize `GameState` deterministically at `elapsed_time = 0.0` and `step_count = 0`. Players start off-field at `(-5.0, 0.0, field_length / 2.0)` in `Setup(_)` or at `regions["start"].center()` (panicking if `"start"` is missing) in `Play`, with `needs_decision = true`. `Game::apply_state_spec` MUST merge only `Some` fields from `PartialStateSpec` and reject out-of-bounds `player_index`.
 
 #### Scenario: Immediate initial ball pickup readiness and selective spec override
 - **WHEN** `Game` is initialized and an optional `PartialStateSpec` is applied
@@ -46,7 +46,7 @@ Key domain concepts:
 
 `PlayerReactionSystem` SHALL update `PlayerState::needs_decision` per player:
 - In `GameStage::Setup(_)`: set `needs_decision = current_decision.is_none()`.
-- In `GameStage::Play` and `GameStage::GameOver`: NEVER clear an already-`true` `needs_decision`; set `needs_decision = true` when `timestamp - last_decision_time >= interval`, where `interval` is linearly interpolated by clamped `reaction_rate` (`10..=100`) from `3.0` s (at `rate <= 10`) down to `0.5` s (at `rate >= 100`).
+- In `GameStage::Play`: NEVER clear an already-`true` `needs_decision`; set `needs_decision = true` when `timestamp - last_decision_time >= interval`, where `interval` is linearly interpolated by clamped `reaction_rate` (`10..=100`) from `3.0` s (at `rate <= 10`) down to `0.5` s (at `rate >= 100`).
 
 #### Scenario: Linear reaction interval bounds and midpoint scheduling
 - **WHEN** `PlayerReactionSystem` updates players in `GameStage::Play`
