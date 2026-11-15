@@ -17,6 +17,7 @@ context: |
   8. Inherent impl blocks live in the same file where the type is declared; do not add an inherent impl for a type from another module. Trait implementations may live in separate companion modules.
   9. Prefer data-driven description over algorithms; idiomatic Rust (Option/Result). Model data so invalid states are unrepresentable; use type safety (e.g., uom instead of f32) and validate in constructors via assert!. When the set of meaningful fields depends on a variant, use an enum with fields in variants instead of a flat { kind, field1?, field2?, ... } structure; do not rely on runtime checks where the invariant is expressible in the type.
   10. Keep input DTOs (types deserialized from TOML/JSON/etc.) in a separate module (e.g., dto.rs) with the Dto suffix. Do not mix DTOs with runtime types; Def is reserved for engine entity definitions (e.g., PlayerDef).
+  11. No backward compatibility required: the project is in an early stage with no accumulated production data or external API consumers. When evolving data formats, configs, or APIs, replace old structures cleanly instead of adding compatibility shims, deprecated fields, or #[serde(default)] fallbacks for legacy formats.
 
 # Per-artifact rules (optional)
 # Add custom rules for specific artifacts.
