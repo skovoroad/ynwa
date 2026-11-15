@@ -3,14 +3,16 @@
 ## Context
 
 See `proposal.md` for motivation. Currently in `ynwa-core`:
+- `GameState` stores `elapsed_time: f32`, but discrete step count is tracked outside `GameState` by calling `game.finish_step(new_timestamp)` in `World::step`, which forwards to `JournalSink::finish_step`.
+- `FileJournalRecorder` and `CollectJournalRecorder` each maintain their own duplicate `steps: u64` counter.
 - `Game::finish_journal(&mut self)` detaches `self.journal_sink` and calls `sink.finish()`, which takes no arguments.
-- `FileJournalRecorder::finish` and `CollectJournalRecorder::finish` only pass `self.steps` (`total_steps: u64`) to `RecordWriter::finish(total_steps)` and `EventsCollection::set_total_steps(steps)`.
 - `RecordLine::Footer` in `ynwa-core/src/codec.rs` only serializes `{ total_steps: u64 }`.
 
 ## Goals / Non-Goals
 
 **Goals:**
-- Capture final `elapsed_time`, `team_stats`, and `player_stats` from `GameState` when `Game::finish_journal()` is called and write them into the `Footer` of the recording.
+- Track `step_count: u64` directly in `GameState` alongside `elapsed_time: f32` and remove `Game::finish_step` / `JournalSink::finish_step` and duplicate recorder step counters.
+- Capture final `step_count` (`total_steps`), `elapsed_time`, `team_stats`, and `player_stats` from `&GameState` when `Game::finish_journal()` is called and write them into the `Footer` of the recording.
 - Respect layer boundaries: `Game` and `JournalSink` operate solely on domain types (`&GameState`), while `RecordFooter` lives in the recording/codec layer (`record.rs` / `codec.rs`) as the symmetric counterpart to `RecordHeader`.
 - Group all trailer fields in `Record { header: RecordHeader, footer: RecordFooter, journal: Vec<JournalEntry> }` cleanly without legacy backward-compatibility shims.
 - Ensure deterministic JSON key ordering for `team_stats` in the `footer` line.
@@ -21,16 +23,20 @@ See `proposal.md` for motivation. Currently in `ynwa-core`:
 
 ## Decisions
 
-1. **Strict layer separation between `JournalSink::finish` (`&GameState`) and `RecordWriter::finish` (`&RecordFooter`)**:
-   - **Domain / Journal layer (`game.rs` <-> `journal.rs`)**: `Game` does not know about `Record`, `RecordHeader`, or `RecordFooter`, nor does it track `total_steps`. `Game::finish_journal(&mut self)` passes `&self.state` to `JournalSink::finish(self: Box<Self>, final_state: &GameState)`.
-   - **Sink implementation layer (`FileJournalRecorder` / `CollectJournalRecorder`)**: Owns the accumulated `self.steps` counter and receives `final_state: &GameState` on `finish`. `FileJournalRecorder::finish` constructs `RecordFooter::from_state(self.steps, final_state)` and passes `&footer` to `self.writer.finish(&footer)`. `CollectJournalRecorder::finish` stores `self.steps` and the final stats from `final_state` into `EventsCollection`.
-   - **Recording / Codec layer (`record.rs` <-> `codec.rs`)**: Defines `RecordFooter { pub total_steps: u64, pub elapsed_time: f32, pub team_stats: HashMap<Team, StatSet>, pub player_stats: Vec<StatSet> }` as the symmetric trailer counterpart to `RecordHeader`, and updates `RecordWriter::finish(&mut self, footer: &RecordFooter)`.
+1. **Unify `step_count: u64` in `GameState` and remove `finish_step`**:
+   - Add `pub step_count: u64` to `GameState` (initialized to `0`).
+   - In `Game::step(&mut self, timestep: f32)`, increment both `self.state.elapsed_time += timestep` and `self.state.step_count += 1`.
+   - In `World::step(&mut self, timestep: f32)`, call `self.game.step(timestep)` after running all systems, and remove `Game::finish_step` and `JournalSink::finish_step`.
 
-2. **Symmetric `Record` structure (`header`, `footer`, `journal`)**:
+2. **Strict layer separation between `JournalSink::finish` (`&GameState`) and `RecordWriter::finish` (`&RecordFooter`)**:
+   - **Domain / Journal layer (`game.rs` <-> `journal.rs`)**: `Game` does not know about `Record`, `RecordHeader`, or `RecordFooter`. `Game::finish_journal(&mut self)` passes `&self.state` to `JournalSink::finish(self: Box<Self>, final_state: &GameState)`.
+   - **Sink implementation layer (`FileJournalRecorder` / `CollectJournalRecorder`)**: Neither recorder stores a private `steps` counter. On `finish(final_state)`, `FileJournalRecorder` constructs `RecordFooter::from_state(final_state)` and passes `&footer` to `self.writer.finish(&footer)`. `CollectJournalRecorder` passes `final_state` to `EventsCollection`.
+   - **Recording / Codec layer (`record.rs` <-> `codec.rs`)**: Defines `RecordFooter { pub total_steps: u64, pub elapsed_time: f32, pub team_stats: HashMap<Team, StatSet>, pub player_stats: Vec<StatSet> }` with `RecordFooter::from_state(state: &GameState)` (mapping `state.step_count` to `total_steps`), symmetric to `RecordHeader::from_game(game, timestep)`.
+
+3. **Symmetric `Record` structure (`header`, `footer`, `journal`)**:
    - Replace `pub total_steps: u64` on `Record` with `pub footer: RecordFooter` so `Record` mirrors the 3-part stream structure (`header`, `journal`, `footer`). All call sites (`ynwa-player`, `ynwa-integration-testing`, tests) are updated to `record.footer.total_steps`.
-   - In `RecordLine::Footer(RecordFooter)`, serialize `team_stats` via `#[serde(serialize_with = "crate::game::sorted_collections::map")]` (making `sorted_collections` `pub(crate)`) for deterministic output. No `#[serde(default)]` shims are added for legacy files; when `JsonRecordReader::read` recovers a crashed recording that has no `"footer"` line at all, `footer` defaults to `RecordFooter::default()`.
+   - In `RecordLine::Footer(RecordFooter)`, serialize `team_stats` via `#[serde(serialize_with = "crate::game::sorted_collections::map")]` (making `sorted_collections` `pub(crate)`) for deterministic output. When `JsonRecordReader::read` recovers a crashed recording that has no `"footer"` line at all, `footer` defaults to `RecordFooter::default()`.
 
 ## Risks / Trade-offs
 
-- **[Risk] Interrupted/crashed recordings have no footer line** → Mitigation: By design, crashed recordings recover up to the last flushed event with `total_steps = 0`, `elapsed_time = 0.0`, and empty footer stats; normal completions (including early `Escape` exit in `ynwa-player --record` and `GameOver` in `ynwa-simulator`) call `finish_journal()` and write the full footer.
-
+- **[Risk] Interrupted/crashed recordings have no footer line** → Mitigation: By design, crashed recordings recover up to the last flushed event with `RecordFooter::default()` (`total_steps = 0`, `elapsed_time = 0.0`, empty stats); normal completions (including early `Escape` exit in `ynwa-player --record` and completion in `ynwa-simulator`) call `finish_journal()` and write the full footer.

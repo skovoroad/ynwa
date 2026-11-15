@@ -4,7 +4,7 @@
 
 ### Requirement: Event-Sourced Record Model and JournalSink Lifecycle
 
-Match recording SHALL store `Record { header: RecordHeader { config, initial_state, timestep }, footer: RecordFooter { total_steps, elapsed_time, team_stats, player_stats }, journal: Vec<JournalEntry> }` instead of per-frame dumps. Pluggable `JournalSink` recording MUST default to zero overhead when disabled, count steps once per `World::step`, receive final `&GameState` upon `Game::finish_journal()`, and defer streaming I/O errors until journal finalization without aborting simulation steps.
+Match recording SHALL store `Record { header: RecordHeader { config, initial_state, timestep }, footer: RecordFooter { total_steps, elapsed_time, team_stats, player_stats }, journal: Vec<JournalEntry> }` instead of per-frame dumps. Pluggable `JournalSink` recording MUST default to zero overhead when disabled, receive final `&GameState` upon `Game::finish_journal()` to populate `RecordFooter` (`total_steps = final_state.step_count`, `elapsed_time`, `team_stats`, `player_stats`), and defer streaming I/O errors until journal finalization without aborting simulation steps.
 
 #### Scenario: Zero-overhead default, pre-step header snapshot, and deferred I/O errors
 - **WHEN** `RecordHeader::from_game(game, timestep)` is captured before the first `World::step` and `N` steps execute
@@ -12,7 +12,7 @@ Match recording SHALL store `Record { header: RecordHeader { config, initial_sta
 
 #### Scenario: Final match statistics captured in footer without journal event spam
 - **WHEN** simulation systems mutate `game.state.team_stats` and `game.state.player_stats` across steps and `game.finish_journal()` is called
-- **THEN** the finalized `Record.footer` and trailing `footer` line contain the exact final `elapsed_time`, `team_stats`, and `player_stats` from `game.state` even for statistics that do not emit `JournalEvent::StatUpdate`
+- **THEN** the finalized `Record.footer` and trailing `footer` line contain the exact final `step_count` (`total_steps`), `elapsed_time`, `team_stats`, and `player_stats` from `game.state` even for statistics that do not emit `JournalEvent::StatUpdate`
 
 ### Requirement: Deterministic Serialization, Codec Traits, and Crash-Resilient JSON Lines
 
@@ -25,4 +25,3 @@ Match recording SHALL store `Record { header: RecordHeader { config, initial_sta
 #### Scenario: Deterministic footer serialization round-trip
 - **WHEN** a completed `Record` with populated `team_stats` and `player_stats` is written via `JsonRecordWriter` and read back via `JsonRecordReader`
 - **THEN** the final `"type": "footer"` line deterministically serializes `total_steps`, `elapsed_time`, `team_stats`, and `player_stats`, and `JsonRecordReader::read()` reconstructs all footer fields identically
-
