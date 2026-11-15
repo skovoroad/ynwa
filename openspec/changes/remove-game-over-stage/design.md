@@ -32,7 +32,7 @@ See `proposal.md` — Why. After `client-owned-match-duration`, `GameStage` is `
 ## Risks / Trade-offs
 
 - **[Risk] Serde representation change** — `GameStage` is serialized in `JournalEvent::StageChange`, `GameState`, and `PartialStateSpec`. Removing a variant changes those wire formats. → No accumulated production data or external consumers exist, so a clean break is acceptable (project rule #11).
-- **[Risk] A scenario/fixture still references `"GameOver"`** — such a file would now fail TOML parsing instead of running. → The tasks update the known references (`loader_tests.rs`, `dto_tests.rs`, `compare_tests.rs`, `criterion_tests.rs`, `runner_tests.rs`, and `tests/fixtures/failing/final_state.toml`) and a workspace grep for `GameOver` is the acceptance check.
+- **[Risk] A scenario/fixture still references `"GameOver"`** — such a file would now fail TOML parsing instead of running. → The tasks update the known references (`loader_tests.rs`, `dto_tests.rs`, `compare_tests.rs`, `criterion_tests.rs`, `tests/fixtures/failing/final_state.toml`, and `ynwa-player/src/ui_tests.rs`) and a workspace grep for `GameOver` is the acceptance check.
 
 ## Migration Plan
 

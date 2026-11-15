@@ -25,6 +25,7 @@ After `client-owned-match-duration` removed `FootballEvent::GameEnd` (the only p
 
 - `ynwa-core`: `src/game.rs`, `src/systems/decision/scripted_decision_maker.rs`, and tests (`src/tests/serde_tests.rs`, decision/scripted tests).
 - `ynwa-football`: `src/game_manager.rs`.
-- `ynwa-integration-testing`: `src/dto.rs`, `src/criterion.rs`, `src/loader.rs`, `src/compare.rs`, and tests (`compare_tests.rs`, `criterion_tests.rs`, `dto_tests.rs`, `runner_tests.rs`).
+- `ynwa-player`: `src/ui_tests.rs`.
+- `ynwa-integration-testing`: `src/dto.rs`, `src/criterion.rs`, `src/loader.rs`, `src/compare.rs`, and tests (`compare_tests.rs`, `criterion_tests.rs`, `dto_tests.rs`, `loader_tests.rs`).
 
 Prerequisite: archive/apply `client-owned-match-duration` first, since that change removes the production path that made `GameOver` reachable.
