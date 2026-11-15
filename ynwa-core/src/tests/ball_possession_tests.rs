@@ -904,7 +904,7 @@ fn test_records_possession_change() {
     let mut system = BallPossessionSystem::new();
     system.update(&mut game, 2.0);
 
-    let entries = collection.borrow().entries().to_vec();
+    let entries = collection.borrow().to_vec();
     assert_eq!(entries.len(), 1);
     assert_eq!(entries[0].timestamp, 2.0);
     assert_eq!(
@@ -928,5 +928,5 @@ fn test_no_record_when_possession_does_not_change() {
     system.update(&mut game, 2.0);
     system.update(&mut game, 3.0);
 
-    assert_eq!(collection.borrow().entries().len(), 1);
+    assert_eq!(collection.borrow().len(), 1);
 }

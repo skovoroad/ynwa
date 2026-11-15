@@ -9,7 +9,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use ynwa_core::game::GameState;
-use ynwa_core::journal::{CollectJournalRecorder, EventsCollection};
+use ynwa_core::journal::CollectJournalRecorder;
 use ynwa_core::record::{Record, RecordHeader};
 use ynwa_core::world::World;
 use ynwa_football::decode_football_events;
@@ -39,7 +39,7 @@ pub fn run(world: World, run: &RunPlanDto) -> Result<RunOutcome, ScenarioError> 
     let mut world = world;
     let config = world.game().config().clone();
 
-    let collection = Rc::new(RefCell::new(EventsCollection::default()));
+    let collection = Rc::new(RefCell::new(Vec::new()));
     world
         .game_mut()
         .set_journal_sink(Box::new(CollectJournalRecorder::new(collection.clone())));
@@ -54,8 +54,7 @@ pub fn run(world: World, run: &RunPlanDto) -> Result<RunOutcome, ScenarioError> 
         steps += 1;
 
         let (new_events, stop_reason) = {
-            let collection = collection.borrow();
-            let entries = collection.entries();
+            let entries = collection.borrow();
             let new_entries = &entries[decoded_upto..];
             let new_events = decode_football_events(new_entries);
             decoded_upto = entries.len();
@@ -98,8 +97,9 @@ pub fn run(world: World, run: &RunPlanDto) -> Result<RunOutcome, ScenarioError> 
     }
 
     world.game_mut().finish_journal()?;
-    let record = collection.borrow_mut().take_record(header);
     let final_state = world.game().state().clone();
+    let journal = std::mem::take(&mut *collection.borrow_mut());
+    let record = Record::from_final_state(header, &final_state, journal);
 
     Ok(RunOutcome {
         record,

@@ -5,8 +5,9 @@
 //! readability; a binary codec can be plugged in later without touching the model or the
 //! recording points.
 
+use crate::game::GameState;
 use crate::journal::{JournalEntry, JournalEvent, JournalSink};
-use crate::record::{Record, RecordHeader};
+use crate::record::{Record, RecordFooter, RecordHeader};
 use serde::{Deserialize, Serialize};
 use std::io::{BufRead, Write};
 
@@ -15,8 +16,8 @@ pub trait RecordWriter {
     fn write_header(&mut self, header: &RecordHeader) -> Result<(), String>;
     fn write_event(&mut self, entry: &JournalEntry) -> Result<(), String>;
 
-    /// Writes the trailer carrying the total number of steps of the playthrough.
-    fn finish(&mut self, total_steps: u64) -> Result<(), String>;
+    /// Writes the trailer carrying the final state of the playthrough.
+    fn finish(&mut self, footer: &RecordFooter) -> Result<(), String>;
 }
 
 /// Reads a byte stream back into a [`Record`].
@@ -32,7 +33,7 @@ enum RecordLine {
     // the other variants.
     Header(Box<RecordHeader>),
     Event(JournalEntry),
-    Footer { total_steps: u64 },
+    Footer(RecordFooter),
 }
 
 /// Writes [`RecordLine`]s, flushing after each one, so a crash leaves a valid prefix on disk.
@@ -64,8 +65,8 @@ impl<W: Write> RecordWriter for JsonRecordWriter<W> {
         self.write_line(&RecordLine::Event(entry.clone()))
     }
 
-    fn finish(&mut self, total_steps: u64) -> Result<(), String> {
-        self.write_line(&RecordLine::Footer { total_steps })
+    fn finish(&mut self, footer: &RecordFooter) -> Result<(), String> {
+        self.write_line(&RecordLine::Footer(footer.clone()))
     }
 }
 
@@ -85,7 +86,7 @@ impl<R: BufRead> RecordReader for JsonRecordReader<R> {
     fn read(&mut self) -> Result<Record, String> {
         let mut header = None;
         let mut journal = Vec::new();
-        let mut total_steps = 0;
+        let mut footer = RecordFooter::default();
         let mut line = Vec::new();
 
         loop {
@@ -111,26 +112,25 @@ impl<R: BufRead> RecordReader for JsonRecordReader<R> {
                     header = Some(*value);
                 }
                 RecordLine::Event(entry) => journal.push(entry),
-                RecordLine::Footer { total_steps: steps } => total_steps = steps,
+                RecordLine::Footer(value) => footer = value,
             }
         }
 
         let header = header.ok_or_else(|| "recording contains no header".to_string())?;
         Ok(Record {
             header,
-            total_steps,
+            footer,
             journal,
         })
     }
 }
 
-/// Sink that writes every event straight into a [`RecordWriter`], counting steps on its own.
+/// Sink that writes every event straight into a [`RecordWriter`].
 ///
 /// [`JournalSink::push`] cannot report write errors, so the first one is kept and returned by
 /// [`JournalSink::finish`].
 pub struct FileJournalRecorder {
     writer: Box<dyn RecordWriter>,
-    steps: u64,
     first_error: Option<String>,
 }
 
@@ -139,7 +139,6 @@ impl FileJournalRecorder {
     pub fn new(writer: Box<dyn RecordWriter>, header: &RecordHeader) -> Self {
         let mut recorder = Self {
             writer,
-            steps: 0,
             first_error: None,
         };
         if let Err(error) = recorder.writer.write_header(header) {
@@ -157,12 +156,9 @@ impl JournalSink for FileJournalRecorder {
         }
     }
 
-    fn finish_step(&mut self, _timestamp: f32) {
-        self.steps += 1;
-    }
-
-    fn finish(mut self: Box<Self>) -> Result<(), String> {
-        if let Err(error) = self.writer.finish(self.steps) {
+    fn finish(mut self: Box<Self>, final_state: &GameState) -> Result<(), String> {
+        let footer = RecordFooter::from_state(final_state);
+        if let Err(error) = self.writer.finish(&footer) {
             self.first_error.get_or_insert(error);
         }
         match self.first_error.take() {

@@ -19,7 +19,7 @@ impl World {
         self.systems.push(system);
     }
 
-    /// Updates timestamp, executes all systems, then updates elapsed_time.
+    /// Updates timestamp, executes all systems, then advances the game.
     pub fn step(&mut self, timestep: f32) {
         let new_timestamp = self.game.state().elapsed_time + timestep;
 
@@ -27,8 +27,7 @@ impl World {
             system.update(&mut self.game, new_timestamp);
         }
 
-        self.game.state.elapsed_time = new_timestamp;
-        self.game.finish_step(new_timestamp);
+        self.game.step(timestep);
     }
 
     pub fn game(&self) -> &Game {

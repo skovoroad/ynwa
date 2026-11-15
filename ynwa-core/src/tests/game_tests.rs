@@ -103,12 +103,16 @@ fn test_state_indices_match_config() {
 }
 
 #[test]
-fn test_step_updates_time() {
+fn test_step_updates_time_and_step_count() {
     let config = create_test_config();
     let mut game = Game::new(config, deterministic_rng());
+    assert_eq!(game.state().step_count, 0);
 
     game.step(0.016);
-    assert!((game.state().elapsed_time - 0.016).abs() < 0.001);
+    game.step(0.016);
+
+    assert!((game.state().elapsed_time - 0.032).abs() < 0.001);
+    assert_eq!(game.state().step_count, 2);
 }
 
 #[test]

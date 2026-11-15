@@ -66,5 +66,5 @@ fn run_scenario_reports_failed_expectations() {
         .expect("a failed scenario must still leave a recording")
         .read()
         .expect("recording must parse");
-    assert_eq!(recording.total_steps, 10);
+    assert_eq!(recording.footer.total_steps, 10);
 }

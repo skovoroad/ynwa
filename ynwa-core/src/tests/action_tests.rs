@@ -535,7 +535,7 @@ fn test_kick_outcome_is_recorded() {
     let mut system = ActionSystem::new();
     system.update(&mut game, 3.0);
 
-    let entries = collection.borrow().entries().to_vec();
+    let entries = collection.borrow().to_vec();
     assert_eq!(entries.len(), 1);
     assert_eq!(entries[0].timestamp, 3.0);
     assert_eq!(
@@ -560,5 +560,5 @@ fn test_ignored_kick_is_not_recorded() {
     let mut system = ActionSystem::new();
     system.update(&mut game, 1.0);
 
-    assert!(collection.borrow().entries().is_empty());
+    assert!(collection.borrow().is_empty());
 }

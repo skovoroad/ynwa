@@ -41,8 +41,8 @@ impl System for ReplaySetupBallPlacer {
 /// `record.header.initial_state`, mirroring how a scenario is set up: a world from the config,
 /// then a snapshot on top of it.
 ///
-/// The caller steps the world `record.header.timestep` for `record.total_steps` times, reading
-/// those values before the record is consumed.
+/// The caller steps the world `record.header.timestep` for `record.footer.total_steps` times,
+/// reading those values before the record is consumed.
 pub fn create_football_replay_world(record: Record) -> Result<World, String> {
     // Replay never consults RNG: random-branch outcomes are already in the journal.
     let rng = Box::new(DefaultRngManager::new(RngConfig::new(0.0, Some(0))));

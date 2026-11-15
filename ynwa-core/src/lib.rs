@@ -12,6 +12,7 @@ pub mod region;
 pub mod replay;
 pub mod repository;
 pub mod rng;
+pub(crate) mod sorted_collections;
 pub mod state_spec;
 pub mod system;
 pub mod systems;
@@ -42,10 +43,9 @@ pub use game::{
     PlayerDef, PlayerState, RefereeDef, RefereeState, StatSet, REGION_START_POSITION,
 };
 pub use journal::{
-    CollectJournalRecorder, EventsCollection, JournalEntry, JournalEvent, JournalSink,
-    NullJournalSink,
+    CollectJournalRecorder, JournalEntry, JournalEvent, JournalSink, NullJournalSink,
 };
-pub use record::{Record, RecordHeader};
+pub use record::{Record, RecordFooter, RecordHeader};
 pub use record_io::{
     json_journal_file_reader, json_journal_file_writer, json_journal_memory_reader,
     json_journal_memory_writer, write_json_record, SharedBytes,

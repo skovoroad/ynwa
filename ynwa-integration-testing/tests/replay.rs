@@ -44,7 +44,7 @@ fn recorded_scenario_replays_equivalently() {
         .read()
         .expect("the recording must parse");
     let timestep = record.header.timestep;
-    let total_steps = record.total_steps;
+    let total_steps = record.footer.total_steps;
     assert!(total_steps > 0, "the scenario must run at least one step");
 
     let LoadedScenario {

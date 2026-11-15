@@ -71,5 +71,5 @@ pub fn write_json_record(path: impl AsRef<Path>, record: &Record) -> Result<(), 
     for entry in &record.journal {
         writer.write_event(entry)?;
     }
-    writer.finish(record.total_steps)
+    writer.finish(&record.footer)
 }

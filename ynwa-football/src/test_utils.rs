@@ -13,7 +13,7 @@ use ynwa_core::game::{
     BallDef, Decision, DecisionTarget, Game, GameConfig, GameStage, GameState, PlayerDef,
     RefereeDef, ScriptingConfig, REGION_START_POSITION,
 };
-use ynwa_core::journal::{CollectJournalRecorder, EventsCollection};
+use ynwa_core::journal::{CollectJournalRecorder, JournalEntry};
 use ynwa_core::region::GridCell;
 use ynwa_core::rng::{DefaultRngManager, RngConfig, RngManager};
 use ynwa_core::systems::{
@@ -40,13 +40,11 @@ pub(crate) fn deterministic_rng() -> Box<dyn RngManager> {
     rng_with(0.0, 42)
 }
 
-/// Attaches an accumulating journal recorder to the game and returns its shared collection.
-pub(crate) fn attach_journal(game: &mut Game) -> Rc<RefCell<EventsCollection>> {
-    let collection = Rc::new(RefCell::new(EventsCollection::default()));
-    game.set_journal_sink(Box::new(CollectJournalRecorder::new(Rc::clone(
-        &collection,
-    ))));
-    collection
+/// Attaches an accumulating journal recorder to the game and returns its shared event buffer.
+pub(crate) fn attach_journal(game: &mut Game) -> Rc<RefCell<Vec<JournalEntry>>> {
+    let entries = Rc::new(RefCell::new(Vec::new()));
+    game.set_journal_sink(Box::new(CollectJournalRecorder::new(Rc::clone(&entries))));
+    entries
 }
 
 /// One striker near the centre spot: chases the ball and kicks it at the far sideline.
@@ -106,7 +104,7 @@ pub(crate) fn build_recording_world_with(
     config: GameConfig,
     stage: GameStage,
     decision_maker: Box<dyn DecisionMaker>,
-) -> (World, Rc<RefCell<EventsCollection>>) {
+) -> (World, Rc<RefCell<Vec<JournalEntry>>>) {
     build_recording_world_with_rng(config, stage, decision_maker, deterministic_rng())
 }
 
@@ -116,7 +114,7 @@ pub(crate) fn build_recording_world_with_rng(
     stage: GameStage,
     decision_maker: Box<dyn DecisionMaker>,
     rng: Box<dyn RngManager>,
-) -> (World, Rc<RefCell<EventsCollection>>) {
+) -> (World, Rc<RefCell<Vec<JournalEntry>>>) {
     let game = Game::with_stage(config, stage, rng);
     let mut world = World::new(game);
     world.add_system(Box::new(FootballGameManager::new()));
@@ -133,7 +131,7 @@ pub(crate) fn build_recording_world_with_rng(
 }
 
 /// The short single-player game recorded by the journal and replay tests.
-pub(crate) fn build_recording_world() -> (World, Rc<RefCell<EventsCollection>>) {
+pub(crate) fn build_recording_world() -> (World, Rc<RefCell<Vec<JournalEntry>>>) {
     build_recording_world_with(
         single_player_config(),
         GameStage::Setup("kick off".to_string()),

@@ -13,6 +13,7 @@ Additionally, step counting (`total_steps`) was previously tracked outside `Game
 - **BREAKING**: Replace `total_steps: u64` on `Record` with `footer: RecordFooter` (`Record { header: RecordHeader, footer: RecordFooter, journal: Vec<JournalEntry> }`) and keep abstraction boundaries clean across layers:
   - `Game::finish_journal` passes domain `&GameState` to `JournalSink::finish(self: Box<Self>, final_state: &GameState)` (`Game` and `JournalSink` do not depend on `RecordFooter`).
   - `FileJournalRecorder::finish` builds `RecordFooter::from_state(final_state)` and passes `&RecordFooter` to `RecordWriter::finish(&mut self, footer: &RecordFooter)`.
+  - `CollectJournalRecorder` only buffers `JournalEntry`s into a shared `Vec`; the caller assembles `Record` via `Record::from_final_state(header, &final_state, journal)`. This removes `EventsCollection` entirely.
 - Update the JSON Lines `RecordLine::Footer(RecordFooter)` format to serialize `total_steps`, `elapsed_time`, `team_stats` (deterministically sorted), and `player_stats` directly without legacy format backward-compatibility shims.
 
 ## Capabilities
@@ -26,5 +27,5 @@ Additionally, step counting (`total_steps`) was previously tracked outside `Game
 
 ## Impact
 
-- **ynwa-core**: `sorted_collections.rs` (extracted from `game.rs`), `game.rs` (`GameState::step_count`, `Game::step`, `Game::finish_journal`), `world.rs` (`World::step`), `record.rs` (`RecordFooter`, `Record`), `journal.rs` (`JournalSink`, `EventsCollection`, `CollectJournalRecorder`), `codec.rs` (`RecordWriter::finish`, `RecordLine::Footer`, `JsonRecordWriter`, `JsonRecordReader`, `FileJournalRecorder`), and `record_io.rs` (`write_json_record`).
+- **ynwa-core**: `sorted_collections.rs` (extracted from `game.rs`), `game.rs` (`GameState::step_count`, `Game::step`, `Game::finish_journal`), `world.rs` (`World::step`), `record.rs` (`RecordFooter`, `Record`, `Record::from_final_state`), `journal.rs` (`JournalSink`, `CollectJournalRecorder`), `codec.rs` (`RecordWriter::finish`, `RecordLine::Footer`, `JsonRecordWriter`, `JsonRecordReader`, `FileJournalRecorder`), and `record_io.rs` (`write_json_record`).
 - `ynwa-player`, `ynwa-football`, and `ynwa-integration-testing`: updated to read `record.footer.total_steps`.

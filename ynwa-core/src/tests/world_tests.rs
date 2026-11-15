@@ -1,6 +1,7 @@
 use super::*;
 use crate::field::Field;
 use crate::game::{BallDef, GameConfig, PlayerDef, RefereeDef, REGION_START_POSITION};
+use crate::record::{Record, RecordHeader};
 use crate::region::GridCell;
 use crate::team::Team;
 use crate::test_utils::deterministic_rng;
@@ -111,7 +112,7 @@ fn test_world_passes_correct_timestamp_to_systems() {
 }
 
 #[test]
-fn test_world_step_notifies_journal_sink() {
+fn test_world_finish_journal_captures_step_count() {
     let mut game = create_test_game();
     let collection = crate::test_utils::attach_journal(&mut game);
 
@@ -120,5 +121,22 @@ fn test_world_step_notifies_journal_sink() {
     world.step(0.016);
     world.game_mut().finish_journal().unwrap();
 
-    assert_eq!(collection.borrow().total_steps(), 2);
+    let record = Record::from_final_state(
+        RecordHeader::from_game(world.game(), 0.016),
+        world.game().state(),
+        collection.borrow().to_vec(),
+    );
+    assert_eq!(record.footer.total_steps, 2);
+}
+
+#[test]
+fn test_world_step_advances_elapsed_time_and_step_count() {
+    let game = create_test_game();
+    let mut world = World::new(game);
+
+    world.step(0.016);
+    world.step(0.016);
+
+    assert!((world.game().state().elapsed_time - 0.032).abs() < 0.001);
+    assert_eq!(world.game().state().step_count, 2);
 }

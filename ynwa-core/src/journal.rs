@@ -6,8 +6,7 @@
 //! only; cross-platform determinism is a separate task.
 
 use crate::field::zones::{Point3D, Velocity3D};
-use crate::game::{Decision, GameStage};
-use crate::record::{Record, RecordHeader};
+use crate::game::{Decision, GameStage, GameState};
 use crate::team::Team;
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
@@ -61,13 +60,10 @@ pub enum JournalEvent {
 pub trait JournalSink {
     fn push(&mut self, timestamp: f32, event: JournalEvent);
 
-    /// Called exactly once per simulation step, so a sink counts steps on its own.
-    fn finish_step(&mut self, timestamp: f32) {
-        let _ = timestamp;
-    }
-
-    /// Finalizes the recording (trailer, flush). Deliberately returns no `Record`.
-    fn finish(self: Box<Self>) -> Result<(), String> {
+    /// Finalizes the recording (trailer, flush). `final_state` is the state reached after the
+    /// last recorded step. Deliberately returns no `Record`.
+    fn finish(self: Box<Self>, final_state: &GameState) -> Result<(), String> {
+        let _ = final_state;
         Ok(())
     }
 }
@@ -79,71 +75,25 @@ impl JournalSink for NullJournalSink {
     fn push(&mut self, _timestamp: f32, _event: JournalEvent) {}
 }
 
-/// Storage for journaled events and the step count of a playthrough.
+/// Sink that forwards events into a shared buffer and keeps no state of its own.
 ///
-/// Shared between the sink (inside `Game`) and the caller, so `Game` can own
-/// `Box<dyn JournalSink>` without a lifetime parameter.
-#[derive(Default)]
-pub struct EventsCollection {
-    entries: Vec<JournalEntry>,
-    total_steps: u64,
-}
-
-impl EventsCollection {
-    pub fn push(&mut self, entry: JournalEntry) {
-        self.entries.push(entry);
-    }
-
-    pub fn entries(&self) -> &[JournalEntry] {
-        &self.entries
-    }
-
-    pub fn total_steps(&self) -> u64 {
-        self.total_steps
-    }
-
-    pub fn set_total_steps(&mut self, steps: u64) {
-        self.total_steps = steps;
-    }
-
-    /// Takes the collected events and step count, completing them with a header.
-    pub fn take_record(&mut self, header: RecordHeader) -> Record {
-        Record {
-            header,
-            total_steps: self.total_steps,
-            journal: std::mem::take(&mut self.entries),
-        }
-    }
-}
-
-/// Sink that forwards events into a shared collection and keeps no state of its own.
+/// The buffer is shared between the sink (inside `Game`) and the caller, so `Game` can own
+/// `Box<dyn JournalSink>` without a lifetime parameter while the caller reads events as they are
+/// recorded. Assembling the final `Record` is the caller's responsibility.
 pub struct CollectJournalRecorder {
-    collection: Rc<RefCell<EventsCollection>>,
-    steps: u64,
+    entries: Rc<RefCell<Vec<JournalEntry>>>,
 }
 
 impl CollectJournalRecorder {
-    pub fn new(collection: Rc<RefCell<EventsCollection>>) -> Self {
-        Self {
-            collection,
-            steps: 0,
-        }
+    pub fn new(entries: Rc<RefCell<Vec<JournalEntry>>>) -> Self {
+        Self { entries }
     }
 }
 
 impl JournalSink for CollectJournalRecorder {
     fn push(&mut self, timestamp: f32, event: JournalEvent) {
-        self.collection
+        self.entries
             .borrow_mut()
             .push(JournalEntry { timestamp, event });
-    }
-
-    fn finish_step(&mut self, _timestamp: f32) {
-        self.steps += 1;
-    }
-
-    fn finish(self: Box<Self>) -> Result<(), String> {
-        self.collection.borrow_mut().set_total_steps(self.steps);
-        Ok(())
     }
 }

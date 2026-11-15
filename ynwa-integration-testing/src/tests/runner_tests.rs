@@ -97,7 +97,7 @@ fn run_returns_a_record_of_the_initial_state_and_the_run() {
 
     assert_eq!(outcome.record.header.initial_state, initial_state);
     assert_eq!(outcome.record.header.timestep, plan.timestep);
-    assert_eq!(outcome.record.total_steps, outcome.steps);
+    assert_eq!(outcome.record.footer.total_steps, outcome.steps);
     assert!(
         !outcome.record.journal.is_empty(),
         "the run must journal decisions"

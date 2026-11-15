@@ -20,7 +20,7 @@ use ynwa_core::game::{
 };
 use ynwa_core::journal::JournalEvent;
 use ynwa_core::physics_util::kick_speed;
-use ynwa_core::record::RecordHeader;
+use ynwa_core::record::{Record, RecordHeader};
 use ynwa_core::record_io::{json_journal_file_reader, json_journal_file_writer};
 use ynwa_core::region::GridCell;
 use ynwa_core::systems::{DecisionError, DecisionMaker};
@@ -67,7 +67,11 @@ fn file_round_trip_reproduces_the_recorded_run() {
         collected_world.step(TIMESTEP);
     }
     collected_world.game_mut().finish_journal().unwrap();
-    let collected = collection.borrow_mut().take_record(collected_header);
+    let collected = Record::from_final_state(
+        collected_header,
+        collected_world.game().state(),
+        collection.borrow().to_vec(),
+    );
 
     let mut reader = json_journal_file_reader(&path).unwrap();
     let from_file = reader.read().unwrap();
@@ -78,7 +82,7 @@ fn file_round_trip_reproduces_the_recorded_run() {
         "the file round trip must preserve the record exactly"
     );
 
-    let total_steps = from_file.total_steps;
+    let total_steps = from_file.footer.total_steps;
     let mut replay = create_football_replay_world(from_file).unwrap();
     for _ in 0..total_steps {
         replay.step(TIMESTEP);
@@ -110,8 +114,8 @@ fn replay_is_independent_of_rng() {
     original.game_mut().finish_journal().unwrap();
     let original_final = original.game().state().clone();
 
-    let record = collection.borrow_mut().take_record(header);
-    let total_steps = record.total_steps;
+    let record = Record::from_final_state(header, &original_final, collection.borrow().to_vec());
+    let total_steps = record.footer.total_steps;
 
     let kicked = record
         .journal
@@ -205,8 +209,8 @@ fn replay_reproduces_a_multi_player_ball_contest() {
     original.game_mut().finish_journal().unwrap();
     let original_final = original.game().state().clone();
 
-    let record = collection.borrow_mut().take_record(header);
-    let total_steps = record.total_steps;
+    let record = Record::from_final_state(header, &original_final, collection.borrow().to_vec());
+    let total_steps = record.footer.total_steps;
 
     let changes: Vec<&JournalEvent> = record
         .journal

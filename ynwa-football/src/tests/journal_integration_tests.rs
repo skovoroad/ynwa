@@ -9,7 +9,7 @@ use crate::test_utils::{
 use ynwa_core::field::zones::Point3D;
 use ynwa_core::game::{Decision, Game, GameStage};
 use ynwa_core::journal::JournalEvent;
-use ynwa_core::record::RecordHeader;
+use ynwa_core::record::{Record, RecordHeader};
 use ynwa_core::system::System;
 use ynwa_core::team::Team;
 
@@ -27,7 +27,7 @@ fn short_game_records_expected_events_and_builds_record() {
     }
     world.game_mut().finish_journal().unwrap();
 
-    let entries = collection.borrow().entries().to_vec();
+    let entries = collection.borrow().to_vec();
     let any = |pred: fn(&JournalEvent) -> bool| entries.iter().any(|e| pred(&e.event));
 
     assert!(
@@ -86,11 +86,10 @@ fn short_game_records_expected_events_and_builds_record() {
         any(|e| matches!(e, JournalEvent::External { kind, .. } if kind == "football_event")),
         "expected a football external event"
     );
-    assert_eq!(collection.borrow().total_steps(), STEPS);
 
-    let record = collection.borrow_mut().take_record(header);
+    let record = Record::from_final_state(header, world.game().state(), entries.clone());
 
-    assert_eq!(record.total_steps, STEPS);
+    assert_eq!(record.footer.total_steps, STEPS);
     assert_eq!(record.journal.len(), entries.len());
     assert_eq!(record.header.timestep, TIMESTEP);
     assert_eq!(
@@ -101,7 +100,25 @@ fn short_game_records_expected_events_and_builds_record() {
         .journal
         .iter()
         .any(|e| matches!(e.event, JournalEvent::KickOutcome { .. })));
-    assert!(collection.borrow().entries().is_empty());
+}
+
+#[test]
+fn recorded_footer_matches_the_final_state() {
+    let (mut world, collection) = build_recording_world();
+    let header = RecordHeader::from_game(world.game(), TIMESTEP);
+
+    for _ in 0..STEPS {
+        world.step(TIMESTEP);
+    }
+    world.game_mut().finish_journal().unwrap();
+
+    let final_state = world.game().state();
+    let record = Record::from_final_state(header, final_state, collection.borrow().to_vec());
+
+    assert_eq!(record.footer.total_steps, final_state.step_count);
+    assert_eq!(record.footer.elapsed_time, final_state.elapsed_time);
+    assert_eq!(record.footer.team_stats, final_state.team_stats);
+    assert_eq!(record.footer.player_stats, final_state.player_stats);
 }
 
 #[test]
@@ -112,7 +129,7 @@ fn game_end_is_recorded_as_external_and_stage_change() {
 
     FootballGameManager::new().update(&mut game, 120.0);
 
-    let entries = collection.borrow().entries().to_vec();
+    let entries = collection.borrow().to_vec();
     assert_eq!(entries.len(), 2);
     assert_eq!(
         entries[0].event,
@@ -139,7 +156,7 @@ fn touchline_records_reset_restart_and_stage() {
 
     FootballGameManager::new().update(&mut game, 5.0);
 
-    let entries = collection.borrow().entries().to_vec();
+    let entries = collection.borrow().to_vec();
     assert_eq!(entries.len(), 4);
     assert_eq!(
         entries[0].event,
@@ -174,7 +191,7 @@ fn goal_line_records_goal_kick_restart() {
 
     FootballGameManager::new().update(&mut game, 5.0);
 
-    let entries = collection.borrow().entries().to_vec();
+    let entries = collection.borrow().to_vec();
     assert_eq!(entries.len(), 4);
     assert_eq!(entries[1].event, JournalEvent::DecisionsReset);
     assert_eq!(
@@ -202,7 +219,7 @@ fn goal_line_records_corner_restart() {
 
     FootballGameManager::new().update(&mut game, 5.0);
 
-    let entries = collection.borrow().entries().to_vec();
+    let entries = collection.borrow().to_vec();
     assert_eq!(
         entries[2].event,
         JournalEvent::RestartSet {
@@ -230,7 +247,7 @@ fn setup_decision_and_play_transition_are_recorded() {
     let mut manager = FootballGameManager::new();
     manager.update(&mut game, 0.1);
 
-    let entries = collection.borrow().entries().to_vec();
+    let entries = collection.borrow().to_vec();
     assert_eq!(entries.len(), 1);
     assert!(matches!(
         entries[0].event,
@@ -243,7 +260,7 @@ fn setup_decision_and_play_transition_are_recorded() {
     game.state.player_states[0].current_decision = Some(Decision::Stop);
     manager.update(&mut game, 0.2);
 
-    let entries = collection.borrow().entries().to_vec();
+    let entries = collection.borrow().to_vec();
     assert_eq!(entries.len(), 2);
     assert_eq!(
         entries[1].event,
@@ -265,7 +282,7 @@ fn detected_football_event_matches_recorded_external() {
     let collection = attach_journal(&mut game);
     FootballGameManager::new().update(&mut game, 5.0);
 
-    let entries = collection.borrow().entries().to_vec();
+    let entries = collection.borrow().to_vec();
     assert_eq!(
         entries[0].event,
         JournalEvent::External {

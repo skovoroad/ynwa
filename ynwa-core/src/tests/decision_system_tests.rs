@@ -670,7 +670,7 @@ fn test_decision_system_records_assigned_decision() {
     let mut system = DecisionSystem::new();
     system.update(&mut game, 1.0);
 
-    let entries = collection.borrow().entries().to_vec();
+    let entries = collection.borrow().to_vec();
     assert_eq!(entries.len(), 1);
     assert_eq!(entries[0].timestamp, 1.0);
     match &entries[0].event {
@@ -703,7 +703,7 @@ fn test_decision_system_records_arrival_stop() {
     let mut system = DecisionSystem::new();
     system.update(&mut game, 1.0);
 
-    let entries = collection.borrow().entries().to_vec();
+    let entries = collection.borrow().to_vec();
     assert_eq!(
         entries[0].event,
         JournalEvent::DecisionAssigned {
@@ -726,7 +726,7 @@ fn test_decision_system_records_error_handler_fallback() {
     game.state.player_states[0].needs_decision = true;
     system.update(&mut game, 1.0);
 
-    let entries = collection.borrow().entries().to_vec();
+    let entries = collection.borrow().to_vec();
     assert_eq!(entries.len(), 1);
     assert_eq!(
         entries[0].event,
@@ -747,5 +747,5 @@ fn test_decision_system_records_nothing_when_error_has_no_fallback() {
     game.state.player_states[0].needs_decision = true;
     system.update(&mut game, 1.0);
 
-    assert!(collection.borrow().entries().is_empty());
+    assert!(collection.borrow().is_empty());
 }

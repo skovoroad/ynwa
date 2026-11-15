@@ -5,7 +5,7 @@ use crate::game::{
     BallDef, Game, GameConfig, GameStage, PlayerDef, RefereeDef, ScriptingConfig,
     REGION_START_POSITION,
 };
-use crate::record::RecordHeader;
+use crate::record::{Record, RecordHeader};
 use crate::region::GridCell;
 use crate::rng::{DefaultRngManager, RngConfig};
 use crate::team::Team;
@@ -61,4 +61,22 @@ fn from_game_reflects_the_current_play_stage() {
     let header = RecordHeader::from_game(&game, 0.1);
 
     assert_eq!(header.initial_state.stage, GameStage::Play);
+}
+
+#[test]
+fn from_final_state_assembles_header_footer_and_journal() {
+    let mut game = test_game(GameStage::Play);
+    let header = RecordHeader::from_game(&game, 0.05);
+    for _ in 0..3 {
+        game.step(0.05);
+    }
+
+    let record = Record::from_final_state(header, game.state(), vec![]);
+
+    assert_eq!(record.header.timestep, 0.05);
+    assert_eq!(record.footer.total_steps, 3);
+    assert_eq!(record.footer.elapsed_time, game.state().elapsed_time);
+    assert_eq!(record.footer.team_stats, game.state().team_stats);
+    assert_eq!(record.footer.player_stats, game.state().player_stats);
+    assert!(record.journal.is_empty());
 }

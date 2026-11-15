@@ -561,7 +561,7 @@ fn test_goal_records_stat_reset_restart_and_stage() {
     set_ball_pos(&mut game, field_width / 2.0, -0.5);
     FootballGameManager::new().update(&mut game, 7.0);
 
-    let entries = collection.borrow().entries().to_vec();
+    let entries = collection.borrow().to_vec();
     assert_eq!(entries.len(), 5);
     assert_eq!(
         entries[0].event,

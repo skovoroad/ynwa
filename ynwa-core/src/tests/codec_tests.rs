@@ -4,11 +4,11 @@ use crate::codec::{FileJournalRecorder, RecordReader, RecordWriter};
 use crate::field::zones::Velocity3D;
 use crate::field::Field;
 use crate::game::{
-    BallDef, Decision, DecisionTarget, Game, GameConfig, GameStage, PlayerDef, RefereeDef,
-    REGION_START_POSITION,
+    BallDef, Decision, DecisionTarget, Game, GameConfig, GameStage, GameState, PlayerDef,
+    RefereeDef, StatSet, REGION_START_POSITION,
 };
 use crate::journal::{JournalEntry, JournalEvent, JournalSink};
-use crate::record::{Record, RecordHeader};
+use crate::record::{Record, RecordFooter, RecordHeader};
 use crate::record_io::{
     json_journal_file_reader, json_journal_file_writer, json_journal_memory_reader,
     json_journal_memory_writer, write_json_record, SharedBytes,
@@ -22,6 +22,7 @@ use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const FOOTER_MARKER: &[u8] = b"{\"type\":\"footer\"";
+const TIMESTEP: f32 = 0.016;
 
 fn test_config() -> GameConfig {
     let field = Field::from_meters(100.0, 60.0, 26, 44);
@@ -47,7 +48,16 @@ fn test_config() -> GameConfig {
 
 fn test_header() -> RecordHeader {
     let game = Game::new(test_config(), deterministic_rng());
-    RecordHeader::from_game(&game, 0.016)
+    RecordHeader::from_game(&game, TIMESTEP)
+}
+
+/// State a playthrough of `steps` steps ends in; the footer is built from it.
+fn final_state(steps: u64) -> GameState {
+    let mut game = Game::new(test_config(), deterministic_rng());
+    for _ in 0..steps {
+        game.step(TIMESTEP);
+    }
+    game.state
 }
 
 fn sample_entries() -> Vec<JournalEntry> {
@@ -76,17 +86,14 @@ fn sample_entries() -> Vec<JournalEntry> {
     ]
 }
 
-fn write_recording(header: &RecordHeader, entries: &[JournalEntry], total_steps: u64) -> Vec<u8> {
+fn write_recording(header: &RecordHeader, entries: &[JournalEntry], steps: u64) -> Vec<u8> {
     let sink = SharedBytes::new();
     let mut recorder =
         FileJournalRecorder::new(Box::new(json_journal_memory_writer(&sink)), header);
     for entry in entries {
         recorder.push(entry.timestamp, entry.event.clone());
     }
-    for _ in 0..total_steps {
-        recorder.finish_step(0.0);
-    }
-    Box::new(recorder).finish().unwrap();
+    Box::new(recorder).finish(&final_state(steps)).unwrap();
     sink.bytes()
 }
 
@@ -116,7 +123,8 @@ fn in_memory_record_round_trips() {
     let record = json_journal_memory_reader(buffer).read().unwrap();
 
     assert_eq!(record.header, header);
-    assert_eq!(record.total_steps, 3);
+    assert_eq!(record.footer, RecordFooter::from_state(&final_state(3)));
+    assert_eq!(record.footer.total_steps, 3);
     assert_eq!(record.journal, entries);
 }
 
@@ -132,10 +140,7 @@ fn file_record_round_trips() {
         for entry in &entries {
             recorder.push(entry.timestamp, entry.event.clone());
         }
-        for _ in 0..7 {
-            recorder.finish_step(0.0);
-        }
-        Box::new(recorder).finish().unwrap();
+        Box::new(recorder).finish(&final_state(7)).unwrap();
     }
 
     let mut reader = json_journal_file_reader(&path).unwrap();
@@ -143,7 +148,7 @@ fn file_record_round_trips() {
     fs::remove_file(&path).unwrap();
 
     assert_eq!(record.header, header);
-    assert_eq!(record.total_steps, 7);
+    assert_eq!(record.footer.total_steps, 7);
     assert_eq!(record.journal, entries);
 }
 
@@ -151,7 +156,7 @@ fn file_record_round_trips() {
 fn write_json_record_round_trips_the_whole_record() {
     let record = Record {
         header: test_header(),
-        total_steps: 4,
+        footer: RecordFooter::from_state(&final_state(4)),
         journal: sample_entries(),
     };
     let path = temp_path("write-record");
@@ -162,6 +167,41 @@ fn write_json_record_round_trips_the_whole_record() {
     fs::remove_file(&path).unwrap();
 
     assert_eq!(restored, record);
+}
+
+#[test]
+fn footer_round_trips_with_all_statistics() {
+    let mut state = final_state(5);
+    state.team_stats.clear();
+    let mut scored = StatSet::default();
+    scored.set("score", 2.0);
+    state.team_stats.insert(Team::B, StatSet::default());
+    state.team_stats.insert(Team::A, scored);
+    state.player_stats[0].set("distance", 123.5);
+    let record = Record {
+        header: test_header(),
+        footer: RecordFooter::from_state(&state),
+        journal: sample_entries(),
+    };
+    let path = temp_path("footer-stats");
+
+    write_json_record(&path, &record).unwrap();
+
+    let text = fs::read_to_string(&path).unwrap();
+    let restored = json_journal_file_reader(&path).unwrap().read().unwrap();
+    fs::remove_file(&path).unwrap();
+
+    assert_eq!(restored.footer, record.footer);
+    assert_eq!(restored.footer.total_steps, 5);
+    assert_eq!(restored.footer.elapsed_time, state.elapsed_time);
+    assert_eq!(restored.footer.team_stats, state.team_stats);
+    assert_eq!(restored.footer.player_stats, state.player_stats);
+
+    let footer_line = text.lines().last().unwrap();
+    assert!(
+        footer_line.find("\"A\"").unwrap() < footer_line.find("\"B\"").unwrap(),
+        "team_stats must be written in sorted order: {footer_line}"
+    );
 }
 
 #[test]
@@ -176,10 +216,18 @@ fn writes_header_event_and_footer_lines() {
     assert_eq!(lines.len(), entries.len() + 2);
     assert!(lines[0].starts_with("{\"type\":\"header\""));
     assert!(lines[1].starts_with("{\"type\":\"event\""));
+    let footer: serde_json::Value = serde_json::from_str(lines.last().unwrap()).unwrap();
+    assert_eq!(footer["type"], "footer");
+    assert_eq!(footer["total_steps"], 2);
     assert_eq!(
-        lines.last().unwrap(),
-        &"{\"type\":\"footer\",\"total_steps\":2}"
+        footer["elapsed_time"].as_f64().unwrap() as f32,
+        final_state(2).elapsed_time
     );
+    assert_eq!(
+        footer["team_stats"],
+        serde_json::json!({"A": {"values": {}}})
+    );
+    assert_eq!(footer["player_stats"], serde_json::json!([{"values": {}}]));
 }
 
 #[test]
@@ -212,7 +260,7 @@ fn events_are_flushed_before_finish() {
             assert_eq!(text.lines().count(), index + 2);
         }
 
-        Box::new(recorder).finish().unwrap();
+        Box::new(recorder).finish(&final_state(3)).unwrap();
     }
 
     let text = fs::read_to_string(&path).unwrap();
@@ -233,6 +281,7 @@ fn reads_valid_prefix_without_footer() {
 
     assert_eq!(record.header, header);
     assert_eq!(record.journal, entries);
+    assert_eq!(record.footer, RecordFooter::default());
 }
 
 #[test]
@@ -298,7 +347,7 @@ impl RecordWriter for FailingEventWriter {
         Err("disk full".to_string())
     }
 
-    fn finish(&mut self, _total_steps: u64) -> Result<(), String> {
+    fn finish(&mut self, _footer: &RecordFooter) -> Result<(), String> {
         Ok(())
     }
 }
@@ -314,7 +363,7 @@ impl RecordWriter for FailingHeaderWriter {
         Ok(())
     }
 
-    fn finish(&mut self, _total_steps: u64) -> Result<(), String> {
+    fn finish(&mut self, _footer: &RecordFooter) -> Result<(), String> {
         Ok(())
     }
 }
@@ -330,7 +379,7 @@ impl RecordWriter for FailingFinishWriter {
         Ok(())
     }
 
-    fn finish(&mut self, _total_steps: u64) -> Result<(), String> {
+    fn finish(&mut self, _footer: &RecordFooter) -> Result<(), String> {
         Err("no space for footer".to_string())
     }
 }
@@ -341,9 +390,11 @@ fn event_write_error_is_reported_on_finish() {
     let mut recorder = FileJournalRecorder::new(Box::new(FailingEventWriter), &header);
 
     recorder.push(0.1, JournalEvent::DecisionsReset);
-    recorder.finish_step(0.1);
 
-    assert_eq!(Box::new(recorder).finish().unwrap_err(), "disk full");
+    assert_eq!(
+        Box::new(recorder).finish(&final_state(1)).unwrap_err(),
+        "disk full"
+    );
 }
 
 #[test]
@@ -352,7 +403,7 @@ fn header_write_error_is_reported_on_finish() {
     let recorder = FileJournalRecorder::new(Box::new(FailingHeaderWriter), &header);
 
     assert_eq!(
-        Box::new(recorder).finish().unwrap_err(),
+        Box::new(recorder).finish(&final_state(0)).unwrap_err(),
         "no space for header"
     );
 }
@@ -363,10 +414,9 @@ fn finish_write_error_is_reported_on_finish() {
     let mut recorder = FileJournalRecorder::new(Box::new(FailingFinishWriter), &header);
 
     recorder.push(0.1, JournalEvent::DecisionsReset);
-    recorder.finish_step(0.1);
 
     assert_eq!(
-        Box::new(recorder).finish().unwrap_err(),
+        Box::new(recorder).finish(&final_state(1)).unwrap_err(),
         "no space for footer"
     );
 }

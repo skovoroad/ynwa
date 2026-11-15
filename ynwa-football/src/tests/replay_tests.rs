@@ -31,14 +31,15 @@ fn record_short_game() -> (World, Record) {
     }
     world.game_mut().finish_journal().unwrap();
 
-    let record = collection.borrow_mut().take_record(header);
+    let record =
+        Record::from_final_state(header, world.game().state(), collection.borrow().to_vec());
     (world, record)
 }
 
 #[test]
 fn replay_reproduces_physical_state() {
     let (original, record) = record_short_game();
-    let total_steps = record.total_steps;
+    let total_steps = record.footer.total_steps;
 
     let mut replay = create_football_replay_world(record).unwrap();
     for _ in 0..total_steps {
@@ -74,7 +75,7 @@ fn replay_ball_matches_recorded_event_conditions() {
         !events.is_empty(),
         "scenario must record at least one event"
     );
-    let total_steps = record.total_steps;
+    let total_steps = record.footer.total_steps;
 
     let mut replay = create_football_replay_world(record).unwrap();
     let mut steps = 0;
@@ -252,7 +253,8 @@ fn replay_reproduces_state_after_a_goal() {
     }
     world.game_mut().finish_journal().unwrap();
 
-    let record = collection.borrow_mut().take_record(header);
+    let record =
+        Record::from_final_state(header, world.game().state(), collection.borrow().to_vec());
 
     let events = decode_football_events(&record.journal);
     assert!(
@@ -263,7 +265,7 @@ fn replay_reproduces_state_after_a_goal() {
     );
     assert_eq!(score(world.game().state(), Team::A), 1.0);
 
-    let total_steps = record.total_steps;
+    let total_steps = record.footer.total_steps;
     let mut replay = create_football_replay_world(record).unwrap();
     for _ in 0..total_steps {
         replay.step(TIMESTEP);

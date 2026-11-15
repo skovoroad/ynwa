@@ -15,7 +15,7 @@ use ynwa_core::game::{
     BallDef, Decision, DecisionTarget, Game, GameConfig, GameStage, PlayerDef, RefereeDef,
     ScriptingConfig, REGION_START_POSITION,
 };
-use ynwa_core::record::RecordHeader;
+use ynwa_core::record::{Record, RecordHeader};
 use ynwa_core::region::GridCell;
 use ynwa_core::systems::{DecisionError, DecisionMaker};
 use ynwa_core::team::Team;
@@ -113,12 +113,12 @@ fn lockstep_matches_on_every_step() {
     world.game_mut().finish_journal().unwrap();
     let original_final = world.game().state().clone();
 
-    let record = collection.borrow_mut().take_record(header);
+    let record = Record::from_final_state(header, &original_final, collection.borrow().to_vec());
     assert_eq!(
-        record.total_steps, LOCKSTEP_STEPS,
-        "sink must count the recorded steps"
+        record.footer.total_steps, LOCKSTEP_STEPS,
+        "the footer must carry the recorded step count"
     );
-    let total_steps = record.total_steps;
+    let total_steps = record.footer.total_steps;
     let journal_events = decode_football_events(&record.journal);
 
     let mut replay = create_football_replay_world(record).unwrap();
@@ -178,7 +178,7 @@ fn lockstep_matches_from_non_standard_initial_state() {
     world.game_mut().finish_journal().unwrap();
     let original_final = world.game().state().clone();
 
-    let record = collection.borrow_mut().take_record(header);
+    let record = Record::from_final_state(header, &original_final, collection.borrow().to_vec());
     let journal_events = decode_football_events(&record.journal);
 
     let mut replay = create_football_replay_world(record).unwrap();

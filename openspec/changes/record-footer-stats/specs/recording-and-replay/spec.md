@@ -8,7 +8,7 @@ Match recording SHALL store `Record { header: RecordHeader { config, initial_sta
 
 #### Scenario: Zero-overhead default, pre-step header snapshot, and deferred I/O errors
 - **WHEN** `RecordHeader::from_game(game, timestep)` is captured before the first `World::step` and `N` steps execute
-- **THEN** unrecorded matches incur zero allocation overhead, in-memory collection assembles a `Record` with `footer.total_steps == N` and final `elapsed_time`, `team_stats`, and `player_stats` on finalization, and streaming file recording flushes the header immediately and surfaces any write failure on `finish_journal()` rather than panicking mid-step
+- **THEN** unrecorded matches incur zero allocation overhead, the caller assembles a `Record` with `footer.total_steps == N` and final `elapsed_time`, `team_stats`, and `player_stats` on finalization, and streaming file recording flushes the header immediately and surfaces any write failure on `finish_journal()` rather than panicking mid-step
 
 #### Scenario: Final match statistics captured in footer without journal event spam
 - **WHEN** simulation systems mutate `game.state.team_stats` and `game.state.player_stats` across steps and `game.finish_journal()` is called

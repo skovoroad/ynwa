@@ -8,31 +8,10 @@ use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use uom::si::length::meter;
 
-/// Deterministic serialization of unordered collections: `HashMap`/`HashSet` iteration order
-/// differs between processes, so values are written through their ordered counterparts.
-/// Deserialization needs no counterpart — any order is accepted.
-mod sorted_collections {
-    use serde::{Serialize, Serializer};
-    use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
-
-    pub fn map<K, V, S>(value: &HashMap<K, V>, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        K: Ord + Serialize,
-        V: Serialize,
-        S: Serializer,
-    {
-        BTreeMap::from_iter(value.iter()).serialize(serializer)
-    }
-
-    pub fn set<S: Serializer>(value: &HashSet<String>, serializer: S) -> Result<S::Ok, S::Error> {
-        BTreeSet::from_iter(value.iter()).serialize(serializer)
-    }
-}
-
 /// Named numeric statistics. Keys are game-specific (defined by game managers, not core).
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct StatSet {
-    #[serde(serialize_with = "sorted_collections::map")]
+    #[serde(serialize_with = "crate::sorted_collections::map")]
     values: HashMap<String, f64>,
 }
 
@@ -85,10 +64,10 @@ pub struct PlayerDef {
     pub shot_power: u32,
     pub shot_accuracy: u32,
     pub script: String,
-    #[serde(serialize_with = "sorted_collections::map")]
+    #[serde(serialize_with = "crate::sorted_collections::map")]
     pub regions: HashMap<String, Region>,
     /// Set-piece types this player is the designated taker for (e.g. `"goal kick own"`).
-    #[serde(serialize_with = "sorted_collections::set")]
+    #[serde(serialize_with = "crate::sorted_collections::set")]
     pub set_piece_roles: HashSet<String>,
 }
 
@@ -264,12 +243,13 @@ pub struct GameConfig {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GameState {
     pub elapsed_time: f32,
+    pub step_count: u64,
     pub stage: GameStage,
     pub player_states: Vec<PlayerState>,
     pub ball_state: BallState,
     pub referee_states: Vec<RefereeState>,
     /// Indexed by Team. Populated by game-specific managers (e.g. FootballGameManager).
-    #[serde(serialize_with = "sorted_collections::map")]
+    #[serde(serialize_with = "crate::sorted_collections::map")]
     pub team_stats: HashMap<Team, StatSet>,
     /// Parallel to player_states: player_stats[i] corresponds to player_states[i].
     pub player_stats: Vec<StatSet>,
@@ -350,6 +330,7 @@ impl Game {
         Self {
             state: GameState {
                 elapsed_time: 0.0,
+                step_count: 0,
                 stage,
                 player_states,
                 ball_state: BallState {
@@ -380,11 +361,6 @@ impl Game {
         self.journal_sink.push(timestamp, event);
     }
 
-    /// Notifies the sink that the step at `timestamp` has finished.
-    pub fn finish_step(&mut self, timestamp: f32) {
-        self.journal_sink.finish_step(timestamp);
-    }
-
     /// Attaches a recording sink; replaces the no-op default.
     pub fn set_journal_sink(&mut self, sink: Box<dyn JournalSink>) {
         self.journal_sink = sink;
@@ -393,11 +369,12 @@ impl Game {
     /// Detaches the current sink, restoring the no-op default, and finalizes the recording.
     pub fn finish_journal(&mut self) -> Result<(), String> {
         let sink = std::mem::replace(&mut self.journal_sink, Box::new(NullJournalSink));
-        sink.finish()
+        sink.finish(&self.state)
     }
 
     pub fn step(&mut self, timestep: f32) {
         self.state.elapsed_time += timestep;
+        self.state.step_count += 1;
     }
 
     pub fn state(&self) -> &GameState {

@@ -10,7 +10,7 @@ use ynwa_core::field::Field;
 use ynwa_core::game::{
     BallDef, DecisionTarget, PlayerDef, RefereeDef, ScriptingConfig, REGION_START_POSITION,
 };
-use ynwa_core::record::{Record, RecordHeader};
+use ynwa_core::record::{Record, RecordFooter, RecordHeader};
 use ynwa_core::region::GridCell;
 use ynwa_core::{DefaultRngManager, Game, RngConfig, Score};
 
@@ -59,7 +59,10 @@ fn test_outcome(config: &GameConfig, state: GameState, journal: Vec<JournalEntry
                 initial_state: state.clone(),
                 timestep: 0.1,
             },
-            total_steps: 10,
+            footer: RecordFooter {
+                total_steps: 10,
+                ..RecordFooter::default()
+            },
             journal,
         },
         football_events: vec![],

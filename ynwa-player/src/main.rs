@@ -131,7 +131,7 @@ async fn run_replay(path: PathBuf, is_fullscreen: &mut bool) {
     let total_steps = replay_steps(&record, timestep);
     if total_steps == 0 {
         eprintln!("Warning: recording contains no replayable steps");
-    } else if record.total_steps == 0 {
+    } else if record.footer.total_steps == 0 {
         eprintln!(
             "Warning: recording has no footer (interrupted?); replaying {} steps up to the last event",
             total_steps
@@ -182,8 +182,8 @@ async fn run_replay(path: PathBuf, is_fullscreen: &mut bool) {
 /// A normally finished recording carries the count in its footer. A recording interrupted while
 /// being written has no footer, so it is replayed up to its last recorded event instead.
 fn replay_steps(recording: &Record, timestep: f32) -> u64 {
-    if recording.total_steps > 0 {
-        return recording.total_steps;
+    if recording.footer.total_steps > 0 {
+        return recording.footer.total_steps;
     }
     if timestep <= 0.0 {
         return 0;
