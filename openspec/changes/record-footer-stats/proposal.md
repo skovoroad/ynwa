@@ -26,5 +26,5 @@ Additionally, step counting (`total_steps`) was previously tracked outside `Game
 
 ## Impact
 
-- `ynwa-core`: `game.rs` (`GameState::step_count`, `Game::step`, `Game::finish_journal`), `world.rs` (`World::step`), `record.rs` (`RecordFooter`, `Record`), `journal.rs` (`JournalSink`, `EventsCollection`, `CollectJournalRecorder`), `codec.rs` (`RecordWriter::finish`, `RecordLine::Footer`, `JsonRecordWriter`, `JsonRecordReader`, `FileJournalRecorder`), and `record_io.rs` (`write_json_record`).
+- **ynwa-core**: `sorted_collections.rs` (extracted from `game.rs`), `game.rs` (`GameState::step_count`, `Game::step`, `Game::finish_journal`), `world.rs` (`World::step`), `record.rs` (`RecordFooter`, `Record`), `journal.rs` (`JournalSink`, `EventsCollection`, `CollectJournalRecorder`), `codec.rs` (`RecordWriter::finish`, `RecordLine::Footer`, `JsonRecordWriter`, `JsonRecordReader`, `FileJournalRecorder`), and `record_io.rs` (`write_json_record`).
 - `ynwa-player`, `ynwa-football`, and `ynwa-integration-testing`: updated to read `record.footer.total_steps`.

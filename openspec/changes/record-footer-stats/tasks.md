@@ -3,7 +3,7 @@
 ## 1. `GameState::step_count`, `RecordFooter`, and `JournalSink` Finalization in `ynwa-core`
 
 - [ ] 1.1 Add `pub step_count: u64` (initialized to `0`, incremented by `1` in `Game::step`) to `GameState` in `ynwa-core/src/game.rs`, call `self.game.step(timestep)` in `World::step` (`ynwa-core/src/world.rs`), and remove `Game::finish_step` and `JournalSink::finish_step`.
-- [ ] 1.2 Make `sorted_collections` `pub(crate)` in `ynwa-core/src/game.rs`, define `RecordFooter` (`total_steps`, `elapsed_time`, `team_stats`, `player_stats`, with `RecordFooter::from_state(state: &GameState)`) in `ynwa-core/src/record.rs`, and replace `Record::total_steps` with `pub footer: RecordFooter`.
+- [ ] 1.2 Extract `sorted_collections` from `ynwa-core/src/game.rs` into a dedicated `ynwa-core/src/sorted_collections.rs` module (`pub(crate) mod sorted_collections;` in `ynwa-core/src/lib.rs`), define `RecordFooter` (`total_steps`, `elapsed_time`, `team_stats`, `player_stats`, with `RecordFooter::from_state(state: &GameState)`) in `ynwa-core/src/record.rs` (re-exported in `ynwa-core/src/lib.rs`), and replace `Record::total_steps` with `pub footer: RecordFooter`.
 - [ ] 1.3 Update `JournalSink::finish(self: Box<Self>, final_state: &GameState)` in `ynwa-core/src/journal.rs` and `Game::finish_journal` in `ynwa-core/src/game.rs` so `Game` passes `&self.state` to the sink without depending on `RecordFooter`, remove duplicate `steps` counters from `CollectJournalRecorder` and `EventsCollection`, and verify unit tests in `ynwa-core/src/tests/world_tests.rs`, `game_tests.rs`, and `journal_tests.rs` pass with `cargo test -p ynwa-core`.
 
 ## 2. JSON Lines Footer Codec and Call-Site Updates

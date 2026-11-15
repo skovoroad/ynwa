@@ -33,9 +33,10 @@ See `proposal.md` for motivation. Currently in `ynwa-core`:
    - **Sink implementation layer (`FileJournalRecorder` / `CollectJournalRecorder`)**: Neither recorder stores a private `steps` counter. On `finish(final_state)`, `FileJournalRecorder` constructs `RecordFooter::from_state(final_state)` and passes `&footer` to `self.writer.finish(&footer)`. `CollectJournalRecorder` passes `final_state` to `EventsCollection`.
    - **Recording / Codec layer (`record.rs` <-> `codec.rs`)**: Defines `RecordFooter { pub total_steps: u64, pub elapsed_time: f32, pub team_stats: HashMap<Team, StatSet>, pub player_stats: Vec<StatSet> }` with `RecordFooter::from_state(state: &GameState)` (mapping `state.step_count` to `total_steps`), symmetric to `RecordHeader::from_game(game, timestep)`.
 
-3. **Symmetric `Record` structure (`header`, `footer`, `journal`)**:
+3. **Symmetric `Record` structure (`header`, `footer`, `journal`) and shared `sorted_collections` module**:
    - Replace `pub total_steps: u64` on `Record` with `pub footer: RecordFooter` so `Record` mirrors the 3-part stream structure (`header`, `journal`, `footer`). All call sites (`ynwa-player`, `ynwa-integration-testing`, tests) are updated to `record.footer.total_steps`.
-   - In `RecordLine::Footer(RecordFooter)`, serialize `team_stats` via `#[serde(serialize_with = "crate::game::sorted_collections::map")]` (making `sorted_collections` `pub(crate)`) for deterministic output. When `JsonRecordReader::read` recovers a crashed recording that has no `"footer"` line at all, `footer` defaults to `RecordFooter::default()`.
+   - Extract `mod sorted_collections` out of `ynwa-core/src/game.rs` into its own crate-internal module `ynwa-core/src/sorted_collections.rs` (`pub(crate) mod sorted_collections;` in `lib.rs`), shared cleanly by `game.rs` and `record.rs`.
+   - In `RecordFooter`, serialize `team_stats` via `#[serde(serialize_with = "crate::sorted_collections::map")]` for deterministic output. When `JsonRecordReader::read` recovers a crashed recording that has no `"footer"` line at all, `footer` defaults to `RecordFooter::default()`.
 
 ## Risks / Trade-offs
 
