@@ -102,6 +102,10 @@ mod tests {
             players: vec![player_0, player_1],
             ball: BallDef::default(),
             referees: vec![],
+            team_a_id: "team_a".to_string(),
+            team_b_id: "team_b".to_string(),
+            team_a_display_name: "Team A".to_string(),
+            team_b_display_name: "Team B".to_string(),
             scripting: crate::game::ScriptingConfig::empty(),
         };
 
@@ -389,6 +393,10 @@ mod tests {
             .with_speed_rate(100)], // Fast movement
             ball: BallDef::default(),
             referees: vec![],
+            team_a_id: "team_a".to_string(),
+            team_b_id: "team_b".to_string(),
+            team_a_display_name: "Team A".to_string(),
+            team_b_display_name: "Team B".to_string(),
             scripting: crate::game::ScriptingConfig::empty(),
         };
 
@@ -458,6 +466,10 @@ mod tests {
             )],
             ball: BallDef::default(),
             referees: vec![],
+            team_a_id: "team_a".to_string(),
+            team_b_id: "team_b".to_string(),
+            team_a_display_name: "Team A".to_string(),
+            team_b_display_name: "Team B".to_string(),
             scripting: crate::game::ScriptingConfig::empty(),
         };
 

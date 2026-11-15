@@ -43,6 +43,10 @@ fn game() -> Game {
             initial_position: Point3D::from_meters(10.0, 0.0, 20.0),
         },
         referees: vec![RefereeDef::default()],
+        team_a_id: "team_a".to_string(),
+        team_b_id: "team_b".to_string(),
+        team_a_display_name: "Team A".to_string(),
+        team_b_display_name: "Team B".to_string(),
         scripting: ScriptingConfig::empty(),
     };
 
@@ -79,6 +83,10 @@ fn three_player_game() -> Game {
             initial_position: Point3D::from_meters(10.0, 0.0, 20.0),
         },
         referees: vec![RefereeDef::default()],
+        team_a_id: "team_a".to_string(),
+        team_b_id: "team_b".to_string(),
+        team_a_display_name: "Team A".to_string(),
+        team_b_display_name: "Team B".to_string(),
         scripting: ScriptingConfig::empty(),
     };
 

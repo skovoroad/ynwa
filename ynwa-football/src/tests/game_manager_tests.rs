@@ -50,6 +50,10 @@ fn create_test_game_setup() -> Game {
         ],
         ball: BallDef::default(),
         referees: vec![RefereeDef::default()],
+        team_a_id: "team_a".to_string(),
+        team_b_id: "team_b".to_string(),
+        team_a_display_name: "Team A".to_string(),
+        team_b_display_name: "Team B".to_string(),
         scripting: ynwa_core::game::ScriptingConfig::empty(),
     };
 
@@ -160,6 +164,10 @@ fn test_no_updates_in_play_stage() {
             ),
         },
         referees: vec![RefereeDef::default()],
+        team_a_id: "team_a".to_string(),
+        team_b_id: "team_b".to_string(),
+        team_a_display_name: "Team A".to_string(),
+        team_b_display_name: "Team B".to_string(),
         scripting: ynwa_core::game::ScriptingConfig::empty(),
     };
 
@@ -212,6 +220,10 @@ fn test_game_resumes_after_event_triggered_setup() {
             ),
         },
         referees: vec![RefereeDef::default()],
+        team_a_id: "team_a".to_string(),
+        team_b_id: "team_b".to_string(),
+        team_a_display_name: "Team A".to_string(),
+        team_b_display_name: "Team B".to_string(),
         scripting: ynwa_core::game::ScriptingConfig::empty(),
     };
 
@@ -290,6 +302,10 @@ fn test_ball_resets_to_initial_position_in_setup() {
             initial_position: initial_ball_position,
         },
         referees: vec![RefereeDef::default()],
+        team_a_id: "team_a".to_string(),
+        team_b_id: "team_b".to_string(),
+        team_a_display_name: "Team A".to_string(),
+        team_b_display_name: "Team B".to_string(),
         scripting: ynwa_core::game::ScriptingConfig::empty(),
     };
 
@@ -399,6 +415,10 @@ fn test_handle_event_clears_decision_so_setup_position_is_requested() {
             ),
         },
         referees: vec![RefereeDef::default()],
+        team_a_id: "team_a".to_string(),
+        team_b_id: "team_b".to_string(),
+        team_a_display_name: "Team A".to_string(),
+        team_b_display_name: "Team B".to_string(),
         scripting: ynwa_core::game::ScriptingConfig::empty(),
     };
 
@@ -464,6 +484,10 @@ fn create_standard_game() -> Game {
         ],
         ball: BallDef::default(),
         referees: vec![],
+        team_a_id: "team_a".to_string(),
+        team_b_id: "team_b".to_string(),
+        team_a_display_name: "Team A".to_string(),
+        team_b_display_name: "Team B".to_string(),
         scripting: ynwa_core::game::ScriptingConfig::empty(),
     };
 
@@ -894,6 +918,10 @@ fn test_assign_setup_decisions_sends_non_taker_to_region() {
         )],
         ball: BallDef::default(),
         referees: vec![],
+        team_a_id: "team_a".to_string(),
+        team_b_id: "team_b".to_string(),
+        team_a_display_name: "Team A".to_string(),
+        team_b_display_name: "Team B".to_string(),
         scripting: ynwa_core::game::ScriptingConfig::empty(),
     };
 
@@ -948,6 +976,10 @@ fn test_assign_setup_decisions_sends_taker_to_restart_position() {
         .with_set_piece_roles(roles)],
         ball: BallDef::default(),
         referees: vec![],
+        team_a_id: "team_a".to_string(),
+        team_b_id: "team_b".to_string(),
+        team_a_display_name: "Team A".to_string(),
+        team_b_display_name: "Team B".to_string(),
         scripting: ynwa_core::game::ScriptingConfig::empty(),
     };
 
@@ -999,6 +1031,10 @@ fn test_assign_setup_decisions_sets_error_for_missing_region() {
         )],
         ball: BallDef::default(),
         referees: vec![],
+        team_a_id: "team_a".to_string(),
+        team_b_id: "team_b".to_string(),
+        team_a_display_name: "Team A".to_string(),
+        team_b_display_name: "Team B".to_string(),
         scripting: ynwa_core::game::ScriptingConfig::empty(),
     };
 
@@ -1044,6 +1080,10 @@ fn test_assign_setup_skips_players_without_needs_decision() {
         )],
         ball: BallDef::default(),
         referees: vec![],
+        team_a_id: "team_a".to_string(),
+        team_b_id: "team_b".to_string(),
+        team_a_display_name: "Team A".to_string(),
+        team_b_display_name: "Team B".to_string(),
         scripting: ynwa_core::game::ScriptingConfig::empty(),
     };
 

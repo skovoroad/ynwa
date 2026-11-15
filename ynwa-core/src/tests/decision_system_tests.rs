@@ -26,6 +26,10 @@ fn create_test_config() -> GameConfig {
         )],
         ball: BallDef::default(),
         referees: vec![RefereeDef::default()],
+        team_a_id: "team_a".to_string(),
+        team_b_id: "team_b".to_string(),
+        team_a_display_name: "Team A".to_string(),
+        team_b_display_name: "Team B".to_string(),
         scripting: crate::game::ScriptingConfig::empty(),
     }
 }
@@ -452,6 +456,10 @@ fn make_setup_game_with_player_at(x: f32, z: f32) -> Game {
         )],
         ball: BallDef::default(),
         referees: vec![RefereeDef::default()],
+        team_a_id: "team_a".to_string(),
+        team_b_id: "team_b".to_string(),
+        team_a_display_name: "Team A".to_string(),
+        team_b_display_name: "Team B".to_string(),
         scripting: crate::game::ScriptingConfig::empty(),
     };
 
@@ -568,6 +576,10 @@ fn test_play_stage_arrival_check_fires_and_stops_player() {
         )],
         ball: BallDef::default(),
         referees: vec![RefereeDef::default()],
+        team_a_id: "team_a".to_string(),
+        team_b_id: "team_b".to_string(),
+        team_a_display_name: "Team A".to_string(),
+        team_b_display_name: "Team B".to_string(),
         scripting: crate::game::ScriptingConfig::empty(),
     };
 

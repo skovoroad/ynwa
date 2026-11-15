@@ -5,7 +5,7 @@
 //! - `game_manager` - `FootballGameManager` system: stage transitions, player readiness
 //! - `events` - goal detection, out-of-bounds, game end
 //!
-//! Entry point: `create_football_world` creates a ready-to-use `World` from the team repository.
+//! Entry point: `FootballWorldBuilder` creates a ready-to-use `World` from the team repository.
 
 pub mod events;
 pub mod field_builder;
@@ -222,6 +222,8 @@ fn add_football_systems(world: &mut World, decision_system: DecisionSystem) {
 pub struct FootballWorldBuilder<'a> {
     repo: &'a dyn TeamRepository,
     preambles_path: &'a std::path::Path,
+    team_a_id: &'a str,
+    team_b_id: &'a str,
     rng: Box<dyn RngManager>,
     stage: GameStage,
     placeholder_fallback: bool,
@@ -232,10 +234,19 @@ impl<'a> FootballWorldBuilder<'a> {
         Self {
             repo,
             preambles_path,
+            team_a_id: "team_a",
+            team_b_id: "team_b",
             rng: create_player_rng_manager(),
             stage: GameStage::Setup("kick off".to_string()),
             placeholder_fallback: false,
         }
+    }
+
+    /// Selects the repository identifiers loaded as `Team::A` and `Team::B`.
+    pub fn with_teams(mut self, team_a_id: &'a str, team_b_id: &'a str) -> Self {
+        self.team_a_id = team_a_id;
+        self.team_b_id = team_b_id;
+        self
     }
 
     pub fn with_rng(mut self, rng: Box<dyn RngManager>) -> Self {
@@ -286,6 +297,8 @@ impl<'a> FootballWorldBuilder<'a> {
         let FootballWorldBuilder {
             repo,
             preambles_path,
+            team_a_id,
+            team_b_id,
             rng,
             stage,
             ..
@@ -294,13 +307,13 @@ impl<'a> FootballWorldBuilder<'a> {
         let field = create_football_field();
         let grid_dims = field.grid_dimensions();
 
-        let team_a_record = repo.load_team("team_a")?;
-        let team_b_record = repo.load_team("team_b")?;
+        let team_a_record = repo.load_team(team_a_id)?;
+        let team_b_record = repo.load_team(team_b_id)?;
 
-        validate_on_ball(&team_a_record, "team_a")?;
-        validate_on_ball(&team_b_record, "team_b")?;
-        validate_set_piece_keys(&team_a_record, "team_a")?;
-        validate_set_piece_keys(&team_b_record, "team_b")?;
+        validate_on_ball(&team_a_record, team_a_id)?;
+        validate_on_ball(&team_b_record, team_b_id)?;
+        validate_set_piece_keys(&team_a_record, team_a_id)?;
+        validate_set_piece_keys(&team_b_record, team_b_id)?;
 
         let mut players = build_player_defs(Team::A, &team_a_record, grid_dims)?;
         players.extend(build_player_defs(Team::B, &team_b_record, grid_dims)?);
@@ -312,6 +325,10 @@ impl<'a> FootballWorldBuilder<'a> {
         };
 
         let game_config = GameConfig {
+            team_a_id: team_a_id.to_string(),
+            team_b_id: team_b_id.to_string(),
+            team_a_display_name: team_a_record.display_name.clone(),
+            team_b_display_name: team_b_record.display_name.clone(),
             field: field.clone(),
             players,
             ball: BallDef {
@@ -328,22 +345,6 @@ impl<'a> FootballWorldBuilder<'a> {
 
         Ok(Game::with_stage(game_config, stage, rng))
     }
-}
-
-/// Creates a football world from team repository.
-///
-/// `repo` supplies both teams (`"team_a"` and `"team_b"`) and their preambles.
-/// `preambles_path` - directory containing `core.lua` and `stdlib.lua`.
-/// Uses the playable defaults (`0.7` RNG temperature) and falls back to the placeholder decision
-/// system when the Lua decision engine fails to initialize; repository, tactics and preamble
-/// errors are still returned as `Err`.
-pub fn create_football_world(
-    repo: &dyn TeamRepository,
-    preambles_path: &std::path::Path,
-) -> Result<World, String> {
-    FootballWorldBuilder::new(repo, preambles_path)
-        .with_placeholder_fallback()
-        .build()
 }
 
 #[cfg(test)]
@@ -429,6 +430,10 @@ mod tests {
                 initial_position: ball_initial_position,
             },
             referees: vec![RefereeDef::default()],
+            team_a_id: "team_a".to_string(),
+            team_b_id: "team_b".to_string(),
+            team_a_display_name: "Team A".to_string(),
+            team_b_display_name: "Team B".to_string(),
             scripting: ynwa_core::game::ScriptingConfig::empty(),
         }
     }
@@ -499,7 +504,9 @@ mod tests {
         }
 
         let repo = ynwa_repository::FsTeamRepository::new(teams_path);
-        let world = create_football_world(&repo, preambles_path)
+        let world = FootballWorldBuilder::new(&repo, preambles_path)
+            .with_placeholder_fallback()
+            .build()
             .expect("Failed to create world from repository");
 
         assert_eq!(world.game().config().players.len(), 22);
@@ -528,6 +535,7 @@ mod tests {
             .into(),
         };
         let record = TeamRecord {
+            display_name: String::new(),
             preamble: String::new(),
             players: vec![PlayerRecord {
                 static_data: PlayerStatic {
@@ -588,6 +596,7 @@ mod tests {
             .into(),
         };
         let record = TeamRecord {
+            display_name: String::new(),
             preamble: String::new(),
             players: vec![PlayerRecord {
                 static_data: PlayerStatic {
@@ -641,6 +650,7 @@ mod tests {
             .into(),
         };
         let record = TeamRecord {
+            display_name: String::new(),
             preamble: String::new(),
             players: vec![PlayerRecord {
                 static_data: PlayerStatic {
@@ -688,6 +698,7 @@ mod tests {
     fn make_team_record(players_positions: &[&[(&str, &str)]]) -> TeamRecord {
         use ynwa_core::repository::{PlayerRecord, PlayerStatic, PlayerTactical, TeamRecord};
         TeamRecord {
+            display_name: String::new(),
             preamble: String::new(),
             players: players_positions
                 .iter()

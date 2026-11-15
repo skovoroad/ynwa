@@ -42,7 +42,7 @@ pub fn draw_control_panel(
     );
     y_offset += line_height * 1.5;
 
-    draw_score(panel_x, y_offset, game_state);
+    draw_score(panel_x, y_offset, game_config, game_state);
     y_offset += line_height * 2.0;
 
     // `Some` marks the replay panel (drawn even before the first event); `None` is play/record.
@@ -66,7 +66,19 @@ pub fn draw_control_panel(
     draw_player_decisions_table(panel_x, y_offset, game_config, game_state);
 }
 
-fn draw_score(x: f32, y: f32, game_state: &GameState) {
+fn score_text(
+    team_a_display_name: &str,
+    score_a: u32,
+    score_b: u32,
+    team_b_display_name: &str,
+) -> String {
+    format!(
+        "Score: {} {}  :  {} {}",
+        team_a_display_name, score_a, score_b, team_b_display_name
+    )
+}
+
+fn draw_score(x: f32, y: f32, game_config: &GameConfig, game_state: &GameState) {
     let score_a = game_state
         .team_stats
         .get(&Team::A)
@@ -76,7 +88,12 @@ fn draw_score(x: f32, y: f32, game_state: &GameState) {
         .get(&Team::B)
         .map_or(0.0, |s| s.get("score")) as u32;
     draw_text(
-        &format!("Score:  A {}  :  {} B", score_a, score_b),
+        &score_text(
+            &game_config.team_a_display_name,
+            score_a,
+            score_b,
+            &game_config.team_b_display_name,
+        ),
         x,
         y,
         24.0,
@@ -191,8 +208,20 @@ fn draw_player_decisions_table(
     let col_width = (screen_width() - x) / 2.0 - 10.0;
     let table_y = start_y + 30.0;
 
-    draw_player_column(x, table_y, &team_a, game_state, "Team A");
-    draw_player_column(x + col_width, table_y, &team_b, game_state, "Team B");
+    draw_player_column(
+        x,
+        table_y,
+        &team_a,
+        game_state,
+        &game_config.team_a_display_name,
+    );
+    draw_player_column(
+        x + col_width,
+        table_y,
+        &team_b,
+        game_state,
+        &game_config.team_b_display_name,
+    );
 }
 
 fn team_label(team: Team) -> &'static str {

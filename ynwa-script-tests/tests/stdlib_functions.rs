@@ -544,6 +544,10 @@ fn make_is_in_region_obj_game(
             players: vec![player],
             ball: BallDef::default(),
             referees: vec![RefereeDef::default()],
+            team_a_id: "team_a".to_string(),
+            team_b_id: "team_b".to_string(),
+            team_a_display_name: "Team A".to_string(),
+            team_b_display_name: "Team B".to_string(),
             scripting: ynwa_core::game::ScriptingConfig {
                 core_preamble: load("ynwa-scripts/preambles/core.lua"),
                 stdlib_preamble: load("ynwa-scripts/preambles/stdlib.lua"),
@@ -634,6 +638,10 @@ fn test_pass_to_players_by_numbers_found() {
             players: vec![caller, target],
             ball: BallDef::default(),
             referees: vec![RefereeDef::default()],
+            team_a_id: "team_a".to_string(),
+            team_b_id: "team_b".to_string(),
+            team_a_display_name: "Team A".to_string(),
+            team_b_display_name: "Team B".to_string(),
             scripting: ynwa_core::game::ScriptingConfig {
                 core_preamble,
                 stdlib_preamble,

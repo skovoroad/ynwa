@@ -102,6 +102,10 @@ fn test_game_config() -> GameConfig {
             initial_position: Point3D::on_ground(34.0, 52.3),
         },
         referees: vec![RefereeDef::default()],
+        team_a_id: "team_a".to_string(),
+        team_b_id: "team_b".to_string(),
+        team_a_display_name: "Team A".to_string(),
+        team_b_display_name: "Team B".to_string(),
         scripting: ScriptingConfig {
             core_preamble: "core".to_string(),
             stdlib_preamble: "stdlib".to_string(),

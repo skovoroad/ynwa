@@ -49,6 +49,10 @@ fn create_test_game() -> Game {
         players,
         ball: BallDef::default(),
         referees: vec![RefereeDef::default()],
+        team_a_id: "team_a".to_string(),
+        team_b_id: "team_b".to_string(),
+        team_a_display_name: "Team A".to_string(),
+        team_b_display_name: "Team B".to_string(),
         scripting: crate::game::ScriptingConfig::empty(),
     };
 
@@ -151,6 +155,10 @@ fn make_setup_game() -> Game {
         players,
         ball: BallDef::default(),
         referees: vec![RefereeDef::default()],
+        team_a_id: "team_a".to_string(),
+        team_b_id: "team_b".to_string(),
+        team_a_display_name: "Team A".to_string(),
+        team_b_display_name: "Team B".to_string(),
         scripting: crate::game::ScriptingConfig::empty(),
     };
 
@@ -247,6 +255,10 @@ fn test_setup_ignores_reaction_rate_interval() {
         players,
         ball: BallDef::default(),
         referees: vec![RefereeDef::default()],
+        team_a_id: "team_a".to_string(),
+        team_b_id: "team_b".to_string(),
+        team_a_display_name: "Team A".to_string(),
+        team_b_display_name: "Team B".to_string(),
         scripting: crate::game::ScriptingConfig::empty(),
     };
     let mut game = Game::with_stage(

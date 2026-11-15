@@ -11,7 +11,7 @@ use ynwa_core::{
     json_journal_file_reader, json_journal_file_writer, FileJournalRecorder, JournalEntry, Record,
     RecordHeader, RecordReader, World,
 };
-use ynwa_football::{create_football_replay_world, create_football_world};
+use ynwa_football::{create_football_replay_world, FootballWorldBuilder};
 use ynwa_repository::FsTeamRepository;
 
 use cli::{games_dir, next_record_path, parse, Cli, Mode};
@@ -53,10 +53,7 @@ async fn main() {
 
 async fn run_play(cli: &Cli, is_fullscreen: &mut bool) {
     let repo = FsTeamRepository::new(&cli.teams_path);
-    let mut world = load_or_exit(
-        create_football_world(&repo, &cli.preambles_path),
-        "load game",
-    );
+    let mut world = load_or_exit(load_world(cli, &repo), "load game");
     print_loaded(&world);
 
     let field_ratio = field_width_ratio(&world);
@@ -76,10 +73,7 @@ async fn run_play(cli: &Cli, is_fullscreen: &mut bool) {
 
 async fn run_record(cli: &Cli, is_fullscreen: &mut bool) {
     let repo = FsTeamRepository::new(&cli.teams_path);
-    let mut world = load_or_exit(
-        create_football_world(&repo, &cli.preambles_path),
-        "load game",
-    );
+    let mut world = load_or_exit(load_world(cli, &repo), "load game");
     print_loaded(&world);
 
     let field_ratio = field_width_ratio(&world);
@@ -180,6 +174,13 @@ async fn run_replay(path: PathBuf, is_fullscreen: &mut bool) {
 
         next_frame().await
     }
+}
+
+fn load_world(cli: &Cli, repo: &FsTeamRepository) -> Result<World, String> {
+    FootballWorldBuilder::new(repo, &cli.preambles_path)
+        .with_teams(&cli.team_a_id, &cli.team_b_id)
+        .with_placeholder_fallback()
+        .build()
 }
 
 /// Number of steps to replay.

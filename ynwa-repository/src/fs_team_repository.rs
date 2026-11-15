@@ -6,6 +6,11 @@ use ynwa_core::repository::{
 };
 
 #[derive(Debug, Deserialize)]
+struct MetaToml {
+    display_name: String,
+}
+
+#[derive(Debug, Deserialize)]
 struct StaticToml {
     name: String,
     reaction_rate: u32,
@@ -82,6 +87,13 @@ impl TeamRepository for FsTeamRepository {
         let preamble = std::fs::read_to_string(&preamble_path)
             .map_err(|e| format!("Cannot read '{}': {}", preamble_path.display(), e))?;
 
+        let meta_path = team_dir.join("meta.toml");
+        let display_name = if meta_path.exists() {
+            read_toml::<MetaToml>(&meta_path)?.display_name
+        } else {
+            team_id.to_string()
+        };
+
         let players_dir = team_dir.join("players");
         let mut entries: Vec<_> = std::fs::read_dir(&players_dir)
             .map_err(|e| format!("Cannot read '{}': {}", players_dir.display(), e))?
@@ -101,6 +113,10 @@ impl TeamRepository for FsTeamRepository {
             return Err(format!("No players found in '{}'", players_dir.display()));
         }
 
-        Ok(TeamRecord { players, preamble })
+        Ok(TeamRecord {
+            display_name,
+            players,
+            preamble,
+        })
     }
 }

@@ -1,4 +1,4 @@
-use super::event_text;
+use super::{event_text, score_text};
 use serde_json::json;
 use ynwa_core::field::zones::{Point3D, Velocity3D};
 use ynwa_core::game::{Decision, GameStage};
@@ -18,6 +18,18 @@ fn football_external(event: FootballEvent) -> JournalEvent {
         "football_event",
         serde_json::to_value(event).expect("serialize football event"),
     )
+}
+
+#[test]
+fn score_text_uses_display_names() {
+    let cases = [
+        (("Home", 2, 1, "Away"), "Score: Home 2  :  1 Away"),
+        (("Team A", 0, 3, "Team B"), "Score: Team A 0  :  3 Team B"),
+    ];
+
+    for ((team_a, score_a, score_b, team_b), expected) in cases {
+        assert_eq!(score_text(team_a, score_a, score_b, team_b), expected);
+    }
 }
 
 #[test]

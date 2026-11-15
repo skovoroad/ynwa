@@ -37,6 +37,10 @@ fn test_config(players: &[(Team, u32)]) -> GameConfig {
         players: defs,
         ball: BallDef::default(),
         referees: vec![RefereeDef::default()],
+        team_a_id: "team_a".to_string(),
+        team_b_id: "team_b".to_string(),
+        team_a_display_name: "Team A".to_string(),
+        team_b_display_name: "Team B".to_string(),
         scripting: ScriptingConfig::empty(),
     }
 }

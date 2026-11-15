@@ -232,6 +232,10 @@ impl Default for GameStage {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GameConfig {
+    pub team_a_id: String,
+    pub team_b_id: String,
+    pub team_a_display_name: String,
+    pub team_b_display_name: String,
     pub field: Field,
     pub players: Vec<PlayerDef>,
     pub ball: BallDef,

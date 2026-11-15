@@ -3,6 +3,8 @@ use std::path::{Path, PathBuf};
 pub const DEFAULT_TEAMS_PATH: &str = "teams";
 pub const DEFAULT_PREAMBLES_PATH: &str = "ynwa-scripts/preambles";
 pub const DEFAULT_MATCH_DURATION: f32 = 120.0;
+pub const DEFAULT_TEAM_A_ID: &str = "team_a";
+pub const DEFAULT_TEAM_B_ID: &str = "team_b";
 
 pub enum Mode {
     Play,
@@ -14,6 +16,8 @@ pub struct Cli {
     pub mode: Mode,
     pub teams_path: PathBuf,
     pub preambles_path: PathBuf,
+    pub team_a_id: String,
+    pub team_b_id: String,
     pub out_dir: Option<PathBuf>,
     pub duration: f32,
 }
@@ -23,6 +27,8 @@ pub fn parse(args: &[String]) -> Result<Cli, String> {
     let mut replay: Option<PathBuf> = None;
     let mut out_dir: Option<PathBuf> = None;
     let mut duration: Option<f32> = None;
+    let mut team_a_id: Option<String> = None;
+    let mut team_b_id: Option<String> = None;
     let mut positionals: Vec<String> = Vec::new();
 
     let mut index = 0;
@@ -56,6 +62,20 @@ pub fn parse(args: &[String]) -> Result<Cli, String> {
                 index += 1;
                 duration = Some(parse_duration(option_value(args, index, "--duration")?)?);
             }
+            "--team-a" => {
+                if team_a_id.is_some() {
+                    return Err("--team-a specified more than once".to_string());
+                }
+                index += 1;
+                team_a_id = Some(option_value(args, index, "--team-a")?.to_string());
+            }
+            "--team-b" => {
+                if team_b_id.is_some() {
+                    return Err("--team-b specified more than once".to_string());
+                }
+                index += 1;
+                team_b_id = Some(option_value(args, index, "--team-b")?.to_string());
+            }
             other if other.starts_with("--") => {
                 return Err(format!("unknown flag: {}", other));
             }
@@ -72,6 +92,9 @@ pub fn parse(args: &[String]) -> Result<Cli, String> {
     }
     if duration.is_some() && replay.is_some() {
         return Err("--duration and --replay cannot be used together".to_string());
+    }
+    if replay.is_some() && (team_a_id.is_some() || team_b_id.is_some()) {
+        return Err("--team-a and --team-b cannot be used with --replay".to_string());
     }
     if positionals.len() > 2 {
         return Err("at most two positional arguments are allowed".to_string());
@@ -99,6 +122,8 @@ pub fn parse(args: &[String]) -> Result<Cli, String> {
                 .map(String::as_str)
                 .unwrap_or(DEFAULT_PREAMBLES_PATH),
         ),
+        team_a_id: team_a_id.unwrap_or_else(|| DEFAULT_TEAM_A_ID.to_string()),
+        team_b_id: team_b_id.unwrap_or_else(|| DEFAULT_TEAM_B_ID.to_string()),
         out_dir,
         duration: duration.unwrap_or(DEFAULT_MATCH_DURATION),
     })

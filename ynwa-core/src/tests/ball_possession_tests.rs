@@ -79,6 +79,10 @@ fn test_no_players_nearby() {
         players: vec![player_def],
         ball: BallDef::default(),
         referees: vec![RefereeDef::default()],
+        team_a_id: "team_a".to_string(),
+        team_b_id: "team_b".to_string(),
+        team_a_display_name: "Team A".to_string(),
+        team_b_display_name: "Team B".to_string(),
         scripting: crate::game::ScriptingConfig::empty(),
     };
 
@@ -110,6 +114,10 @@ fn test_single_player_nearby() {
         players: vec![player_def],
         ball: BallDef::default(),
         referees: vec![RefereeDef::default()],
+        team_a_id: "team_a".to_string(),
+        team_b_id: "team_b".to_string(),
+        team_a_display_name: "Team A".to_string(),
+        team_b_display_name: "Team B".to_string(),
         scripting: crate::game::ScriptingConfig::empty(),
     };
 
@@ -152,6 +160,10 @@ fn test_two_players_deterministic_selection() {
         players: vec![player1_def, player2_def],
         ball: BallDef::default(),
         referees: vec![RefereeDef::default()],
+        team_a_id: "team_a".to_string(),
+        team_b_id: "team_b".to_string(),
+        team_a_display_name: "Team A".to_string(),
+        team_b_display_name: "Team B".to_string(),
         scripting: crate::game::ScriptingConfig::empty(),
     };
 
@@ -195,6 +207,10 @@ fn test_two_players_probabilistic_upset() {
         players: vec![player1_def, player2_def],
         ball: BallDef::default(),
         referees: vec![RefereeDef::default()],
+        team_a_id: "team_a".to_string(),
+        team_b_id: "team_b".to_string(),
+        team_a_display_name: "Team A".to_string(),
+        team_b_display_name: "Team B".to_string(),
         scripting: crate::game::ScriptingConfig::empty(),
     };
 
@@ -237,6 +253,10 @@ fn test_extreme_difference_weak_can_still_win() {
         players: vec![player1_def, player2_def],
         ball: BallDef::default(),
         referees: vec![RefereeDef::default()],
+        team_a_id: "team_a".to_string(),
+        team_b_id: "team_b".to_string(),
+        team_a_display_name: "Team A".to_string(),
+        team_b_display_name: "Team B".to_string(),
         scripting: crate::game::ScriptingConfig::empty(),
     };
 
@@ -279,6 +299,10 @@ fn test_moderate_difference_upset_possible() {
         players: vec![player1_def, player2_def],
         ball: BallDef::default(),
         referees: vec![RefereeDef::default()],
+        team_a_id: "team_a".to_string(),
+        team_b_id: "team_b".to_string(),
+        team_a_display_name: "Team A".to_string(),
+        team_b_display_name: "Team B".to_string(),
         scripting: crate::game::ScriptingConfig::empty(),
     };
 
@@ -313,6 +337,10 @@ fn test_possession_cooldown_prevents_immediate_change() {
         players: vec![player1_def, player2_def],
         ball: BallDef::default(),
         referees: vec![RefereeDef::default()],
+        team_a_id: "team_a".to_string(),
+        team_b_id: "team_b".to_string(),
+        team_a_display_name: "Team A".to_string(),
+        team_b_display_name: "Team B".to_string(),
         scripting: crate::game::ScriptingConfig::empty(),
     };
 
@@ -363,6 +391,10 @@ fn test_possession_cooldown_allows_change_after_timeout() {
         players: vec![player1_def, player2_def],
         ball: BallDef::default(),
         referees: vec![RefereeDef::default()],
+        team_a_id: "team_a".to_string(),
+        team_b_id: "team_b".to_string(),
+        team_a_display_name: "Team A".to_string(),
+        team_b_display_name: "Team B".to_string(),
         scripting: crate::game::ScriptingConfig::empty(),
     };
 
@@ -403,6 +435,10 @@ fn test_no_possession_change_updates_timestamp() {
         players: vec![player_def],
         ball: BallDef::default(),
         referees: vec![RefereeDef::default()],
+        team_a_id: "team_a".to_string(),
+        team_b_id: "team_b".to_string(),
+        team_a_display_name: "Team A".to_string(),
+        team_b_display_name: "Team B".to_string(),
         scripting: crate::game::ScriptingConfig::empty(),
     };
 
@@ -464,6 +500,10 @@ fn test_possession_change_triggers_all_players_decision() {
         players: vec![player1_def, player2_def, player3_def],
         ball: BallDef::default(),
         referees: vec![RefereeDef::default()],
+        team_a_id: "team_a".to_string(),
+        team_b_id: "team_b".to_string(),
+        team_a_display_name: "Team A".to_string(),
+        team_b_display_name: "Team B".to_string(),
         scripting: crate::game::ScriptingConfig::empty(),
     };
 
@@ -515,6 +555,10 @@ fn test_no_possession_change_no_decision_trigger() {
         players: vec![player1_def, player2_def],
         ball: BallDef::default(),
         referees: vec![RefereeDef::default()],
+        team_a_id: "team_a".to_string(),
+        team_b_id: "team_b".to_string(),
+        team_a_display_name: "Team A".to_string(),
+        team_b_display_name: "Team B".to_string(),
         scripting: crate::game::ScriptingConfig::empty(),
     };
 
@@ -571,6 +615,10 @@ fn test_possession_transfer_triggers_decision() {
         players: vec![player1_def, player2_def],
         ball: BallDef::default(),
         referees: vec![RefereeDef::default()],
+        team_a_id: "team_a".to_string(),
+        team_b_id: "team_b".to_string(),
+        team_a_display_name: "Team A".to_string(),
+        team_b_display_name: "Team B".to_string(),
         scripting: crate::game::ScriptingConfig::empty(),
     };
 
@@ -636,6 +684,10 @@ fn test_teammates_dont_steal_from_each_other() {
         players: vec![player1_def, player2_def, player3_def],
         ball: BallDef::default(),
         referees: vec![RefereeDef::default()],
+        team_a_id: "team_a".to_string(),
+        team_b_id: "team_b".to_string(),
+        team_a_display_name: "Team A".to_string(),
+        team_b_display_name: "Team B".to_string(),
         scripting: crate::game::ScriptingConfig::empty(),
     };
 
@@ -679,6 +731,10 @@ fn test_opponents_can_steal_from_owner() {
         players: vec![player1_def, player2_def],
         ball: BallDef::default(),
         referees: vec![RefereeDef::default()],
+        team_a_id: "team_a".to_string(),
+        team_b_id: "team_b".to_string(),
+        team_a_display_name: "Team A".to_string(),
+        team_b_display_name: "Team B".to_string(),
         scripting: crate::game::ScriptingConfig::empty(),
     };
 
@@ -726,6 +782,10 @@ fn test_teammates_nearby_opponent_far_keeps_possession() {
         players: vec![player1_def, player2_def, player3_def],
         ball: BallDef::default(),
         referees: vec![RefereeDef::default()],
+        team_a_id: "team_a".to_string(),
+        team_b_id: "team_b".to_string(),
+        team_a_display_name: "Team A".to_string(),
+        team_b_display_name: "Team B".to_string(),
         scripting: crate::game::ScriptingConfig::empty(),
     };
 
@@ -765,6 +825,10 @@ fn test_skipped_during_setup_stage() {
         players: vec![player_def],
         ball: BallDef::default(),
         referees: vec![RefereeDef::default()],
+        team_a_id: "team_a".to_string(),
+        team_b_id: "team_b".to_string(),
+        team_a_display_name: "Team A".to_string(),
+        team_b_display_name: "Team B".to_string(),
         scripting: crate::game::ScriptingConfig::empty(),
     };
 
@@ -807,6 +871,10 @@ fn test_last_possessing_team_tracks_during_pass() {
         players: vec![player1_def, player2_def],
         ball: BallDef::default(),
         referees: vec![RefereeDef::default()],
+        team_a_id: "team_a".to_string(),
+        team_b_id: "team_b".to_string(),
+        team_a_display_name: "Team A".to_string(),
+        team_b_display_name: "Team B".to_string(),
         scripting: crate::game::ScriptingConfig::empty(),
     };
 
@@ -853,6 +921,10 @@ fn test_last_possessing_team_changes_on_interception() {
         players: vec![player1_def, player2_def],
         ball: BallDef::default(),
         referees: vec![RefereeDef::default()],
+        team_a_id: "team_a".to_string(),
+        team_b_id: "team_b".to_string(),
+        team_a_display_name: "Team A".to_string(),
+        team_b_display_name: "Team B".to_string(),
         scripting: crate::game::ScriptingConfig::empty(),
     };
 
@@ -883,6 +955,10 @@ fn possession_game(ball_pos: Point3D, player_pos: Point3D) -> Game {
         players: vec![player_def],
         ball: BallDef::default(),
         referees: vec![RefereeDef::default()],
+        team_a_id: "team_a".to_string(),
+        team_b_id: "team_b".to_string(),
+        team_a_display_name: "Team A".to_string(),
+        team_b_display_name: "Team B".to_string(),
         scripting: crate::game::ScriptingConfig::empty(),
     };
 

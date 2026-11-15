@@ -48,6 +48,10 @@ pub fn create_test_game_with_script_and_stage(script: &str, stage: GameStage) ->
         )],
         ball: BallDef::default(),
         referees: vec![RefereeDef::default()],
+        team_a_id: "team_a".to_string(),
+        team_b_id: "team_b".to_string(),
+        team_a_display_name: "Team A".to_string(),
+        team_b_display_name: "Team B".to_string(),
         scripting: ynwa_core::game::ScriptingConfig::empty(),
     };
 
@@ -114,6 +118,10 @@ pub fn create_test_game_with_preambles_and_stage(script: &str, stage: GameStage)
         )],
         ball: BallDef::default(),
         referees: vec![RefereeDef::default()],
+        team_a_id: "team_a".to_string(),
+        team_b_id: "team_b".to_string(),
+        team_a_display_name: "Team A".to_string(),
+        team_b_display_name: "Team B".to_string(),
         scripting: ynwa_core::game::ScriptingConfig {
             core_preamble,
             stdlib_preamble,
@@ -163,6 +171,10 @@ pub fn create_test_game_with_full_preambles_and_stage(script: &str, stage: GameS
         )],
         ball: BallDef::default(),
         referees: vec![RefereeDef::default()],
+        team_a_id: "team_a".to_string(),
+        team_b_id: "team_b".to_string(),
+        team_a_display_name: "Team A".to_string(),
+        team_b_display_name: "Team B".to_string(),
         scripting: ynwa_core::game::ScriptingConfig {
             core_preamble,
             stdlib_preamble,
@@ -210,6 +222,10 @@ pub fn create_test_game_football_field_with_preambles(script: &str) -> Game {
         )],
         ball: BallDef::default(),
         referees: vec![RefereeDef::default()],
+        team_a_id: "team_a".to_string(),
+        team_b_id: "team_b".to_string(),
+        team_a_display_name: "Team A".to_string(),
+        team_b_display_name: "Team B".to_string(),
         scripting: ynwa_core::game::ScriptingConfig {
             core_preamble,
             stdlib_preamble,
@@ -241,6 +257,10 @@ pub fn create_test_game_with_all_preambles(players: Vec<PlayerDef>) -> Game {
         players,
         ball: BallDef::default(),
         referees: vec![RefereeDef::default()],
+        team_a_id: "team_a".to_string(),
+        team_b_id: "team_b".to_string(),
+        team_a_display_name: "Team A".to_string(),
+        team_b_display_name: "Team B".to_string(),
         scripting: ynwa_core::game::ScriptingConfig {
             core_preamble: load("ynwa-scripts/preambles/core.lua"),
             stdlib_preamble: load("ynwa-scripts/preambles/stdlib.lua"),

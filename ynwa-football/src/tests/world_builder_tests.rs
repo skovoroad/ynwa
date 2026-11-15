@@ -2,7 +2,8 @@
 //! placeholder fallback used by the playable entry point.
 
 use crate::test_utils::deterministic_rng;
-use crate::{create_football_world, FootballWorldBuilder};
+use crate::FootballWorldBuilder;
+use std::cell::RefCell;
 use ynwa_core::game::GameStage;
 use ynwa_core::repository::{TeamRecord, TeamRepository};
 use ynwa_repository::FsTeamRepository;
@@ -17,6 +18,39 @@ impl TeamRepository for BrokenPreambleRepository<'_> {
         let mut record = self.inner.load_team(team_id)?;
         record.preamble = "this is not valid lua !!!".to_string();
         Ok(record)
+    }
+}
+
+/// Serves the real `team_a` data for any requested id, deriving a display name from that id and
+/// recording every request so tests can assert which identifiers were loaded.
+struct RecordingRepository<'a> {
+    inner: &'a FsTeamRepository,
+    requested: RefCell<Vec<String>>,
+    strip_set_piece_positions: bool,
+}
+
+impl TeamRepository for RecordingRepository<'_> {
+    fn load_team(&self, team_id: &str) -> Result<TeamRecord, String> {
+        self.requested.borrow_mut().push(team_id.to_string());
+        let mut record = self.inner.load_team("team_a")?;
+        record.display_name = format!("Display {}", team_id);
+        if self.strip_set_piece_positions {
+            for player in &mut record.players {
+                player.tactical.set_piece_positions.clear();
+            }
+        }
+        Ok(record)
+    }
+}
+
+fn recording_repository(
+    inner: &FsTeamRepository,
+    strip_set_piece_positions: bool,
+) -> RecordingRepository<'_> {
+    RecordingRepository {
+        inner,
+        requested: RefCell::new(Vec::new()),
+        strip_set_piece_positions,
     }
 }
 
@@ -108,6 +142,71 @@ fn placeholder_fallback_does_not_hide_missing_preamble() {
 }
 
 #[test]
+fn custom_team_ids_are_loaded_and_stored_in_config() {
+    let repo = real_repository();
+    let recording = recording_repository(&repo, false);
+
+    let world = FootballWorldBuilder::new(&recording, preambles_path())
+        .with_rng(deterministic_rng())
+        .with_teams("pressing", "counter")
+        .build()
+        .expect("custom team ids must build");
+
+    assert_eq!(
+        *recording.requested.borrow(),
+        vec!["pressing".to_string(), "counter".to_string()]
+    );
+    let config = world.game().config();
+    assert_eq!(config.team_a_id, "pressing");
+    assert_eq!(config.team_b_id, "counter");
+    assert_eq!(config.team_a_display_name, "Display pressing");
+    assert_eq!(config.team_b_display_name, "Display counter");
+    assert_eq!(config.players.len(), 22);
+}
+
+#[test]
+fn a_team_can_play_against_itself() {
+    let repo = real_repository();
+    let recording = recording_repository(&repo, false);
+
+    let world = FootballWorldBuilder::new(&recording, preambles_path())
+        .with_rng(deterministic_rng())
+        .with_teams("pressing", "pressing")
+        .build()
+        .expect("a team must be able to play against itself");
+
+    assert_eq!(
+        *recording.requested.borrow(),
+        vec!["pressing".to_string(), "pressing".to_string()]
+    );
+    let config = world.game().config();
+    assert_eq!(config.team_a_id, "pressing");
+    assert_eq!(config.team_b_id, "pressing");
+    assert_eq!(config.team_a_display_name, "Display pressing");
+    assert_eq!(config.team_b_display_name, "Display pressing");
+    assert_eq!(config.players.len(), 22);
+}
+
+#[test]
+fn validation_errors_reference_custom_team_ids() {
+    let repo = real_repository();
+    let broken = recording_repository(&repo, true);
+
+    let error = FootballWorldBuilder::new(&broken, preambles_path())
+        .with_rng(deterministic_rng())
+        .with_teams("broken_a", "broken_b")
+        .build()
+        .map(|_| ())
+        .unwrap_err();
+
+    assert!(
+        error.contains("team broken_a"),
+        "unexpected error: {}",
+        error
+    );
+}
+
+#[test]
 fn build_applies_requested_stage() {
     let repo = real_repository();
 
@@ -119,14 +218,4 @@ fn build_applies_requested_stage() {
 
     assert_eq!(world.game().config().players.len(), 22);
     assert_eq!(world.game().state().stage, GameStage::Play);
-}
-
-#[test]
-fn default_wrapper_builds_playable_world() {
-    let repo = real_repository();
-
-    let world = create_football_world(&repo, preambles_path())
-        .expect("valid repository must build through the default wrapper");
-
-    assert_eq!(world.game().config().players.len(), 22);
 }

@@ -13,6 +13,10 @@ fn test_config() -> GameConfig {
         players: Vec::new(),
         ball: BallDef::default(),
         referees: Vec::new(),
+        team_a_id: "team_a".to_string(),
+        team_b_id: "team_b".to_string(),
+        team_a_display_name: "Team A".to_string(),
+        team_b_display_name: "Team B".to_string(),
         scripting: ScriptingConfig::empty(),
     }
 }

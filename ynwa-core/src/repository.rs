@@ -32,6 +32,8 @@ pub struct PlayerRecord {
 
 /// All data needed to build one team.
 pub struct TeamRecord {
+    /// Human-readable team name from `meta.toml`, defaulting to the repository `team_id`.
+    pub display_name: String,
     pub players: Vec<PlayerRecord>,
     /// Contents of `preamble.lua`.
     pub preamble: String,

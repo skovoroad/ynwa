@@ -237,4 +237,35 @@ defence = "A1"
         assert_eq!(spp.get("corner own left").map(String::as_str), Some("D4"));
         assert!(!spp.contains_key("corner own right"));
     }
+
+    fn minimal_team_dir(root: &std::path::Path, team_id: &str) -> std::path::PathBuf {
+        let team_dir = root.join(team_id);
+        let player_dir = team_dir.join("players/01");
+        fs::create_dir_all(&player_dir).unwrap();
+        fs::write(team_dir.join("preamble.lua"), "-- x").unwrap();
+        fs::write(player_dir.join("static.toml"), static_toml_content()).unwrap();
+        fs::write(player_dir.join("tactical.toml"), tactical_toml_content()).unwrap();
+        team_dir
+    }
+
+    #[test]
+    fn meta_toml_provides_display_name() {
+        let tmp = tempfile::tempdir().unwrap();
+        let team_dir = minimal_team_dir(tmp.path(), "t");
+        fs::write(team_dir.join("meta.toml"), "display_name = \"Custom Team\"").unwrap();
+
+        let team = FsTeamRepository::new(tmp.path()).load_team("t").unwrap();
+        assert_eq!(team.display_name, "Custom Team");
+    }
+
+    #[test]
+    fn missing_meta_toml_falls_back_to_team_id() {
+        let tmp = tempfile::tempdir().unwrap();
+        minimal_team_dir(tmp.path(), "custom_id");
+
+        let team = FsTeamRepository::new(tmp.path())
+            .load_team("custom_id")
+            .unwrap();
+        assert_eq!(team.display_name, "custom_id");
+    }
 }
