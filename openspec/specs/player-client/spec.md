@@ -8,11 +8,11 @@ Defines the interactive `macroquad` desktop client (`ynwa-player`), including CL
 
 ### Requirement: CLI Modes, Flag Validation, and Recording Paths
 
-`ynwa-player` SHALL parse `[<teams_path="teams">] [<preambles_path="ynwa-scripts/preambles">] [--record [--out <dir>]] [--replay <file>]` into `Play`, `Record`, or `Replay` mode. It MUST reject duplicate flags, `--record` with `--replay`, `--out` without `--record`, unknown `--*` flags, or `> 2` positional arguments. `--record` MUST stream JSON Lines output to `<out_or_~/.ynwa/games>/game_YYYYMMDD-HHMMSS[_2..].jsonl`.
+`ynwa-player` SHALL parse `[<teams_path="teams">] [<preambles_path="ynwa-scripts/preambles">] [--duration <seconds=120.0>] [--record [--out <dir>]] [--replay <file>]` into `Play`, `Record`, or `Replay` mode. It MUST reject duplicate flags, `--record` with `--replay`, `--out` without `--record`, `--duration` with `--replay`, non-positive/non-finite `--duration`, unknown `--*` flags, or `> 2` positional arguments. `--record` MUST stream JSON Lines output to `<out_or_~/.ynwa/games>/game_YYYYMMDD-HHMMSS[_2..].jsonl`.
 
 #### Scenario: Mutually exclusive CLI flags and root shell wrappers
 - **WHEN** `ynwa-player` is invoked directly or via `./record_game.sh` / `./replay.sh <recording.jsonl>`
-- **THEN** `./record_game.sh` forwards arguments to `ynwa-player --record`, `./replay.sh` opens the `.jsonl` recording in replay mode, and invalid flag combinations (`--record --replay` or `--out` without `--record`) print an error to `stderr` and exit with code `1`
+- **THEN** `./record_game.sh` forwards arguments to `ynwa-player --record`, `./replay.sh` opens the `.jsonl` recording in replay mode, and invalid flag combinations (`--record --replay`, `--out` without `--record`, `--duration` with `--replay`, or `--duration <= 0`) print an error to `stderr` and exit with code `1`
 
 #### Scenario: Truncated replay step count recovery
 - **WHEN** `ynwa-player` loads a crashed recording via `--replay` where `record.total_steps == 0`
@@ -20,11 +20,15 @@ Defines the interactive `macroquad` desktop client (`ynwa-player`), including CL
 
 ### Requirement: Simulation Pacing and Keyboard Controls
 
-`ynwa-player` SHALL open a resizable `1200 × 900` window (`"YNWA Football Simulator"`). `Play` and `Record` start at `60.0` Hz (`timestep = 1/60` s); `Replay` runs at `rate = 1.0 / timestep` and stops stepping at `effective_steps`. `Space` pauses/resumes, `F11` toggles fullscreen, `Escape` exits cleanly (flushing the recording footer in `Record`), and `+`/`=`/`KP_ADD` (`*2` up to `100` Hz) and `-`/`KP_SUBTRACT` (`/2` down to `1` Hz) apply **ONLY in `Play` mode**.
+`ynwa-player` SHALL open a resizable `1200 × 900` window (`"YNWA Football Simulator"`). `Play` and `Record` start at `60.0` Hz (`timestep = 1/60` s) and advance simulation steps until `elapsed_time >= duration` (default `120.0` s; `Play` stops stepping while keeping the window open, and `Record` flushes the recording footer while keeping the window open for inspection until `Escape`); `Replay` runs at `rate = 1.0 / timestep` and stops stepping at `effective_steps`. `Space` pauses/resumes, `F11` toggles fullscreen, `Escape` exits cleanly (flushing the recording footer in `Record`), and `+`/`=`/`KP_ADD` (`*2` up to `100` Hz) and `-`/`KP_SUBTRACT` (`/2` down to `1` Hz) apply **ONLY in `Play` mode**.
 
 #### Scenario: Preventing timestep drift in Record and Replay modes
 - **WHEN** `+` or `-` keys are pressed in `Record` or `Replay` mode
 - **THEN** playback rate and simulation `timestep` remain locked so steps stay aligned with `RecordHeader::timestep`
+
+#### Scenario: Client-owned match duration termination in Play and Record modes
+- **WHEN** `world.game().state().elapsed_time >= duration` is reached in `Play` or `Record` mode
+- **THEN** both modes cease advancing `World::step` while continuing to render the final state, and `Record` mode additionally calls `finish_journal()` to flush the recording footer, staying open until `Escape` rather than exiting
 
 ### Requirement: Top-Down 2D Field Projection and Pitch/Zone Rendering
 
@@ -48,7 +52,7 @@ The right `35%` of the window SHALL display match telemetry: elapsed time, `PAUS
 
 #### Scenario: Replay event labels and scoring team inversion
 - **WHEN** the replay `Events:` panel formats decoded `FootballEvent` entries
-- **THEN** `Goal(conceding)` renders `"Goal: team <conceding.opposite()>"`, `Touchline(_, last)` renders `"Throw-in; last touch: <last>"`, `GoalLine(_, last)` renders `"Goal line; last touch: <last>"`, and `GameEnd` renders `"Match end"` (or `"(no events yet)"` before the first event)
+- **THEN** `Goal(conceding)` renders `"Goal: team <conceding.opposite()>"`, `Touchline(_, last)` renders `"Throw-in; last touch: <last>"`, and `GoalLine(_, last)` renders `"Goal line; last touch: <last>"` (or `"(no events yet)"` before the first event)
 
 #### Scenario: All journal event variants are shown
 - **WHEN** a replay recording contains non-football `JournalEvent` variants (`DecisionAssigned`, `PossessionChange`, `KickOutcome`, `StageChange`, `RestartSet`, `DecisionsReset`, `StatUpdate`) alongside football `External` entries

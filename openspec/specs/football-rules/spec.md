@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Defines the football domain layer (`ynwa-football`): regulation pitch dimensions and all 19 named zones, mandatory set-piece tactical keys and `on_ball` validation, `FootballWorldBuilder` assembly, match event detection (`Goal`, `GameEnd`, `Touchline`, `GoalLine`), and `FootballGameManager` stage transitions and set-piece orchestration.
+Defines the football domain layer (`ynwa-football`): regulation pitch dimensions and all 19 named zones, mandatory set-piece tactical keys and `on_ball` validation, `FootballWorldBuilder` assembly, match event detection (`Goal`, `Touchline`, `GoalLine`), and `FootballGameManager` stage transitions and set-piece orchestration.
 
 Key domain concepts:
 - **Set-Piece Keys**: 16 string identifiers bridging `ynwa-core`'s sport-agnostic `GameStage::Setup(reason)` to concrete football restart formations (combining stoppage `reason`, restarting team `own`/`opp`, flank `left`/`right`, and field half `own half`/`opp half`) to look up each player's `Setup` assignment from `tactical.toml`.
@@ -51,7 +51,7 @@ Every football `Field` SHALL register exactly **19** zones (`3` neutral `None` z
 
 ### Requirement: Football Event Detection Priority and Boundary Conditions
 
-During `GameStage::Play` ONLY, `check_events(game)` SHALL return at most **one** `FootballEvent` per step in priority order: (1) `Goal(conceding_team)` (scorer is `conceding_team.opposite()`), (2) `GameEnd` (`elapsed_time >= GAME_DURATION`, currently `120.0` s debug value), (3) `Touchline(ball_pos, last_team)`, (4) `GoalLine(ball_pos, last_team)`. Boundary checks MUST account for `BALL_RADIUS = 0.11` m, and `last_team` uses `last_possessing_team` (defaulting to `Team::A` when `None`).
+During `GameStage::Play` ONLY, `check_events(game)` SHALL return at most **one** `FootballEvent` per step in priority order: (1) `Goal(conceding_team)` (scorer is `conceding_team.opposite()`), (2) `Touchline(ball_pos, last_team)`, (3) `GoalLine(ball_pos, last_team)`. Boundary checks MUST account for `BALL_RADIUS = 0.11` m, and `last_team` uses `last_possessing_team` (defaulting to `Team::A` when `None`).
 
 #### Scenario: Exact geometric predicates for Goal, Touchline, and GoalLine
 - **WHEN** `check_events` evaluates ball center `(bx, by, bz)` with `r = 0.11` m and goal X-span `[gx_min, gx_max]`
@@ -59,7 +59,7 @@ During `GameStage::Play` ONLY, `check_events(game)` SHALL return at most **one**
 
 ### Requirement: FootballGameManager Event Transitions and Restart Assignment
 
-When `check_events` yields an event in `Play`, `FootballGameManager` SHALL first emit `JournalEvent::External { kind: "football_event", data }` (`{"event": "goal"|"touchline"|"goal_line"|"game_end", "team"?: "A"|"B"}`) and then apply stage/restart transitions: `GameEnd` -> `GameOver`; `Goal`, `Touchline`, and `GoalLine` reset all players (`is_ready=false, current_decision=None, needs_decision=true`, emitting `DecisionsReset`), emit `RestartSet` and `StageChange`, and enter `Setup(reason)`.
+When `check_events` yields an event in `Play`, `FootballGameManager` SHALL first emit `JournalEvent::External { kind: "football_event", data }` (`{"event": "goal"|"touchline"|"goal_line", "team": "A"|"B"}`) and then apply stage/restart transitions: `Goal`, `Touchline`, and `GoalLine` reset all players (`is_ready=false, current_decision=None, needs_decision=true`, emitting `DecisionsReset`), emit `RestartSet` and `StageChange`, and enter `Setup(reason)`.
 
 #### Scenario: Restart parameters for Goal, Touchline, Goal Kick, and Corner
 - **WHEN** `FootballGameManager` handles a boundary or scoring event on pitch `(W, L)`
