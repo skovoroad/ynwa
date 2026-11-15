@@ -1,2 +1,2 @@
-stage = "GameOver"
+stage = "Play"
 score = { A = 1, B = 0 }

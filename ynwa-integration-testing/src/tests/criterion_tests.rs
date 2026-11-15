@@ -21,14 +21,11 @@ fn test_config() -> GameConfig {
 fn stage_matcher_covers_every_target() {
     let cases = [
         (StageMatcher::Play, GameStage::Play, true),
-        (StageMatcher::Play, GameStage::GameOver, false),
         (
             StageMatcher::Play,
             GameStage::Setup("kick off".into()),
             false,
         ),
-        (StageMatcher::GameOver, GameStage::GameOver, true),
-        (StageMatcher::GameOver, GameStage::Play, false),
         (
             StageMatcher::Setup { reason: None },
             GameStage::Setup("throw in".into()),
@@ -234,7 +231,7 @@ fn journal_criterion_fires_on_a_matching_new_entry() {
     let other = JournalEntry {
         timestamp: 0.5,
         event: JournalEvent::StageChange {
-            stage: GameStage::GameOver,
+            stage: GameStage::Setup("corner".to_string()),
         },
     };
 
@@ -270,10 +267,6 @@ fn stage_match_helper_builds_every_variant() {
     assert_eq!(
         crate::criterion::stage_matcher(StageNameDto::Play, None),
         StageMatcher::Play
-    );
-    assert_eq!(
-        crate::criterion::stage_matcher(StageNameDto::GameOver, None),
-        StageMatcher::GameOver
     );
     assert_eq!(
         crate::criterion::stage_matcher(StageNameDto::Setup, Some("corner".to_string())),

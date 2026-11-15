@@ -873,10 +873,7 @@ fn journal_football_event_requires_event() {
 }
 
 #[test]
-fn parses_remaining_stage_and_event_variants() {
-    let state = parse_initial("stage = \"GameOver\"\n");
-    assert_eq!(state.stage, Some(StageNameDto::GameOver));
-
+fn parses_remaining_event_variants() {
     let scenario = parse_scenario(
         r#"
 [run]

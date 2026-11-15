@@ -394,9 +394,6 @@ impl DecisionMaker for ScriptedDecisionMaker {
                         .to_string(),
                 ));
             }
-            crate::game::GameStage::GameOver => {
-                return Ok((Decision::Stop, None));
-            }
         };
 
         decision_parser::parse_decision(&decision_json)

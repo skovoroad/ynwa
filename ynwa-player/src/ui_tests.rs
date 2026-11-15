@@ -79,7 +79,6 @@ fn stage_change_renders_stage() {
             GameStage::Setup("corner".to_string()),
             "Stage: Setup(\"corner\")",
         ),
-        (GameStage::GameOver, "Stage: GameOver"),
     ];
 
     for (stage, expected) in cases {

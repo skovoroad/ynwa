@@ -232,7 +232,6 @@ pub(crate) fn resolve_player_index(
 fn resolve_stage(initial: &InitialStateDto) -> GameStage {
     match initial.stage {
         Some(StageNameDto::Play) => GameStage::Play,
-        Some(StageNameDto::GameOver) => GameStage::GameOver,
         // An omitted stage also means Setup, so an explicit `setup_reason` is honoured in both cases.
         None | Some(StageNameDto::Setup) => GameStage::Setup(
             initial

@@ -17,7 +17,6 @@ use ynwa_core::{Point3D, Score, Velocity3D};
 pub enum StageNameDto {
     Play,
     Setup,
-    GameOver,
 }
 
 /// Football event kind used by stop criteria and journal expectations.

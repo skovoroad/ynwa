@@ -88,9 +88,6 @@ impl System for FootballGameManager {
                     self.handle_event(game, event, timestamp);
                 }
             }
-            GameStage::GameOver => {
-                // Game is over, do nothing
-            }
         }
     }
 }

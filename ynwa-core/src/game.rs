@@ -222,7 +222,6 @@ impl ScriptingConfig {
 pub enum GameStage {
     Play,
     Setup(String),
-    GameOver,
 }
 
 impl Default for GameStage {
@@ -287,7 +286,7 @@ impl Game {
                         let field_length = config.field.length().get::<meter>();
                         Point3D::from_meters(-5.0, 0.0, field_length / 2.0)
                     }
-                    GameStage::Play | GameStage::GameOver => {
+                    GameStage::Play => {
                         let start_region = config.players[idx]
                             .regions
                             .get(REGION_START_POSITION)

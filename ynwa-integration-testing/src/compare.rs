@@ -617,7 +617,6 @@ fn stage_matches(
 ) -> bool {
     match stage {
         Some(StageNameDto::Play) => matches!(actual, GameStage::Play),
-        Some(StageNameDto::GameOver) => matches!(actual, GameStage::GameOver),
         Some(StageNameDto::Setup) => setup_stage_matches(setup_reason, actual),
         None => match setup_reason {
             None => true,
@@ -645,7 +644,6 @@ fn stop_stage_matches(
     let stage_ok = matches!(
         (stage, actual),
         (StageNameDto::Play, StageMatcher::Play)
-            | (StageNameDto::GameOver, StageMatcher::GameOver)
             | (StageNameDto::Setup, StageMatcher::Setup { .. })
     );
 

@@ -53,10 +53,6 @@ fn run_scenario_reports_failed_expectations() {
     assert!(!report.passed);
     let diff = report.diff.expect("a failed report carries a diff");
     assert!(
-        diff.contains("final_state.stage"),
-        "unexpected diff: {diff}"
-    );
-    assert!(
         diff.contains("final_state.score"),
         "unexpected diff: {diff}"
     );

@@ -278,12 +278,15 @@ fn kick_outcome_checks_velocity_with_tolerance() {
 }
 
 #[test]
-fn stage_change_matches_play_and_game_over() {
+fn stage_change_matches_play() {
     let config = test_config(&[(Team::A, 1)]);
     let cases = [
         (StageNameDto::Play, GameStage::Play, true),
-        (StageNameDto::Play, GameStage::GameOver, false),
-        (StageNameDto::GameOver, GameStage::GameOver, true),
+        (
+            StageNameDto::Play,
+            GameStage::Setup("corner".to_string()),
+            false,
+        ),
     ];
 
     for (dto, stage, expected_match) in cases {
@@ -521,7 +524,7 @@ fn final_state_player_rejects_invalid_region_notation() {
 #[test]
 fn final_state_reports_mismatches() {
     let (config, mut state) = test_state(&[(Team::A, 9)]);
-    state.stage = GameStage::GameOver;
+    state.stage = GameStage::Setup("corner".to_string());
     state.ball_state.position = Point3D::from_meters(0.0, 0.0, 0.0);
     state.ball_state.possessed_by = Some(0);
 
@@ -677,11 +680,7 @@ fn stage_change_without_stage_matches_any_target() {
         at: None,
     }];
 
-    for stage in [
-        GameStage::Play,
-        GameStage::GameOver,
-        GameStage::Setup("corner".to_string()),
-    ] {
+    for stage in [GameStage::Play, GameStage::Setup("corner".to_string())] {
         let actual = vec![entry(0.1, JournalEvent::StageChange { stage })];
 
         assert!(
@@ -761,7 +760,7 @@ fn stop_stage_matches_target_stage() {
     assert_eq!(
         compare_stop(
             &play,
-            &StopReason::Stage(StageMatcher::GameOver),
+            &StopReason::Stage(StageMatcher::Setup { reason: None }),
             1,
             &config
         )

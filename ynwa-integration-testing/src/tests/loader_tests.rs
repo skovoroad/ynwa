@@ -192,15 +192,6 @@ fn omitted_stage_honours_setup_reason() {
 }
 
 #[test]
-fn game_over_stage_is_mapped() {
-    let game = test_game(&[(Team::A, 1)]);
-
-    let spec = build_state_spec(&parse_initial_state("stage = \"GameOver\"\n"), &game).unwrap();
-
-    assert_eq!(spec.stage, Some(GameStage::GameOver));
-}
-
-#[test]
 fn restart_team_none_maps_to_absent() {
     let game = test_game(&[(Team::A, 1)]);
     let initial = parse_initial_state("stage = \"Setup\"\n[setup]\nrestart_team = \"none\"\n");

@@ -17,7 +17,6 @@ use crate::loader::ScenarioError;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum StageMatcher {
     Play,
-    GameOver,
     Setup { reason: Option<String> },
 }
 
@@ -25,7 +24,6 @@ impl StageMatcher {
     fn matches(&self, stage: &GameStage) -> bool {
         match (self, stage) {
             (StageMatcher::Play, GameStage::Play) => true,
-            (StageMatcher::GameOver, GameStage::GameOver) => true,
             (StageMatcher::Setup { reason }, GameStage::Setup(actual)) => {
                 reason.as_ref().is_none_or(|expected| expected == actual)
             }
@@ -154,7 +152,6 @@ pub enum StopReason {
 pub fn stage_matcher(stage: StageNameDto, setup_reason: Option<String>) -> StageMatcher {
     match stage {
         StageNameDto::Play => StageMatcher::Play,
-        StageNameDto::GameOver => StageMatcher::GameOver,
         StageNameDto::Setup => StageMatcher::Setup {
             reason: setup_reason,
         },

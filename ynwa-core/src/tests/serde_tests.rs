@@ -293,7 +293,6 @@ fn game_stages_round_trip() {
         GameStage::Play,
         GameStage::Setup("throw in".to_string()),
         GameStage::Setup("kick off".to_string()),
-        GameStage::GameOver,
     ];
 
     for stage in stages {
