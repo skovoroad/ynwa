@@ -9,7 +9,7 @@ Currently, match duration (`GAME_DURATION = 120.0` s) is hardcoded inside `ynwa-
 - **BREAKING**: Remove `GAME_DURATION`, `check_game_end`, and `FootballEvent::GameEnd` from `ynwa-football::events` and remove the `FootballEvent::GameEnd` transition from `FootballGameManager::handle_event`.
 - Update `ynwa-player` to control match duration (`DEFAULT_MATCH_DURATION = 120.0` s, overridable via `--duration <seconds>`) directly in its simulation loop:
   - In `Play` mode, stop advancing simulation steps once `elapsed_time >= duration`.
-  - In `Record` mode, finalize the recording and exit once `elapsed_time >= duration`.
+  - In `Record` mode, finalize the recording once `elapsed_time >= duration` and keep the window open for visual inspection until `Escape`.
 - Remove `FootballEvent::GameEnd` formatting from `ynwa-player` (`ui.rs`) and `EventKindDto::GameEnd` / `EventMatcher::GameEnd` from `ynwa-integration-testing`.
 
 ## Capabilities

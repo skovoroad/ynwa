@@ -10,5 +10,5 @@
 
 ## 3. Client-Owned Match Duration in `ynwa-player`
 
-- [ ] 3.1 Add `DEFAULT_MATCH_DURATION = 120.0` and `--duration <seconds>` (`> 0.0` and finite, rejected with `--replay`) to `ynwa-player/src/cli.rs`, stop stepping once `elapsed_time >= cli.duration` in `Play` and `Record` modes (finalizing recording and exiting in `Record` mode) in `ynwa-player/src/main.rs`, remove `FootballEvent::GameEnd` formatting from `ynwa-player/src/ui.rs` and its `GameEnd` case in `ynwa-player/src/ui_tests.rs`, and verify `cargo test` and `cargo clippy` pass.
+- [ ] 3.1 Add `DEFAULT_MATCH_DURATION = 120.0` and `--duration <seconds>` (`> 0.0` and finite, rejected with `--replay`) to `ynwa-player/src/cli.rs`, stop stepping once `elapsed_time >= cli.duration` in `Play` and `Record` modes (finalizing the recording and keeping the window open until `Escape` in `Record` mode) in `ynwa-player/src/main.rs`, remove `FootballEvent::GameEnd` formatting from `ynwa-player/src/ui.rs` and its `GameEnd` case in `ynwa-player/src/ui_tests.rs`, and verify `cargo test` and `cargo clippy` pass.
 

@@ -26,7 +26,7 @@ See `proposal.md` for motivation. Currently:
 2. **Client-owned duration in `ynwa-player`**:
    - Add `pub const DEFAULT_MATCH_DURATION: f32 = 120.0;` and an optional `--duration <seconds>` CLI flag (`f32 > 0.0` and finite, rejected with `--replay`) in `ynwa-player/src/cli.rs`.
    - In `advance(world, simulation, duration)`: only step `world.step(timestep)` while `world.game().state().elapsed_time < duration`.
-   - In `run_record`: once `world.game().state().elapsed_time >= cli.duration`, call `world.game_mut().finish_journal()` and exit the loop.
+   - In `run_record`: once `world.game().state().elapsed_time >= cli.duration`, call `world.game_mut().finish_journal()` and stop stepping while keeping the window open until `Escape`. Track that the journal was finalized so a later `Escape` does not finalize or print "Recording saved" a second time.
    - In `run_play`: once `world.game().state().elapsed_time >= cli.duration`, stop stepping while keeping the window open for inspection until `Escape`.
 
 ## Risks / Trade-offs
