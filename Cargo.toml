@@ -8,6 +8,7 @@ members = [
     "ynwa-player",
     "ynwa-repository",
     "ynwa-script-tests",
+    "ynwa-simulator",
 ]
 
 [workspace.package]

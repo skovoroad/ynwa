@@ -1156,6 +1156,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "ynwa-simulator"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "env_home",
+ "tempfile",
+ "ynwa-core",
+ "ynwa-football",
+ "ynwa-repository",
+]
+
+[[package]]
 name = "zerocopy"
 version = "0.8.37"
 source = "registry+https://github.com/rust-lang/crates.io-index"

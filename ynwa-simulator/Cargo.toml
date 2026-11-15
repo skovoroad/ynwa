@@ -1,0 +1,18 @@
+[package]
+name = "ynwa-simulator"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+ynwa-core = { path = "../ynwa-core" }
+ynwa-football = { path = "../ynwa-football" }
+ynwa-repository = { path = "../ynwa-repository" }
+chrono = "0.4"
+env_home = "0.1"
+
+[dev-dependencies]
+tempfile = "3"
+
+[[bin]]
+name = "ynwa-simulator"
+path = "src/main.rs"
