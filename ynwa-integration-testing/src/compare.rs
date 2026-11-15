@@ -212,7 +212,7 @@ fn entry_matches(
                 && delta_field_matches(delta, *actual_delta)
         }
         (ExpectedEventDto::FootballEvent { event, team, .. }, JournalEvent::External { .. }) => {
-            let matcher = EventMatcher::from_def(*event, *team).map_err(ScenarioError::new)?;
+            let matcher = EventMatcher::from_def(*event, *team);
             decode_single(actual)
                 .is_some_and(|football_event| matcher.matches_football(&football_event))
         }
@@ -250,10 +250,7 @@ fn compare_stop(
             _ => false,
         },
         StopExpectationDto::Event { event, team, .. } => {
-            match EventMatcher::from_def(*event, *team) {
-                Ok(matcher) => actual == &StopReason::Event(matcher),
-                Err(_) => false,
-            }
+            actual == &StopReason::Event(EventMatcher::from_def(*event, *team))
         }
         StopExpectationDto::Journal(pattern) => match actual {
             StopReason::Journal(entry) => {

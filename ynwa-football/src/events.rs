@@ -13,12 +13,9 @@ pub enum FootballEvent {
     Touchline(Point3D, Team),
     /// Ball went out of bounds on goal line: crossing position + last team to touch
     GoalLine(Point3D, Team),
-    /// Game ended
-    GameEnd,
 }
 
 pub(crate) const BALL_RADIUS: f32 = 0.11; // meters (standard football radius ~11cm)
-pub const GAME_DURATION: f32 = 120.0; // seconds (1 minute for testing)
 
 /// Check if a goal was scored.
 /// Goal condition (FIFА): ball has completely crossed the goal line between the goalposts.
@@ -107,25 +104,11 @@ fn is_ball_between_goalposts(game: &Game, ball_x: f32) -> bool {
     false
 }
 
-/// Check if game time has ended
-pub fn check_game_end(game: &Game) -> Option<FootballEvent> {
-    if game.state.elapsed_time >= GAME_DURATION {
-        return Some(FootballEvent::GameEnd);
-    }
-
-    None
-}
-
 /// Check all football events and return the first one detected
-/// Priority: Goal > Game End > Touchline > Goal Line
+/// Priority: Goal > Touchline > Goal Line
 pub fn check_events(game: &Game) -> Option<FootballEvent> {
     // Check goal first (highest priority)
     if let Some(event) = check_goal(game) {
-        return Some(event);
-    }
-
-    // Check game end
-    if let Some(event) = check_game_end(game) {
         return Some(event);
     }
 

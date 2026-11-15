@@ -122,31 +122,6 @@ fn recorded_footer_matches_the_final_state() {
 }
 
 #[test]
-fn game_end_is_recorded_as_external_and_stage_change() {
-    let mut game = play_game();
-    game.state.elapsed_time = 120.0;
-    let collection = attach_journal(&mut game);
-
-    FootballGameManager::new().update(&mut game, 120.0);
-
-    let entries = collection.borrow().to_vec();
-    assert_eq!(entries.len(), 2);
-    assert_eq!(
-        entries[0].event,
-        JournalEvent::External {
-            kind: "football_event".to_string(),
-            data: serde_json::to_value(FootballEvent::GameEnd).unwrap(),
-        }
-    );
-    assert_eq!(
-        entries[1].event,
-        JournalEvent::StageChange {
-            stage: GameStage::GameOver
-        }
-    );
-}
-
-#[test]
 fn touchline_records_reset_restart_and_stage() {
     let ball_out = Point3D::from_meters(-1.0, 0.0, 30.0);
     let mut game = play_game();

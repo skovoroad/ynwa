@@ -90,7 +90,6 @@ fn event_matcher_matches_kind_and_optional_team() {
             true,
         ),
         (EventMatcher::Goal { team: None }, &touchline_b, false),
-        (EventMatcher::GameEnd, &FootballEvent::GameEnd, true),
     ];
 
     for (matcher, event, expected) in cases {
@@ -135,24 +134,23 @@ fn goal_line_matcher_covers_team_variants() {
 }
 
 #[test]
-fn from_def_builds_matchers_and_rejects_team_on_game_end() {
+fn from_def_builds_matchers() {
     assert_eq!(
-        EventMatcher::from_def(EventKindDto::Goal, Some(Team::A)).unwrap(),
+        EventMatcher::from_def(EventKindDto::Goal, Some(Team::A)),
         EventMatcher::Goal {
             team: Some(Team::A)
         }
     );
     assert_eq!(
-        EventMatcher::from_def(EventKindDto::Touchline, None).unwrap(),
+        EventMatcher::from_def(EventKindDto::Touchline, None),
         EventMatcher::Touchline { team: None }
     );
     assert_eq!(
-        EventMatcher::from_def(EventKindDto::GameEnd, None).unwrap(),
-        EventMatcher::GameEnd
+        EventMatcher::from_def(EventKindDto::GoalLine, Some(Team::B)),
+        EventMatcher::GoalLine {
+            team: Some(Team::B)
+        }
     );
-
-    let error = EventMatcher::from_def(EventKindDto::GameEnd, Some(Team::A)).unwrap_err();
-    assert!(error.contains("GameEnd"), "unexpected error: {error}");
 }
 
 #[test]

@@ -162,7 +162,6 @@ fn football_external_events_keep_their_labels() {
             FootballEvent::GoalLine(point, Team::A),
             "Goal line; last touch: A",
         ),
-        (FootballEvent::GameEnd, "Match end"),
     ];
 
     for (event, expected) in cases {

@@ -40,19 +40,15 @@ pub enum EventMatcher {
     Goal { team: Option<Team> },
     Touchline { team: Option<Team> },
     GoalLine { team: Option<Team> },
-    GameEnd,
 }
 
 impl EventMatcher {
-    /// Builds a matcher from a scenario file's event kind and optional team. `GameEnd` has no
-    /// team, so a team together with `GameEnd` is rejected.
-    pub fn from_def(event: EventKindDto, team: Option<Team>) -> Result<Self, String> {
+    /// Builds a matcher from a scenario file's event kind and optional team.
+    pub fn from_def(event: EventKindDto, team: Option<Team>) -> Self {
         match event {
-            EventKindDto::Goal => Ok(EventMatcher::Goal { team }),
-            EventKindDto::Touchline => Ok(EventMatcher::Touchline { team }),
-            EventKindDto::GoalLine => Ok(EventMatcher::GoalLine { team }),
-            EventKindDto::GameEnd if team.is_none() => Ok(EventMatcher::GameEnd),
-            EventKindDto::GameEnd => Err("event 'GameEnd' does not carry a team".to_string()),
+            EventKindDto::Goal => EventMatcher::Goal { team },
+            EventKindDto::Touchline => EventMatcher::Touchline { team },
+            EventKindDto::GoalLine => EventMatcher::GoalLine { team },
         }
     }
 
@@ -65,7 +61,6 @@ impl EventMatcher {
             (EventMatcher::GoalLine { team }, FootballEvent::GoalLine(_, actual)) => {
                 accepts(*team, *actual)
             }
-            (EventMatcher::GameEnd, FootballEvent::GameEnd) => true,
             _ => false,
         }
     }

@@ -5,7 +5,7 @@
 Defines `World` step execution across arbitrary system pipelines, `Game` initialization and partial state merging, temperature-controlled randomness (`RngManager`), and the 6-system **live match** pipeline (`SportGameManager -> PlayerReactionSystem -> BallPossessionSystem -> DecisionSystem -> ActionSystem -> PhysicsSystem`).
 
 Live-match step dataflow (`rules -> intent -> action -> physics`) and coordination flags (replay and test worlds register different system subsets on `World`; see `recording-and-replay`):
-1. **Sport Game Manager**: evaluates match events first, switches `GameStage` (`Setup(reason)` / `Play` / `GameOver`), and assigns non-scripted positioning decisions in `Setup` — ensuring events take effect before player decisions in the same tick without one-frame lag.
+1. **Sport Game Manager**: evaluates match events first, switches `GameStage` (`Setup(reason)` / `Play`), and assigns non-scripted positioning decisions in `Setup` — ensuring events take effect before player decisions in the same tick without one-frame lag.
 2. **`PlayerReactionSystem`**: raises `needs_decision = true` when a player's `reaction_rate` timer elapses in `Play` (or when `current_decision` is `None` in `Setup`).
 3. **`BallPossessionSystem`**: resolves `1.0` m ball contests before scripts run and sets `needs_decision = true` on **all** players upon possession change (interrupting reaction timers).
 4. **`DecisionSystem`**: unconditionally checks 2D arrival (`< 0.5` m -> `Decision::Stop`, `decision_processed = false`) every tick; in `Play`, invokes `DecisionMaker` for `needs_decision == true`, flips `Team::B` output to Display Orientation, sets `decision_processed = false`, and clears `needs_decision`.

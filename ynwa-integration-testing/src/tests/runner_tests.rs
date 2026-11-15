@@ -55,24 +55,6 @@ steps = 100
 }
 
 #[test]
-fn compile_rejects_team_on_game_end() {
-    let plan = RunPlanDto {
-        timestep: 0.1,
-        stop: vec![StopCriterionDto::Event {
-            event: EventKindDto::GameEnd,
-            team: Some(Team::A),
-        }],
-    };
-
-    let error = compile_criteria(&plan).unwrap_err();
-
-    assert!(
-        error.message().contains("GameEnd"),
-        "unexpected error: {error}"
-    );
-}
-
-#[test]
 fn trivial_scenario_stops_at_the_step_limit() {
     let loaded = load_scenario(&fixture("valid")).expect("fixture must load");
     let LoadedScenario {

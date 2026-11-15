@@ -177,15 +177,6 @@ impl FootballGameManager {
 
     fn handle_event(&self, game: &mut Game, event: FootballEvent, timestamp: f32) {
         match event {
-            FootballEvent::GameEnd => {
-                game.state.stage = GameStage::GameOver;
-                game.record(
-                    timestamp,
-                    JournalEvent::StageChange {
-                        stage: GameStage::GameOver,
-                    },
-                );
-            }
             FootballEvent::Goal(team) => {
                 // `team` is the owner of the goal that was scored into — the scorer is the opponent
                 let scorer = team.opposite();

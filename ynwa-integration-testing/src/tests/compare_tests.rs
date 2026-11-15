@@ -669,19 +669,6 @@ fn journal_matches_every_decision_kind() {
 }
 
 #[test]
-fn football_event_game_end_matches() {
-    let config = test_config(&[(Team::A, 1)]);
-    let expected = vec![ExpectedEventDto::FootballEvent {
-        event: EventKindDto::GameEnd,
-        team: None,
-        at: None,
-    }];
-    let actual = vec![football_entry(0.3, FootballEvent::GameEnd)];
-
-    assert!(journal_diffs(&expected, &actual, JournalMatchDto::Exact, &config).is_empty());
-}
-
-#[test]
 fn stage_change_without_stage_matches_any_target() {
     let config = test_config(&[(Team::A, 1)]);
     let expected = vec![ExpectedEventDto::StageChange {

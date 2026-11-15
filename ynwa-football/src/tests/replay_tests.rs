@@ -2,7 +2,7 @@
 //! same physically significant state, the recording must decode to the expected football events,
 //! and the replayed ball must satisfy the conditions those events were detected under.
 
-use crate::events::{FootballEvent, BALL_RADIUS, GAME_DURATION};
+use crate::events::{FootballEvent, BALL_RADIUS};
 use crate::field_builder::create_football_field;
 use crate::replay::{create_football_replay_world, decode_football_events};
 use crate::test_utils::{
@@ -100,9 +100,6 @@ fn replay_ball_matches_recorded_event_conditions() {
                 z - BALL_RADIUS >= length || z + BALL_RADIUS <= 0.0,
                 "ball not past the goal line at {timestamp}: z = {z}"
             ),
-            FootballEvent::GameEnd => {
-                assert!(replay.game().state.elapsed_time >= GAME_DURATION);
-            }
         }
     }
 }
@@ -113,7 +110,6 @@ fn decode_reads_every_event_type_in_order() {
         FootballEvent::Goal(Team::B),
         FootballEvent::Touchline(Point3D::from_meters(-1.0, 0.0, 30.0), Team::A),
         FootballEvent::GoalLine(Point3D::from_meters(2.0, 0.0, -0.5), Team::B),
-        FootballEvent::GameEnd,
     ];
     let journal: Vec<JournalEntry> = events
         .iter()
@@ -132,7 +128,7 @@ fn decode_reads_every_event_type_in_order() {
 
 #[test]
 fn decode_skips_foreign_kinds_and_corrupt_payloads() {
-    let valid = FootballEvent::GameEnd;
+    let valid = FootballEvent::Goal(Team::B);
     let journal = vec![
         JournalEntry {
             timestamp: 0.1,

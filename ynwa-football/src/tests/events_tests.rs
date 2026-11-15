@@ -1,6 +1,5 @@
 use crate::events::{
-    check_events, check_game_end, check_goal, check_goal_line, check_touchline, FootballEvent,
-    BALL_RADIUS, GAME_DURATION,
+    check_events, check_goal, check_goal_line, check_touchline, FootballEvent, BALL_RADIUS,
 };
 use crate::field_builder::{GOAL_DEPTH, GOAL_WIDTH};
 use crate::test_utils::deterministic_rng;
@@ -399,38 +398,17 @@ fn test_touchline_ball_touching_line_from_inside() {
     assert_eq!(check_touchline(&game), None);
 }
 
-// --- check_game_end ---
-
-#[test]
-fn test_game_end() {
-    let mut game = create_test_game();
-    game.state.elapsed_time = GAME_DURATION;
-    assert_eq!(check_game_end(&game), Some(FootballEvent::GameEnd));
-}
-
-#[test]
-fn test_game_not_ended() {
-    let mut game = create_test_game();
-    game.state.elapsed_time = GAME_DURATION - 0.1;
-    assert_eq!(check_game_end(&game), None);
-}
-
 // --- check_events priority ---
 
 #[test]
-fn test_check_events_priority_goal_over_game_end() {
+fn test_check_events_priority_touchline_over_goal_line() {
     let mut game = create_test_game();
-    set_ball(&mut game, GOAL_X_CENTER, -(BALL_R + 0.01));
-    game.state.elapsed_time = GAME_DURATION;
-    assert_eq!(check_events(&game), Some(FootballEvent::Goal(Team::A)));
-}
-
-#[test]
-fn test_check_events_priority_game_end_over_goal_line() {
-    let mut game = create_test_game();
-    set_ball(&mut game, GOAL_X_MIN - 1.0, -(BALL_R + 0.01)); // outside post = GoalLine
-    game.state.elapsed_time = GAME_DURATION;
-    assert_eq!(check_events(&game), Some(FootballEvent::GameEnd));
+    // Ball fully past both the touchline and the goal line, outside the goalposts.
+    set_ball(&mut game, -(BALL_R + 0.01), -(BALL_R + 0.01));
+    assert!(matches!(
+        check_events(&game),
+        Some(FootballEvent::Touchline(_, _))
+    ));
 }
 
 #[test]

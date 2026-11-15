@@ -7,7 +7,6 @@
 //! "do not set" for the initial state and "do not check" for the final state. Players are
 //! addressed by `{team, number}`; resolution to global indices happens when the scenario is loaded.
 
-use crate::criterion::EventMatcher;
 use serde::de::{self, Deserializer};
 use serde::Deserialize;
 use ynwa_core::team::Team;
@@ -27,7 +26,6 @@ pub enum EventKindDto {
     Goal,
     Touchline,
     GoalLine,
-    GameEnd,
 }
 
 /// Reference to a player by team and number (`tactical.toml` number).
@@ -258,16 +256,6 @@ pub enum StopCriterionDto {
     },
 }
 
-impl StopCriterionDto {
-    /// Rejects combinations the runtime matchers cannot represent (a team on `GameEnd`).
-    fn validate(&self) -> Result<(), String> {
-        if let StopCriterionDto::Event { event, team } = self {
-            EventMatcher::from_def(*event, *team)?;
-        }
-        Ok(())
-    }
-}
-
 /// Run plan from `[run]` in `scenario.toml`.
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -291,9 +279,6 @@ impl RunPlanDto {
                 "run.timestep must be a positive number, got {}",
                 self.timestep
             ));
-        }
-        for criterion in &self.stop {
-            criterion.validate()?;
         }
         let has_safety = self.stop.iter().any(|criterion| {
             matches!(
@@ -391,14 +376,6 @@ pub enum JournalEntryPatternDto {
 }
 
 impl JournalEntryPatternDto {
-    /// Rejects combinations the runtime matchers cannot represent (a team on `GameEnd`).
-    fn validate(&self) -> Result<(), String> {
-        if let JournalEntryPatternDto::FootballEvent { event, team, .. } = self {
-            EventMatcher::from_def(*event, *team)?;
-        }
-        Ok(())
-    }
-
     fn timestamp(&self) -> Option<f32> {
         match self {
             JournalEntryPatternDto::DecisionAssigned { at, .. }
@@ -436,7 +413,6 @@ impl TryFrom<JournalEntryPatternDto> for JournalStopPatternDto {
         if pattern.timestamp().is_some() {
             return Err("journal stop criterion must not set 'at'".to_string());
         }
-        pattern.validate()?;
         Ok(Self(pattern))
     }
 }
@@ -472,16 +448,6 @@ pub enum StopExpectationDto {
     },
 }
 
-impl StopExpectationDto {
-    /// Rejects combinations the runtime matchers cannot represent (a team on `GameEnd`).
-    fn validate(&self) -> Result<(), String> {
-        if let StopExpectationDto::Event { event, team, .. } = self {
-            EventMatcher::from_def(*event, *team)?;
-        }
-        Ok(())
-    }
-}
-
 /// Expectations from `[expect]` in `scenario.toml`.
 #[derive(Debug, Clone, Default, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -508,12 +474,6 @@ impl ScenarioDto {
     pub fn parse(source: &str) -> Result<Self, String> {
         let scenario: Self = toml::from_str(source).map_err(|error| error.to_string())?;
         scenario.run.validate()?;
-        if let Some(stop) = &scenario.expect.stop {
-            stop.validate()?;
-        }
-        for entry in &scenario.expect.journal {
-            entry.validate()?;
-        }
         Ok(scenario)
     }
 }

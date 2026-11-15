@@ -671,55 +671,6 @@ team = "A"
 }
 
 #[test]
-fn stop_criterion_rejects_team_for_game_end() {
-    let source = "timestep = 0.1\n[[stop]]\nwhen = \"event\"\nevent = \"GameEnd\"\nteam = \"A\"\n[[stop]]\nwhen = \"steps\"\nsteps = 1\n";
-
-    let error = RunPlanDto::parse(source).unwrap_err();
-
-    assert!(error.contains("GameEnd"), "unexpected error: {error}");
-}
-
-#[test]
-fn expect_stop_rejects_team_for_game_end() {
-    let error = ScenarioDto::parse(
-        "[run]\ntimestep = 0.1\n[[run.stop]]\nwhen = \"steps\"\nsteps = 5\n[expect.stop]\nwhen = \"event\"\nevent = \"GameEnd\"\nteam = \"B\"\n",
-    )
-    .unwrap_err();
-
-    assert!(error.contains("GameEnd"), "unexpected error: {error}");
-}
-
-#[test]
-fn journal_stop_rejects_team_for_game_end() {
-    let error = RunPlanDto::parse(
-        "timestep = 0.1\n[[stop]]\nwhen = \"journal\"\ntype = \"football_event\"\nevent = \"GameEnd\"\nteam = \"A\"\n[[stop]]\nwhen = \"steps\"\nsteps = 1\n",
-    )
-    .unwrap_err();
-
-    assert!(error.contains("GameEnd"), "unexpected error: {error}");
-}
-
-#[test]
-fn expect_stop_journal_rejects_team_for_game_end() {
-    let error = ScenarioDto::parse(
-        "[run]\ntimestep = 0.1\n[[run.stop]]\nwhen = \"steps\"\nsteps = 5\n[expect.stop]\nwhen = \"journal\"\ntype = \"football_event\"\nevent = \"GameEnd\"\nteam = \"B\"\n",
-    )
-    .unwrap_err();
-
-    assert!(error.contains("GameEnd"), "unexpected error: {error}");
-}
-
-#[test]
-fn journal_football_event_rejects_team_for_game_end() {
-    let error = ScenarioDto::parse(
-        "[run]\ntimestep = 0.1\n[[run.stop]]\nwhen = \"steps\"\nsteps = 5\n[[expect.journal]]\ntype = \"football_event\"\nevent = \"GameEnd\"\nteam = \"A\"\n",
-    )
-    .unwrap_err();
-
-    assert!(error.contains("GameEnd"), "unexpected error: {error}");
-}
-
-#[test]
 fn unknown_fields_are_rejected() {
     assert!(InitialStateDto::parse("stage = \"Play\"\nbogus = 1\n").is_err());
     assert!(ExpectedFinalStateDto::parse("stage = \"Play\"\nbogus = 1\n").is_err());
@@ -942,7 +893,7 @@ steps = 5
 
 [[expect.journal]]
 type = "football_event"
-event = "GameEnd"
+event = "Goal"
 "#,
     );
 
@@ -956,7 +907,7 @@ event = "GameEnd"
     assert_eq!(
         scenario.expect.journal[0],
         ExpectedEventDto::FootballEvent {
-            event: EventKindDto::GameEnd,
+            event: EventKindDto::Goal,
             team: None,
             at: None,
         }

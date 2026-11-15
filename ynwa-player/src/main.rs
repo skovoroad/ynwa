@@ -8,8 +8,8 @@ use macroquad::prelude::*;
 use std::path::PathBuf;
 use uom::si::length::meter;
 use ynwa_core::{
-    json_journal_file_reader, json_journal_file_writer, FileJournalRecorder, GameStage,
-    JournalEntry, Record, RecordHeader, RecordReader, World,
+    json_journal_file_reader, json_journal_file_writer, FileJournalRecorder, JournalEntry, Record,
+    RecordHeader, RecordReader, World,
 };
 use ynwa_football::{create_football_replay_world, create_football_world};
 use ynwa_repository::FsTeamRepository;
@@ -67,7 +67,7 @@ async fn run_play(cli: &Cli, is_fullscreen: &mut bool) {
             break;
         }
 
-        advance(&mut world, &mut simulation);
+        advance(&mut world, &mut simulation, cli.duration);
         render_scene(&world, &simulation, field_ratio, None, 0);
 
         next_frame().await
@@ -101,19 +101,24 @@ async fn run_record(cli: &Cli, is_fullscreen: &mut bool) {
         )));
     println!("Recording to {}", path.display());
 
+    let mut finalized = false;
     loop {
         if handle_input(&mut simulation, is_fullscreen, true, None) {
-            // Closed early: leave the file a valid JSON Lines prefix.
-            let _ = world.game_mut().finish_journal();
+            if !finalized {
+                // Closed early: leave the file a valid JSON Lines prefix.
+                let _ = world.game_mut().finish_journal();
+            }
             break;
         }
 
-        advance(&mut world, &mut simulation);
+        if !finalized {
+            advance(&mut world, &mut simulation, cli.duration);
 
-        if world.game().state().stage == GameStage::GameOver {
-            load_or_exit(world.game_mut().finish_journal(), "finalize recording");
-            println!("Recording saved to {}", path.display());
-            break;
+            if world.game().state().elapsed_time >= cli.duration {
+                load_or_exit(world.game_mut().finish_journal(), "finalize recording");
+                println!("Recording saved to {}", path.display());
+                finalized = true;
+            }
         }
 
         render_scene(&world, &simulation, field_ratio, None, 0);
@@ -157,7 +162,7 @@ async fn run_replay(path: PathBuf, is_fullscreen: &mut bool) {
             break;
         }
 
-        advance(&mut world, &mut simulation);
+        advance(&mut world, &mut simulation, f32::INFINITY);
 
         let elapsed = world.game().state().elapsed_time;
         while event_cursor < events.len() && events[event_cursor].timestamp <= elapsed {
@@ -195,11 +200,12 @@ fn replay_steps(recording: &Record, timestep: f32) -> u64 {
     (last_timestamp / timestep).ceil() as u64
 }
 
-/// Accumulates frame time and advances the world by all due simulation steps.
-fn advance(world: &mut World, simulation: &mut SimulationControl) {
+/// Accumulates frame time and advances the world by all due simulation steps, stopping once
+/// `duration` seconds of match time have elapsed.
+fn advance(world: &mut World, simulation: &mut SimulationControl, duration: f32) {
     simulation.accumulate(get_frame_time());
 
-    while simulation.should_step() {
+    while simulation.should_step() && world.game().state().elapsed_time < duration {
         world.step(simulation.timestep());
         simulation.consume_step();
     }

@@ -2,6 +2,7 @@ use std::path::{Path, PathBuf};
 
 pub const DEFAULT_TEAMS_PATH: &str = "teams";
 pub const DEFAULT_PREAMBLES_PATH: &str = "ynwa-scripts/preambles";
+pub const DEFAULT_MATCH_DURATION: f32 = 120.0;
 
 pub enum Mode {
     Play,
@@ -14,12 +15,14 @@ pub struct Cli {
     pub teams_path: PathBuf,
     pub preambles_path: PathBuf,
     pub out_dir: Option<PathBuf>,
+    pub duration: f32,
 }
 
 pub fn parse(args: &[String]) -> Result<Cli, String> {
     let mut record = false;
     let mut replay: Option<PathBuf> = None;
     let mut out_dir: Option<PathBuf> = None;
+    let mut duration: Option<f32> = None;
     let mut positionals: Vec<String> = Vec::new();
 
     let mut index = 0;
@@ -46,6 +49,13 @@ pub fn parse(args: &[String]) -> Result<Cli, String> {
                 index += 1;
                 out_dir = Some(PathBuf::from(option_value(args, index, "--out")?));
             }
+            "--duration" => {
+                if duration.is_some() {
+                    return Err("--duration specified more than once".to_string());
+                }
+                index += 1;
+                duration = Some(parse_duration(option_value(args, index, "--duration")?)?);
+            }
             other if other.starts_with("--") => {
                 return Err(format!("unknown flag: {}", other));
             }
@@ -59,6 +69,9 @@ pub fn parse(args: &[String]) -> Result<Cli, String> {
     }
     if out_dir.is_some() && !record {
         return Err("--out requires --record".to_string());
+    }
+    if duration.is_some() && replay.is_some() {
+        return Err("--duration and --replay cannot be used together".to_string());
     }
     if positionals.len() > 2 {
         return Err("at most two positional arguments are allowed".to_string());
@@ -87,7 +100,21 @@ pub fn parse(args: &[String]) -> Result<Cli, String> {
                 .unwrap_or(DEFAULT_PREAMBLES_PATH),
         ),
         out_dir,
+        duration: duration.unwrap_or(DEFAULT_MATCH_DURATION),
     })
+}
+
+fn parse_duration(value: &str) -> Result<f32, String> {
+    let duration: f32 = value
+        .parse()
+        .map_err(|_| format!("--duration must be a number, got '{}'", value))?;
+    if !duration.is_finite() || duration <= 0.0 {
+        return Err(format!(
+            "--duration must be a positive finite number, got {}",
+            value
+        ));
+    }
+    Ok(duration)
 }
 
 fn option_value<'a>(args: &'a [String], index: usize, flag: &str) -> Result<&'a str, String> {
@@ -127,3 +154,7 @@ pub fn next_record_path(dir: &Path) -> Result<PathBuf, String> {
         suffix += 1;
     }
 }
+
+#[cfg(test)]
+#[path = "cli_tests.rs"]
+mod tests;

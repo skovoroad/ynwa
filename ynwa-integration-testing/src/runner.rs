@@ -122,7 +122,7 @@ fn compile_criteria(run: &RunPlanDto) -> Result<Vec<StopCriterion>, ScenarioErro
                 setup_reason.clone(),
             ))),
             StopCriterionDto::Event { event, team } => Ok(StopCriterion::OnEvent(
-                EventMatcher::from_def(*event, *team).map_err(ScenarioError::new)?,
+                EventMatcher::from_def(*event, *team),
             )),
             StopCriterionDto::Journal(pattern) => Ok(StopCriterion::OnJournal(
                 JournalMatcher::new(pattern.clone()),

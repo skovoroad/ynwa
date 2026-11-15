@@ -214,7 +214,6 @@ fn football_event_text(event: &FootballEvent) -> String {
         FootballEvent::GoalLine(_, last_team) => {
             format!("Goal line; last touch: {}", team_label(*last_team))
         }
-        FootballEvent::GameEnd => "Match end".to_string(),
     }
 }
 
