@@ -21,7 +21,7 @@ See `proposal.md` for motivation. Currently:
 
 1. **Remove `FootballEvent::GameEnd` and `GAME_DURATION` from `ynwa-football`**:
    - Delete `FootballEvent::GameEnd`, `GAME_DURATION`, and `check_game_end` from `ynwa-football/src/events.rs`, and remove the `FootballEvent::GameEnd` arm in `FootballGameManager::handle_event`.
-   - Every remaining `FootballEvent` variant (`Goal`, `Touchline`, `GoalLine`) now carries a `Team`, eliminating the special-case `GameEnd` team-rejection validation in `ynwa-integration-testing/src/dto.rs`.
+   - Every remaining `FootballEvent` variant (`Goal`, `Touchline`, `GoalLine`) now carries a `Team`, eliminating the special-case `GameEnd` team-rejection validation in `ynwa-integration-testing/src/criterion.rs`.
 
 2. **Client-owned duration in `ynwa-player`**:
    - Add `pub const DEFAULT_MATCH_DURATION: f32 = 120.0;` and an optional `--duration <seconds>` CLI flag (`f32 > 0.0` and finite, rejected with `--replay`) in `ynwa-player/src/cli.rs`.

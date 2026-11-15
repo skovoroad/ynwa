@@ -24,7 +24,7 @@ Currently, match duration (`GAME_DURATION = 120.0` s) is hardcoded inside `ynwa-
 
 ## Impact
 
-- `ynwa-football`: `src/events.rs`, `src/game_manager.rs`, and their unit tests (`events_tests.rs`, `game_manager_tests.rs`).
-- `ynwa-player`: `src/cli.rs`, `src/main.rs`, `src/simulation.rs`, `src/ui.rs`, and `src/ui_tests.rs`.
-- `ynwa-integration-testing`: `src/dto.rs`, `src/criterion.rs`, `src/compare.rs`, and their unit tests.
+- `ynwa-football`: `src/events.rs`, `src/game_manager.rs`, and tests (`events_tests.rs`, `journal_integration_tests.rs`, `replay_tests.rs`).
+- `ynwa-player`: `src/cli.rs`, `src/main.rs`, `src/ui.rs`, and `src/ui_tests.rs`.
+- `ynwa-integration-testing`: `src/dto.rs`, `src/criterion.rs`, and tests (`compare_tests.rs`, `criterion_tests.rs`, `dto_tests.rs`, `runner_tests.rs`).
 
