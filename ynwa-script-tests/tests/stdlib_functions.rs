@@ -6,7 +6,7 @@ use ynwa_core::System;
 use ynwa_script_tests::{
     create_test_game_football_field_with_preambles, create_test_game_with_all_preambles,
     create_test_game_with_full_preambles_and_stage, create_test_game_with_preambles,
-    deterministic_rng, request_decisions_for_all,
+    request_decisions_for_all,
 };
 
 // Stub make_decision() that does nothing - required by game engine
@@ -26,17 +26,17 @@ function test_core_functions()
     if not my_pos or not my_pos.x or not my_pos.z then
         error("my_position() failed")
     end
-    
+
     local ball_pos = ball_position()
     if not ball_pos or not ball_pos.x or not ball_pos.z then
         error("ball_position() failed")
     end
-    
+
     local teammates = get_teammates()
     if type(teammates) ~= "table" then
         error("get_teammates() failed")
     end
-    
+
     local idx = my_index()
     if type(idx) ~= "number" then
         error("my_index() failed")
@@ -74,7 +74,7 @@ function test_distance()
     local pos1 = {x = 0.0, z = 0.0}
     local pos2 = {x = 3.0, z = 4.0}
     local dist = distance(pos1, pos2)
-    
+
     -- Distance should be 5.0 (3-4-5 triangle)
     if math.abs(dist - 5.0) > 0.01 then
         error("Distance calculation failed: expected 5.0, got " .. tostring(dist))
@@ -310,27 +310,6 @@ end
     );
 }
 
-#[test]
-fn test_parse_col() {
-    let script = format!(
-        r#"
-assert(parse_col("A") == 1,  "A must be 1")
-assert(parse_col("Z") == 26, "Z must be 26")
-assert(parse_col("a") == 1,  "lowercase a must be 1")
-assert(parse_col("AA") == 27, "AA must be 27")
-assert(parse_col("AZ") == 52, "AZ must be 52")
-{}
-"#,
-        MAKE_DECISION_STUB
-    );
-    let mut game = create_test_game_with_preambles(&script);
-    request_decisions_for_all(&mut game);
-    let dm = ScriptedDecisionMaker::new(&game).unwrap();
-    let mut ds = DecisionSystem::new().with_decision_maker(Box::new(dm));
-    ds.update(&mut game, 1.0);
-    assert!(game.state().player_states[0].last_error.is_none());
-}
-
 // ── is_in_region: boundary and edge cases ────────────────────────────────────
 
 // Helper: place player at (x, z) and check is_in_region("M20", "N25")
@@ -422,49 +401,6 @@ end
 }
 
 #[test]
-fn test_parse_notation_invalid_causes_error() {
-    let script = format!(
-        r#"
-local ok, err = pcall(parse_notation, "1A")
-assert(not ok, "parse_notation('1A') must error")
-local ok2, err2 = pcall(parse_notation, "")
-assert(not ok2, "parse_notation('') must error")
-{}
-"#,
-        MAKE_DECISION_STUB
-    );
-    let mut game = create_test_game_with_preambles(&script);
-    request_decisions_for_all(&mut game);
-    let dm = ScriptedDecisionMaker::new(&game).unwrap();
-    let mut ds = DecisionSystem::new().with_decision_maker(Box::new(dm));
-    ds.update(&mut game, 1.0);
-    assert!(game.state().player_states[0].last_error.is_none());
-}
-#[test]
-fn test_parse_notation() {
-    let script = format!(
-        r#"
-local col, row = parse_notation("A1")
-assert(col == 1 and row == 1, "A1: col=1, row=1")
-
-local col2, row2 = parse_notation("Z44")
-assert(col2 == 26 and row2 == 44, "Z44: col=26, row=44")
-
-local col3, row3 = parse_notation("m22")
-assert(col3 == 13 and row3 == 22, "m22: col=13, row=22")
-{}
-"#,
-        MAKE_DECISION_STUB
-    );
-    let mut game = create_test_game_with_preambles(&script);
-    request_decisions_for_all(&mut game);
-    let dm = ScriptedDecisionMaker::new(&game).unwrap();
-    let mut ds = DecisionSystem::new().with_decision_maker(Box::new(dm));
-    ds.update(&mut game, 1.0);
-    assert!(game.state().player_states[0].last_error.is_none());
-}
-
-#[test]
 fn test_region_notation_in_context() {
     // Regions carry a "display_notation" field.
     // Team A: plain notation, e.g. "J10:K11" or "M3" (single cell).
@@ -489,201 +425,6 @@ end
         "region notation test failed: {:?}",
         game.state().player_states[0].last_error
     );
-}
-
-// --- is_in_region_obj ---
-
-fn make_is_in_region_obj_game(
-    player_x: f32,
-    player_z: f32,
-    assert_inside: bool,
-) -> ynwa_core::game::Game {
-    use ynwa_core::field::zones::Point3D;
-    use ynwa_core::field::Field;
-    use ynwa_core::game::{BallDef, GameConfig, GameStage, PlayerDef, RefereeDef};
-    use ynwa_core::region::GridCell;
-
-    let field = Field::from_meters(100.0, 60.0, 26, 44);
-    let grid_dims = field.grid_dimensions();
-    let start_region = grid_dims
-        .create_region(GridCell::new(1, 1).unwrap(), GridCell::new(2, 2).unwrap())
-        .unwrap();
-    let attack_region = grid_dims
-        .create_region(GridCell::new(5, 5).unwrap(), GridCell::new(6, 6).unwrap())
-        .unwrap();
-
-    let (assert_expr, msg) = if assert_inside {
-        (
-            "assert(is_in_region_obj(pos), \"expected inside attack region\")",
-            "inside",
-        )
-    } else {
-        (
-            "assert(not is_in_region_obj(pos), \"expected outside attack region\")",
-            "outside",
-        )
-    };
-    let script = format!(
-        "function make_decision()\n    local pos = my_regions()[\"attack\"]\n    {}\n    return {{action = \"stop\"}}\nend",
-        assert_expr
-    );
-
-    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set");
-    let root = std::path::Path::new(&manifest_dir).parent().unwrap();
-    let load = |p: &str| std::fs::read_to_string(root.join(p)).unwrap();
-
-    let player = PlayerDef::new(ynwa_core::team::Team::A, 1, msg.to_string(), script, {
-        let mut r = std::collections::HashMap::new();
-        r.insert(REGION_START_POSITION.to_string(), start_region);
-        r.insert("attack".to_string(), attack_region);
-        r
-    });
-    let mut game = ynwa_core::game::Game::with_stage(
-        GameConfig {
-            field,
-            players: vec![player],
-            ball: BallDef::default(),
-            referees: vec![RefereeDef::default()],
-            team_a_id: "team_a".to_string(),
-            team_b_id: "team_b".to_string(),
-            team_a_display_name: "Team A".to_string(),
-            team_b_display_name: "Team B".to_string(),
-            scripting: ynwa_core::game::ScriptingConfig {
-                core_preamble: load("ynwa-scripts/preambles/core.lua"),
-                stdlib_preamble: load("ynwa-scripts/preambles/stdlib.lua"),
-                team_a_preamble: String::new(),
-                team_b_preamble: String::new(),
-            },
-        },
-        GameStage::Play,
-        deterministic_rng(),
-    );
-    game.state.player_states[0].position = Point3D::from_meters(player_x, 0.0, player_z);
-    game
-}
-
-#[test]
-fn test_is_in_region_obj_inside() {
-    // Square cells: cell_size = width / columns = 100 / 26.
-    // Attack region cells (5,5)-(6,6): min=4*cs, max=6*cs. Center = 5*cs.
-    let cs = 100.0_f32 / 26.0;
-    let mut game = make_is_in_region_obj_game(5.0 * cs, 5.0 * cs, true);
-    request_decisions_for_all(&mut game);
-    let dm = ScriptedDecisionMaker::new(&game).unwrap();
-    let mut ds = DecisionSystem::new().with_decision_maker(Box::new(dm));
-    ds.update(&mut game, 1.0);
-    assert!(
-        game.state().player_states[0].last_error.is_none(),
-        "{:?}",
-        game.state().player_states[0].last_error
-    );
-}
-
-#[test]
-fn test_is_in_region_obj_outside() {
-    let mut game = make_is_in_region_obj_game(0.1, 0.1, false);
-    request_decisions_for_all(&mut game);
-    let dm = ScriptedDecisionMaker::new(&game).unwrap();
-    let mut ds = DecisionSystem::new().with_decision_maker(Box::new(dm));
-    ds.update(&mut game, 1.0);
-    assert!(
-        game.state().player_states[0].last_error.is_none(),
-        "{:?}",
-        game.state().player_states[0].last_error
-    );
-}
-
-// --- pass_to_players_by_numbers ---
-
-#[test]
-fn test_pass_to_players_by_numbers_found() {
-    // Two players: player 0 (caller) + player 1 (number 10, teammate).
-    // pass_to_players_by_numbers({10,11}) should kick to player 1.
-    use ynwa_core::field::zones::Point3D;
-    use ynwa_core::field::Field;
-    use ynwa_core::game::{BallDef, GameConfig, GameStage, PlayerDef, RefereeDef};
-    use ynwa_core::region::GridCell;
-
-    let field = Field::from_meters(100.0, 60.0, 26, 44);
-    let grid_dims = field.grid_dimensions();
-    let region = grid_dims
-        .create_region(GridCell::new(1, 1).unwrap(), GridCell::new(2, 2).unwrap())
-        .unwrap();
-
-    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set");
-    let workspace_root = std::path::Path::new(&manifest_dir).parent().unwrap();
-    let core_preamble =
-        std::fs::read_to_string(workspace_root.join("ynwa-scripts/preambles/core.lua")).unwrap();
-    let stdlib_preamble =
-        std::fs::read_to_string(workspace_root.join("ynwa-scripts/preambles/stdlib.lua")).unwrap();
-
-    let caller = PlayerDef::new(
-        ynwa_core::team::Team::A,
-        7,
-        "Caller".to_string(),
-        "function make_decision() return pass_to_players_by_numbers({10, 11}) end".to_string(),
-        std::collections::HashMap::from([(REGION_START_POSITION.to_string(), region.clone())]),
-    );
-    let target = PlayerDef::new(
-        ynwa_core::team::Team::A,
-        10,
-        "Target".to_string(),
-        String::new(),
-        std::collections::HashMap::from([(REGION_START_POSITION.to_string(), region.clone())]),
-    );
-
-    let mut game = ynwa_core::game::Game::with_stage(
-        GameConfig {
-            field,
-            players: vec![caller, target],
-            ball: BallDef::default(),
-            referees: vec![RefereeDef::default()],
-            team_a_id: "team_a".to_string(),
-            team_b_id: "team_b".to_string(),
-            team_a_display_name: "Team A".to_string(),
-            team_b_display_name: "Team B".to_string(),
-            scripting: ynwa_core::game::ScriptingConfig {
-                core_preamble,
-                stdlib_preamble,
-                team_a_preamble: String::new(),
-                team_b_preamble: String::new(),
-            },
-        },
-        GameStage::Play,
-        deterministic_rng(),
-    );
-    game.state.player_states[1].position = Point3D::from_meters(30.0, 0.0, 30.0);
-    // Only player 0 needs a decision; player 1 has no make_decision defined
-    game.state.player_states[0].needs_decision = true;
-    let dm = ScriptedDecisionMaker::new(&game).unwrap();
-    let mut ds = DecisionSystem::new().with_decision_maker(Box::new(dm));
-    ds.update(&mut game, 1.0);
-    let state = &game.state().player_states[0];
-    assert!(state.last_error.is_none(), "{:?}", state.last_error);
-    assert!(
-        matches!(state.current_decision, Some(Decision::Kick(_))),
-        "expected kick, got {:?}",
-        state.current_decision
-    );
-    assert_eq!(state.decision_reason.as_deref(), Some("pass_to_#10"));
-}
-
-#[test]
-fn test_pass_to_players_by_numbers_not_found() {
-    // No teammates with numbers 10/11 → falls back to kick_to_opponent_goal
-    let script = r#"
-function make_decision()
-    return pass_to_players_by_numbers({10, 11})
-end
-"#;
-    let mut game = create_test_game_football_field_with_preambles(script);
-    request_decisions_for_all(&mut game);
-    let dm = ScriptedDecisionMaker::new(&game).unwrap();
-    let mut ds = DecisionSystem::new().with_decision_maker(Box::new(dm));
-    ds.update(&mut game, 1.0);
-    let state = &game.state().player_states[0];
-    assert!(state.last_error.is_none(), "{:?}", state.last_error);
-    assert!(matches!(state.current_decision, Some(Decision::Kick(_))));
 }
 
 // --- get_own_goal / default_goalkeeper_cover_position ---
@@ -820,6 +561,494 @@ end
     let mut game = create_test_game_with_all_preambles(vec![player]);
     game.state.player_states[0].position = Point3D::from_meters(5.0, 0.0, 5.0);
     game.state.player_states[0].needs_decision = true;
+    let dm = ScriptedDecisionMaker::new(&game).unwrap();
+    let mut ds = DecisionSystem::new().with_decision_maker(Box::new(dm));
+    ds.update(&mut game, 1.0);
+    assert!(
+        game.state().player_states[0].last_error.is_none(),
+        "{:?}",
+        game.state().player_states[0].last_error
+    );
+}
+
+// --- Multi-player helpers ---
+
+fn make_player(
+    team: ynwa_core::team::Team,
+    number: u32,
+    script: &str,
+) -> ynwa_core::game::PlayerDef {
+    use ynwa_core::region::GridCell;
+    let field = ynwa_football::field_builder::create_football_field();
+    let start_region = field
+        .grid_dimensions()
+        .create_region(GridCell::new(1, 1).unwrap(), GridCell::new(2, 2).unwrap())
+        .unwrap();
+    ynwa_core::game::PlayerDef::new(
+        team,
+        number,
+        format!("Player {number}"),
+        script.to_string(),
+        std::collections::HashMap::from([(REGION_START_POSITION.to_string(), start_region)]),
+    )
+}
+
+fn place_player(game: &mut ynwa_core::game::Game, index: usize, x: f32, z: f32) {
+    game.state.player_states[index].position =
+        ynwa_core::field::zones::Point3D::from_meters(x, 0.0, z);
+}
+
+/// Runs only player 0's script and returns its state.
+fn run_caller(mut game: ynwa_core::game::Game) -> ynwa_core::game::PlayerState {
+    for state in game.state.player_states.iter_mut() {
+        state.needs_decision = false;
+    }
+    game.state.player_states[0].needs_decision = true;
+    let dm = ScriptedDecisionMaker::new(&game).unwrap();
+    let mut ds = DecisionSystem::new().with_decision_maker(Box::new(dm));
+    ds.update(&mut game, 1.0);
+    game.state().player_states[0].clone()
+}
+
+// --- count_teammates_around / count_opponents_around ---
+
+#[test]
+fn test_count_players_around() {
+    let script = r#"
+function make_decision()
+    local pos = {x = 10, z = 10}
+    assert(count_teammates_around(pos, 5.0) == 2,
+        "strict radius includes me and excludes a teammate at exactly 5 m")
+    assert(count_teammates_around(pos, 10.0) == 3, "all teammates within a larger radius")
+    assert(count_opponents_around(pos, 5.0) == 1, "an opponent at exactly 5 m is excluded")
+    assert(count_opponents_around(pos, 10.001) == 2, "both opponents within a larger radius")
+    return {action = "stop"}
+end
+"#;
+    use ynwa_core::team::Team;
+    let players = vec![
+        make_player(Team::A, 1, script),
+        make_player(Team::A, 2, ""),
+        make_player(Team::A, 3, ""),
+        make_player(Team::B, 1, ""),
+        make_player(Team::B, 2, ""),
+    ];
+    let mut game = create_test_game_with_all_preambles(players);
+    place_player(&mut game, 0, 10.0, 10.0);
+    place_player(&mut game, 1, 13.0, 10.0);
+    place_player(&mut game, 2, 15.0, 10.0);
+    place_player(&mut game, 3, 10.0, 14.0);
+    place_player(&mut game, 4, 10.0, 20.0);
+    let state = run_caller(game);
+    assert!(state.last_error.is_none(), "{:?}", state.last_error);
+}
+
+// --- teammate_position / opponent_position ---
+
+#[test]
+fn test_position_lookups_and_unknown_numbers() {
+    let script = r#"
+function make_decision()
+    local tm = teammate_position(2)
+    assert(math.abs(tm.x - 30) < 0.01 and math.abs(tm.z - 30) < 0.01, "teammate_position(2)")
+    local opp = opponent_position(1)
+    assert(math.abs(opp.x - 10) < 0.01 and math.abs(opp.z - 50) < 0.01, "opponent_position(1)")
+    assert(not pcall(teammate_position, 99), "unknown teammate number must raise")
+    assert(not pcall(opponent_position, 99), "unknown opponent number must raise")
+    return {action = "stop"}
+end
+"#;
+    use ynwa_core::team::Team;
+    let players = vec![
+        make_player(Team::A, 1, script),
+        make_player(Team::A, 2, ""),
+        make_player(Team::B, 1, ""),
+    ];
+    let mut game = create_test_game_with_all_preambles(players);
+    place_player(&mut game, 1, 30.0, 30.0);
+    place_player(&mut game, 2, 10.0, 50.0);
+    let state = run_caller(game);
+    assert!(state.last_error.is_none(), "{:?}", state.last_error);
+}
+
+// --- ball_owner_number ---
+
+#[test]
+fn test_ball_owner_number_for_teammate() {
+    use ynwa_core::team::Team;
+    let script = r#"
+function make_decision()
+    assert(ball_owner_number() == 7, "owner number must be 7, got " .. tostring(ball_owner_number()))
+    return {action = "stop"}
+end
+"#;
+    let players = vec![
+        make_player(Team::A, 1, script),
+        make_player(Team::A, 7, ""),
+        make_player(Team::B, 3, ""),
+    ];
+    let mut game = create_test_game_with_all_preambles(players);
+    game.state.ball_state.possessed_by = Some(1);
+    game.state.ball_state.last_possessing_team = Some(Team::A);
+    let state = run_caller(game);
+    assert!(state.last_error.is_none(), "{:?}", state.last_error);
+}
+
+#[test]
+fn test_ball_owner_number_for_opponent() {
+    use ynwa_core::team::Team;
+    let script = r#"
+function make_decision()
+    assert(ball_owner_number() == 3, "owner number must be 3, got " .. tostring(ball_owner_number()))
+    return {action = "stop"}
+end
+"#;
+    let players = vec![
+        make_player(Team::A, 1, script),
+        make_player(Team::A, 7, ""),
+        make_player(Team::B, 3, ""),
+    ];
+    let mut game = create_test_game_with_all_preambles(players);
+    game.state.ball_state.possessed_by = Some(2);
+    game.state.ball_state.last_possessing_team = Some(Team::B);
+    let state = run_caller(game);
+    assert!(state.last_error.is_none(), "{:?}", state.last_error);
+}
+
+#[test]
+fn test_ball_owner_number_is_nil_for_in_flight_pass() {
+    use ynwa_core::team::Team;
+    let script = r#"
+function make_decision()
+    assert(ball_owner_number() == nil, "in-flight pass has no owner number")
+    assert(get_ball_owner_team() == "A", "passing team is still reported")
+    return {action = "stop"}
+end
+"#;
+    let players = vec![make_player(Team::A, 1, script), make_player(Team::A, 7, "")];
+    let mut game = create_test_game_with_all_preambles(players);
+    game.state.ball_state.possessed_by = None;
+    game.state.ball_state.last_possessing_team = Some(Team::A);
+    let state = run_caller(game);
+    assert!(state.last_error.is_none(), "{:?}", state.last_error);
+}
+
+// --- free player predicates ---
+
+#[test]
+fn test_is_teammate_free() {
+    let script = r#"
+function make_decision()
+    assert(not is_teammate_free(2), "an opponent 4.9 m away marks the teammate as covered")
+    assert(is_teammate_free(3), "an opponent at exactly 5 m leaves the teammate free")
+    return {action = "stop"}
+end
+"#;
+    use ynwa_core::team::Team;
+    let players = vec![
+        make_player(Team::A, 1, script),
+        make_player(Team::A, 2, ""),
+        make_player(Team::A, 3, ""),
+        make_player(Team::B, 1, ""),
+        make_player(Team::B, 2, ""),
+    ];
+    let mut game = create_test_game_with_all_preambles(players);
+    place_player(&mut game, 0, 0.0, 0.0);
+    place_player(&mut game, 1, 20.0, 20.0);
+    place_player(&mut game, 2, 40.0, 40.0);
+    place_player(&mut game, 3, 24.9, 20.0);
+    place_player(&mut game, 4, 45.0, 40.0);
+    let state = run_caller(game);
+    assert!(state.last_error.is_none(), "{:?}", state.last_error);
+}
+
+#[test]
+fn test_is_opponent_free() {
+    let script = r#"
+function make_decision()
+    assert(not is_opponent_free(1), "a teammate 4.9 m away marks the opponent as covered")
+    assert(is_opponent_free(2), "a teammate at exactly 5 m leaves the opponent free")
+    return {action = "stop"}
+end
+"#;
+    use ynwa_core::team::Team;
+    let players = vec![
+        make_player(Team::A, 1, script),
+        make_player(Team::A, 2, ""),
+        make_player(Team::A, 3, ""),
+        make_player(Team::B, 1, ""),
+        make_player(Team::B, 2, ""),
+    ];
+    let mut game = create_test_game_with_all_preambles(players);
+    place_player(&mut game, 0, 0.0, 0.0);
+    place_player(&mut game, 1, 24.9, 20.0);
+    place_player(&mut game, 2, 45.0, 40.0);
+    place_player(&mut game, 3, 20.0, 20.0);
+    place_player(&mut game, 4, 40.0, 40.0);
+    let state = run_caller(game);
+    assert!(state.last_error.is_none(), "{:?}", state.last_error);
+}
+
+// --- directional predicates ---
+
+#[test]
+fn test_directional_predicates() {
+    let script = r#"
+function make_decision()
+    assert(is_teammate_ahead(2), "teammate 2 is ahead")
+    assert(is_teammate_behind(3), "teammate 3 is behind")
+    assert(is_teammate_left(4), "teammate 4 is left")
+    assert(is_teammate_right(5), "teammate 5 is right")
+    assert(not is_teammate_ahead(6), "an offset of exactly 0.5 m is not ahead")
+    assert(is_opponent_ahead(1), "opponent 1 is ahead")
+    assert(is_opponent_behind(2), "opponent 2 is behind")
+    assert(is_opponent_left(3), "opponent 3 is left")
+    assert(is_opponent_right(4), "opponent 4 is right")
+    return {action = "stop"}
+end
+"#;
+    use ynwa_core::team::Team;
+    let players = vec![
+        make_player(Team::A, 1, script),
+        make_player(Team::A, 2, ""),
+        make_player(Team::A, 3, ""),
+        make_player(Team::A, 4, ""),
+        make_player(Team::A, 5, ""),
+        make_player(Team::A, 6, ""),
+        make_player(Team::B, 1, ""),
+        make_player(Team::B, 2, ""),
+        make_player(Team::B, 3, ""),
+        make_player(Team::B, 4, ""),
+    ];
+    let mut game = create_test_game_with_all_preambles(players);
+    place_player(&mut game, 0, 10.0, 10.0);
+    place_player(&mut game, 1, 10.0, 11.0);
+    place_player(&mut game, 2, 10.0, 9.0);
+    place_player(&mut game, 3, 9.0, 10.0);
+    place_player(&mut game, 4, 11.0, 10.0);
+    place_player(&mut game, 5, 10.0, 10.5);
+    place_player(&mut game, 6, 10.0, 11.0);
+    place_player(&mut game, 7, 10.0, 9.0);
+    place_player(&mut game, 8, 9.0, 10.0);
+    place_player(&mut game, 9, 11.0, 10.0);
+    let state = run_caller(game);
+    assert!(state.last_error.is_none(), "{:?}", state.last_error);
+}
+
+// --- kick_to_position ---
+
+#[test]
+fn test_kick_to_position_default_reason() {
+    let script = r#"
+function make_decision()
+    return kick_to_position({x = 12.5, z = 34.5})
+end
+"#;
+    let mut game = create_test_game_with_preambles(script);
+    request_decisions_for_all(&mut game);
+    let dm = ScriptedDecisionMaker::new(&game).unwrap();
+    let mut ds = DecisionSystem::new().with_decision_maker(Box::new(dm));
+    ds.update(&mut game, 1.0);
+    let state = &game.state().player_states[0];
+    assert!(state.last_error.is_none(), "{:?}", state.last_error);
+    let Some(Decision::Kick(target)) = &state.current_decision else {
+        panic!("Expected Kick, got: {:?}", state.current_decision);
+    };
+    use uom::si::length::meter;
+    assert!((target.x.get::<meter>() - 12.5).abs() < 0.01);
+    assert!((target.z.get::<meter>() - 34.5).abs() < 0.01);
+    assert_eq!(
+        state.decision_reason.as_deref(),
+        Some("kick_to_position(12.5,34.5)")
+    );
+}
+
+#[test]
+fn test_kick_to_position_explicit_reason() {
+    let script = r#"
+function make_decision()
+    return kick_to_position({x = 1.0, z = 2.0}, "pass_to_#2")
+end
+"#;
+    let mut game = create_test_game_with_preambles(script);
+    request_decisions_for_all(&mut game);
+    let dm = ScriptedDecisionMaker::new(&game).unwrap();
+    let mut ds = DecisionSystem::new().with_decision_maker(Box::new(dm));
+    ds.update(&mut game, 1.0);
+    let state = &game.state().player_states[0];
+    assert!(state.last_error.is_none(), "{:?}", state.last_error);
+    assert!(matches!(state.current_decision, Some(Decision::Kick(_))));
+    assert_eq!(state.decision_reason.as_deref(), Some("pass_to_#2"));
+}
+
+// --- run_to_start_position ---
+
+#[test]
+fn test_run_to_start_position() {
+    let script = r#"
+function make_decision()
+    return run_to_start_position()
+end
+"#;
+    let mut game = create_test_game_with_preambles(script);
+    request_decisions_for_all(&mut game);
+    let dm = ScriptedDecisionMaker::new(&game).unwrap();
+    let mut ds = DecisionSystem::new().with_decision_maker(Box::new(dm));
+    ds.update(&mut game, 1.0);
+    let state = &game.state().player_states[0];
+    assert!(state.last_error.is_none(), "{:?}", state.last_error);
+    assert!(matches!(state.current_decision, Some(Decision::Run(_))));
+    assert_eq!(
+        state.decision_reason.as_deref(),
+        Some("run_to_start_position")
+    );
+}
+
+#[test]
+fn test_run_to_start_position_without_region_stops() {
+    let script = r#"
+function make_decision()
+    context.me.regions["start"] = nil
+    return run_to_start_position()
+end
+"#;
+    let mut game = create_test_game_with_preambles(script);
+    request_decisions_for_all(&mut game);
+    let dm = ScriptedDecisionMaker::new(&game).unwrap();
+    let mut ds = DecisionSystem::new().with_decision_maker(Box::new(dm));
+    ds.update(&mut game, 1.0);
+    let state = &game.state().player_states[0];
+    assert!(state.last_error.is_none(), "{:?}", state.last_error);
+    assert!(matches!(state.current_decision, Some(Decision::Stop)));
+    assert_eq!(state.decision_reason.as_deref(), Some("no_start_position"));
+}
+
+// --- default_goalkeeper_with_ball ---
+
+#[test]
+fn test_default_goalkeeper_with_ball_passes_to_nearest_eligible_teammate() {
+    let script = r#"
+function make_decision()
+    return default_goalkeeper_with_ball()
+end
+"#;
+    use ynwa_core::team::Team;
+    let players = vec![
+        make_player(Team::A, 1, script),
+        make_player(Team::A, 2, ""),
+        make_player(Team::A, 3, ""),
+        make_player(Team::A, 4, ""),
+    ];
+    let mut game = create_test_game_with_all_preambles(players);
+    place_player(&mut game, 0, 10.0, 10.0);
+    place_player(&mut game, 1, 10.0, 30.0); // 20 m
+    place_player(&mut game, 2, 10.0, 26.0); // 16 m, nearest eligible
+    place_player(&mut game, 3, 10.0, 20.0); // 10 m, too close
+    let state = run_caller(game);
+    assert!(state.last_error.is_none(), "{:?}", state.last_error);
+    let Some(Decision::Kick(target)) = &state.current_decision else {
+        panic!("Expected Kick, got: {:?}", state.current_decision);
+    };
+    use uom::si::length::meter;
+    assert!((target.z.get::<meter>() - 26.0).abs() < 0.01);
+    assert_eq!(state.decision_reason.as_deref(), Some("pass_to_#3"));
+}
+
+#[test]
+fn test_default_goalkeeper_with_ball_falls_back_to_goal() {
+    let script = r#"
+function make_decision()
+    return default_goalkeeper_with_ball()
+end
+"#;
+    use ynwa_core::team::Team;
+    let players = vec![make_player(Team::A, 1, script), make_player(Team::A, 2, "")];
+    let mut game = create_test_game_with_all_preambles(players);
+    place_player(&mut game, 0, 10.0, 10.0);
+    place_player(&mut game, 1, 10.0, 20.0); // 10 m, below the 15 m threshold
+    let state = run_caller(game);
+    assert!(state.last_error.is_none(), "{:?}", state.last_error);
+    assert!(matches!(state.current_decision, Some(Decision::Kick(_))));
+    assert!(
+        state
+            .decision_reason
+            .as_deref()
+            .unwrap_or("")
+            .starts_with("kick_to_goal("),
+        "expected a goal kick, got {:?}",
+        state.decision_reason
+    );
+}
+
+// --- is_in_opponent_penalty_area (covers the internal is_in_region_obj) ---
+
+fn check_opponent_penalty_area(x: f32, z: f32) -> Option<Decision> {
+    use ynwa_core::field::zones::Point3D;
+    let script = r#"
+function make_decision()
+    if is_in_opponent_penalty_area() then
+        return {action = "stop"}
+    else
+        return {action = "kick", target = {x = 0, z = 0}}
+    end
+end
+"#;
+    let mut game = create_test_game_football_field_with_preambles(script);
+    game.state.player_states[0].position = Point3D::from_meters(x, 0.0, z);
+    request_decisions_for_all(&mut game);
+    let dm = ScriptedDecisionMaker::new(&game).unwrap();
+    let mut ds = DecisionSystem::new().with_decision_maker(Box::new(dm));
+    ds.update(&mut game, 1.0);
+    game.state().player_states[0].current_decision.clone()
+}
+
+#[test]
+fn test_is_in_opponent_penalty_area() {
+    use uom::si::length::meter;
+    use ynwa_core::field::zones::ZoneGeometry;
+    use ynwa_core::team::Team;
+
+    let field = ynwa_football::field_builder::create_football_field();
+    let zone = field
+        .get_zone("penalty_area", Some(Team::B))
+        .expect("penalty_area_b must exist");
+    let ZoneGeometry::Rectangle(ref rect) = zone.geometry else {
+        panic!("penalty area must be a Rectangle");
+    };
+    let center_x = (rect.min.x.get::<meter>() + rect.max.x.get::<meter>()) / 2.0;
+    let center_z = (rect.min.z.get::<meter>() + rect.max.z.get::<meter>()) / 2.0;
+
+    assert!(matches!(
+        check_opponent_penalty_area(center_x, center_z),
+        Some(Decision::Stop)
+    ));
+    assert!(matches!(
+        check_opponent_penalty_area(0.1, 0.1),
+        Some(Decision::Kick(_))
+    ));
+}
+
+// --- internal and removed helpers are not visible in the player scope ---
+
+#[test]
+fn test_internal_and_removed_helpers_are_nil_in_player_scope() {
+    let script = r#"
+function make_decision()
+    assert(parse_col == nil, "parse_col must be internal")
+    assert(parse_notation == nil, "parse_notation must be internal")
+    assert(is_in_region_obj == nil, "is_in_region_obj must be internal")
+    assert(run_to_region_obj == nil, "run_to_region_obj must be internal")
+    assert(get_teammate_by_number == nil, "get_teammate_by_number must be internal")
+    assert(am_i_ball_owner == nil, "am_i_ball_owner must be internal")
+    assert(pass_to_teammate == nil, "pass_to_teammate must be removed")
+    assert(pass_to_players_by_numbers == nil, "pass_to_players_by_numbers must be removed")
+    assert(kick_to_cell == nil, "kick_to_cell must be removed")
+    assert(kick_to_region == nil, "kick_to_region must be removed")
+    return {action = "stop"}
+end
+"#;
+    let mut game = create_test_game_with_preambles(script);
+    request_decisions_for_all(&mut game);
     let dm = ScriptedDecisionMaker::new(&game).unwrap();
     let mut ds = DecisionSystem::new().with_decision_maker(Box::new(dm));
     ds.update(&mut game, 1.0);

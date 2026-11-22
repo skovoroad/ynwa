@@ -263,12 +263,12 @@ fn test_context_structure() {
 #[test]
 fn test_kick_if_ball_owner() {
     // Test the team library function: "if ball is mine, kick it in random direction"
-    // This function uses am_i_ball_owner() from stdlib and ball_owner() from core
+    // This function uses ball_owner_number() from stdlib
     // Since we can't easily set ball owner, we test that the function works correctly
     // when ball is free (owner_index is nil)
     let script = r#"
         function make_decision()
-            if am_i_ball_owner() then
+            if ball_owner_number() == context.me.number then
                 local target_x = math.random() * GAME_DATA.field.width
                 local target_z = math.random() * GAME_DATA.field.length
                 return {action = "kick", target = {x = target_x, z = target_z}}
@@ -304,7 +304,7 @@ fn test_kick_if_ball_owner() {
     );
 
     // Since ball is free by default (owner_index is nil),
-    // am_i_ball_owner() should return false, so decision should be Stop
+    // ball_owner_number() should return nil, so decision should be Stop
     match &player_state.current_decision {
         Some(Decision::Stop) => {
             // Expected: ball is free, so stop

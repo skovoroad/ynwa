@@ -4,7 +4,7 @@
 
 `ynwa-scripts/preambles/core.lua` and `stdlib.lua` form the engine-owned Lua runtime layers (Layer 1 and Layer 2). `DecisionEngine` concatenates `core.lua`, `stdlib.lua`, and the team `preamble.lua` into a single Lua chunk, so top-level `local` declarations in `stdlib.lua` are still visible to the team preamble. Currently:
 - `context.opponents` is already serialized by `ScriptedDecisionMaker` in `ynwa-core`, but `core.lua` has no wrapper for it.
-- `stdlib.lua` exposes internal grid/region helpers (`parse_col`, `parse_notation`, `is_in_region_obj`, `run_to_region_obj`), duplicated pass APIs (`get_teammate_by_number` + `pass_to_teammate`), and container/unused functions (`pass_to_players_by_numbers`, `run_to_start_position`, `kick_to_cell`, `kick_to_region`).
+- `stdlib.lua` exposes internal grid/region helpers (`parse_col`, `parse_notation`, `is_in_region_obj`, `run_to_region_obj`), duplicated pass APIs (`get_teammate_by_number` + `pass_to_teammate`), and container functions (`pass_to_players_by_numbers`, `kick_to_cell`, `kick_to_region`).
 - `teams/team_a/preamble.lua` and `teams/team_b/preamble.lua` use player loops (`am_i_top3_closest_to_ball`, `pass_to_nearest_teammate`), raw coordinate reads (`my_position().z`, `fwd10.position.z`), hand-crafted `{action = "kick", ...}` tables, and functions that become internal or are removed (`pass_to_players_by_numbers`, `is_in_region_obj`, `my_regions`, `get_teammate_by_number`, `pass_to_teammate`).
 - `ynwa-script-tests` (`tests/stdlib_functions.rs`, `fixtures/team_a.lua`, `fixtures/team_b.lua`, `scenarios/goal_kick_team*`) and `ynwa-integration-testing/scenarios/pass_*` (`pass_to_teammate(get_teammate_by_number(2))`) call several of these functions.
 
@@ -29,7 +29,7 @@
    - State (Layer 1): `my_position()`, `ball_position()`, `my_team_name()`, `get_ball_owner_team()`.
    - Queries (Layer 2): `distance(p1, p2)`, `teammate_position(n)`, `opponent_position(n)`, `ball_owner_number()`, `count_teammates_around(pos, r)`, `count_opponents_around(pos, r)`.
    - Predicates: `is_in_region(from, to)`, `is_in_opponent_penalty_area()`, `is_teammate_free(n)`, `is_opponent_free(n)`, `is_teammate_ahead/behind/left/right(n)`, `is_opponent_ahead/behind/left/right(n)`.
-   - Actions: `stop(reason?)`, `chase_ball()`, `run_to_region(from, to)`, `run_to_attack_position()`, `run_to_defence_position()`, `run_to_opponent_penalty_area()`, `kick_to_position(pos, reason?)`, `kick_to_opponent_goal()`, `default_goalkeeper_cover_position()`, `default_goalkeeper_with_ball()`.
+   - Actions: `stop(reason?)`, `chase_ball()`, `run_to_region(from, to)`, `run_to_start_position()`, `run_to_attack_position()`, `run_to_defence_position()`, `run_to_opponent_penalty_area()`, `kick_to_position(pos, reason?)`, `kick_to_opponent_goal()`, `default_goalkeeper_cover_position()`, `default_goalkeeper_with_ball()`.
    - Everything else in `core.lua` is internal by comment (it must stay global for `stdlib.lua`); everything else in `stdlib.lua` is `local`. `make_decision()` stays global (called by the engine), but is not part of the user-facing API.
 
 2. **`stdlib.lua` layout and hiding:**
@@ -90,7 +90,7 @@
     | `team_b` `forward_with_ball` | shoot if in penalty area or in own `attack` region; otherwise `run_to_attack_position()` | shoot if `is_in_opponent_penalty_area()`; otherwise `run_to_opponent_penalty_area()` | Forward no longer shoots from its attack region; it carries the ball into the penalty area first |
 
 12. **Test & fixture migration:**
-    - `ynwa-script-tests/fixtures/team_a.lua`, `team_b.lua`: replace `run_to_start_position()` with `run_to_defence_position()`.
+    - `ynwa-script-tests/fixtures/team_a.lua`, `team_b.lua`: unchanged; they keep calling `run_to_start_position()`.
     - `ynwa-script-tests/scenarios/goal_kick_team*`: replace `kick_to_cell(...)` / `kick_to_region(...)` with `kick_to_position(...)` / `kick_to_opponent_goal()` / `run_to_region(...)`.
     - `ynwa-integration-testing/scenarios/pass_*/teams/*/players/01/script.lua`: replace `pass_to_teammate(get_teammate_by_number(2))` with `kick_to_position(teammate_position(2), "pass_to_#2")`.
     - `ynwa-script-tests/tests/stdlib_functions.rs`: remove direct tests of now-internal/removed functions (`parse_col`, `parse_notation`, `is_in_region_obj`, `get_teammate_by_number`, `am_i_ball_owner`, `pass_to_teammate`, `pass_to_players_by_numbers`) — their behavior stays covered through public functions (`is_in_region`, `run_to_region`, `teammate_position`, `make_decision`); add tests for every new public function and assert that internal helpers are `nil` from the team-preamble scope.

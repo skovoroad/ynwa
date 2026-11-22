@@ -59,65 +59,58 @@ taker; allowed only in `own` keys and exactly once per key). The
 
 ## 3. Available Functions
 
+Only the functions listed in this section are part of the user-facing API. Everything else in
+`core.lua` and `stdlib.lua` is internal to the engine preambles and must not be called from
+team preambles or player scripts.
+
+Squad numbers identify players for now; a dedicated DSL "player" type will replace them later.
+
 ### 3.1 State Access ([`core.lua`](../ynwa-scripts/preambles/core.lua))
 
 | Function | Returns |
 |---|---|
-| `ball_owner()` | global index of the ball owner or `nil` if the ball is free |
 | `my_position()` | table `{x, y, z}` — my position |
-| `my_regions()` | table `{name = region}` — my named regions |
 | `ball_position()` | table `{x, y, z}` — ball position |
-| `get_teammates()` | array of teammates `{index, number, position}` (excluding self) |
-| `my_index()` | my global index |
 | `my_team_name()` | `"A"` or `"B"` |
 | `get_ball_owner_team()` | `"A"`, `"B"`, or `"None"` |
-| `get_opponent_goal()` | the opponent's goal zone object |
-| `get_own_goal()` | the own goal zone object |
-| `get_opponent_penalty_area()` | the opponent's penalty-area zone object |
 
-### 3.2 Utilities ([`stdlib.lua`](../ynwa-scripts/preambles/stdlib.lua))
+### 3.2 Queries ([`stdlib.lua`](../ynwa-scripts/preambles/stdlib.lua))
 
 | Function | Parameters | Returns |
 |---|---|---|
 | `distance(p1, p2)` | two positions | horizontal distance (without Y) |
-| `parse_col(s)` | column string | column number (`A`→1, `Z`→26, `AA`→27) |
-| `parse_notation(n)` | string `"M22"` | `col, row` |
+| `teammate_position(n)` | squad number | teammate position (opaque `{x, y, z}`) |
+| `opponent_position(n)` | squad number | opponent position (opaque `{x, y, z}`) |
+| `ball_owner_number()` | — | squad number of the ball owner, or `nil` when nobody possesses the ball |
+| `count_teammates_around(pos, r)` | position, radius | number of teammates (including me) strictly closer than `r` |
+| `count_opponents_around(pos, r)` | position, radius | number of opponents strictly closer than `r` |
 
 ### 3.3 Condition Checks ([`stdlib.lua`](../ynwa-scripts/preambles/stdlib.lua))
 
 | Function | Parameters | Returns |
 |---|---|---|
-| `am_i_ball_owner()` | — | `true` if I have the ball |
-| `is_in_region_obj(region)` | region | `true` if I am inside the region |
 | `is_in_region(from, to)` | corner notations | `true` if I am inside the region `from:to` |
 | `is_in_opponent_penalty_area()` | — | `true` if I am in the opponent's penalty area |
-| `get_teammate_by_number(n)` | tactical number | teammate `{index, number, position}` or `nil` |
+| `is_teammate_free(n)` / `is_opponent_free(n)` | squad number | `true` if no opponent / teammate is strictly within 5 m |
+| `is_teammate_ahead(n)` / `is_teammate_behind(n)` | squad number | teammate is more than 0.5 m closer to the opponent goal / own goal along Z |
+| `is_teammate_left(n)` / `is_teammate_right(n)` | squad number | teammate is more than 0.5 m to the left / right along X |
+| `is_opponent_ahead/behind/left/right(n)` | squad number | the same checks for an opponent |
 
 ### 3.4 Decision-Making Functions ([`stdlib.lua`](../ynwa-scripts/preambles/stdlib.lua))
 
-Primitive actions:
-
 | Function | Parameters | Action |
 |---|---|---|
-| `stop(reason)` | reason | stop in place |
+| `stop(reason?)` | reason | stop in place |
 | `chase_ball()` | — | run after the ball |
-| `run_to_region_obj(r, reason)` | region, reason | run to the center of the region object |
 | `run_to_region(from, to)` | corner notations | run to the center of the region |
-| `kick_to_cell(notation)` | cell | kick to the center of the cell |
-| `kick_to_region(from, to)` | corner notations | kick to the center of the region |
-| `kick_to_opponent_goal()` | — | kick at the opponent's goal |
-| `pass_to_teammate(tm)` | teammate | pass to a teammate |
-| `pass_to_players_by_numbers(numbers)` | array of numbers | pass to the nearest of the listed; if none — kick at goal |
-
-Tactical actions (use the player's named regions):
-
-| Function | Parameters | Action |
-|---|---|---|
 | `run_to_start_position()` | — | run to the center of the `start` region |
 | `run_to_attack_position()` | — | run to the center of the `attack` region |
 | `run_to_defence_position()` | — | run to the center of the `defence` region |
 | `run_to_opponent_penalty_area()` | — | run to the center of the opponent's penalty area |
+| `kick_to_position(pos, reason?)` | opaque position, reason | kick to that position |
+| `kick_to_opponent_goal()` | — | kick at the opponent's goal |
 | `default_goalkeeper_cover_position()` | — | take a position on the goal line: Z from the `defence` region, X follows the ball clamped by the goal width |
+| `default_goalkeeper_with_ball()` | — | pass to the nearest teammate at least 15 m away, otherwise kick at the opponent's goal |
 
 ## 4. Team Preamble and `team_play`
 
@@ -164,21 +157,16 @@ player_play = { i_have_ball = forward_with_ball }
 
 ## 6. Regions and Field Zones
 
-**A player's region** in `my_regions()` is an object `{min_x, max_x, min_z, max_z, display_notation}`.
-Keys: `start`, `attack`, `defence`, and the set-piece keys from `[set_piece_positions]`.
-`display_notation` is the notation shown in the UI/logs.
+Region and zone objects are internal to the engine preambles: team preambles and player
+scripts never receive or inspect them directly. Use the public functions instead:
 
-**Field zones** live in `GAME_DATA.zones`; access them through the functions
-`get_own_goal()`, `get_opponent_goal()`, `get_opponent_penalty_area()`. The zone name = name +
-`_a`/`_b` suffix for team zones (neutral zones — without suffix).
+- tactical regions: `run_to_attack_position()`, `run_to_defence_position()`,
+  `run_to_region(from, to)`;
+- the opponent penalty area: `is_in_opponent_penalty_area()`,
+  `run_to_opponent_penalty_area()`;
+- positions: `my_position()`, `ball_position()`, `teammate_position(n)`,
+  `opponent_position(n)`. Their `{x, y, z}` tables are opaque; compare them only through
+  the public predicates and `distance()`.
 
-Zone geometries:
-
-- `rectangle`: `{type, min_x, max_x, min_z, max_z}`;
-- `circle`: `{type, center_x, center_z, radius}`;
-- `arc`: `{type, center_x, center_z, radius, start_angle, end_angle}` (degrees);
-- `point`: `{type, x, z, tolerance}`.
-
-19 field zones: `field`, `half` (A/B), `goal_area` (A/B), `penalty_area` (A/B), `center_circle`,
-`penalty_arc` (A/B), `corner_arc_bottom`/`corner_arc_top` (A/B), `center_spot`,
-`penalty_spot` (A/B), `goal` (A/B).
+Region names such as `start`, `attack`, `defence`, and the set-piece keys come from
+`tactical.toml` (see section 2) and back the tactical actions above.

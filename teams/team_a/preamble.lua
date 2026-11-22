@@ -2,14 +2,8 @@
 
 -- Returns true if this player is among the 3 closest teammates to the ball
 local function am_i_top3_closest_to_ball()
-    local my_dist = distance(my_position(), ball_position())
-    local closer = 0
-    for _, tm in ipairs(get_teammates()) do
-        if distance(tm.position, ball_position()) < my_dist then
-            closer = closer + 1
-        end
-    end
-    return closer < 3
+    local ball = ball_position()
+    return count_teammates_around(ball, distance(my_position(), ball)) < 3
 end
 
 -- Action: chase ball if in top-3 closest, otherwise run to attack position
@@ -22,31 +16,9 @@ local function press_or_defend()
     return am_i_top3_closest_to_ball() and chase_ball() or run_to_defence_position()
 end
 
--- Action: pass to nearest teammate at least 15m away; kick toward opponent goal if none found
-local function pass_to_nearest_teammate()
-    local my_pos = my_position()
-    local best = nil
-    local best_dist = math.huge
-    for _, tm in ipairs(get_teammates()) do
-        local d = distance(my_pos, tm.position)
-        if d >= 15.0 and d < best_dist then
-            best_dist = d
-            best = tm
-        end
-    end
-    if best then
-        return {
-            action = "kick",
-            target = {x = best.position.x, z = best.position.z},
-            reason = "pass_to_#" .. best.number
-        }
-    end
-    return kick_to_opponent_goal()
-end
-
 -- Assign via player_play in script.lua: player_play = goalkeeper_play
 goalkeeper_play = {
-    i_have_ball       = function() return pass_to_nearest_teammate() end,
+    i_have_ball       = default_goalkeeper_with_ball,
     team_has_ball     = function() return run_to_defence_position() end,
     opponent_has_ball = function() return default_goalkeeper_cover_position() end,
 }
@@ -56,16 +28,30 @@ goalkeeper_play = {
 local SHOOTING_ZONE_FROM = "I27"
 local SHOOTING_ZONE_TO   = "R40"
 
-local function pass_to_numbers(numbers)
-    return pass_to_players_by_numbers(numbers)
+-- Returns the number of the nearest of three teammates, compared in order.
+local function nearest_teammate_number(n1, n2, n3)
+    local my_pos = my_position()
+    local best_number = n1
+    local best_distance = distance(my_pos, teammate_position(n1))
+    local d2 = distance(my_pos, teammate_position(n2))
+    if d2 < best_distance then
+        best_number, best_distance = n2, d2
+    end
+    local d3 = distance(my_pos, teammate_position(n3))
+    if d3 < best_distance then
+        best_number = n3
+    end
+    return best_number
 end
 
 function defender_with_ball()
-    return pass_to_numbers({6, 7, 8})
+    local number = nearest_teammate_number(6, 7, 8)
+    return kick_to_position(teammate_position(number), "pass_to_#" .. number)
 end
 
 function midfielder_with_ball()
-    return pass_to_numbers({9, 10, 11})
+    local number = nearest_teammate_number(9, 10, 11)
+    return kick_to_position(teammate_position(number), "pass_to_#" .. number)
 end
 
 function forward_with_ball()

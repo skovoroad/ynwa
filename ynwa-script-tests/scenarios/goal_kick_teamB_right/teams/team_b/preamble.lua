@@ -3,7 +3,8 @@
 
 team_play = {
     i_have_ball = function()
-        return kick_to_cell("V40")
+        -- Center of cell V40 on the 68 × 104.6 m football field.
+        return kick_to_position({x = 56.23, z = 103.31})
     end,
     team_has_ball     = chase_ball,
     ball_is_free      = chase_ball,

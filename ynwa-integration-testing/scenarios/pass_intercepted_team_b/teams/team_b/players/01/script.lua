@@ -1,3 +1,3 @@
 player_play = {
-    i_have_ball = function() return pass_to_teammate(get_teammate_by_number(2)) end,
+    i_have_ball = function() return kick_to_position(teammate_position(2), "pass_to_#2") end,
 }

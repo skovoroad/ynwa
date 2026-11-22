@@ -17,8 +17,8 @@ The current Lua standard library (`core.lua` and `stdlib.lua`) exposes internal 
   - **Add** `ball_owner_number()` (squad number of the possessing player of either team, `nil` when nobody possesses the ball, including an in-flight pass).
   - **Add** paired predicates: `is_teammate_free(number)`, `is_opponent_free(number)`, `is_teammate_ahead/behind/left/right(number)`, `is_opponent_ahead/behind/left/right(number)`.
   - **Add** `kick_to_position(position, reason?)` and the temporary `default_goalkeeper_with_ball()`.
-  - **Keep** `distance(pos1, pos2)` public over opaque positions; keep string-notation `is_in_region(from, to)` / `run_to_region(from, to)` as the only public generic region API.
-  - **BREAKING** **Remove**: `pass_to_teammate`, `pass_to_players_by_numbers`, `run_to_start_position`, `kick_to_cell`, `kick_to_region`.
+  - **Keep** `distance(pos1, pos2)` public over opaque positions; keep string-notation `is_in_region(from, to)` / `run_to_region(from, to)` as the only public generic region API; keep `run_to_start_position()` alongside `run_to_attack_position()` and `run_to_defence_position()`.
+  - **BREAKING** **Remove**: `pass_to_teammate`, `pass_to_players_by_numbers`, `kick_to_cell`, `kick_to_region`.
 - **Layer 3–4 authoring rules**: forbid calling functions outside the user-facing whitelist, player-iteration loops, raw coordinate reads (`.x`/`.y`/`.z`), and hand-crafted decision tables.
 - **Team migration (`teams/team_a`, `teams/team_b`)**: rewrite both preambles onto the public API (loop-free top-3 pressing, `default_goalkeeper_with_ball`, explicit `if` pass selection, directional predicates); behavior changes are listed in `design.md`.
 - **Tests & Docs**: update `ynwa-script-tests` (tests, fixtures, `scenarios/goal_kick_team*`), `ynwa-integration-testing/scenarios/pass_*` scripts, and `context/user-docs/scripting_player.md`.
