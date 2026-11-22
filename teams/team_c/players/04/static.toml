@@ -1,0 +1,6 @@
+name = "Center Back C1"
+reaction_rate = 63
+speed_rate = 58
+tackle_rate = 75
+shot_power = 50
+shot_accuracy = 50

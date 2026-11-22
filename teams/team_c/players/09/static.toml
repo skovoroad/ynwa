@@ -1,0 +1,6 @@
+name = "Forward C1"
+reaction_rate = 80
+speed_rate = 82
+tackle_rate = 48
+shot_power = 70
+shot_accuracy = 65

@@ -1,0 +1,6 @@
+name = "Central Midfielder C1"
+reaction_rate = 74
+speed_rate = 70
+tackle_rate = 62
+shot_power = 60
+shot_accuracy = 58

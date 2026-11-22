@@ -1,0 +1,6 @@
+name = "Fullback C1"
+reaction_rate = 70
+speed_rate = 65
+tackle_rate = 72
+shot_power = 50
+shot_accuracy = 50
