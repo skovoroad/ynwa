@@ -20,6 +20,9 @@ context: |
   11. No backward compatibility required: the project is in an early stage with no accumulated production data or external API consumers. When evolving data formats, configs, or APIs, replace old structures cleanly instead of adding compatibility shims, deprecated fields, or #[serde(default)] fallbacks for legacy formats.
   12. Respect abstraction boundaries and module cohesion: every module and trait must operate solely on concepts at its own abstraction level (e.g., domain/simulation traits must not depend on serialization, storage, or transport types). When a helper or type is needed by multiple modules, extract it into a dedicated module whose scope matches that responsibility rather than exposing internal details (`pub(crate)` / `pub`) out of an unrelated domain module.
 
+Rules: |
+  1. AI-assistant ignores documents in context/tmp
+
 # Per-artifact rules (optional)
 # Add custom rules for specific artifacts.
 # Example:
