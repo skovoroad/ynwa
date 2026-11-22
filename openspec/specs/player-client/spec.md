@@ -34,6 +34,22 @@ Defines the interactive `macroquad` desktop client (`ynwa-player`), including CL
 - **WHEN** `world.game().state().elapsed_time >= duration` is reached in `Play` or `Record` mode
 - **THEN** both modes cease advancing `World::step` while continuing to render the final state, and `Record` mode additionally calls `finish_journal()` to flush the recording footer, staying open until `Escape` rather than exiting
 
+### Requirement: Setup-Stage Accelerated Pacing
+
+`ynwa-player` SHALL advance the simulation at a fixed `4x` wall-clock speed while the game is in the `Setup` stage, and at normal `1x` speed during the `Play` stage, in all three modes (`Play`, `Record`, `Replay`). The acceleration SHALL change only wall-clock pacing: the simulation step and the resulting match clock, journal, and replay determinism MUST be unchanged.
+
+#### Scenario: Setup completes in a quarter of the wall-clock time
+- **WHEN** the game is in the `Setup` stage in any of `Play`, `Record`, or `Replay` mode
+- **THEN** the match clock advances at `4x` wall-clock speed, so a setup stage of `N` match-seconds completes in approximately `N/4` wall-clock seconds
+
+#### Scenario: Play resumes at normal speed
+- **WHEN** the game transitions from `Setup` to `Play`
+- **THEN** the player resumes `1x` pacing (real time)
+
+#### Scenario: Acceleration does not alter the simulation
+- **WHEN** the player accelerates the `Setup` stage
+- **THEN** the simulation step stays fixed and the recorded journal and replayed match are identical to an unaccelerated run; only wall-clock pacing differs
+
 ### Requirement: Top-Down 2D Field Projection and Pitch/Zone Rendering
 
 `ynwa-player` SHALL project Display Orientation 3D coordinates onto the left `65%` of the window (`margin = 20` px, uniform `scale`) via `screen_x = offset_x + x * scale` and `screen_y = offset_y + (L - z) * scale` (`Y` ignored; `Z = 0` / `Team::A` goal at **bottom**, `Z = L` / `Team::B` goal at **top**). `ArcZone`s MUST render accurately across screen Y inversion (converting negative spans via `+ TAU`).

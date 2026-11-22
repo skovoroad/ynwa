@@ -5,6 +5,7 @@
 pub struct SimulationControl {
     rate: f32,
     timestep: f32,
+    speed: f32,
     pub paused: bool,
     accumulator: f32,
     steps_done: u64,
@@ -16,6 +17,7 @@ impl SimulationControl {
         Self {
             rate,
             timestep: 1.0 / rate,
+            speed: 1.0,
             paused: false,
             accumulator: 0.0,
             steps_done: 0,
@@ -28,6 +30,7 @@ impl SimulationControl {
         Self {
             rate: 1.0 / timestep,
             timestep,
+            speed: 1.0,
             paused: false,
             accumulator: 0.0,
             steps_done: 0,
@@ -42,6 +45,10 @@ impl SimulationControl {
     /// Frame-time interval that must accumulate before one step is due.
     pub fn pace(&self) -> f32 {
         1.0 / self.rate
+    }
+
+    pub fn set_speed(&mut self, speed: f32) {
+        self.speed = speed;
     }
 
     pub fn toggle_pause(&mut self) {
@@ -65,7 +72,7 @@ impl SimulationControl {
         if self.paused || self.finished() {
             return;
         }
-        self.accumulator += delta_time;
+        self.accumulator += delta_time * self.speed;
     }
 
     pub fn should_step(&self) -> bool {
@@ -81,3 +88,7 @@ impl SimulationControl {
         self.max_steps.is_some_and(|max| self.steps_done >= max)
     }
 }
+
+#[cfg(test)]
+#[path = "simulation_tests.rs"]
+mod tests;

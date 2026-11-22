@@ -8,8 +8,8 @@ use macroquad::prelude::*;
 use std::path::PathBuf;
 use uom::si::length::meter;
 use ynwa_core::{
-    json_journal_file_reader, json_journal_file_writer, FileJournalRecorder, JournalEntry, Record,
-    RecordHeader, RecordReader, World,
+    json_journal_file_reader, json_journal_file_writer, FileJournalRecorder, GameStage,
+    JournalEntry, Record, RecordHeader, RecordReader, World,
 };
 use ynwa_football::{create_football_replay_world, FootballWorldBuilder};
 use ynwa_repository::FsTeamRepository;
@@ -22,6 +22,9 @@ use ui::{draw_control_panel, draw_separator};
 
 /// Real-time tempo of play and recording (simulation steps per second).
 const PLAYBACK_RATE: f32 = 60.0;
+
+/// Wall-clock multiplier applied while the game is in the `Setup` stage.
+const SETUP_SPEEDUP: f32 = 4.0;
 
 fn window_conf() -> Conf {
     Conf {
@@ -204,11 +207,20 @@ fn replay_steps(recording: &Record, timestep: f32) -> u64 {
 /// Accumulates frame time and advances the world by all due simulation steps, stopping once
 /// `duration` seconds of match time have elapsed.
 fn advance(world: &mut World, simulation: &mut SimulationControl, duration: f32) {
+    simulation.set_speed(setup_speed(&world.game().state().stage));
     simulation.accumulate(get_frame_time());
 
     while simulation.should_step() && world.game().state().elapsed_time < duration {
         world.step(simulation.timestep());
         simulation.consume_step();
+    }
+}
+
+/// Wall-clock speed for the given game stage: accelerated during `Setup`, real time in `Play`.
+fn setup_speed(stage: &GameStage) -> f32 {
+    match stage {
+        GameStage::Setup(_) => SETUP_SPEEDUP,
+        GameStage::Play => 1.0,
     }
 }
 
@@ -287,3 +299,7 @@ fn exit_with_error(message: &str) -> ! {
     eprintln!("Error: {}", message);
     std::process::exit(1);
 }
+
+#[cfg(test)]
+#[path = "main_tests.rs"]
+mod tests;
