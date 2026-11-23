@@ -1,6 +1,6 @@
 name = "Wide Midfielder C2"
-reaction_rate = 77
-speed_rate = 76
-tackle_rate = 57
-shot_power = 63
-shot_accuracy = 61
+reaction_rate = 49
+speed_rate = 50
+tackle_rate = 50
+shot_power = 50
+shot_accuracy = 50

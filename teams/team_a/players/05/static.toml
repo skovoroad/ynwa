@@ -1,6 +1,6 @@
 name = "Defender A4"
-reaction_rate = 60
-speed_rate = 61
-tackle_rate = 68
+reaction_rate = 46
+speed_rate = 50
+tackle_rate = 50
 shot_power = 50
 shot_accuracy = 50

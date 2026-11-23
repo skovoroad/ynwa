@@ -1,6 +1,6 @@
 name = "Goalkeeper C"
-reaction_rate = 85
-speed_rate = 85
-tackle_rate = 90
+reaction_rate = 50
+speed_rate = 50
+tackle_rate = 50
 shot_power = 50
 shot_accuracy = 50

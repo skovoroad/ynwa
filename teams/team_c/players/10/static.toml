@@ -1,6 +1,6 @@
 name = "Forward C2"
-reaction_rate = 82
-speed_rate = 78
-tackle_rate = 46
-shot_power = 72
-shot_accuracy = 68
+reaction_rate = 51
+speed_rate = 50
+tackle_rate = 50
+shot_power = 50
+shot_accuracy = 50

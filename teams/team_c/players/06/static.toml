@@ -1,6 +1,6 @@
 name = "Central Midfielder C1"
-reaction_rate = 74
-speed_rate = 70
-tackle_rate = 62
-shot_power = 60
-shot_accuracy = 58
+reaction_rate = 53
+speed_rate = 50
+tackle_rate = 50
+shot_power = 50
+shot_accuracy = 50
