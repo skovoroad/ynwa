@@ -95,6 +95,7 @@ Squad numbers identify players for now; a dedicated DSL "player" type will repla
 | `is_teammate_ahead(n)` / `is_teammate_behind(n)` | squad number | teammate is more than 0.5 m closer to the opponent goal / own goal along Z |
 | `is_teammate_left(n)` / `is_teammate_right(n)` | squad number | teammate is more than 0.5 m to the left / right along X |
 | `is_opponent_ahead/behind/left/right(n)` | squad number | the same checks for an opponent |
+| `is_ball_ahead()` / `is_ball_behind()` | — | ball is strictly closer to the opponent goal / own goal along Z than me (no tolerance; false for both when level) |
 
 ### 3.4 Decision-Making Functions ([`stdlib.lua`](../ynwa-scripts/preambles/stdlib.lua))
 

@@ -804,6 +804,17 @@ function make_decision()
     assert(is_opponent_behind(2), "opponent 2 is behind")
     assert(is_opponent_left(3), "opponent 3 is left")
     assert(is_opponent_right(4), "opponent 4 is right")
+
+    -- Ball predicates have no tolerance: a 0.1 m offset is enough to decide.
+    local my_z = my_position().z
+    context.ball.position.z = my_z + 0.1
+    assert(is_ball_ahead(), "ball above my Z is ahead")
+    assert(not is_ball_behind(), "ball above my Z is not behind")
+    context.ball.position.z = my_z - 0.1
+    assert(is_ball_behind(), "ball below my Z is behind")
+    assert(not is_ball_ahead(), "ball below my Z is not ahead")
+    context.ball.position.z = my_z
+    assert(not is_ball_ahead() and not is_ball_behind(), "ball level with me is neither")
     return {action = "stop"}
 end
 "#;

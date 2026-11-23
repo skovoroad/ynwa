@@ -205,6 +205,16 @@ do
         return opponent_position(number).x > my_position().x + DIRECTION_TOLERANCE
     end
 
+    -- Ball on the opponent-goal side of my Z line. No tolerance: level with the ball is
+    -- neither ahead nor behind, so `if is_ball_behind() then ... else ...` has no gap.
+    function is_ball_ahead()
+        return ball_position().z > my_position().z
+    end
+
+    function is_ball_behind()
+        return ball_position().z < my_position().z
+    end
+
     -- -----------------------------------------------------------------------------
     -- Primitive actions  (no tactical regions)
     -- -----------------------------------------------------------------------------
