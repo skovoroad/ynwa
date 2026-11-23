@@ -47,4 +47,4 @@ Scenario execution SHALL build the world strictly (without placeholder fallback)
 
 #### Scenario: Stop satisfaction, comparison tolerances, accumulated diffs, and replay artifact
 - **WHEN** a scenario finishes stepping and compares expectations
-- **THEN** `steps` stop triggers at `steps >= limit` and `time` stop triggers at `elapsed_time >= limit`, positions/velocities/stat deltas compare within `1e-4` tolerance, non-empty `expect.journal` requires `1:1` parity in `"exact"` mode or ordered inclusion in `"subsequence"` mode, all mismatches are accumulated into a single readable diff report, and `<home>/.ynwa/scenarios/<name>.jsonl` remains on disk for `./replay.sh` even on failure
+- **THEN** `steps` stop triggers at `steps >= limit` and `time` stop triggers at `elapsed_time >= limit`, positions/velocities/stat deltas compare within `1e-4` tolerance, non-empty `expect.journal` requires `1:1` parity in `"exact"` mode or ordered inclusion in `"subsequence"` mode, all mismatches are accumulated into a single readable diff report, and `<home>/.ynwa/scenarios/<name>.jsonl` remains on disk for `./tools/replay.sh` even on failure
