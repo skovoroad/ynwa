@@ -42,7 +42,7 @@ A Python script (`tools/tournament.py`) owns the tournament; a thin Bash wrapper
 
 ### Score extraction: parse the footer line
 
-For each match, `tournament.py` writes the recording to a known path (`--out <dir>/<id>.jsonl`), runs the simulator, then reads the **last non-empty line** (the footer) and extracts `footer["team_stats"]["A"]["values"]["score"]` and `footer["team_stats"]["B"]["values"]["score"]`, casting to `int`. Because the runner controls which team is `--team-a` (home) and `--team-b` (away), the mapping back to home/away is unambiguous. A non-zero simulator exit aborts the run.
+For each match, `tournament.py` writes the recording to a known path (`--out <dir>/<id>.jsonl`), runs the simulator, then reads the **last non-empty line** (the footer) and extracts `footer["team_stats"]["A"]["values"]["score"]` and `footer["team_stats"]["B"]["values"]["score"]`, casting to `int`. A missing `score` key means `0`, because the stat is only materialized once a goal is scored. A missing `team_stats` map or team entry is a hard error so format drift surfaces immediately. Because the runner controls which team is `--team-a` (home) and `--team-b` (away), the mapping back to home/away is unambiguous. A non-zero simulator exit aborts the run.
 
 ### Schedule: double round-robin
 
@@ -75,7 +75,7 @@ Without `--keep-recordings`, each recording is written into a `tempfile.Temporar
 ## Risks / Trade-offs
 
 - **[Random seed by default → non-reproducible tournament]** → Mitigated by recording every match's seed in `results.txt`, so individual matches and (via a fixed `--seed`) whole tournaments can be reproduced.
-- **[Parsing the footer couples the tool to the recording format]** → The footer layout is already a stable contract in `recording-and-replay`; the tool reads only `team_stats.*.score` and treats a missing key as a hard error so format drift surfaces immediately.
+- **[Parsing the footer couples the tool to the recording format]** → The footer layout is already a stable contract in `recording-and-replay`; the tool reads only `team_stats.*.score` (absent means `0`) and treats a missing `team_stats` map or team entry as a hard error so format drift surfaces immediately.
 - **[Sequential execution is slow for large N or many rounds]** → Accepted for now; the schedule and seed derivation are order-independent, so parallelism can be added later without changing outputs.
 - **[Moving shell wrappers breaks root-relative invocations]** → The two spec references are updated in this change, and the wrappers recompute `REPO_ROOT` correctly.
 

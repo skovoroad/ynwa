@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Воспроизводит запись матча или сценария.
-# Использование: ./replay.sh <путь_к_записи.jsonl>
-# Пример:        ./replay.sh ~/.ynwa/scenarios/stdlib_kick_to_goal.jsonl
+# Использование: ./tools/replay.sh <путь_к_записи.jsonl>
+# Пример:        ./tools/replay.sh ~/.ynwa/scenarios/stdlib_kick_to_goal.jsonl
 
 set -e
 
@@ -16,7 +16,7 @@ fi
 RECORDING_DIR="$(cd "$(dirname "$RECORDING")" && pwd)"
 RECORDING="$RECORDING_DIR/$(basename "$RECORDING")"
 
-REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
 
 cargo run --release --bin ynwa-player -- --replay "$RECORDING"
