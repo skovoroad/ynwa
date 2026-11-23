@@ -7,57 +7,58 @@ fn accumulator(simulation: &SimulationControl) -> f32 {
 }
 
 #[test]
-fn accumulate_uses_normal_speed_by_default() {
-    let cases = [(0.5, 0.5), (0.25, 0.25)];
+fn increase_speed_doubles_and_clamps_to_max() {
+    let cases = [(1, 2.0), (2, 4.0), (3, 8.0), (4, 8.0)];
 
-    for (delta_time, expected) in cases {
+    for (presses, expected) in cases {
         let mut simulation = SimulationControl::new(RATE);
-        simulation.accumulate(delta_time);
-        assert_eq!(accumulator(&simulation), expected);
+        for _ in 0..presses {
+            simulation.increase_speed();
+        }
+        assert_eq!(simulation.speed(), expected, "{presses} presses");
     }
 }
 
 #[test]
-fn accumulate_scales_frame_time_by_speed() {
-    let cases = [
-        (4.0, 0.5, 2.0),
-        (2.0, 0.25, 0.5),
-        (4.0, 0.125, 0.5),
-        (1.0, 0.5, 0.5),
-    ];
+fn decrease_speed_halves_and_clamps_to_min() {
+    let cases = [(1, 0.5), (2, 0.25), (3, 0.25)];
 
-    for (speed, delta_time, expected) in cases {
+    for (presses, expected) in cases {
         let mut simulation = SimulationControl::new(RATE);
-        simulation.set_speed(speed);
-        simulation.accumulate(delta_time);
-        assert_eq!(
-            accumulator(&simulation),
-            expected,
-            "speed {speed}, delta {delta_time}"
-        );
+        for _ in 0..presses {
+            simulation.decrease_speed();
+        }
+        assert_eq!(simulation.speed(), expected, "{presses} presses");
     }
 }
 
 #[test]
-fn accumulate_applies_speed_in_replay_mode() {
+fn accumulate_adds_frame_time_unaffected_by_speed() {
+    let cases = [(0, 0.5), (1, 0.5), (3, 0.5)];
+
+    for (presses, expected) in cases {
+        let mut simulation = SimulationControl::new(RATE);
+        for _ in 0..presses {
+            simulation.increase_speed();
+        }
+        simulation.accumulate(0.25);
+        simulation.accumulate(0.25);
+        assert_eq!(accumulator(&simulation), expected, "{presses} presses");
+    }
+}
+
+#[test]
+fn accumulate_adds_frame_time_in_replay_mode() {
     let mut simulation = SimulationControl::for_replay(1.0 / RATE, 10);
-    simulation.set_speed(4.0);
+    simulation.increase_speed();
     simulation.accumulate(0.5);
-    assert_eq!(accumulator(&simulation), 2.0);
+    assert_eq!(accumulator(&simulation), 0.5);
 }
 
 #[test]
-fn scaled_accumulation_raises_should_step() {
+fn paused_simulation_ignores_accumulated_time() {
     let mut simulation = SimulationControl::new(RATE);
-    simulation.set_speed(4.0);
-    simulation.accumulate(simulation.pace() / 4.0);
-    assert!(simulation.should_step());
-}
-
-#[test]
-fn paused_simulation_ignores_speed() {
-    let mut simulation = SimulationControl::new(RATE);
-    simulation.set_speed(4.0);
+    simulation.increase_speed();
     simulation.toggle_pause();
     simulation.accumulate(0.5);
     assert_eq!(accumulator(&simulation), 0.0);

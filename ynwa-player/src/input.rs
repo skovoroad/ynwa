@@ -43,12 +43,10 @@ impl EventPanelScroll {
 
 /// Returns `true` when the user requested to close the window.
 ///
-/// `rate_locked` disables the `+`/`-` tempo keys (recording and replay); pause stays available.
 /// `event_scroll` is present only in replay, where it tracks the events panel position.
 pub fn handle_input(
     simulation: &mut SimulationControl,
     is_fullscreen: &mut bool,
-    rate_locked: bool,
     event_scroll: Option<(&mut EventPanelScroll, usize)>,
 ) -> bool {
     if is_key_pressed(KeyCode::Escape) {
@@ -64,14 +62,12 @@ pub fn handle_input(
         simulation.toggle_pause();
     }
 
-    if !rate_locked {
-        if is_key_pressed(KeyCode::Equal) || is_key_pressed(KeyCode::KpAdd) {
-            simulation.increase_rate();
-        }
+    if is_key_pressed(KeyCode::Equal) || is_key_pressed(KeyCode::KpAdd) {
+        simulation.increase_speed();
+    }
 
-        if is_key_pressed(KeyCode::Minus) || is_key_pressed(KeyCode::KpSubtract) {
-            simulation.decrease_rate();
-        }
+    if is_key_pressed(KeyCode::Minus) || is_key_pressed(KeyCode::KpSubtract) {
+        simulation.decrease_speed();
     }
 
     if let Some((scroll, total_entries)) = event_scroll {

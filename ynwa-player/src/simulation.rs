@@ -1,9 +1,7 @@
 /// Simulation state and control.
 ///
-/// Real-time tempo (`rate`, frames per second used to accumulate frame time) is separated from
-/// the simulation step (`timestep`): replay runs in real time but advances the recorded step.
+/// The simulation step (`timestep`) is fixed; `speed` only scales wall-clock pacing.
 pub struct SimulationControl {
-    rate: f32,
     timestep: f32,
     speed: f32,
     pub paused: bool,
@@ -12,29 +10,29 @@ pub struct SimulationControl {
     max_steps: Option<u64>,
 }
 
+/// Slowest playback speed the user can select.
+const MIN_SPEED: f32 = 0.25;
+
+/// Fastest playback speed the user can select.
+const MAX_SPEED: f32 = 8.0;
+
 impl SimulationControl {
     pub fn new(rate: f32) -> Self {
-        Self {
-            rate,
-            timestep: 1.0 / rate,
-            speed: 1.0,
-            paused: false,
-            accumulator: 0.0,
-            steps_done: 0,
-            max_steps: None,
-        }
+        Self::with_timestep(1.0 / rate, None)
     }
 
-    /// Replay runs in real time (`timestep = 1/60` means 60 fps) but steps by the recorded `timestep`.
     pub fn for_replay(timestep: f32, total_steps: u64) -> Self {
+        Self::with_timestep(timestep, Some(total_steps))
+    }
+
+    fn with_timestep(timestep: f32, max_steps: Option<u64>) -> Self {
         Self {
-            rate: 1.0 / timestep,
             timestep,
             speed: 1.0,
             paused: false,
             accumulator: 0.0,
             steps_done: 0,
-            max_steps: Some(total_steps),
+            max_steps,
         }
     }
 
@@ -44,35 +42,30 @@ impl SimulationControl {
 
     /// Frame-time interval that must accumulate before one step is due.
     pub fn pace(&self) -> f32 {
-        1.0 / self.rate
+        self.timestep
     }
 
-    pub fn set_speed(&mut self, speed: f32) {
-        self.speed = speed;
+    pub fn speed(&self) -> f32 {
+        self.speed
+    }
+
+    pub fn increase_speed(&mut self) {
+        self.speed = (self.speed * 2.0).min(MAX_SPEED);
+    }
+
+    pub fn decrease_speed(&mut self) {
+        self.speed = (self.speed / 2.0).max(MIN_SPEED);
     }
 
     pub fn toggle_pause(&mut self) {
         self.paused = !self.paused;
     }
 
-    pub fn increase_rate(&mut self) {
-        self.set_rate((self.rate * 2.0).min(100.0));
-    }
-
-    pub fn decrease_rate(&mut self) {
-        self.set_rate((self.rate / 2.0).max(1.0));
-    }
-
-    fn set_rate(&mut self, rate: f32) {
-        self.rate = rate;
-        self.timestep = 1.0 / rate;
-    }
-
     pub fn accumulate(&mut self, delta_time: f32) {
         if self.paused || self.finished() {
             return;
         }
-        self.accumulator += delta_time * self.speed;
+        self.accumulator += delta_time;
     }
 
     pub fn should_step(&self) -> bool {

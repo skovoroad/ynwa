@@ -63,7 +63,7 @@ async fn run_play(cli: &Cli, is_fullscreen: &mut bool) {
     let mut simulation = SimulationControl::new(PLAYBACK_RATE);
 
     loop {
-        if handle_input(&mut simulation, is_fullscreen, false, None) {
+        if handle_input(&mut simulation, is_fullscreen, None) {
             break;
         }
 
@@ -100,7 +100,7 @@ async fn run_record(cli: &Cli, is_fullscreen: &mut bool) {
 
     let mut finalized = false;
     loop {
-        if handle_input(&mut simulation, is_fullscreen, true, None) {
+        if handle_input(&mut simulation, is_fullscreen, None) {
             if !finalized {
                 // Closed early: leave the file a valid JSON Lines prefix.
                 let _ = world.game_mut().finish_journal();
@@ -153,7 +153,6 @@ async fn run_replay(path: PathBuf, is_fullscreen: &mut bool) {
         if handle_input(
             &mut simulation,
             is_fullscreen,
-            true,
             Some((&mut event_scroll, visible_events.len())),
         ) {
             break;
@@ -207,20 +206,15 @@ fn replay_steps(recording: &Record, timestep: f32) -> u64 {
 /// Accumulates frame time and advances the world by all due simulation steps, stopping once
 /// `duration` seconds of match time have elapsed.
 fn advance(world: &mut World, simulation: &mut SimulationControl, duration: f32) {
-    simulation.set_speed(setup_speed(&world.game().state().stage));
-    simulation.accumulate(get_frame_time());
+    let speed = match world.game().state().stage {
+        GameStage::Setup(_) => SETUP_SPEEDUP,
+        GameStage::Play => simulation.speed(),
+    };
+    simulation.accumulate(get_frame_time() * speed);
 
     while simulation.should_step() && world.game().state().elapsed_time < duration {
         world.step(simulation.timestep());
         simulation.consume_step();
-    }
-}
-
-/// Wall-clock speed for the given game stage: accelerated during `Setup`, real time in `Play`.
-fn setup_speed(stage: &GameStage) -> f32 {
-    match stage {
-        GameStage::Setup(_) => SETUP_SPEEDUP,
-        GameStage::Play => 1.0,
     }
 }
 
@@ -299,7 +293,3 @@ fn exit_with_error(message: &str) -> ! {
     eprintln!("Error: {}", message);
     std::process::exit(1);
 }
-
-#[cfg(test)]
-#[path = "main_tests.rs"]
-mod tests;
