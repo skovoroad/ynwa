@@ -109,6 +109,22 @@ Engine-owned Lua preambles in `ynwa-scripts/preambles/` SHALL separate state acc
 - **THEN** `stdlib.lua` raises a descriptive Lua `error(...)` instead of returning `nil` or falling back to a default kick
 - **AND** squad numbers are a provisional player identifier, to be revisited together with the DSL "player" type
 
+### Requirement: Stdlib actions accept a custom reason
+
+Decision-producing `stdlib.lua` actions that currently hard-code a `reason` SHALL accept an optional trailing `reason` argument. When omitted, the decision SHALL carry the existing built-in reason. When provided, the returned `reason` SHALL join the custom reason and the built-in reason with `" | "` so each remains independently greppable. `stop` and `kick_to_position` SHALL keep their existing verbatim `reason` behavior.
+
+#### Scenario: Built-in reason is preserved when no argument is given
+- **WHEN** a script calls an action without a `reason` (e.g. `chase_ball()`)
+- **THEN** the decision's `reason` is the action's existing built-in string (e.g. `"chase_ball"`)
+
+#### Scenario: Custom reason is recorded and remains greppable
+- **WHEN** a script calls an action with a custom `reason` (e.g. `chase_ball("recover")`)
+- **THEN** the decision's `reason` is the custom string joined to the built-in string by `" | "` (e.g. `"recover | chase_ball"`)
+
+#### Scenario: Composed sub-reason is preserved alongside the custom tag
+- **WHEN** a script calls `default_goalkeeper_with_ball("build_up")` and the keeper passes to teammate `7`
+- **THEN** the decision's `reason` is `"build_up | pass_to_#7"`, preserving both the team's tag and the built-in pass target
+
 ### Requirement: Team and Player Script Authoring Rules (Layers 3 and 4)
 
 Team-owned scripts — Layer 3 `teams/<id>/preamble.lua` (`team_play` default handlers and shared role tables like `goalkeeper_play`) and Layer 4 `teams/<id>/players/<NN>/script.lua` (optional partial `player_play` override) — SHALL obey 6 rules: (1) call only functions of the user-facing API (the user-facing Layer 1 functions and the public `stdlib.lua` API) and never access `context` or `GAME_DATA` directly, (2) never override `make_decision()`, (3) never hand-craft `{action=...}` tables, (4) never iterate over player collections, (5) never read raw coordinate fields (`.x`, `.y`, `.z`) of positions, and (6) prefer point-free handler assignment (`ball_is_free = chase_ball`).
