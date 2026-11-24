@@ -7,7 +7,7 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
 
-TEAMS=(team_a team_b team_c)
+TEAMS=(team_a team_b team_c.v2)
 ROUNDS=10
 DURATION=120.0
 TIMESTEP=0.0166666667
@@ -28,6 +28,7 @@ ARGS=(
     --temperature "$TEMPERATURE"
     --output "$OUTPUT"
     --name "$RUN_NAME"
+    --keep-recordings
 )
 if [ "$KEEP_RECORDINGS" -eq 1 ]; then
     ARGS+=(--keep-recordings)
