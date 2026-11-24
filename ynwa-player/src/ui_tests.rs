@@ -35,13 +35,15 @@ fn score_text_uses_display_names() {
 #[test]
 fn decision_assigned_renders_player_and_decision() {
     let cases = [
-        (Some("press".to_string()), "#3 Stop (press)"),
-        (None, "#3 Stop"),
+        (Some("press".to_string()), "A#3 Stop (press)"),
+        (None, "A#3 Stop"),
     ];
 
     for (reason, expected) in cases {
         let event = JournalEvent::DecisionAssigned {
             player_index: 3,
+            team: Team::A,
+            number: 3,
             decision: Decision::Stop,
             reason,
         };
@@ -55,13 +57,17 @@ fn possession_change_renders_possessor_and_last_team() {
         (
             JournalEvent::PossessionChange {
                 possessed_by: Some(4),
+                possessed_by_team: Some(Team::B),
+                possessed_by_number: Some(4),
                 last_possessing_team: Some(Team::B),
             },
-            "Possession: #4 (last team B)",
+            "Possession: B#4 (last team B)",
         ),
         (
             JournalEvent::PossessionChange {
                 possessed_by: None,
+                possessed_by_team: None,
+                possessed_by_number: None,
                 last_possessing_team: None,
             },
             "Possession: none (last team none)",
@@ -77,10 +83,12 @@ fn possession_change_renders_possessor_and_last_team() {
 fn kick_outcome_renders_kicker() {
     let event = JournalEvent::KickOutcome {
         player_index: 2,
+        team: Team::A,
+        number: 2,
         ball_velocity: Velocity3D::default(),
     };
 
-    assert_eq!(event_text(&event), "Kick by #2");
+    assert_eq!(event_text(&event), "Kick by A#2");
 }
 
 #[test]

@@ -100,6 +100,8 @@ fn entry(timestamp: f32, event: JournalEvent) -> JournalEntry {
 fn run_decision(player_index: usize, target: Point3D, reason: Option<&str>) -> JournalEvent {
     JournalEvent::DecisionAssigned {
         player_index,
+        team: Team::A,
+        number: player_index as u32 + 1,
         decision: Decision::Run(DecisionTarget::Point(target)),
         reason: reason.map(str::to_string),
     }
@@ -194,6 +196,8 @@ fn run_decision_assigns_velocity_and_flags() {
         0.1,
         JournalEvent::DecisionAssigned {
             player_index: 0,
+            team: Team::A,
+            number: 1,
             decision: Decision::Run(DecisionTarget::Point(Point3D::from_meters(0.0, 0.0, 30.0))),
             reason: Some("press".to_string()),
         },
@@ -220,6 +224,8 @@ fn stop_decision_zeroes_velocity() {
         0.1,
         JournalEvent::DecisionAssigned {
             player_index: 0,
+            team: Team::A,
+            number: 1,
             decision: Decision::Stop,
             reason: None,
         },
@@ -239,6 +245,8 @@ fn kick_decision_leaves_player_velocity_unchanged() {
         0.1,
         JournalEvent::DecisionAssigned {
             player_index: 0,
+            team: Team::A,
+            number: 1,
             decision: Decision::Kick(Point3D::from_meters(0.0, 0.0, 0.0)),
             reason: None,
         },
@@ -257,6 +265,8 @@ fn possession_change_updates_ball_and_requests_decisions() {
         0.2,
         JournalEvent::PossessionChange {
             possessed_by: Some(0),
+            possessed_by_team: Some(Team::A),
+            possessed_by_number: Some(1),
             last_possessing_team: Some(Team::A),
         },
     )]);
@@ -278,6 +288,8 @@ fn kick_outcome_sets_ball_velocity_and_releases_possession() {
         0.3,
         JournalEvent::KickOutcome {
             player_index: 0,
+            team: Team::A,
+            number: 1,
             ball_velocity,
         },
     )]);
@@ -410,6 +422,8 @@ fn events_at_the_same_timestamp_apply_in_journal_order() {
             0.1,
             JournalEvent::PossessionChange {
                 possessed_by: Some(0),
+                possessed_by_team: Some(Team::A),
+                possessed_by_number: Some(1),
                 last_possessing_team: Some(Team::A),
             },
         ),
@@ -417,6 +431,8 @@ fn events_at_the_same_timestamp_apply_in_journal_order() {
             0.1,
             JournalEvent::KickOutcome {
                 player_index: 0,
+                team: Team::A,
+                number: 1,
                 ball_velocity: Velocity3D::from_meters_per_second(-5.0, 0.0, 0.0),
             },
         ),
@@ -439,6 +455,8 @@ fn setup_burst_assigns_decisions_to_every_player() {
             0.1,
             JournalEvent::DecisionAssigned {
                 player_index: 2,
+                team: Team::B,
+                number: 1,
                 decision: Decision::Stop,
                 reason: None,
             },
@@ -542,6 +560,8 @@ fn kick_tick_applies_decision_before_outcome() {
             0.2,
             JournalEvent::DecisionAssigned {
                 player_index: 0,
+                team: Team::A,
+                number: 1,
                 decision: Decision::Kick(Point3D::from_meters(0.0, 0.0, 30.0)),
                 reason: None,
             },
@@ -550,6 +570,8 @@ fn kick_tick_applies_decision_before_outcome() {
             0.2,
             JournalEvent::KickOutcome {
                 player_index: 0,
+                team: Team::A,
+                number: 1,
                 ball_velocity,
             },
         ),
@@ -647,6 +669,8 @@ fn later_possession_change_overwrites_earlier_one() {
             0.1,
             JournalEvent::PossessionChange {
                 possessed_by: Some(0),
+                possessed_by_team: Some(Team::A),
+                possessed_by_number: Some(1),
                 last_possessing_team: Some(Team::A),
             },
         ),
@@ -654,6 +678,8 @@ fn later_possession_change_overwrites_earlier_one() {
             0.2,
             JournalEvent::PossessionChange {
                 possessed_by: None,
+                possessed_by_team: None,
+                possessed_by_number: None,
                 last_possessing_team: Some(Team::A),
             },
         ),
@@ -675,6 +701,8 @@ fn possession_change_after_kick_restores_ownership() {
             0.1,
             JournalEvent::KickOutcome {
                 player_index: 0,
+                team: Team::A,
+                number: 1,
                 ball_velocity: Velocity3D::from_meters_per_second(-5.0, 0.0, 0.0),
             },
         ),
@@ -682,6 +710,8 @@ fn possession_change_after_kick_restores_ownership() {
             0.2,
             JournalEvent::PossessionChange {
                 possessed_by: Some(0),
+                possessed_by_team: Some(Team::A),
+                possessed_by_number: Some(1),
                 last_possessing_team: Some(Team::A),
             },
         ),
@@ -795,6 +825,8 @@ fn applied_event_affects_physics_of_the_same_tick() {
         0.1,
         JournalEvent::KickOutcome {
             player_index: 0,
+            team: Team::A,
+            number: 1,
             ball_velocity: Velocity3D::from_meters_per_second(1.0, 0.0, 0.0),
         },
     )])));
@@ -822,6 +854,8 @@ fn sequence_journal() -> Vec<JournalEntry> {
             0.2,
             JournalEvent::PossessionChange {
                 possessed_by: Some(0),
+                possessed_by_team: Some(Team::A),
+                possessed_by_number: Some(1),
                 last_possessing_team: Some(Team::A),
             },
         ),
@@ -829,6 +863,8 @@ fn sequence_journal() -> Vec<JournalEntry> {
             0.3,
             JournalEvent::DecisionAssigned {
                 player_index: 0,
+                team: Team::A,
+                number: 1,
                 decision: Decision::Kick(Point3D::from_meters(0.0, 0.0, 30.0)),
                 reason: None,
             },
@@ -837,6 +873,8 @@ fn sequence_journal() -> Vec<JournalEntry> {
             0.3,
             JournalEvent::KickOutcome {
                 player_index: 0,
+                team: Team::A,
+                number: 1,
                 ball_velocity: Velocity3D::from_meters_per_second(-15.0, 0.0, 2.0),
             },
         ),

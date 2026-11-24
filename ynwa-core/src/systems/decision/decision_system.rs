@@ -130,6 +130,7 @@ impl System for DecisionSystem {
             let field_length = game.config().field.length().get::<meter>();
             let grid_dims = game.config().field.grid_dimensions();
             let player_team = game.config().players[player_index].team;
+            let player_number = game.config().players[player_index].number;
             let player_pos = game.state.player_states[player_index].position;
             let current_decision = game.state.player_states[player_index]
                 .current_decision
@@ -164,6 +165,8 @@ impl System for DecisionSystem {
                             timestamp,
                             JournalEvent::DecisionAssigned {
                                 player_index,
+                                team: player_team,
+                                number: player_number,
                                 decision: stop,
                                 reason: None,
                             },
@@ -212,6 +215,8 @@ impl System for DecisionSystem {
                             timestamp,
                             JournalEvent::DecisionAssigned {
                                 player_index,
+                                team: player_team,
+                                number: player_number,
                                 decision: display_decision,
                                 reason,
                             },
@@ -248,6 +253,8 @@ impl System for DecisionSystem {
                                 timestamp,
                                 JournalEvent::DecisionAssigned {
                                     player_index,
+                                    team: player_team,
+                                    number: player_number,
                                     decision,
                                     reason: None,
                                 },

@@ -987,6 +987,8 @@ fn test_records_possession_change() {
         entries[0].event,
         JournalEvent::PossessionChange {
             possessed_by: Some(0),
+            possessed_by_team: Some(Team::A),
+            possessed_by_number: Some(1),
             last_possessing_team: Some(Team::A),
         }
     );

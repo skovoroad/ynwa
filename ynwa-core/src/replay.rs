@@ -43,10 +43,12 @@ impl ReplayDriver {
                 player_index,
                 decision,
                 reason,
+                ..
             } => Self::apply_decision(game, timestamp, *player_index, decision, reason.clone()),
             JournalEvent::PossessionChange {
                 possessed_by,
                 last_possessing_team,
+                ..
             } => {
                 game.state.ball_state.possessed_by = *possessed_by;
                 game.state.ball_state.last_possessing_team = *last_possessing_team;

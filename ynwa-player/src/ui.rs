@@ -231,6 +231,10 @@ fn team_label(team: Team) -> &'static str {
     }
 }
 
+fn player_label(team: Team, number: u32) -> String {
+    format!("{}#{}", team_label(team), number)
+}
+
 fn football_event_text(event: &FootballEvent) -> String {
     match event {
         // In a goal event the team is the one whose net was hit; the scorer is the opposite.
@@ -249,23 +253,33 @@ fn football_event_text(event: &FootballEvent) -> String {
 fn event_text(event: &JournalEvent) -> String {
     match event {
         JournalEvent::DecisionAssigned {
-            player_index,
+            team,
+            number,
             decision,
             reason,
-        } => match reason {
-            Some(reason) => format!("#{} {} ({})", player_index, decision_text(decision), reason),
-            None => format!("#{} {}", player_index, decision_text(decision)),
-        },
-        JournalEvent::PossessionChange {
-            possessed_by,
-            last_possessing_team,
+            ..
         } => {
-            let possessor = possessed_by.map_or("none".to_string(), |index| format!("#{}", index));
+            let player = player_label(*team, *number);
+            match reason {
+                Some(reason) => format!("{} {} ({})", player, decision_text(decision), reason),
+                None => format!("{} {}", player, decision_text(decision)),
+            }
+        }
+        JournalEvent::PossessionChange {
+            possessed_by_team,
+            possessed_by_number,
+            last_possessing_team,
+            ..
+        } => {
+            let possessor = match (possessed_by_team, possessed_by_number) {
+                (Some(team), Some(number)) => player_label(*team, *number),
+                _ => "none".to_string(),
+            };
             let last_team = last_possessing_team.map_or("none", team_label);
             format!("Possession: {} (last team {})", possessor, last_team)
         }
-        JournalEvent::KickOutcome { player_index, .. } => {
-            format!("Kick by #{}", player_index)
+        JournalEvent::KickOutcome { team, number, .. } => {
+            format!("Kick by {}", player_label(*team, *number))
         }
         JournalEvent::StageChange { stage } => format!("Stage: {:?}", stage),
         JournalEvent::RestartSet {

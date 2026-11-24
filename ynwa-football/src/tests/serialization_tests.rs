@@ -234,6 +234,7 @@ fn replay_reproduces_a_multi_player_ball_contest() {
         if let JournalEvent::PossessionChange {
             possessed_by,
             last_possessing_team,
+            ..
         } = change
         {
             owners.insert(*possessed_by);

@@ -141,6 +141,7 @@ fn entry_matches(
                 player_index,
                 decision: actual_decision,
                 reason: actual_reason,
+                ..
             },
         ) => {
             player_matches(player, *player_index, config)?
@@ -157,6 +158,7 @@ fn entry_matches(
             JournalEvent::PossessionChange {
                 possessed_by: actual_owner,
                 last_possessing_team: actual_team,
+                ..
             },
         ) => {
             owner_matches(possessed_by, *actual_owner, config)?
@@ -171,6 +173,7 @@ fn entry_matches(
             JournalEvent::KickOutcome {
                 player_index,
                 ball_velocity: actual_velocity,
+                ..
             },
         ) => {
             player_matches(player, *player_index, config)?

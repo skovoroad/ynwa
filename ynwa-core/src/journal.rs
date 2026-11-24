@@ -24,15 +24,21 @@ pub struct JournalEntry {
 pub enum JournalEvent {
     DecisionAssigned {
         player_index: usize,
+        team: Team,
+        number: u32,
         decision: Decision,
         reason: Option<String>,
     },
     PossessionChange {
         possessed_by: Option<usize>,
+        possessed_by_team: Option<Team>,
+        possessed_by_number: Option<u32>,
         last_possessing_team: Option<Team>,
     },
     KickOutcome {
         player_index: usize,
+        team: Team,
+        number: u32,
         ball_velocity: Velocity3D,
     },
     StageChange {

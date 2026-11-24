@@ -80,10 +80,17 @@ impl System for ActionSystem {
                                 game.state.ball_state.possessed_by = None;
                                 game.state.ball_state.last_possession_change_time = timestamp;
 
+                                let (team, number) = {
+                                    let player_def = &game.config().players[player_index];
+                                    (player_def.team, player_def.number)
+                                };
+
                                 game.record(
                                     timestamp,
                                     JournalEvent::KickOutcome {
                                         player_index,
+                                        team,
+                                        number,
                                         ball_velocity: game.state.ball_state.velocity,
                                     },
                                 );

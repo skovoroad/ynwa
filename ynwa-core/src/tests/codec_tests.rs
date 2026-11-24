@@ -70,6 +70,8 @@ fn sample_entries() -> Vec<JournalEntry> {
             timestamp: 0.016,
             event: JournalEvent::DecisionAssigned {
                 player_index: 0,
+                team: Team::A,
+                number: 1,
                 decision: Decision::Run(DecisionTarget::GridCell(GridCell::new(1, 1).unwrap())),
                 reason: Some("attack".to_string()),
             },
@@ -78,6 +80,8 @@ fn sample_entries() -> Vec<JournalEntry> {
             timestamp: 0.032,
             event: JournalEvent::KickOutcome {
                 player_index: 0,
+                team: Team::A,
+                number: 1,
                 ball_velocity: Velocity3D::from_meters_per_second(1.0, 0.0, -2.0),
             },
         },

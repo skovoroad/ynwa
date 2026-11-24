@@ -55,6 +55,8 @@ fn shared_collection() -> (Rc<RefCell<Vec<JournalEntry>>>, CollectJournalRecorde
 fn decision_event(player_index: usize) -> JournalEvent {
     JournalEvent::DecisionAssigned {
         player_index,
+        team: Team::A,
+        number: 1,
         decision: Decision::Run(DecisionTarget::GridCell(GridCell::new(1, 1).unwrap())),
         reason: Some("test".to_string()),
     }
@@ -136,10 +138,20 @@ fn journal_entries_round_trip_through_json() {
         decision_event(2),
         JournalEvent::PossessionChange {
             possessed_by: Some(4),
+            possessed_by_team: Some(Team::B),
+            possessed_by_number: Some(4),
             last_possessing_team: Some(Team::B),
+        },
+        JournalEvent::PossessionChange {
+            possessed_by: None,
+            possessed_by_team: None,
+            possessed_by_number: None,
+            last_possessing_team: Some(Team::A),
         },
         JournalEvent::KickOutcome {
             player_index: 7,
+            team: Team::B,
+            number: 9,
             ball_velocity: Velocity3D::from_meters_per_second(1.5, 0.0, -2.5),
         },
         JournalEvent::StageChange {

@@ -688,10 +688,14 @@ fn test_decision_system_records_assigned_decision() {
     match &entries[0].event {
         JournalEvent::DecisionAssigned {
             player_index,
+            team,
+            number,
             decision,
             reason,
         } => {
             assert_eq!(*player_index, 0);
+            assert_eq!(*team, Team::A);
+            assert_eq!(*number, 1);
             assert_eq!(
                 Some(decision.clone()),
                 game.state.player_states[0].current_decision
@@ -720,6 +724,8 @@ fn test_decision_system_records_arrival_stop() {
         entries[0].event,
         JournalEvent::DecisionAssigned {
             player_index: 0,
+            team: Team::A,
+            number: 1,
             decision: Decision::Stop,
             reason: None,
         }
@@ -744,6 +750,8 @@ fn test_decision_system_records_error_handler_fallback() {
         entries[0].event,
         JournalEvent::DecisionAssigned {
             player_index: 0,
+            team: Team::A,
+            number: 1,
             decision: Decision::Stop,
             reason: None,
         }

@@ -126,6 +126,7 @@ impl FootballGameManager {
             }
 
             let player_team = game.config().players[i].team;
+            let player_number = game.config().players[i].number;
             let key = match resolve_set_piece_key(
                 &reason,
                 player_team,
@@ -165,6 +166,8 @@ impl FootballGameManager {
                 timestamp,
                 JournalEvent::DecisionAssigned {
                     player_index: i,
+                    team: player_team,
+                    number: player_number,
                     decision,
                     reason: None,
                 },

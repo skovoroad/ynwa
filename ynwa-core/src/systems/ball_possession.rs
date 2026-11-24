@@ -146,10 +146,16 @@ impl System for BallPossessionSystem {
                 player_state.needs_decision = true;
             }
 
+            let possessed_by_team = new_possession.map(|index| game.config().players[index].team);
+            let possessed_by_number =
+                new_possession.map(|index| game.config().players[index].number);
+
             game.record(
                 timestamp,
                 JournalEvent::PossessionChange {
                     possessed_by: game.state.ball_state.possessed_by,
+                    possessed_by_team,
+                    possessed_by_number,
                     last_possessing_team: game.state.ball_state.last_possessing_team,
                 },
             );

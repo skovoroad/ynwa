@@ -550,6 +550,8 @@ fn test_kick_outcome_is_recorded() {
         entries[0].event,
         JournalEvent::KickOutcome {
             player_index: 0,
+            team: Team::A,
+            number: 1,
             ball_velocity: game.state.ball_state.velocity,
         }
     );

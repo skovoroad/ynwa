@@ -93,6 +93,8 @@ fn football_entry(timestamp: f32, event: FootballEvent) -> JournalEntry {
 fn decision_assigned(player_index: usize, decision: Decision) -> JournalEvent {
     JournalEvent::DecisionAssigned {
         player_index,
+        team: Team::A,
+        number: 1,
         decision,
         reason: None,
     }
@@ -124,6 +126,8 @@ fn exact_journal_match_passes() {
         0.1,
         JournalEvent::DecisionAssigned {
             player_index: 0,
+            team: Team::A,
+            number: 9,
             decision: Decision::Stop,
             reason: Some("hold".to_string()),
         },
@@ -248,6 +252,8 @@ fn possession_change_resolves_player_reference() {
         0.1,
         JournalEvent::PossessionChange {
             possessed_by: Some(1),
+            possessed_by_team: Some(Team::B),
+            possessed_by_number: Some(2),
             last_possessing_team: None,
         },
     )];
@@ -272,6 +278,8 @@ fn kick_outcome_checks_velocity_with_tolerance() {
         0.1,
         JournalEvent::KickOutcome {
             player_index: 0,
+            team: Team::A,
+            number: 9,
             ball_velocity: Velocity3D::from_meters_per_second(1.0 + TOLERANCE / 2.0, 0.0, 2.0),
         },
     )];
@@ -737,6 +745,8 @@ fn journal_reports_reason_mismatch() {
         0.1,
         JournalEvent::DecisionAssigned {
             player_index: 0,
+            team: Team::A,
+            number: 1,
             decision: Decision::Stop,
             reason: Some("run".to_string()),
         },
@@ -954,6 +964,8 @@ fn kick_outcome_reports_velocity_outside_tolerance() {
         0.1,
         JournalEvent::KickOutcome {
             player_index: 0,
+            team: Team::A,
+            number: 9,
             ball_velocity: Velocity3D::from_meters_per_second(1.0 + 2.0 * TOLERANCE, 0.0, 2.0),
         },
     )];
@@ -1166,6 +1178,8 @@ fn journal_reason_none_requires_absent_reason() {
         0.1,
         JournalEvent::DecisionAssigned {
             player_index: 0,
+            team: Team::A,
+            number: 1,
             decision: Decision::Stop,
             reason: Some("hold".to_string()),
         },
