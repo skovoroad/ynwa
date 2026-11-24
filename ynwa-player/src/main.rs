@@ -11,14 +11,14 @@ use std::rc::Rc;
 use uom::si::length::meter;
 use ynwa_core::{
     json_journal_file_reader, json_journal_file_writer, CollectJournalRecorder,
-    FileJournalRecorder, GameStage, JournalEntry, Record, RecordHeader, RecordReader,
+    FileJournalRecorder, GameStage, GameState, JournalEntry, Record, RecordHeader, RecordReader,
     TeeJournalSink, World,
 };
-use ynwa_football::{create_football_replay_world, FootballWorldBuilder};
+use ynwa_football::{create_football_replay_world_from_state, FootballWorldBuilder};
 use ynwa_repository::FsTeamRepository;
 
 use cli::{games_dir, next_record_path, parse, Cli, Mode};
-use input::{handle_input, EventPanelInput, EventPanelScroll};
+use input::{handle_input, poll_replay_seek, EventPanelInput, EventPanelScroll, SeekDirection};
 use renderer::render_field;
 use simulation::SimulationControl;
 use ui::{draw_control_panel, draw_separator, event_panel_visible_rows};
@@ -168,7 +168,6 @@ async fn run_replay(path: PathBuf, is_fullscreen: &mut bool) {
     let record = load_or_exit(reader.read(), "read recording");
 
     let timestep = record.header.timestep;
-    let events: Vec<JournalEntry> = record.journal.clone();
     let total_steps = replay_steps(&record, timestep);
     if total_steps == 0 {
         eprintln!("Warning: recording contains no replayable steps");
@@ -178,13 +177,23 @@ async fn run_replay(path: PathBuf, is_fullscreen: &mut bool) {
             total_steps
         );
     }
-    let mut world = load_or_exit(create_football_replay_world(record), "create replay world");
+
+    let mut world = load_or_exit(
+        create_football_replay_world_from_state(
+            record.header.config.clone(),
+            record.header.initial_state.clone(),
+            record.journal.clone(),
+            0,
+        ),
+        "create replay world",
+    );
 
     println!("Replaying {} ({} steps)", path.display(), total_steps);
 
     let field_ratio = field_width_ratio(&world);
     let mut simulation = SimulationControl::for_replay(timestep, total_steps);
-    let mut visible_events: Vec<JournalEntry> = Vec::new();
+    let seek_steps = (5.0 / timestep).round() as u64;
+    let mut checkpoints = vec![(0u64, record.header.initial_state.clone())];
     let mut event_cursor = 0usize;
     let mut event_scroll = EventPanelScroll::default();
 
@@ -194,26 +203,42 @@ async fn run_replay(path: PathBuf, is_fullscreen: &mut bool) {
             is_fullscreen,
             Some(EventPanelInput {
                 scroll: &mut event_scroll,
-                total_entries: visible_events.len(),
+                total_entries: event_cursor,
                 visible_rows: event_panel_visible_rows(),
             }),
         ) {
             break;
         }
 
-        advance(&mut world, &mut simulation, f32::INFINITY);
-
-        let elapsed = world.game().state().elapsed_time;
-        while event_cursor < events.len() && events[event_cursor].timestamp <= elapsed {
-            visible_events.push(events[event_cursor].clone());
-            event_cursor += 1;
+        if let Some(direction) = poll_replay_seek() {
+            seek_replay(
+                &mut world,
+                &mut simulation,
+                &record,
+                &mut checkpoints,
+                direction,
+                seek_steps,
+                total_steps,
+            );
+            event_cursor = record
+                .journal
+                .partition_point(|entry| entry.timestamp <= world.game().state().elapsed_time);
+            event_scroll = EventPanelScroll::default();
+        } else {
+            advance_replay(&mut world, &mut simulation, &mut checkpoints, seek_steps);
+            let elapsed = world.game().state().elapsed_time;
+            while event_cursor < record.journal.len()
+                && record.journal[event_cursor].timestamp <= elapsed
+            {
+                event_cursor += 1;
+            }
         }
 
         render_scene(
             &world,
             &simulation,
             field_ratio,
-            &visible_events,
+            &record.journal[..event_cursor],
             event_scroll.offset(),
         );
 
@@ -258,6 +283,90 @@ fn advance(world: &mut World, simulation: &mut SimulationControl, duration: f32)
     while simulation.should_step() && world.game().state().elapsed_time < duration {
         world.step(simulation.timestep());
         simulation.consume_step();
+    }
+}
+
+/// Steps the replay world once, advancing the position counter and recording a checkpoint at
+/// every `seek_steps` boundary.
+fn step_replay(
+    world: &mut World,
+    simulation: &mut SimulationControl,
+    checkpoints: &mut Vec<(u64, GameState)>,
+    seek_steps: u64,
+) {
+    world.step(simulation.timestep());
+    simulation.consume_step();
+
+    let steps = simulation.steps_done();
+    if steps > 0 && steps.is_multiple_of(seek_steps) {
+        checkpoints.push((steps, world.game().state().clone()));
+    }
+}
+
+/// Accumulates frame time and advances the replay by all due steps, checkpointing along the way.
+fn advance_replay(
+    world: &mut World,
+    simulation: &mut SimulationControl,
+    checkpoints: &mut Vec<(u64, GameState)>,
+    seek_steps: u64,
+) {
+    let speed = match world.game().state().stage {
+        GameStage::Setup(_) => SETUP_SPEEDUP,
+        GameStage::Play => simulation.speed(),
+    };
+    simulation.accumulate(get_frame_time() * speed);
+
+    while simulation.should_step() {
+        step_replay(world, simulation, checkpoints, seek_steps);
+    }
+}
+
+/// Applies a fixed 5-second seek. Forward seeks step the world in place; backward seeks resume
+/// from the nearest prior checkpoint and fast-forward the remaining steps.
+fn seek_replay(
+    world: &mut World,
+    simulation: &mut SimulationControl,
+    record: &Record,
+    checkpoints: &mut Vec<(u64, GameState)>,
+    direction: SeekDirection,
+    seek_steps: u64,
+    total_steps: u64,
+) {
+    let steps_done = simulation.steps_done();
+    match direction {
+        SeekDirection::Forward => {
+            let target = (steps_done + seek_steps).min(total_steps);
+            for _ in 0..(target - steps_done) {
+                step_replay(world, simulation, checkpoints, seek_steps);
+            }
+            simulation.reposition(target);
+        }
+        SeekDirection::Backward => {
+            let target = steps_done.saturating_sub(seek_steps);
+            let (cp_step, cp_state) = checkpoints
+                .iter()
+                .rev()
+                .find(|(step, _)| *step <= target)
+                .map(|(step, state)| (*step, state.clone()))
+                .expect("the initial checkpoint always precedes any target");
+            let next_index = record
+                .journal
+                .partition_point(|entry| entry.timestamp <= cp_state.elapsed_time);
+
+            *world = create_football_replay_world_from_state(
+                record.header.config.clone(),
+                cp_state,
+                record.journal.clone(),
+                next_index,
+            )
+            .expect("resume replay from a checkpoint");
+
+            for _ in 0..(target - cp_step) {
+                world.step(simulation.timestep());
+            }
+            simulation.reposition(target);
+            checkpoints.retain(|(step, _)| *step <= target);
+        }
     }
 }
 

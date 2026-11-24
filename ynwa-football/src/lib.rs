@@ -32,7 +32,10 @@ use ynwa_core::systems::{
 use ynwa_core::team::Team;
 use ynwa_core::world::World;
 
-pub use replay::{create_football_replay_world, decode_football_events, ReplaySetupBallPlacer};
+pub use replay::{
+    create_football_replay_world, create_football_replay_world_from_state, decode_football_events,
+    ReplaySetupBallPlacer,
+};
 
 /// Non-determinism temperature of the playable game (stage 1: hardcoded, not yet configurable).
 const PLAYER_RNG_TEMPERATURE: f32 = 0.7;

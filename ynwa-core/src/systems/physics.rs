@@ -17,6 +17,12 @@ impl PhysicsSystem {
     pub fn new() -> Self {
         Self { last_update: 0.0 }
     }
+
+    /// Initializes the system as if the last update happened at `last_update`, so the next step
+    /// integrates over exactly one timestep from a resumed state.
+    pub fn from_timestamp(last_update: f32) -> Self {
+        Self { last_update }
+    }
 }
 
 impl Default for PhysicsSystem {

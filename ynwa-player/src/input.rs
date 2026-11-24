@@ -2,6 +2,27 @@ use macroquad::prelude::*;
 
 use crate::simulation::SimulationControl;
 
+/// Direction of a fixed replay seek.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SeekDirection {
+    Backward,
+    Forward,
+}
+
+/// Returns the replay seek requested this frame, if any.
+///
+/// `Left` seeks backward and `Right` seeks forward; both are bound only in replay mode by the
+/// caller, which polls this separately from the shared [`handle_input`] controls.
+pub fn poll_replay_seek() -> Option<SeekDirection> {
+    if is_key_pressed(KeyCode::Left) {
+        Some(SeekDirection::Backward)
+    } else if is_key_pressed(KeyCode::Right) {
+        Some(SeekDirection::Forward)
+    } else {
+        None
+    }
+}
+
 /// Scroll position of the events panel, counted in rows back from the newest event.
 #[derive(Default)]
 pub struct EventPanelScroll {

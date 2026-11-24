@@ -177,6 +177,31 @@ fn test_ball_stops_when_velocity_reaches_zero() {
 }
 
 #[test]
+fn from_timestamp_resumes_movement_identically_to_continuous_run() {
+    let timestep = 0.1;
+    let steps = 10;
+
+    let mut continuous = create_test_game();
+    continuous.state.player_states[0].position = Point3D::from_meters(0.0, 0.0, 0.0);
+    continuous.state.player_states[0].velocity = Velocity3D::from_meters_per_second(5.0, 0.0, 3.0);
+
+    let mut continuous_system = PhysicsSystem::new();
+    continuous_system.update(&mut continuous, 0.0);
+    for step in 1..=steps {
+        continuous_system.update(&mut continuous, step as f32 * timestep);
+    }
+
+    let mut resumed = create_test_game();
+    resumed.apply_state(continuous.state.clone()).unwrap();
+    let mut resumed_system = PhysicsSystem::from_timestamp(steps as f32 * timestep);
+    resumed_system.update(&mut resumed, (steps + 1) as f32 * timestep);
+
+    continuous_system.update(&mut continuous, (steps + 1) as f32 * timestep);
+
+    assert_eq!(continuous.state, resumed.state);
+}
+
+#[test]
 fn test_ball_friction_affects_all_directions() {
     let mut game = create_test_game();
     let mut system = PhysicsSystem::new();

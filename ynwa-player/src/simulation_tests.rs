@@ -63,3 +63,35 @@ fn paused_simulation_ignores_accumulated_time() {
     simulation.accumulate(0.5);
     assert_eq!(accumulator(&simulation), 0.0);
 }
+
+#[test]
+fn steps_done_counts_up_to_max_steps() {
+    let mut simulation = SimulationControl::for_replay(0.1, 3);
+    simulation.accumulate(10.0);
+    while simulation.should_step() {
+        simulation.consume_step();
+    }
+    assert_eq!(simulation.steps_done(), 3);
+}
+
+#[test]
+fn reposition_clamps_to_max_steps() {
+    let mut simulation = SimulationControl::for_replay(1.0 / RATE, 100);
+    simulation.reposition(150);
+    assert_eq!(simulation.steps_done(), 100);
+}
+
+#[test]
+fn reposition_resets_accumulator() {
+    let mut simulation = SimulationControl::for_replay(1.0 / RATE, 100);
+    simulation.accumulate(0.5);
+    simulation.reposition(10);
+    assert_eq!(accumulator(&simulation), 0.0);
+}
+
+#[test]
+fn reposition_without_max_steps_does_not_clamp() {
+    let mut simulation = SimulationControl::new(RATE);
+    simulation.reposition(500);
+    assert_eq!(simulation.steps_done(), 500);
+}

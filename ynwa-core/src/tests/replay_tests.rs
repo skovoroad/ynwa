@@ -904,6 +904,38 @@ fn sequence_journal() -> Vec<JournalEntry> {
 }
 
 #[test]
+fn from_index_resumes_identically_to_continuous_run() {
+    let journal = sequence_journal();
+    let ticks = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7];
+    let split_at = 0.4f32;
+
+    let mut continuous = three_player_game();
+    let mut continuous_driver = ReplayDriver::new(journal.clone());
+
+    for tick in ticks {
+        if tick <= split_at {
+            continuous_driver.update(&mut continuous, tick);
+        }
+    }
+
+    let checkpoint = continuous.state.clone();
+    let next_index = journal.partition_point(|entry| entry.timestamp <= split_at);
+
+    let mut resumed = three_player_game();
+    resumed.apply_state(checkpoint).unwrap();
+    let mut resumed_driver = ReplayDriver::from_index(journal, next_index);
+
+    for tick in ticks {
+        if tick > split_at {
+            continuous_driver.update(&mut continuous, tick);
+            resumed_driver.update(&mut resumed, tick);
+        }
+    }
+
+    assert_same_physical_state(&continuous, &resumed);
+}
+
+#[test]
 fn two_replays_of_the_same_journal_agree() {
     let mut first = three_player_game();
     let mut second = three_player_game();

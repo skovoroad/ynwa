@@ -27,6 +27,15 @@ impl ReplayDriver {
         }
     }
 
+    /// Resumes a replay from `next_index`, skipping journal entries whose effect is already
+    /// reflected in the state the driver is attached to.
+    pub fn from_index(journal: Vec<JournalEntry>, next_index: usize) -> Self {
+        Self {
+            journal,
+            next_index,
+        }
+    }
+
     fn apply_due_events(&mut self, game: &mut Game, timestamp: f32) {
         while self.next_index < self.journal.len()
             && self.journal[self.next_index].timestamp <= timestamp

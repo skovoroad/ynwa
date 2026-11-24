@@ -6,7 +6,7 @@
 use crate::events::FootballEvent;
 use crate::game_manager::FOOTBALL_EVENT_KIND;
 use ynwa_core::field::zones::Velocity3D;
-use ynwa_core::game::{Game, GameStage};
+use ynwa_core::game::{Game, GameConfig, GameStage, GameState};
 use ynwa_core::journal::{JournalEntry, JournalEvent};
 use ynwa_core::record::Record;
 use ynwa_core::replay::ReplayDriver;
@@ -37,22 +37,39 @@ impl System for ReplaySetupBallPlacer {
 
 /// Builds a world that replays `record` by re-simulating physics only.
 ///
-/// The game is built from `record.header.config` and then its state is replaced by
-/// `record.header.initial_state`, mirroring how a scenario is set up: a world from the config,
-/// then a snapshot on top of it.
-///
 /// The caller steps the world `record.header.timestep` for `record.footer.total_steps` times,
 /// reading those values before the record is consumed.
 pub fn create_football_replay_world(record: Record) -> Result<World, String> {
+    create_football_replay_world_from_state(
+        record.header.config,
+        record.header.initial_state,
+        record.journal,
+        0,
+    )
+}
+
+/// Builds a replay world resumed from a mid-match `state` snapshot.
+///
+/// `next_index` is the journal cursor matching `state.elapsed_time`, so entries whose effect is
+/// already reflected in `state` are skipped. The physics system is initialized at
+/// `state.elapsed_time` so the next step integrates over exactly one timestep.
+pub fn create_football_replay_world_from_state(
+    config: GameConfig,
+    state: GameState,
+    journal: Vec<JournalEntry>,
+    next_index: usize,
+) -> Result<World, String> {
+    let last_update = state.elapsed_time;
+
     // Replay never consults RNG: random-branch outcomes are already in the journal.
     let rng = Box::new(DefaultRngManager::new(RngConfig::new(0.0, Some(0))));
-    let mut game = Game::new(record.header.config, rng);
-    game.apply_state(record.header.initial_state)?;
+    let mut game = Game::new(config, rng);
+    game.apply_state(state)?;
 
     let mut world = World::new(game);
     world.add_system(Box::new(ReplaySetupBallPlacer));
-    world.add_system(Box::new(ReplayDriver::new(record.journal)));
-    world.add_system(Box::new(PhysicsSystem::new()));
+    world.add_system(Box::new(ReplayDriver::from_index(journal, next_index)));
+    world.add_system(Box::new(PhysicsSystem::from_timestamp(last_update)));
     Ok(world)
 }
 

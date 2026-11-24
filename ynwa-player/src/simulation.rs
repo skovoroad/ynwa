@@ -40,6 +40,20 @@ impl SimulationControl {
         self.timestep
     }
 
+    pub fn steps_done(&self) -> u64 {
+        self.steps_done
+    }
+
+    /// Moves the playback position to `step`, clamping to `max_steps` when set, and clears any
+    /// pending frame time so the next step starts fresh.
+    pub fn reposition(&mut self, step: u64) {
+        self.steps_done = match self.max_steps {
+            Some(max) => step.min(max),
+            None => step,
+        };
+        self.accumulator = 0.0;
+    }
+
     /// Frame-time interval that must accumulate before one step is due.
     pub fn pace(&self) -> f32 {
         self.timestep

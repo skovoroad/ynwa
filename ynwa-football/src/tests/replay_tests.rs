@@ -4,7 +4,9 @@
 
 use crate::events::{FootballEvent, BALL_RADIUS};
 use crate::field_builder::create_football_field;
-use crate::replay::{create_football_replay_world, decode_football_events};
+use crate::replay::{
+    create_football_replay_world, create_football_replay_world_from_state, decode_football_events,
+};
 use crate::test_utils::{
     assert_equivalent, build_recording_world, build_recording_world_with, STEPS, TIMESTEP,
 };
@@ -47,6 +49,40 @@ fn replay_reproduces_physical_state() {
     }
 
     assert_equivalent(original.game().state(), replay.game().state());
+}
+
+#[test]
+fn replay_resumed_mid_match_matches_full_replay() {
+    let (_original, record) = record_short_game();
+    let total_steps = record.footer.total_steps;
+    let mid = total_steps / 2;
+
+    let mut full = create_football_replay_world(record.clone()).unwrap();
+    for _ in 0..total_steps {
+        full.step(TIMESTEP);
+    }
+
+    let mut prefix = create_football_replay_world(record.clone()).unwrap();
+    for _ in 0..mid {
+        prefix.step(TIMESTEP);
+    }
+    let checkpoint = prefix.game().state().clone();
+    let next_index = record
+        .journal
+        .partition_point(|entry| entry.timestamp <= checkpoint.elapsed_time);
+
+    let mut resumed = create_football_replay_world_from_state(
+        record.header.config.clone(),
+        checkpoint,
+        record.journal.clone(),
+        next_index,
+    )
+    .unwrap();
+    for _ in mid..total_steps {
+        resumed.step(TIMESTEP);
+    }
+
+    assert_equivalent(full.game().state(), resumed.game().state());
 }
 
 #[test]
