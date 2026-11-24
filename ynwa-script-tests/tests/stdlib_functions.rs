@@ -892,6 +892,37 @@ end
     assert_eq!(state.decision_reason.as_deref(), Some("pass_to_#2"));
 }
 
+// --- chase_ball ---
+
+#[test]
+fn test_chase_ball_default_reason() {
+    let script = r#"
+function make_decision()
+    return chase_ball()
+end
+"#;
+    let state = run_caller(create_test_game_with_preambles(script));
+    assert!(state.last_error.is_none(), "{:?}", state.last_error);
+    assert!(matches!(state.current_decision, Some(Decision::Run(_))));
+    assert_eq!(state.decision_reason.as_deref(), Some("chase_ball"));
+}
+
+#[test]
+fn test_chase_ball_custom_reason() {
+    let script = r#"
+function make_decision()
+    return chase_ball("recover")
+end
+"#;
+    let state = run_caller(create_test_game_with_preambles(script));
+    assert!(state.last_error.is_none(), "{:?}", state.last_error);
+    assert!(matches!(state.current_decision, Some(Decision::Run(_))));
+    assert_eq!(
+        state.decision_reason.as_deref(),
+        Some("recover | chase_ball")
+    );
+}
+
 // --- run_to_start_position ---
 
 #[test]
@@ -932,6 +963,36 @@ end
     assert!(state.last_error.is_none(), "{:?}", state.last_error);
     assert!(matches!(state.current_decision, Some(Decision::Stop)));
     assert_eq!(state.decision_reason.as_deref(), Some("no_start_position"));
+}
+
+#[test]
+fn test_run_to_attack_position_custom_reason() {
+    let script = r#"
+function make_decision()
+    context.me.regions["attack"] = {min_x = 10.0, max_x = 20.0, min_z = 10.0, max_z = 20.0}
+    return run_to_attack_position("press")
+end
+"#;
+    let state = run_caller(create_test_game_with_preambles(script));
+    assert!(state.last_error.is_none(), "{:?}", state.last_error);
+    assert!(matches!(state.current_decision, Some(Decision::Run(_))));
+    assert_eq!(
+        state.decision_reason.as_deref(),
+        Some("press | run_to_attack_position")
+    );
+}
+
+#[test]
+fn test_run_to_attack_position_without_region_keeps_builtin_reason() {
+    let script = r#"
+function make_decision()
+    return run_to_attack_position("press")
+end
+"#;
+    let state = run_caller(create_test_game_with_preambles(script));
+    assert!(state.last_error.is_none(), "{:?}", state.last_error);
+    assert!(matches!(state.current_decision, Some(Decision::Stop)));
+    assert_eq!(state.decision_reason.as_deref(), Some("no_attack_position"));
 }
 
 // --- default_goalkeeper_with_ball ---
@@ -988,6 +1049,34 @@ end
             .starts_with("kick_to_goal("),
         "expected a goal kick, got {:?}",
         state.decision_reason
+    );
+}
+
+#[test]
+fn test_default_goalkeeper_with_ball_custom_reason() {
+    let script = r#"
+function make_decision()
+    return default_goalkeeper_with_ball("build_up")
+end
+"#;
+    use ynwa_core::team::Team;
+    let players = vec![
+        make_player(Team::A, 1, script),
+        make_player(Team::A, 2, ""),
+        make_player(Team::A, 3, ""),
+        make_player(Team::A, 4, ""),
+    ];
+    let mut game = create_test_game_with_all_preambles(players);
+    place_player(&mut game, 0, 10.0, 10.0);
+    place_player(&mut game, 1, 10.0, 30.0); // 20 m
+    place_player(&mut game, 2, 10.0, 26.0); // 16 m, nearest eligible
+    place_player(&mut game, 3, 10.0, 20.0); // 10 m, too close
+    let state = run_caller(game);
+    assert!(state.last_error.is_none(), "{:?}", state.last_error);
+    assert!(matches!(state.current_decision, Some(Decision::Kick(_))));
+    assert_eq!(
+        state.decision_reason.as_deref(),
+        Some("build_up | pass_to_#3")
     );
 }
 
@@ -1049,6 +1138,7 @@ function make_decision()
     assert(parse_notation == nil, "parse_notation must be internal")
     assert(is_in_region_obj == nil, "is_in_region_obj must be internal")
     assert(run_to_region_obj == nil, "run_to_region_obj must be internal")
+    assert(compose_reason == nil, "compose_reason must be internal")
     assert(get_teammate_by_number == nil, "get_teammate_by_number must be internal")
     assert(am_i_ball_owner == nil, "am_i_ball_owner must be internal")
     assert(pass_to_teammate == nil, "pass_to_teammate must be removed")

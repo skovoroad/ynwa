@@ -44,6 +44,12 @@ do
                 reason=reason}
     end
 
+    -- Join a team-supplied reason with the action's built-in reason.
+    local function compose_reason(custom, builtin)
+        if custom == nil or custom == "" then return builtin end
+        return custom .. " | " .. builtin
+    end
+
     -- Returns the teammate object with the given number, or nil if not found.
     local function get_teammate_by_number(n)
         for _, tm in ipairs(get_teammates()) do
@@ -223,17 +229,17 @@ do
         return {action = "stop", reason = reason}
     end
 
-    function chase_ball()
-        return {action = "run", target_type = "ball", reason = "chase_ball"}
+    function chase_ball(reason)
+        return {action = "run", target_type = "ball", reason = compose_reason(reason, "chase_ball")}
     end
 
     -- Returns a Run decision targeting a grid region.
-    function run_to_region(from_notation, to_notation)
+    function run_to_region(from_notation, to_notation, reason)
         return {
             action = "run",
             target_type = "region",
             target = {from = from_notation, to = to_notation},
-            reason = "run_to_region:" .. from_notation .. "-" .. to_notation
+            reason = compose_reason(reason, "run_to_region:" .. from_notation .. "-" .. to_notation)
         }
     end
 
@@ -249,14 +255,14 @@ do
 
     -- Returns a Kick decision aimed at the center of the opponent's goal.
     -- Works transparently for both teams: get_opponent_goal() handles coordinate perspective.
-    function kick_to_opponent_goal()
+    function kick_to_opponent_goal(reason)
         local goal = get_opponent_goal()
         local target_x = (goal.min_x + goal.max_x) / 2
         local target_z = (goal.min_z + goal.max_z) / 2
         return {
             action = "kick",
             target = {x = target_x, z = target_z},
-            reason = string.format("kick_to_goal(%.1f,%.1f)", target_x, target_z)
+            reason = compose_reason(reason, string.format("kick_to_goal(%.1f,%.1f)", target_x, target_z))
         }
     end
 
@@ -265,34 +271,34 @@ do
     -- -----------------------------------------------------------------------------
 
     -- Action: run to center of "start" region
-    function run_to_start_position()
+    function run_to_start_position(reason)
         local pos = my_regions()["start"]
         if pos == nil then return stop("no_start_position") end
-        return run_to_region_obj(pos, "run_to_start_position")
+        return run_to_region_obj(pos, compose_reason(reason, "run_to_start_position"))
     end
 
     -- Action: run to center of "attack" region
-    function run_to_attack_position()
+    function run_to_attack_position(reason)
         local pos = my_regions()["attack"]
         if pos == nil then return stop("no_attack_position") end
-        return run_to_region_obj(pos, "run_to_attack_position")
+        return run_to_region_obj(pos, compose_reason(reason, "run_to_attack_position"))
     end
 
     -- Action: run to center of "defence" region
-    function run_to_defence_position()
+    function run_to_defence_position(reason)
         local pos = my_regions()["defence"]
         if pos == nil then return stop("no_defence_position") end
-        return run_to_region_obj(pos, "run_to_defence_position")
+        return run_to_region_obj(pos, compose_reason(reason, "run_to_defence_position"))
     end
 
     -- Run to center of opponent penalty area.
-    function run_to_opponent_penalty_area()
+    function run_to_opponent_penalty_area(reason)
         local pa = get_opponent_penalty_area()
-        return run_to_region_obj(pa, "run_to_opponent_penalty_area")
+        return run_to_region_obj(pa, compose_reason(reason, "run_to_opponent_penalty_area"))
     end
 
     -- Action: stay on the goal line at defence Z, tracking ball X clamped to goal width.
-    function default_goalkeeper_cover_position()
+    function default_goalkeeper_cover_position(reason)
         local defence = my_regions()["defence"]
         if defence == nil then return run_to_defence_position() end
         local goal = get_own_goal()
@@ -304,12 +310,12 @@ do
             action = "run",
             target_type = "point",
             target = {x = clamped_x, z = target_z, y = 0},
-            reason = "goalkeeper_cover"
+            reason = compose_reason(reason, "goalkeeper_cover")
         }
     end
 
     -- Temporary helper: pass to the nearest teammate at least 15 m away, otherwise shoot.
-    function default_goalkeeper_with_ball()
+    function default_goalkeeper_with_ball(reason)
         local my_pos = my_position()
         local best_number, best_position, best_distance = nil, nil, math.huge
         for _, tm in ipairs(get_teammates()) do
@@ -323,7 +329,7 @@ do
         if best_number == nil then
             return kick_to_opponent_goal()
         end
-        return kick_to_position(best_position, "pass_to_#" .. best_number)
+        return kick_to_position(best_position, compose_reason(reason, "pass_to_#" .. best_number))
     end
 
     -- -----------------------------------------------------------------------------
