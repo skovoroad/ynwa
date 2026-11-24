@@ -28,6 +28,22 @@ Match recording SHALL store `Record { header: RecordHeader { config, initial_sta
 - **WHEN** a player kicks the ball or a sport-specific event occurs during a recorded run
 - **THEN** `DecisionAssigned` records the player's Display-Orientation `Kick` decision and `reason` (for UI/telemetry) while `KickOutcome` separately records the post-RNG `ball_velocity` so replay reproduces exact ball flight without RNG, and `External` stores sport events for UI/test decoding without affecting replay kinematics
 
+### Requirement: Player-referencing journal events are self-identifying
+
+Every `JournalEvent` variant that references a player SHALL record that player's `team` and tactical `number` alongside the canonical `player_index`. `player_index` SHALL remain the key replay uses to target `player_states`, and the added fields SHALL NOT participate in replay equivalence guarantees.
+
+#### Scenario: A decision names its player without the config
+- **WHEN** a `DecisionAssigned` event is recorded for global player index `i`
+- **THEN** the serialized event contains `player_index = i` together with `team` and `number` equal to `config.players[i].team` and `config.players[i].number`
+
+#### Scenario: Possession change names the new possessor or the free ball
+- **WHEN** a `PossessionChange` event is recorded
+- **THEN** when `possessed_by` is `Some(i)` the event also carries the `team` and `number` of player `i`; when `possessed_by` is `None` the added `team` and `number` fields are `None`
+
+#### Scenario: Kick outcome names the kicker
+- **WHEN** a `KickOutcome` event is recorded for global player index `i`
+- **THEN** the serialized event contains `player_index = i` together with `team` and `number` equal to `config.players[i].team` and `config.players[i].number`
+
 ### Requirement: Deterministic Serialization, Codec Traits, and Crash-Resilient JSON Lines
 
 `GameConfig`, `GameState`, and `RecordFooter` SHALL serialize unordered maps, sets, and `Field` zones in deterministic sorted key order. `RecordWriter` and `RecordReader` MUST decouple `Record` from byte transport (supporting streaming files, in-memory buffers, and whole-`Record` dumps). `JsonRecordWriter` flushes newline-terminated JSON Lines (`header`, `event`..., `footer`); `JsonRecordReader` rejects missing/duplicate headers and ignores trailing lines without `'\n'`.
