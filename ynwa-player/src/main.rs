@@ -5,20 +5,23 @@ mod simulation;
 mod ui;
 
 use macroquad::prelude::*;
+use std::cell::RefCell;
 use std::path::PathBuf;
+use std::rc::Rc;
 use uom::si::length::meter;
 use ynwa_core::{
-    json_journal_file_reader, json_journal_file_writer, FileJournalRecorder, GameStage,
-    JournalEntry, Record, RecordHeader, RecordReader, World,
+    json_journal_file_reader, json_journal_file_writer, CollectJournalRecorder,
+    FileJournalRecorder, GameStage, JournalEntry, Record, RecordHeader, RecordReader,
+    TeeJournalSink, World,
 };
 use ynwa_football::{create_football_replay_world, FootballWorldBuilder};
 use ynwa_repository::FsTeamRepository;
 
 use cli::{games_dir, next_record_path, parse, Cli, Mode};
-use input::{handle_input, EventPanelScroll};
+use input::{handle_input, EventPanelInput, EventPanelScroll};
 use renderer::render_field;
 use simulation::SimulationControl;
-use ui::{draw_control_panel, draw_separator};
+use ui::{draw_control_panel, draw_separator, event_panel_visible_rows};
 
 /// Real-time tempo of play and recording (simulation steps per second).
 const PLAYBACK_RATE: f32 = 60.0;
@@ -59,16 +62,36 @@ async fn run_play(cli: &Cli, is_fullscreen: &mut bool) {
     let mut world = load_or_exit(load_world(cli, &repo), "load game");
     print_loaded(&world);
 
+    let events = Rc::new(RefCell::new(Vec::new()));
+    world
+        .game_mut()
+        .set_journal_sink(Box::new(CollectJournalRecorder::new(Rc::clone(&events))));
+
     let field_ratio = field_width_ratio(&world);
     let mut simulation = SimulationControl::new(PLAYBACK_RATE);
+    let mut event_scroll = EventPanelScroll::default();
 
     loop {
-        if handle_input(&mut simulation, is_fullscreen, None) {
+        if handle_input(
+            &mut simulation,
+            is_fullscreen,
+            Some(EventPanelInput {
+                scroll: &mut event_scroll,
+                total_entries: events.borrow().len(),
+                visible_rows: event_panel_visible_rows(),
+            }),
+        ) {
             break;
         }
 
         advance(&mut world, &mut simulation, cli.duration);
-        render_scene(&world, &simulation, field_ratio, None, 0);
+        render_scene(
+            &world,
+            &simulation,
+            field_ratio,
+            &events.borrow(),
+            event_scroll.offset(),
+        );
 
         next_frame().await
     }
@@ -90,17 +113,27 @@ async fn run_record(cli: &Cli, is_fullscreen: &mut bool) {
     let path = load_or_exit(next_record_path(&dir), "choose recording path");
     let writer = load_or_exit(json_journal_file_writer(&path), "create recording file");
     let header = RecordHeader::from_game(world.game(), timestep);
+    let events = Rc::new(RefCell::new(Vec::new()));
     world
         .game_mut()
-        .set_journal_sink(Box::new(FileJournalRecorder::new(
-            Box::new(writer),
-            &header,
+        .set_journal_sink(Box::new(TeeJournalSink::new(
+            Box::new(FileJournalRecorder::new(Box::new(writer), &header)),
+            Box::new(CollectJournalRecorder::new(Rc::clone(&events))),
         )));
     println!("Recording to {}", path.display());
 
+    let mut event_scroll = EventPanelScroll::default();
     let mut finalized = false;
     loop {
-        if handle_input(&mut simulation, is_fullscreen, None) {
+        if handle_input(
+            &mut simulation,
+            is_fullscreen,
+            Some(EventPanelInput {
+                scroll: &mut event_scroll,
+                total_entries: events.borrow().len(),
+                visible_rows: event_panel_visible_rows(),
+            }),
+        ) {
             if !finalized {
                 // Closed early: leave the file a valid JSON Lines prefix.
                 let _ = world.game_mut().finish_journal();
@@ -118,7 +151,13 @@ async fn run_record(cli: &Cli, is_fullscreen: &mut bool) {
             }
         }
 
-        render_scene(&world, &simulation, field_ratio, None, 0);
+        render_scene(
+            &world,
+            &simulation,
+            field_ratio,
+            &events.borrow(),
+            event_scroll.offset(),
+        );
 
         next_frame().await
     }
@@ -153,7 +192,11 @@ async fn run_replay(path: PathBuf, is_fullscreen: &mut bool) {
         if handle_input(
             &mut simulation,
             is_fullscreen,
-            Some((&mut event_scroll, visible_events.len())),
+            Some(EventPanelInput {
+                scroll: &mut event_scroll,
+                total_entries: visible_events.len(),
+                visible_rows: event_panel_visible_rows(),
+            }),
         ) {
             break;
         }
@@ -170,7 +213,7 @@ async fn run_replay(path: PathBuf, is_fullscreen: &mut bool) {
             &world,
             &simulation,
             field_ratio,
-            Some(&visible_events),
+            &visible_events,
             event_scroll.offset(),
         );
 
@@ -234,7 +277,7 @@ fn render_scene(
     world: &World,
     simulation: &SimulationControl,
     field_width_ratio: f32,
-    events: Option<&[JournalEntry]>,
+    events: &[JournalEntry],
     event_scroll: usize,
 ) {
     let screen_w = screen_width();

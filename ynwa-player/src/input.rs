@@ -1,9 +1,8 @@
 use macroquad::prelude::*;
 
 use crate::simulation::SimulationControl;
-use crate::ui::EVENT_PANEL_SIZE;
 
-/// Scroll position of the replay events panel, counted in rows back from the newest event.
+/// Scroll position of the events panel, counted in rows back from the newest event.
 #[derive(Default)]
 pub struct EventPanelScroll {
     offset: usize,
@@ -15,9 +14,9 @@ impl EventPanelScroll {
         self.offset
     }
 
-    /// Applies mouse-wheel and `Up`/`Down` input, clamped to the available history.
-    /// Held arrow keys scroll continuously.
-    fn update(&mut self, total_entries: usize) {
+    /// Applies mouse-wheel, arrow, and page-key input, clamped to the available history.
+    /// Held keys scroll continuously; page keys move by one viewport.
+    fn update(&mut self, total_entries: usize, visible_rows: usize) {
         let mut delta = 0i64;
         let (_, wheel) = mouse_wheel();
         if wheel > 0.0 {
@@ -32,22 +31,36 @@ impl EventPanelScroll {
         if is_key_down(KeyCode::Down) {
             delta -= 1;
         }
+        let page = visible_rows.max(1) as i64;
+        if is_key_down(KeyCode::PageUp) {
+            delta += page;
+        }
+        if is_key_down(KeyCode::PageDown) {
+            delta -= page;
+        }
         if delta == 0 {
             return;
         }
 
-        let max_offset = total_entries.saturating_sub(EVENT_PANEL_SIZE);
+        let max_offset = total_entries.saturating_sub(visible_rows);
         self.offset = (self.offset as i64 + delta).clamp(0, max_offset as i64) as usize;
     }
 }
 
+/// Events panel scroll state together with the counts needed to clamp it.
+pub struct EventPanelInput<'a> {
+    pub scroll: &'a mut EventPanelScroll,
+    pub total_entries: usize,
+    pub visible_rows: usize,
+}
+
 /// Returns `true` when the user requested to close the window.
 ///
-/// `event_scroll` is present only in replay, where it tracks the events panel position.
+/// `event_panel` tracks the events panel position in every mode.
 pub fn handle_input(
     simulation: &mut SimulationControl,
     is_fullscreen: &mut bool,
-    event_scroll: Option<(&mut EventPanelScroll, usize)>,
+    event_panel: Option<EventPanelInput<'_>>,
 ) -> bool {
     if is_key_pressed(KeyCode::Escape) {
         return true; // Exit
@@ -70,8 +83,8 @@ pub fn handle_input(
         simulation.decrease_speed();
     }
 
-    if let Some((scroll, total_entries)) = event_scroll {
-        scroll.update(total_entries);
+    if let Some(panel) = event_panel {
+        panel.scroll.update(panel.total_entries, panel.visible_rows);
     }
 
     false // Continue

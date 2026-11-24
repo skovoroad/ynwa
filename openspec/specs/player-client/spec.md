@@ -84,4 +84,4 @@ The right `35%` of the window SHALL display match telemetry: elapsed time, `PAUS
 
 #### Scenario: Scrolling the event history
 - **WHEN** the `Events:` panel has more entries than fit in its viewport
-- **THEN** the mouse wheel and `Up`/`Down` keys scroll the visible window through the full history, and while the panel is scrolled to the newest entry it auto-follows newly arrived events
+- **THEN** the mouse wheel and `Up`/`Down` keys scroll the visible window through the full history, `PgUp`/`PgDown` scroll by a full viewport, and while the panel is scrolled to the newest entry it auto-follows newly arrived events

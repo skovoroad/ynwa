@@ -44,6 +44,7 @@ pub use game::{
 };
 pub use journal::{
     CollectJournalRecorder, JournalEntry, JournalEvent, JournalSink, NullJournalSink,
+    TeeJournalSink,
 };
 pub use record::{Record, RecordFooter, RecordHeader};
 pub use record_io::{

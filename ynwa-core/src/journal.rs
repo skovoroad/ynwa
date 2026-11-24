@@ -103,3 +103,30 @@ impl JournalSink for CollectJournalRecorder {
             .push(JournalEntry { timestamp, event });
     }
 }
+
+/// Sink that forwards every event to two sinks, for example a file and an in-memory buffer.
+pub struct TeeJournalSink {
+    first: Box<dyn JournalSink>,
+    second: Box<dyn JournalSink>,
+}
+
+impl TeeJournalSink {
+    pub fn new(first: Box<dyn JournalSink>, second: Box<dyn JournalSink>) -> Self {
+        Self { first, second }
+    }
+}
+
+impl JournalSink for TeeJournalSink {
+    fn push(&mut self, timestamp: f32, event: JournalEvent) {
+        self.first.push(timestamp, event.clone());
+        self.second.push(timestamp, event);
+    }
+
+    /// Finalizes both sinks, reporting the first sink's error when both fail.
+    fn finish(self: Box<Self>, final_state: &GameState) -> Result<(), String> {
+        let Self { first, second } = *self;
+        let first_result = first.finish(final_state);
+        let second_result = second.finish(final_state);
+        first_result.and(second_result)
+    }
+}

@@ -8,6 +8,7 @@ use crate::game::{
 };
 use crate::journal::{
     CollectJournalRecorder, JournalEntry, JournalEvent, JournalSink, NullJournalSink,
+    TeeJournalSink,
 };
 use crate::region::GridCell;
 use crate::team::Team;
@@ -62,6 +63,42 @@ fn decision_event(player_index: usize) -> JournalEvent {
     }
 }
 
+struct FinishTrackingSink {
+    entries: Rc<RefCell<Vec<JournalEntry>>>,
+    finished: Rc<RefCell<bool>>,
+}
+
+type SharedEntries = Rc<RefCell<Vec<JournalEntry>>>;
+type SharedFlag = Rc<RefCell<bool>>;
+
+impl FinishTrackingSink {
+    fn new() -> (Self, SharedEntries, SharedFlag) {
+        let entries = Rc::new(RefCell::new(Vec::new()));
+        let finished = Rc::new(RefCell::new(false));
+        (
+            Self {
+                entries: Rc::clone(&entries),
+                finished: Rc::clone(&finished),
+            },
+            entries,
+            finished,
+        )
+    }
+}
+
+impl JournalSink for FinishTrackingSink {
+    fn push(&mut self, timestamp: f32, event: JournalEvent) {
+        self.entries
+            .borrow_mut()
+            .push(JournalEntry { timestamp, event });
+    }
+
+    fn finish(self: Box<Self>, _final_state: &GameState) -> Result<(), String> {
+        *self.finished.borrow_mut() = true;
+        Ok(())
+    }
+}
+
 #[test]
 fn null_sink_ignores_events_and_finishes_ok() {
     let mut sink: Box<dyn JournalSink> = Box::new(NullJournalSink);
@@ -83,6 +120,55 @@ fn collect_recorder_forwards_events_to_collection() {
     assert_eq!(entries[0].timestamp, 0.016);
     assert_eq!(entries[0].event, decision_event(0));
     assert_eq!(entries[1].event, JournalEvent::DecisionsReset);
+}
+
+#[test]
+fn tee_sink_forwards_events_to_both_sinks() {
+    let (first, first_entries, _) = FinishTrackingSink::new();
+    let (second, second_entries, _) = FinishTrackingSink::new();
+    let mut sink: Box<dyn JournalSink> =
+        Box::new(TeeJournalSink::new(Box::new(first), Box::new(second)));
+
+    sink.push(0.016, decision_event(0));
+    sink.push(0.032, JournalEvent::DecisionsReset);
+
+    let expected = vec![
+        JournalEntry {
+            timestamp: 0.016,
+            event: decision_event(0),
+        },
+        JournalEntry {
+            timestamp: 0.032,
+            event: JournalEvent::DecisionsReset,
+        },
+    ];
+    assert_eq!(*first_entries.borrow(), expected);
+    assert_eq!(*second_entries.borrow(), expected);
+}
+
+#[test]
+fn tee_sink_finishes_both_sinks() {
+    let (first, _, first_finished) = FinishTrackingSink::new();
+    let (second, _, second_finished) = FinishTrackingSink::new();
+    let sink: Box<dyn JournalSink> =
+        Box::new(TeeJournalSink::new(Box::new(first), Box::new(second)));
+
+    assert!(sink.finish(test_game().state()).is_ok());
+    assert!(*first_finished.borrow());
+    assert!(*second_finished.borrow());
+}
+
+#[test]
+fn tee_sink_reports_first_error_but_still_finishes_second_sink() {
+    let (second, _, second_finished) = FinishTrackingSink::new();
+    let sink: Box<dyn JournalSink> =
+        Box::new(TeeJournalSink::new(Box::new(FailingSink), Box::new(second)));
+
+    assert_eq!(
+        sink.finish(test_game().state()).unwrap_err(),
+        "write failed"
+    );
+    assert!(*second_finished.borrow());
 }
 
 #[test]
