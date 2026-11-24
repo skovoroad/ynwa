@@ -69,7 +69,7 @@ Engine-owned Lua preambles in `ynwa-scripts/preambles/` SHALL separate state acc
 - **WHEN** Layer 3–4 scripts call `stdlib.lua` public functions
 - **THEN** `stdlib.lua` provides:
   - queries: `distance(p1, p2)` (2D XZ, ignoring `y`), `teammate_position(number)`, `opponent_position(number)`, `ball_owner_number()`, `count_teammates_around(pos, radius)`, `count_opponents_around(pos, radius)`
-  - predicates: `is_in_region(from, to)`, `is_in_opponent_penalty_area()`, `is_teammate_free(number)`, `is_opponent_free(number)`, `is_teammate_ahead(number)`, `is_teammate_behind(number)`, `is_teammate_left(number)`, `is_teammate_right(number)`, `is_opponent_ahead(number)`, `is_opponent_behind(number)`, `is_opponent_left(number)`, `is_opponent_right(number)`
+  - predicates: `is_in_region(from, to)`, `is_in_opponent_penalty_area()`, `is_teammate_free(number)`, `is_opponent_free(number)`, `is_teammate_ahead(number)`, `is_teammate_behind(number)`, `is_teammate_left(number)`, `is_teammate_right(number)`, `is_opponent_ahead(number)`, `is_opponent_behind(number)`, `is_opponent_left(number)`, `is_opponent_right(number)`, `is_ball_ahead()`, `is_ball_behind()`
   - actions: `stop(reason?)`, `chase_ball()`, `run_to_region(from, to)`, `run_to_start_position()`, `run_to_attack_position()`, `run_to_defence_position()`, `run_to_opponent_penalty_area()`, `kick_to_position(pos, reason?)`, `kick_to_opponent_goal()`, `default_goalkeeper_cover_position()` (runs to `z` center of the `"defence"` region and `x = clamp(ball.x, own_goal.min_x, own_goal.max_x)`, or falls back to `run_to_defence_position()` if `"defence"` is absent), and `default_goalkeeper_with_ball()` (passes to the nearest teammate at least 15 m away with reason `"pass_to_#<n>"`, or `kick_to_opponent_goal()` if none)
 - **AND** `parse_col`, `parse_notation`, `is_in_region_obj`, `run_to_region_obj`, `get_teammate_by_number`, and `am_i_ball_owner` are internal `local` helpers that evaluate to `nil` in the team preamble scope
 - **AND** `pass_to_teammate`, `pass_to_players_by_numbers`, `kick_to_cell`, and `kick_to_region` do not exist
@@ -90,6 +90,11 @@ Engine-owned Lua preambles in `ynwa-scripts/preambles/` SHALL separate state acc
 #### Scenario: Directional predicates in team orientation
 - **WHEN** a script calls `is_teammate_ahead/behind/left/right(number)` or `is_opponent_ahead/behind/left/right(number)`
 - **THEN** with tolerance 0.5 m, "ahead" is `target.z > my.z + 0.5` (closer to the opponent goal line), "behind" is `target.z < my.z - 0.5`, "left" is `target.x < my.x - 0.5`, and "right" is `target.x > my.x + 0.5`
+
+#### Scenario: Ball directional predicates without tolerance
+- **WHEN** a script calls `is_ball_ahead()` or `is_ball_behind()`
+- **THEN** with no tolerance, `is_ball_ahead()` is `true` exactly when `ball_position().z > my_position().z` (the ball is strictly closer to the opponent goal line than me), and `is_ball_behind()` is `true` exactly when `ball_position().z < my_position().z` (the ball is strictly closer to the own goal line than me)
+- **AND** at exact equality (`ball_position().z == my_position().z`) both return `false`, and there are no `is_ball_left`/`is_ball_right` predicates
 
 #### Scenario: Ball owner number
 - **WHEN** a script calls `ball_owner_number()`
