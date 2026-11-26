@@ -1,0 +1,23 @@
+number = 8
+
+[play_positions]
+attack  = "O25"
+defence = "O9"
+
+[set_piece_positions]
+"kick off own"                = "O13"
+"kick off opp"                = "O13"
+"goal kick own"               = "O13"
+"goal kick opp"               = "O27"
+"corner own left"             = "O32"
+"corner own right"            = "S34"
+"corner opp left"             = "O13"
+"corner opp right"            = "O13"
+"throw in own left own half"  = "O13"
+"throw in own left opp half"  = "O13"
+"throw in own right own half" = "O13"
+"throw in own right opp half" = "O13"
+"throw in opp left own half"  = "O13"
+"throw in opp left opp half"  = "O13"
+"throw in opp right own half" = "O13"
+"throw in opp right opp half" = "O13"

@@ -1,0 +1,23 @@
+number = 2
+
+[play_positions]
+attack  = "G18"
+defence = "G5"
+
+[set_piece_positions]
+"kick off own"                = "G7"
+"kick off opp"                = "G7"
+"goal kick own"               = "G7"
+"goal kick opp"               = "G25"
+"corner own left"             = "on_ball"
+"corner own right"            = "G34"
+"corner opp left"             = "G5"
+"corner opp right"            = "G5"
+"throw in own left own half"  = "G7"
+"throw in own left opp half"  = "G7"
+"throw in own right own half" = "G7"
+"throw in own right opp half" = "G7"
+"throw in opp left own half"  = "G7"
+"throw in opp left opp half"  = "G7"
+"throw in opp right own half" = "G7"
+"throw in opp right opp half" = "G7"

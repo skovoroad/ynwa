@@ -7,7 +7,7 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
 
-TEAMS=(team_a team_b team_c.v2)
+TEAMS=(team_a team_b team_d)
 ROUNDS=10
 DURATION=120.0
 TIMESTEP=0.0166666667

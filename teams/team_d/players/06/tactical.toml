@@ -1,0 +1,23 @@
+number = 6
+
+[play_positions]
+attack  = "L25"
+defence = "L9"
+
+[set_piece_positions]
+"kick off own"                = "L13"
+"kick off opp"                = "L13"
+"goal kick own"               = "L13"
+"goal kick opp"               = "L27"
+"corner own left"             = "L34"
+"corner own right"            = "L34"
+"corner opp left"             = "L13"
+"corner opp right"            = "L13"
+"throw in own left own half"  = "L13"
+"throw in own left opp half"  = "L13"
+"throw in own right own half" = "L13"
+"throw in own right opp half" = "L13"
+"throw in opp left own half"  = "L13"
+"throw in opp left opp half"  = "L13"
+"throw in opp right own half" = "L13"
+"throw in opp right opp half" = "L13"
