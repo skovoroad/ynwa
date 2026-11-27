@@ -1,5 +1,17 @@
 ## MODIFIED Requirements
 
+### Requirement: Lua VM Lifecycle and Stage Gating
+
+At `DecisionEngine::new`, each VM SHALL bind `static_data` **once** to global `GAME_DATA` **before** executing `"{core_preamble}\n{stdlib_preamble}\n{team_preamble}"` **once**, so top-level preamble code can read `GAME_DATA` at load time. On each `DecisionEngine::make_decision(idx, context)` call, the VM MUST overwrite global `context`, re-execute `script.lua`, and invoke `make_decision()`. `ScriptedDecisionMaker` MUST delegate in `Play` and return `Err(RuntimeError)` in `Setup(_)`.
+
+#### Scenario: Preamble persistence vs player script re-execution
+- **WHEN** `DecisionEngine::make_decision` runs across consecutive ticks for the same player
+- **THEN** tables/functions declared in `core.lua`, `stdlib.lua`, and team `preamble.lua` persist across ticks within that player's VM, while top-level statements in `script.lua` re-execute on every call before `make_decision()` runs
+
+#### Scenario: `GAME_DATA` available at preamble load time
+- **WHEN** `DecisionEngine::new` initializes a player VM whose `stdlib.lua` or `team_preamble` reads `GAME_DATA` at top level (outside any function)
+- **THEN** `GAME_DATA` is already bound in the VM and preamble loading succeeds without `attempt to index a nil value (global 'GAME_DATA')`
+
 ### Requirement: Engine Config and `GAME_DATA` JSON Schema
 
 Engine initialization SHALL pass `{"team_preambles": {"team_a", "team_b"}, "players": [{"script", "team", "static_data"}]}` where each player's `static_data` (exposed as `GAME_DATA`) contains `field: {width, length, columns, rows}`, `physics: {max_player_speed, max_kick_speed, ball_friction}` sourced from `ynwa-core` constants, and `zones` transformed into that player's team orientation (`Team::B` coordinates and arc angles flipped, while zone keys `<name>` / `<name>_a` / `<name>_b` keep their canonical names).

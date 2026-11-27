@@ -21,6 +21,13 @@ To keep user tactics and the future DSL simple and stat-agnostic, lead-target co
 
 ## Decisions
 
+### 0. `LuaExecutor` builder for pre-preamble globals (`ynwa-decisions`)
+Currently `LuaExecutor::new(preamble, timeout)` runs `preamble` immediately during construction, while `DecisionEngine::new` calls `executor.set_global("GAME_DATA", data)` only afterwards. Top-level preamble code (such as `stdlib.lua` deriving `AVG_*` constants from `GAME_DATA.physics`) therefore fails with `attempt to index a nil value (global 'GAME_DATA')`.
+
+To keep `LuaExecutor` domain-agnostic (without hardcoding `"GAME_DATA"`) and leave `LuaExecutor::new` untouched for existing tests:
+- Add a generic `LuaExecutorBuilder` (e.g., `LuaExecutor::builder()` / `LuaExecutor::with_globals(...)` -> `.with_preamble(...)` / `.with_timeout(...)` -> `.build()`) that creates the `Lua` VM, applies the sandbox, installs all configured globals, and **then** executes the preamble.
+- Update `DecisionEngine::new` to construct each player's `LuaExecutor` via this builder, passing `("GAME_DATA", data)` before `combined_preamble`.
+
 ### 1. Velocity in `context` (2D XZ in team orientation)
 `ScriptedDecisionMaker::build_context` serializes `velocity: {x, z}` alongside `position` for `me`, `teammates`, `opponents`, and `ball`. Just like `position` (which flips `x -> width - x`, `z -> length - z` for `Team::B`), velocity vectors for `Team::B` negate both components (`vx -> -vx`, `vz -> -vz`).
 

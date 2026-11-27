@@ -6,8 +6,9 @@ Players make decisions discretely at `0.5–3.0` s intervals, while `chase_ball`
 
 ## What Changes
 
+- Fix Lua VM initialization order in `ynwa-decisions` (`LuaExecutor` builder + `DecisionEngine::new`) so `GAME_DATA` is installed into the sandboxed VM **before** the combined preamble executes.
 - Expose observed `velocity` (`{x, z}` in the caller's team orientation) on `context.ball`, `context.teammates[i]`, `context.opponents[i]`, and `context.me`, and expose engine physics constants (`max_player_speed`, `max_kick_speed`, `ball_friction`) in `GAME_DATA.physics` in `ScriptedDecisionMaker`.
-- Add `INTERNAL` Layer 1 velocity wrappers (`ball_velocity()`, `teammate_velocity(number)`, `opponent_velocity(number)`, `my_velocity()`) to `ynwa-scripts/preambles/core.lua`.
+- Add `INTERNAL` Layer 1 velocity wrappers (`ball_velocity()`, `my_velocity()`) to `ynwa-scripts/preambles/core.lua`.
 - Update `chase_ball(reason?)` in `ynwa-scripts/preambles/stdlib.lua` to compute a linear lead point using an averaged player speed, `ball_velocity()`, and ball friction deceleration, clamped to `GAME_DATA.field` bounds, returning `{action = "run", target_type = "point", ...}`.
 - Add `pass_to(number, reason?)` to `ynwa-scripts/preambles/stdlib.lua` to compute a linear lead point using an averaged pass speed and `teammate_velocity(number)`, clamped to `GAME_DATA.field` bounds, and delegate to `kick_to_position` with reason `"pass_to_#<number>"` (or `"<custom> | pass_to_#<number>"`).
 - Update `default_goalkeeper_with_ball(reason?)` in `stdlib.lua` to use `pass_to(best_number, reason)`.
@@ -23,6 +24,7 @@ Players make decisions discretely at `0.5–3.0` s intervals, while `chase_ball`
 
 ## Impact
 
+- `ynwa-decisions/src/lua_executor.rs`, `ynwa-decisions/src/decision_engine.rs`
 - `ynwa-core/src/systems/decision/scripted_decision_maker.rs`
 - `ynwa-scripts/preambles/core.lua`
 - `ynwa-scripts/preambles/stdlib.lua`
