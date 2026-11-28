@@ -24,6 +24,11 @@ Rules: |
   1. AI-assistant ignores documents in context/tmp
 skillsScope: project
 
+operations:
+  archive:
+    guidance:
+      - Before archiving a change, check if verification (`/opsx:verify`) has been run in this session. If not, stop and recommend running it first.
+
 # Per-artifact rules (optional)
 # Add custom rules for specific artifacts.
 # Example:
