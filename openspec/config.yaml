@@ -22,6 +22,7 @@ context: |
 
 Rules: |
   1. AI-assistant ignores documents in context/tmp
+skillsScope: project
 
 # Per-artifact rules (optional)
 # Add custom rules for specific artifacts.
