@@ -84,7 +84,7 @@ Engine-owned Lua preambles in `ynwa-scripts/preambles/` SHALL separate state acc
 #### Scenario: Layer 2 `stdlib.lua` utilities, actions, and `make_decision()` dispatch
 - **WHEN** Layer 3–4 scripts call `stdlib.lua` public functions
 - **THEN** `stdlib.lua` provides:
-  - queries: `distance(p1, p2)` (2D XZ, ignoring `y`), `teammate_position(number)`, `opponent_position(number)`, `ball_owner_number()`, `count_teammates_around(pos, radius)`, `count_opponents_around(pos, radius)`
+  - queries: `distance(p1, p2)` (2D XZ, ignoring `y`), `teammate_position(number)`, `opponent_position(number)`, `teammate_numbers()` (squad numbers of all teammates excluding me), `opponent_numbers()` (squad numbers of all opponents), `ball_owner_number()`, `count_teammates_around(pos, radius)`, `count_opponents_around(pos, radius)`
   - predicates: `is_in_region(from, to)`, `is_in_opponent_penalty_area()`, `is_teammate_free(number)`, `is_opponent_free(number)`, `is_teammate_ahead(number)`, `is_teammate_behind(number)`, `is_teammate_left(number)`, `is_teammate_right(number)`, `is_opponent_ahead(number)`, `is_opponent_behind(number)`, `is_opponent_left(number)`, `is_opponent_right(number)`, `is_ball_ahead()`, `is_ball_behind()`
   - actions: `stop(reason?)`, `chase_ball(reason?)`, `run_to_region(from, to, reason?)`, `run_to_start_position(reason?)`, `run_to_attack_position(reason?)`, `run_to_defence_position(reason?)`, `run_to_opponent_penalty_area(reason?)`, `kick_to_position(pos, reason?)`, `pass_to(number, reason?)`, `kick_to_opponent_goal(reason?)`, `default_goalkeeper_cover_position(reason?)` (runs to `z` center of the `"defence"` region and `x = clamp(ball.x, own_goal.min_x, own_goal.max_x)`, or falls back to `run_to_defence_position()` if `"defence"` is absent), and `default_goalkeeper_with_ball(reason?)` (passes via `pass_to(best_number, reason)` to the nearest teammate at least 15 m away, or `kick_to_opponent_goal(reason)` if none)
 - **AND** `parse_col`, `parse_notation`, `is_in_region_obj`, `run_to_region_obj`, `get_teammate_by_number`, `am_i_ball_owner`, `clamp_to_field`, `teammate_velocity`, and `opponent_velocity` are internal `local` helpers that evaluate to `nil` in the team preamble scope
@@ -153,11 +153,15 @@ Decision-producing `stdlib.lua` actions that currently hard-code a `reason` SHAL
 
 ### Requirement: Team and Player Script Authoring Rules (Layers 3 and 4)
 
-Team-owned scripts — Layer 3 `teams/<id>/preamble.lua` (`team_play` default handlers and shared role tables like `goalkeeper_play`) and Layer 4 `teams/<id>/players/<NN>/script.lua` (optional partial `player_play` override) — SHALL obey 6 rules: (1) call only functions of the user-facing API (the user-facing Layer 1 functions and the public `stdlib.lua` API) and never access `context` or `GAME_DATA` directly, (2) never override `make_decision()`, (3) never hand-craft `{action=...}` tables, (4) never iterate over player collections, (5) never read raw coordinate fields (`.x`, `.y`, `.z`) of positions, and (6) prefer point-free handler assignment (`ball_is_free = chase_ball`).
+Team-owned scripts (`teams/<id>/preamble.lua` and `teams/<id>/players/<NN>/script.lua`) SHALL obey 6 rules: (1) call only the user-facing Layer 1 and public `stdlib.lua` APIs without accessing `context` or `GAME_DATA`, (2) never override `make_decision()`, (3) never hand-craft `{action=...}` tables, (4) never call `get_teammates()` / `get_opponents()` or write nested loops, while non-nested DSL-aligned loops over explicit squad-number lists or `teammate_numbers()` / `opponent_numbers()` are permitted, (5) never read raw `.x`/`.y`/`.z` fields, and (6) prefer point-free handler assignment.
 
 #### Scenario: Partial `player_play` override falling back to `team_play`
 - **WHEN** `preamble.lua` defines `team_play = { ball_is_free = chase_ball, team_has_ball = run_to_attack_position, opponent_has_ball = run_to_defence_position }` and a forward's `script.lua` defines `player_play = { i_have_ball = kick_to_opponent_goal }`
 - **THEN** `make_decision()` invokes `player_play.i_have_ball` when that forward owns the ball and falls back to `team_play[state]` for the other three possession states
+
+#### Scenario: Bounded DSL-aligned loop over candidate or full-team number list
+- **WHEN** a team preamble iterates (without nesting) over an explicit squad-number list, `teammate_numbers()`, or `opponent_numbers()` (with optional `table.sort` by a distance key and early `return` on decision) without calling `get_teammates()` or `get_opponents()`
+- **THEN** the script complies with Rule (4) and remains compatible with future DSL transpilation
 
 ### Requirement: TeamRepository Contract and Filesystem Team Layout
 
