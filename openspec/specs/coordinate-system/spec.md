@@ -36,7 +36,7 @@ All spatial positions and velocities SHALL use a right-handed 3D Cartesian coord
 - **THEN** each team's script observes its own defended goal near `Z = 0`, its opponent's goal near `Z = field.length`, and its left wing near `X = 0`
 
 #### Scenario: Orientation-invariant decision variants
-- **WHEN** a `Team::B` player script returns `Decision::Stop` or `Decision::Run(DecisionTarget::Ball)`
+- **WHEN** a `Team::B` player script returns `Decision::Stop`
 - **THEN** `DecisionSystem` stores the decision unchanged without coordinate transformation
 
 ### Requirement: Involutory 180-Degree Reflection Formulas for Team B
