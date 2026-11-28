@@ -185,10 +185,6 @@ target = { kind = "cell", cell = "M22" }
 [[expect.journal]]
 type = "decision_assigned"
 target = { kind = "region", region = "A1:B2" }
-
-[[expect.journal]]
-type = "decision_assigned"
-target = { kind = "ball" }
 "#,
     );
 
@@ -214,7 +210,6 @@ target = { kind = "ball" }
             Some(DecisionTargetDto::Region {
                 region: "A1:B2".to_string(),
             }),
-            Some(DecisionTargetDto::Ball {}),
         ]
     );
 }
@@ -227,7 +222,7 @@ fn journal_target_rejects_unknown_fields() {
         ))
     };
 
-    assert!(scenario("{ kind = \"ball\", bogus = 1 }").is_err());
+    assert!(scenario("{ kind = \"ball\" }").is_err());
     assert!(
         scenario("{ kind = \"point\", point = { x = 1.0, y = 0.0, z = 2.0 }, bogus = 1 }").is_err()
     );

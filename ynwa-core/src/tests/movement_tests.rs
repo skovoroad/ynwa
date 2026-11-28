@@ -88,16 +88,6 @@ fn region_target_resolves_to_region_center() {
 }
 
 #[test]
-fn ball_target_resolves_to_current_ball_position() {
-    let game = game();
-
-    assert_eq!(
-        calculate_target_point(&DecisionTarget::Ball, &game),
-        game.state.ball_state.position
-    );
-}
-
-#[test]
 fn velocity_points_to_target_at_full_speed_for_rate_100() {
     let from = Point3D::from_meters(0.0, 0.0, 0.0);
     let to = Point3D::from_meters(10.0, 0.0, 0.0);

@@ -97,7 +97,7 @@ impl DecisionMaker for ChaseAndKick {
         let decision = if game.state.ball_state.possessed_by == Some(player_index) {
             Decision::Kick(Point3D::from_meters(0.0, 0.0, 30.0))
         } else {
-            Decision::Run(DecisionTarget::Ball)
+            Decision::Run(DecisionTarget::Point(game.state.ball_state.position))
         };
         Ok((decision, Some("test".to_string())))
     }

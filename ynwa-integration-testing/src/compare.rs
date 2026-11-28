@@ -559,7 +559,6 @@ fn decision_target_matches(
                     if *actual_target == expected_target
             ))
         }
-        DecisionTargetDto::Ball {} => Ok(matches!(actual, Decision::Run(DecisionTarget::Ball))),
     }
 }
 

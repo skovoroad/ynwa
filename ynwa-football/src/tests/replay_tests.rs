@@ -272,7 +272,7 @@ impl DecisionMaker for ShootAtOpponentGoal {
                 field.length().get::<meter>(),
             ))
         } else {
-            Decision::Run(DecisionTarget::Ball)
+            Decision::Run(DecisionTarget::Point(game.state.ball_state.position))
         };
         Ok((decision, Some("shoot".to_string())))
     }

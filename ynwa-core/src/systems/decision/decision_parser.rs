@@ -55,23 +55,15 @@ pub fn parse_decision(
                     DecisionError::RuntimeError("Missing 'target_type' field".to_string())
                 })?;
 
-            // For "ball" target type, no target coordinates are needed.
-            let decision_target = if target_type == "ball" {
-                DecisionTarget::Ball
-            } else {
-                let target = value.get("target").ok_or_else(|| {
-                    DecisionError::RuntimeError("Missing 'target' field".to_string())
-                })?;
-                match target_type {
-                    "cell" => parse_cell_target(target)?,
-                    "region" => parse_region_target(target)?,
-                    "point" => parse_point_as_target(target)?,
-                    _ => {
-                        return Err(DecisionError::RuntimeError(format!(
-                            "Unknown target_type: {}",
-                            target_type
-                        )))
-                    }
+            let decision_target = match target_type {
+                "cell" => parse_cell_target(require_target(value)?)?,
+                "region" => parse_region_target(require_target(value)?)?,
+                "point" => parse_point_as_target(require_target(value)?)?,
+                _ => {
+                    return Err(DecisionError::RuntimeError(format!(
+                        "Unknown target_type: {}",
+                        target_type
+                    )))
                 }
             };
 
@@ -90,6 +82,13 @@ pub fn parse_decision(
             action
         ))),
     }
+}
+
+/// The target is required for every supported `target_type`.
+fn require_target(value: &serde_json::Value) -> Result<&serde_json::Value, DecisionError> {
+    value
+        .get("target")
+        .ok_or_else(|| DecisionError::RuntimeError("Missing 'target' field".to_string()))
 }
 
 /// Parse cell target from JSON string

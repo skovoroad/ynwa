@@ -166,7 +166,7 @@ fn test_context_structure() {
     let script = r#"
         function make_decision()
             local missing = {}
-            
+
             -- Check context.me structure
             if not context.me then
                 table.insert(missing, "context.me")
@@ -180,17 +180,17 @@ fn test_context_structure() {
                     if not context.me.position.z then table.insert(missing, "context.me.position.z") end
                 end
             end
-            
+
             -- Check context.teammates
             if not context.teammates then
                 table.insert(missing, "context.teammates")
             end
-            
+
             -- Check context.opponents
             if not context.opponents then
                 table.insert(missing, "context.opponents")
             end
-            
+
             -- Check context.ball structure
             if not context.ball then
                 table.insert(missing, "context.ball")
@@ -201,7 +201,7 @@ fn test_context_structure() {
                     if not context.ball.position.x then table.insert(missing, "context.ball.position.x") end
                     if not context.ball.position.z then table.insert(missing, "context.ball.position.z") end
                 end
-                
+
                 -- Check if owner_index key exists (can be nil value, but key must exist)
                 local has_owner_key = false
                 for key in pairs(context.ball) do
@@ -214,7 +214,7 @@ fn test_context_structure() {
                     table.insert(missing, "context.ball.owner_index")
                 end
             end
-            
+
             -- Check context.game
             if not context.game then
                 table.insert(missing, "context.game")
@@ -223,12 +223,12 @@ fn test_context_structure() {
                     table.insert(missing, "context.game.elapsed_time")
                 end
             end
-            
+
             -- If any fields are missing, report them all
             if #missing > 0 then
                 error("Missing context fields: " .. table.concat(missing, ", "))
             end
-            
+
             -- All fields exist, return valid decision
             return {action = "stop"}
         end
@@ -324,16 +324,16 @@ fn test_ball_owner_team_context() {
     let script = r#"
         function make_decision()
             local owner_team = context.ball.owner_team
-            
+
             -- Check that owner_team exists and is a string
             if owner_team == nil then
                 error("owner_team is nil")
             end
-            
+
             if type(owner_team) ~= "string" then
                 error("owner_team is not a string, got: " .. type(owner_team))
             end
-            
+
             -- Return different decisions based on owner_team
             if owner_team == "A" then
                 return {action = "run", target_type = "cell", target = "A1"}
@@ -423,51 +423,14 @@ fn test_ball_owner_team_context() {
     );
 }
 
-// ── DecisionTarget::Ball tests ────────────────────────────────────────────────
+// ── Removed `target_type = "ball"` ────────────────────────────────────────────
 
-/// Lua script returns `target_type = "ball"` → Rust should produce `DecisionTarget::Ball`.
+/// Lua script returning `target_type = "ball"` is rejected as an unknown target type.
 #[test]
-fn test_run_to_ball_decision() {
-    test_script_produces_decision(
-        r#"
-        function make_decision()
-            return {
-                action = "run",
-                target_type = "ball"
-            }
-        end
-        "#,
-        |d| matches!(d, Decision::Run(DecisionTarget::Ball)),
-        "test_run_to_ball_decision",
-    );
-}
-
-/// `target_type = "ball"` should work even when the optional `target` field is absent.
-#[test]
-fn test_run_to_ball_no_target_field() {
-    test_script_produces_decision(
-        r#"
-        function make_decision()
-            -- No "target" field — should be accepted without error
-            return {action = "run", target_type = "ball"}
-        end
-        "#,
-        |d| matches!(d, Decision::Run(DecisionTarget::Ball)),
-        "test_run_to_ball_no_target_field",
-    );
-}
-
-/// A script may include a `reason` alongside `target_type = "ball"`.
-/// The reason should be preserved.
-#[test]
-fn test_run_to_ball_with_reason() {
+fn test_run_to_ball_target_type_is_rejected() {
     let script = r#"
         function make_decision()
-            return {
-                action = "run",
-                target_type = "ball",
-                reason = "chasing the ball"
-            }
+            return {action = "run", target_type = "ball"}
         end
     "#;
 
@@ -480,23 +443,18 @@ fn test_run_to_ball_with_reason() {
     decision_system.update(&mut game, 1.0);
 
     let player_state = &game.state().player_states[0];
+    let error = player_state
+        .last_error
+        .as_deref()
+        .expect("target_type = \"ball\" must be rejected");
     assert!(
-        player_state.last_error.is_none(),
-        "Unexpected script error: {:?}",
-        player_state.last_error
+        error.contains("Unknown target_type: ball"),
+        "unexpected error: {error}"
     );
     assert!(
-        matches!(
-            player_state.current_decision,
-            Some(Decision::Run(DecisionTarget::Ball))
-        ),
-        "Expected Run(Ball), got: {:?}",
+        player_state.current_decision.is_none(),
+        "rejected decision must not be stored: {:?}",
         player_state.current_decision
-    );
-    assert_eq!(
-        player_state.decision_reason.as_deref(),
-        Some("chasing the ball"),
-        "Expected reason to be preserved"
     );
 }
 

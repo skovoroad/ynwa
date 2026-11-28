@@ -10,6 +10,7 @@ use crate::test_utils::{
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
+use uom::si::length::meter;
 use uom::si::velocity::meter_per_second;
 use ynwa_core::codec::{FileJournalRecorder, RecordReader};
 use ynwa_core::field::zones::{Point3D, Velocity3D};
@@ -19,6 +20,7 @@ use ynwa_core::game::{
     ScriptingConfig, REGION_START_POSITION,
 };
 use ynwa_core::journal::JournalEvent;
+use ynwa_core::orientation::flip_point_orientation;
 use ynwa_core::physics_util::kick_speed;
 use ynwa_core::record::{Record, RecordHeader};
 use ynwa_core::record_io::{json_journal_file_reader, json_journal_file_writer};
@@ -191,11 +193,22 @@ struct ChaseBall;
 impl DecisionMaker for ChaseBall {
     fn make_decision(
         &mut self,
-        _game: &Game,
-        _player_index: usize,
+        game: &Game,
+        player_index: usize,
     ) -> Result<(Decision, Option<String>), DecisionError> {
+        let field = &game.config().field;
+        let ball_position = game.state.ball_state.position;
+        let local_ball_position = if game.config().players[player_index].team == Team::B {
+            flip_point_orientation(
+                &ball_position,
+                field.width().get::<meter>(),
+                field.length().get::<meter>(),
+            )
+        } else {
+            ball_position
+        };
         Ok((
-            Decision::Run(DecisionTarget::Ball),
+            Decision::Run(DecisionTarget::Point(local_ball_position)),
             Some("chase".to_string()),
         ))
     }

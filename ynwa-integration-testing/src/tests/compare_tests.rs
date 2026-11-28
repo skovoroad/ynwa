@@ -415,7 +415,10 @@ fn stop_journal_matches_the_terminating_event() {
         &expected,
         &StopReason::Journal(entry(
             0.4,
-            decision_assigned(0, Decision::Run(DecisionTarget::Ball)),
+            decision_assigned(
+                0,
+                Decision::Run(DecisionTarget::Point(Point3D::from_meters(1.0, 0.0, 2.0))),
+            ),
         )),
         4,
         &config,
@@ -1088,15 +1091,9 @@ fn decision_target_matches_every_variant() {
             true,
         ),
         (
-            "ball",
-            DecisionTargetDto::Ball {},
-            Decision::Run(DecisionTarget::Ball),
-            true,
-        ),
-        (
             "point against another run target",
             DecisionTargetDto::Point { point },
-            Decision::Run(DecisionTarget::Ball),
+            Decision::Run(DecisionTarget::GridCell(cell)),
             false,
         ),
         (

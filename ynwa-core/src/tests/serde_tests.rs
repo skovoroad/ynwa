@@ -310,7 +310,6 @@ fn decisions_round_trip() {
         Decision::Run(DecisionTarget::Region(test_region())),
         Decision::Run(DecisionTarget::GridCell(cell(13, 22))),
         Decision::Run(DecisionTarget::Point(Point3D::on_ground(10.0, 20.0))),
-        Decision::Run(DecisionTarget::Ball),
         Decision::Stop,
         Decision::Kick(Point3D::from_meters(34.0, 0.0, 52.3)),
     ];

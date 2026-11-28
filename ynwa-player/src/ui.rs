@@ -167,7 +167,6 @@ fn event_text(event: &JournalEvent) -> String {
                         format!("Run to {}{}", col_label, cell.row)
                     }
                     DecisionTarget::Point(_) => "Run to point".to_string(),
-                    DecisionTarget::Ball => "Chase ball".to_string(),
                 },
                 Decision::Stop => "Stop".to_string(),
                 Decision::Kick(_) => "Kick".to_string(),

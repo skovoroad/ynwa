@@ -92,7 +92,6 @@ pub enum DecisionTargetDto {
     Point { point: Point3D },
     Cell { cell: String },
     Region { region: String },
-    Ball {},
 }
 
 /// Ball fields of a partial state. `velocity` is only meaningful for the initial state.

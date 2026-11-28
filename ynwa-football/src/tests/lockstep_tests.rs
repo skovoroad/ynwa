@@ -79,7 +79,7 @@ impl DecisionMaker for GoalThenTouchline {
     ) -> Result<(Decision, Option<String>), DecisionError> {
         if game.state.ball_state.possessed_by != Some(player_index) {
             return Ok((
-                Decision::Run(DecisionTarget::Ball),
+                Decision::Run(DecisionTarget::Point(game.state.ball_state.position)),
                 Some("chase".to_string()),
             ));
         }
