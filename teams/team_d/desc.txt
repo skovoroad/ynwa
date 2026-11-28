@@ -1,5 +1,5 @@
 Midfielders stay closer to the center.
 1. Shoot at the goal only from close range (SHOOTING_ZONE_FROM).
 2. Forwards avoid getting too close to opponents; if an opponent is nearby, they should pass the ball to a teammate.
-3. Defenders and midfielders prioritize passing the ball forward; if that is not possible, they should pass to any other available teammate (nearest_teammate_ahead_number, nearest_teammate_number).
+3. Defenders and midfielders prioritize passing the ball forward; if that is not possible, they should pass to any other available teammate (the nearest teammate ahead, otherwise the nearest teammate).
 4. Midfielders: trigger to press is my own distance to the ball (see midfielder_without_ball), distance of another players isn't considered (not am_i_top3_closest_to_ball)

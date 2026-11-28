@@ -135,6 +135,26 @@ Engine-owned Lua preambles in `ynwa-scripts/preambles/` SHALL separate state acc
 - **THEN** `stdlib.lua` raises a descriptive Lua `error(...)` instead of returning `nil` or falling back to a default kick
 - **AND** squad numbers are a provisional player identifier, to be revisited together with the DSL "player" type
 
+### Requirement: Bounded Loop Iterators in `stdlib.lua`
+
+`stdlib.lua` SHALL expose two `for ... in` iterator helpers so team preambles express bounded loops without Lua iteration or sorting mechanics: `each(numbers)` yields each number in list order, and `order_by_distance_asc(numbers)` yields numbers ordered by ascending `distance` to me, preserving list order on equal distances. Both yield the provisional squad-number identifier (one value per step) and terminate when the source is empty or exhausted.
+
+#### Scenario: `each` yields the list in order
+- **WHEN** a team preamble iterates `for player in each({10, 11})`
+- **THEN** the loop body runs twice, first with `player == 10` then with `player == 11`, and no numeric key is exposed to the loop body
+
+#### Scenario: `order_by_distance_asc` sorts by ascending distance with stable tie-break
+- **WHEN** a team preamble iterates `for player in order_by_distance_asc({6, 8, 7, 11})`
+- **THEN** the numbers are yielded ordered by ascending `distance(my_position(), teammate_position(number))`, and numbers at equal distance keep their order in the input list
+
+#### Scenario: Empty source yields no iterations
+- **WHEN** a team preamble iterates over an empty list (`each({})` or `order_by_distance_asc({})`)
+- **THEN** the loop body never executes
+
+#### Scenario: Iterators compose with full-team number lists
+- **WHEN** a team preamble iterates `for player in order_by_distance_asc(teammate_numbers())` or `for player in each(opponent_numbers())`
+- **THEN** the loop yields the numbers returned by `teammate_numbers()` (teammates excluding me) or `opponent_numbers()` in the iterator's order, without calling `get_teammates()` / `get_opponents()`
+
 ### Requirement: Stdlib actions accept a custom reason
 
 Decision-producing `stdlib.lua` actions that currently hard-code a `reason` SHALL accept an optional trailing `reason` argument. When omitted, the decision SHALL carry the existing built-in reason. When provided, the returned `reason` SHALL join the custom reason and the built-in reason with `" | "` so each remains independently greppable. `stop` and `kick_to_position` SHALL keep their existing verbatim `reason` behavior.
@@ -153,14 +173,14 @@ Decision-producing `stdlib.lua` actions that currently hard-code a `reason` SHAL
 
 ### Requirement: Team and Player Script Authoring Rules (Layers 3 and 4)
 
-Team-owned scripts (`teams/<id>/preamble.lua` and `teams/<id>/players/<NN>/script.lua`) SHALL obey 6 rules: (1) call only the user-facing Layer 1 and public `stdlib.lua` APIs without accessing `context` or `GAME_DATA`, (2) never override `make_decision()`, (3) never hand-craft `{action=...}` tables, (4) never call `get_teammates()` / `get_opponents()` or write nested loops, while non-nested DSL-aligned loops over explicit squad-number lists or `teammate_numbers()` / `opponent_numbers()` are permitted, (5) never read raw `.x`/`.y`/`.z` fields, and (6) prefer point-free handler assignment.
+Team-owned scripts — Layer 3 `teams/<id>/preamble.lua` (`team_play` default handlers and shared role tables like `goalkeeper_play`) and Layer 4 `teams/<id>/players/<NN>/script.lua` (optional partial `player_play` override) — SHALL obey 6 rules: (1) call only functions of the user-facing API (the user-facing Layer 1 functions and the public `stdlib.lua` API) and never access `context` or `GAME_DATA` directly, (2) never override `make_decision()`, (3) never hand-craft `{action=...}` tables, (4) never call `get_teammates()` / `get_opponents()` or write nested loops, while non-nested loops over explicit squad-number lists or `teammate_numbers()` / `opponent_numbers()` using the `each` / `order_by_distance_asc` iterators are permitted, (5) never read raw coordinate fields (`.x`, `.y`, `.z`) of positions, and (6) prefer point-free handler assignment (`ball_is_free = chase_ball`).
 
 #### Scenario: Partial `player_play` override falling back to `team_play`
 - **WHEN** `preamble.lua` defines `team_play = { ball_is_free = chase_ball, team_has_ball = run_to_attack_position, opponent_has_ball = run_to_defence_position }` and a forward's `script.lua` defines `player_play = { i_have_ball = kick_to_opponent_goal }`
 - **THEN** `make_decision()` invokes `player_play.i_have_ball` when that forward owns the ball and falls back to `team_play[state]` for the other three possession states
 
-#### Scenario: Bounded DSL-aligned loop over candidate or full-team number list
-- **WHEN** a team preamble iterates (without nesting) over an explicit squad-number list, `teammate_numbers()`, or `opponent_numbers()` (with optional `table.sort` by a distance key and early `return` on decision) without calling `get_teammates()` or `get_opponents()`
+#### Scenario: DSL-aligned loop via iterator helpers
+- **WHEN** a team preamble iterates (without nesting) with `each(...)` or `order_by_distance_asc(...)` over an explicit squad-number list or `teammate_numbers()` / `opponent_numbers()`, and does not call `get_teammates()` or `get_opponents()`
 - **THEN** the script complies with Rule (4) and remains compatible with future DSL transpilation
 
 ### Requirement: TeamRepository Contract and Filesystem Team Layout
