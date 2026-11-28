@@ -46,12 +46,12 @@ end
 
 function defender_with_ball()
     local number = nearest_teammate_number(6, 7, 8)
-    return kick_to_position(teammate_position(number), "pass_to_#" .. number)
+    return pass_to(number)
 end
 
 function midfielder_with_ball()
     local number = nearest_teammate_number(9, 10, 11)
-    return kick_to_position(teammate_position(number), "pass_to_#" .. number)
+    return pass_to(number)
 end
 
 function forward_with_ball()

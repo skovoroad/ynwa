@@ -1,13 +1,11 @@
 use crate::game::Game;
+use crate::physics_util::BALL_FRICTION_DECELERATION;
 use crate::system::System;
 use uom::si::length::meter;
 use uom::si::velocity::meter_per_second;
 
 // Design: PhysicsSystem applies velocity to position using basic kinematics.
 // position_new = position_old + velocity × delta_time
-
-// Ball friction: deceleration when rolling on ground (m/s²)
-const BALL_FRICTION_DECELERATION: f32 = 2.0;
 
 pub struct PhysicsSystem {
     last_update: f32,

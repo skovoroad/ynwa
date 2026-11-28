@@ -9,7 +9,9 @@ use ynwa_core::region::GridCell;
 use ynwa_core::system::System;
 use ynwa_core::systems::decision::{DecisionSystem, ScriptedDecisionMaker};
 use ynwa_core::team::Team;
-use ynwa_script_tests::{deterministic_rng, request_decisions_for_all};
+use ynwa_script_tests::{
+    create_test_game_with_all_preambles, deterministic_rng, request_decisions_for_all,
+};
 
 /// Helper function to create a test game with a specific script for a team.
 /// Uses a standard football field (68×104.6m, 26×40 grid) without zones — zones are not needed here.
@@ -306,4 +308,150 @@ fn test_team_b_stop_unchanged() {
     let decision = &game.state().player_states[0].current_decision;
     assert!(decision.is_some(), "Expected a decision");
     assert!(matches!(decision.as_ref().unwrap(), Decision::Stop));
+}
+
+fn script_test_player(team: Team, number: u32, script: &str) -> PlayerDef {
+    let field = ynwa_football::field_builder::create_football_field();
+    let grid_dims = field.grid_dimensions();
+    let start_region = grid_dims
+        .create_region(GridCell::new(1, 1).unwrap(), GridCell::new(2, 2).unwrap())
+        .unwrap();
+    PlayerDef::new(
+        team,
+        number,
+        format!("Player {number}"),
+        script.to_string(),
+        std::collections::HashMap::from([(REGION_START_POSITION.to_string(), start_region)]),
+    )
+}
+
+/// Builds a game whose caller is the first player of `team` and returns the caller's decision.
+/// Positions and velocities are given in display orientation; `build_context` converts them into
+/// the caller's team orientation and `DecisionSystem` converts the decision back.
+fn run_caller_decision(
+    team: Team,
+    caller_script: &str,
+    caller: (f32, f32),
+    teammate: (f32, f32),
+    teammate_velocity: (f32, f32),
+    ball: (f32, f32, f32, f32),
+) -> Decision {
+    use ynwa_core::field::zones::{Point3D, Velocity3D};
+
+    let players = vec![
+        script_test_player(team, 1, caller_script),
+        script_test_player(team, 2, ""),
+        script_test_player(team.opposite(), 1, ""),
+    ];
+    let mut game = create_test_game_with_all_preambles(players);
+    for state in game.state.player_states.iter_mut() {
+        state.needs_decision = false;
+    }
+
+    game.state.player_states[0].position = Point3D::from_meters(caller.0, 0.0, caller.1);
+    game.state.player_states[1].position = Point3D::from_meters(teammate.0, 0.0, teammate.1);
+    game.state.player_states[1].velocity =
+        Velocity3D::from_meters_per_second(teammate_velocity.0, 0.0, teammate_velocity.1);
+    game.state.ball_state.position = Point3D::from_meters(ball.0, 0.0, ball.1);
+    game.state.ball_state.velocity = Velocity3D::from_meters_per_second(ball.2, 0.0, ball.3);
+    game.state.player_states[0].needs_decision = true;
+
+    let dm = ScriptedDecisionMaker::new(&game).unwrap();
+    let mut ds = DecisionSystem::new().with_decision_maker(Box::new(dm));
+    ds.update(&mut game, 1.0);
+
+    game.state().player_states[0]
+        .current_decision
+        .clone()
+        .unwrap_or_else(|| {
+            panic!(
+                "no decision assigned: {:?}",
+                game.state().player_states[0].last_error
+            )
+        })
+}
+
+fn point_of(decision: &Decision) -> (f32, f32) {
+    use uom::si::length::meter;
+    match decision {
+        Decision::Run(DecisionTarget::Point(point)) | Decision::Kick(point) => {
+            (point.x.get::<meter>(), point.z.get::<meter>())
+        }
+        other => panic!("expected a point target, got {other:?}"),
+    }
+}
+
+fn assert_same_point(a: (f32, f32), b: (f32, f32)) {
+    assert!(
+        (a.0 - b.0).abs() < 0.01 && (a.1 - b.1).abs() < 0.01,
+        "expected identical display targets, got {a:?} and {b:?}"
+    );
+}
+
+#[test]
+fn test_chase_ball_lead_is_symmetric_across_teams() {
+    let physical = (
+        (20.0, 30.0),           // caller
+        (0.0, 0.0),             // teammate (unused by chase_ball)
+        (0.0, 0.0),             // teammate velocity
+        (40.0, 50.0, 4.0, 6.0), // ball position and velocity
+    );
+    let script = "function make_decision() return chase_ball() end";
+
+    let decision_a = run_caller_decision(
+        Team::A,
+        script,
+        physical.0,
+        physical.1,
+        physical.2,
+        physical.3,
+    );
+    let decision_b = run_caller_decision(
+        Team::B,
+        script,
+        physical.0,
+        physical.1,
+        physical.2,
+        physical.3,
+    );
+
+    let target_a = point_of(&decision_a);
+    let target_b = point_of(&decision_b);
+    assert_same_point(target_a, target_b);
+    // Ball speed 7.21 m/s caps the lead at 1.5 s → 6 m / 9 m ahead of (40, 50).
+    assert!((target_a.0 - 46.0).abs() < 0.01 && (target_a.1 - 59.0).abs() < 0.01);
+}
+
+#[test]
+fn test_pass_to_lead_is_symmetric_across_teams() {
+    let physical = (
+        (20.0, 30.0),         // caller
+        (40.0, 50.0),         // teammate position
+        (4.0, 6.0),           // teammate velocity
+        (0.0, 0.0, 0.0, 0.0), // ball
+    );
+    let script = "function make_decision() return pass_to(2) end";
+
+    let decision_a = run_caller_decision(
+        Team::A,
+        script,
+        physical.0,
+        physical.1,
+        physical.2,
+        physical.3,
+    );
+    let decision_b = run_caller_decision(
+        Team::B,
+        script,
+        physical.0,
+        physical.1,
+        physical.2,
+        physical.3,
+    );
+
+    let target_a = point_of(&decision_a);
+    let target_b = point_of(&decision_b);
+    assert_same_point(target_a, target_b);
+    // Distance 28.28 m at 12 m/s caps the lead at 1.5 s → 6 m / 9 m ahead of (40, 50).
+    assert!((target_a.0 - 46.0).abs() < 0.01 && (target_a.1 - 59.0).abs() < 0.01);
 }

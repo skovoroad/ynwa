@@ -88,25 +88,22 @@ impl DecisionEngine {
             let combined_preamble =
                 format!("{}\n{}\n{}", core_preamble, stdlib_preamble, team_preamble);
 
-            // Create executor with combined preamble and 100ms timeout
-            let executor =
-                LuaExecutor::new(Some(combined_preamble), Some(Duration::from_millis(100)))
-                    .map_err(|e| {
-                        DecisionEngineError::RuntimeError(format!(
-                            "Failed to create executor for player {}: {}",
-                            player_index, e
-                        ))
-                    })?;
+            let mut executor_builder = LuaExecutor::builder()
+                .with_preamble(Some(combined_preamble))
+                .with_timeout(Some(Duration::from_millis(100)));
 
-            // Per-player static_data is set as GAME_DATA in the player's Lua VM
+            // Per-player static_data is installed as GAME_DATA before the preamble runs,
+            // so top-level preamble code can read it.
             if let Some(data) = player.get("static_data") {
-                executor.set_global("GAME_DATA", data).map_err(|e| {
-                    DecisionEngineError::RuntimeError(format!(
-                        "Failed to set GAME_DATA for player {}: {}",
-                        player_index, e
-                    ))
-                })?;
+                executor_builder = executor_builder.with_global("GAME_DATA", data.clone());
             }
+
+            let executor = executor_builder.build().map_err(|e| {
+                DecisionEngineError::RuntimeError(format!(
+                    "Failed to create executor for player {}: {}",
+                    player_index, e
+                ))
+            })?;
 
             executors.push(executor);
             scripts.push(script.to_string());
@@ -522,5 +519,41 @@ mod tests {
             decision.get("debug_zone_value").and_then(|v| v.as_i64()),
             Some(42)
         );
+    }
+
+    #[test]
+    fn test_decision_engine_game_data_available_at_preamble_load_time() {
+        let stdlib_preamble = r#"
+            local AVG_PLAYER_SPEED = GAME_DATA.physics.max_player_speed * 0.7
+            function avg_player_speed()
+                return AVG_PLAYER_SPEED
+            end
+        "#;
+
+        let config = json!({
+            "team_preambles": {
+                "team_a": "",
+                "team_b": ""
+            },
+            "players": [
+                {
+                    "script": r#"
+                        function make_decision()
+                            return {action = "stop", speed = avg_player_speed()}
+                        end
+                    "#,
+                    "team": "team_a",
+                    "static_data": {
+                        "physics": {"max_player_speed": 10.0}
+                    }
+                }
+            ]
+        });
+
+        let engine = DecisionEngine::new(&config, "", stdlib_preamble).unwrap();
+        let context = json!({"me": {"number": 1}});
+        let decision = engine.make_decision(0, &context).unwrap();
+
+        assert_eq!(decision.get("speed").and_then(|v| v.as_f64()), Some(7.0));
     }
 }

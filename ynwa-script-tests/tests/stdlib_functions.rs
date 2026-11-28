@@ -1,6 +1,6 @@
 // Integration tests: verify stdlib functions
 
-use ynwa_core::game::{Decision, GameStage, REGION_START_POSITION};
+use ynwa_core::game::{Decision, DecisionTarget, GameStage, REGION_START_POSITION};
 use ynwa_core::systems::decision::{DecisionSystem, ScriptedDecisionMaker};
 use ynwa_core::System;
 use ynwa_script_tests::{
@@ -610,6 +610,70 @@ fn run_caller(mut game: ynwa_core::game::Game) -> ynwa_core::game::PlayerState {
     game.state().player_states[0].clone()
 }
 
+fn set_player_velocity(game: &mut ynwa_core::game::Game, index: usize, x: f32, z: f32) {
+    game.state.player_states[index].velocity =
+        ynwa_core::field::zones::Velocity3D::from_meters_per_second(x, 0.0, z);
+}
+
+fn set_ball(game: &mut ynwa_core::game::Game, pos: (f32, f32), vel: (f32, f32)) {
+    game.state.ball_state.position =
+        ynwa_core::field::zones::Point3D::from_meters(pos.0, 0.0, pos.1);
+    game.state.ball_state.velocity =
+        ynwa_core::field::zones::Velocity3D::from_meters_per_second(vel.0, 0.0, vel.1);
+}
+
+fn point_target(state: &ynwa_core::game::PlayerState) -> (f32, f32) {
+    use uom::si::length::meter;
+    let Some(Decision::Run(DecisionTarget::Point(point))) = &state.current_decision else {
+        panic!("Expected Run(Point), got: {:?}", state.current_decision);
+    };
+    (point.x.get::<meter>(), point.z.get::<meter>())
+}
+
+fn kick_target(state: &ynwa_core::game::PlayerState) -> (f32, f32) {
+    use uom::si::length::meter;
+    let Some(Decision::Kick(target)) = &state.current_decision else {
+        panic!("Expected Kick, got: {:?}", state.current_decision);
+    };
+    (target.x.get::<meter>(), target.z.get::<meter>())
+}
+
+/// Runs `chase_ball()` for a team A player at `caller` against a ball with the given state.
+fn run_chase_ball(
+    caller: (f32, f32),
+    ball_pos: (f32, f32),
+    ball_vel: (f32, f32),
+) -> ynwa_core::game::PlayerState {
+    use ynwa_core::team::Team;
+    let script = "function make_decision() return chase_ball() end";
+    let players = vec![make_player(Team::A, 1, script), make_player(Team::B, 1, "")];
+    let mut game = create_test_game_with_all_preambles(players);
+    place_player(&mut game, 0, caller.0, caller.1);
+    place_player(&mut game, 1, 0.0, 0.0);
+    set_ball(&mut game, ball_pos, ball_vel);
+    run_caller(game)
+}
+
+/// Runs `pass_to(2, reason)` for a team A player with teammate 2 in the given state.
+fn run_pass_to(
+    caller: (f32, f32),
+    teammate: (f32, f32),
+    teammate_vel: (f32, f32),
+    script: &str,
+) -> ynwa_core::game::PlayerState {
+    use ynwa_core::team::Team;
+    let players = vec![
+        make_player(Team::A, 1, script),
+        make_player(Team::A, 2, ""),
+        make_player(Team::B, 1, ""),
+    ];
+    let mut game = create_test_game_with_all_preambles(players);
+    place_player(&mut game, 0, caller.0, caller.1);
+    place_player(&mut game, 1, teammate.0, teammate.1);
+    set_player_velocity(&mut game, 1, teammate_vel.0, teammate_vel.1);
+    run_caller(game)
+}
+
 // --- count_teammates_around / count_opponents_around ---
 
 #[test]
@@ -923,6 +987,185 @@ end
     );
 }
 
+#[test]
+fn test_chase_ball_stationary_targets_ball_position() {
+    let state = run_chase_ball((10.0, 10.0), (30.0, 40.0), (0.0, 0.0));
+    assert!(state.last_error.is_none(), "{:?}", state.last_error);
+    let (x, z) = point_target(&state);
+    assert!(
+        (x - 30.0).abs() < 0.01 && (z - 40.0).abs() < 0.01,
+        "expected the ball position (30, 40), got ({x}, {z})"
+    );
+}
+
+#[test]
+fn test_chase_ball_leads_moving_ball() {
+    // 20 m away at 10 m/s: 20 / 7 ≈ 2.86 s, capped by MAX_LEAD_TIME to 1.5 s → 15 m ahead.
+    let state = run_chase_ball((10.0, 40.0), (30.0, 40.0), (10.0, 0.0));
+    assert!(state.last_error.is_none(), "{:?}", state.last_error);
+    let (x, z) = point_target(&state);
+    assert!(
+        (x - 45.0).abs() < 0.01 && (z - 40.0).abs() < 0.01,
+        "expected lead (45, 40), got ({x}, {z})"
+    );
+}
+
+#[test]
+fn test_chase_ball_leads_diagonal_velocity() {
+    // Ball velocity is oblique to the grid, so both components contribute to the lead.
+    let cases = [
+        // Ball speed 10, stopping-time cap 2.5 s, player needs 28.28 / 7 ≈ 4.04 s → 1.5 s.
+        ((10.0, 10.0), (30.0, 30.0), (6.0, 8.0), (39.0, 42.0)),
+        // Ball speed 4, stopping-time cap 1.0 s, player needs 5 / 7 ≈ 0.71 s → 0.71 s.
+        ((10.0, 10.0), (13.0, 14.0), (2.4, 3.2), (14.714, 16.286)),
+    ];
+
+    for (caller, ball_pos, ball_vel, expected) in cases {
+        let state = run_chase_ball(caller, ball_pos, ball_vel);
+        assert!(state.last_error.is_none(), "{:?}", state.last_error);
+        let (x, z) = point_target(&state);
+        assert!(
+            (x - expected.0).abs() < 0.01 && (z - expected.1).abs() < 0.01,
+            "expected lead {expected:?} for caller {caller:?}, ball {ball_pos:?} at {ball_vel:?}, got ({x}, {z})"
+        );
+    }
+}
+
+#[test]
+fn test_chase_ball_respects_stopping_distance() {
+    // A far player: 39 m / 7 ≈ 5.58 s, capped by half the 1.25 s stopping time → 6.25 m ahead.
+    let state = run_chase_ball((5.0, 10.0), (30.0, 40.0), (5.0, 0.0));
+    assert!(state.last_error.is_none(), "{:?}", state.last_error);
+    let (x, z) = point_target(&state);
+    assert!(
+        (x - 36.25).abs() < 0.01 && (z - 40.0).abs() < 0.01,
+        "expected lead (36.25, 40), got ({x}, {z})"
+    );
+}
+
+#[test]
+fn test_chase_ball_clamps_to_field() {
+    let state = run_chase_ball((60.0, 95.0), (65.0, 100.0), (10.0, 10.0));
+    assert!(state.last_error.is_none(), "{:?}", state.last_error);
+    let (x, z) = point_target(&state);
+    assert!(
+        (x - 68.0).abs() < 0.01,
+        "expected the field width bound 68, got {x}"
+    );
+    assert!(
+        (z - 104.615_38).abs() < 0.01,
+        "expected the field length bound 104.61538, got {z}"
+    );
+}
+
+// --- pass_to ---
+
+#[test]
+fn test_pass_to_stationary_teammate() {
+    let state = run_pass_to(
+        (10.0, 10.0),
+        (30.0, 10.0),
+        (0.0, 0.0),
+        "function make_decision() return pass_to(2) end",
+    );
+    assert!(state.last_error.is_none(), "{:?}", state.last_error);
+    let Some(Decision::Kick(target)) = &state.current_decision else {
+        panic!("Expected Kick, got: {:?}", state.current_decision);
+    };
+    use uom::si::length::meter;
+    assert!((target.x.get::<meter>() - 30.0).abs() < 0.01);
+    assert!((target.z.get::<meter>() - 10.0).abs() < 0.01);
+    assert_eq!(state.decision_reason.as_deref(), Some("pass_to_#2"));
+}
+
+#[test]
+fn test_pass_to_leads_moving_teammate() {
+    // 20 m away at AVG_PASS_SPEED 12 m/s: 1.67 s, capped by MAX_LEAD_TIME to 1.5 s → 7.5 m ahead.
+    let state = run_pass_to(
+        (10.0, 10.0),
+        (30.0, 10.0),
+        (5.0, 0.0),
+        "function make_decision() return pass_to(2) end",
+    );
+    assert!(state.last_error.is_none(), "{:?}", state.last_error);
+    let Some(Decision::Kick(target)) = &state.current_decision else {
+        panic!("Expected Kick, got: {:?}", state.current_decision);
+    };
+    use uom::si::length::meter;
+    assert!((target.x.get::<meter>() - 37.5).abs() < 0.01);
+    assert!((target.z.get::<meter>() - 10.0).abs() < 0.01);
+}
+
+#[test]
+fn test_pass_to_leads_diagonal_velocity() {
+    // Teammate velocity is oblique to the grid, so both components contribute to the lead.
+    let cases = [
+        // 28.28 m at AVG_PASS_SPEED 12 m/s: 2.36 s, capped by MAX_LEAD_TIME to 1.5 s.
+        ((10.0, 10.0), (30.0, 30.0), (6.0, 8.0), (39.0, 42.0)),
+        // 5 m at 12 m/s: 5 / 12 ≈ 0.42 s, below the MAX_LEAD_TIME cap.
+        ((10.0, 10.0), (13.0, 14.0), (3.0, 4.0), (14.25, 15.667)),
+    ];
+
+    for (caller, teammate, teammate_vel, expected) in cases {
+        let state = run_pass_to(
+            caller,
+            teammate,
+            teammate_vel,
+            "function make_decision() return pass_to(2) end",
+        );
+        assert!(state.last_error.is_none(), "{:?}", state.last_error);
+        let (x, z) = kick_target(&state);
+        assert!(
+            (x - expected.0).abs() < 0.01 && (z - expected.1).abs() < 0.01,
+            "expected lead {expected:?} for caller {caller:?}, teammate {teammate:?} at {teammate_vel:?}, got ({x}, {z})"
+        );
+    }
+}
+
+#[test]
+fn test_pass_to_clamps_to_field_with_margin() {
+    let state = run_pass_to(
+        (60.0, 100.0),
+        (67.0, 104.0),
+        (10.0, 10.0),
+        "function make_decision() return pass_to(2) end",
+    );
+    assert!(state.last_error.is_none(), "{:?}", state.last_error);
+    let Some(Decision::Kick(target)) = &state.current_decision else {
+        panic!("Expected Kick, got: {:?}", state.current_decision);
+    };
+    use uom::si::length::meter;
+    assert!((target.x.get::<meter>() - 67.0).abs() < 0.01);
+    assert!((target.z.get::<meter>() - 103.615_38).abs() < 0.01);
+}
+
+#[test]
+fn test_pass_to_custom_reason() {
+    let state = run_pass_to(
+        (10.0, 10.0),
+        (30.0, 10.0),
+        (0.0, 0.0),
+        "function make_decision() return pass_to(2, \"build_up\") end",
+    );
+    assert!(state.last_error.is_none(), "{:?}", state.last_error);
+    assert_eq!(
+        state.decision_reason.as_deref(),
+        Some("build_up | pass_to_#2")
+    );
+}
+
+#[test]
+fn test_pass_to_unknown_teammate_raises() {
+    let script = r#"
+function make_decision()
+    assert(not pcall(pass_to, 99), "unknown teammate number must raise")
+    return {action = "stop"}
+end
+"#;
+    let state = run_caller(create_test_game_with_preambles(script));
+    assert!(state.last_error.is_none(), "{:?}", state.last_error);
+}
+
 // --- run_to_start_position ---
 
 #[test]
@@ -1141,6 +1384,9 @@ function make_decision()
     assert(compose_reason == nil, "compose_reason must be internal")
     assert(get_teammate_by_number == nil, "get_teammate_by_number must be internal")
     assert(am_i_ball_owner == nil, "am_i_ball_owner must be internal")
+    assert(clamp_to_field == nil, "clamp_to_field must be internal")
+    assert(teammate_velocity == nil, "teammate_velocity must be internal")
+    assert(opponent_velocity == nil, "opponent_velocity must be internal")
     assert(pass_to_teammate == nil, "pass_to_teammate must be removed")
     assert(pass_to_players_by_numbers == nil, "pass_to_players_by_numbers must be removed")
     assert(kick_to_cell == nil, "kick_to_cell must be removed")

@@ -50,20 +50,20 @@ end
 
 local function pass_to_free_or_nearest(n1, n2, n3, n4)
     if is_teammate_free(n1) then
-        return kick_to_position(teammate_position(n1), "pass_to_#" .. n1)
+        return pass_to(n1)
     end
     if is_teammate_free(n2) then
-        return kick_to_position(teammate_position(n2), "pass_to_#" .. n2)
+        return pass_to(n2)
     end
     if is_teammate_free(n3) then
-        return kick_to_position(teammate_position(n3), "pass_to_#" .. n3)
+        return pass_to(n3)
     end
     if is_teammate_free(n4) then
-        return kick_to_position(teammate_position(n4), "pass_to_#" .. n4)
+        return pass_to(n4)
     end
 
     local number = nearest_teammate_number(n1, n2, n3, n4)
-    return kick_to_position(teammate_position(number), "pass_to_#" .. number)
+    return pass_to(number)
 end
 
 function fullback_with_ball()
@@ -107,17 +107,17 @@ function center_back_with_ball()
     end
 
     if best_number ~= nil then
-        return kick_to_position(teammate_position(best_number), "pass_to_#" .. best_number)
+        return pass_to(best_number)
     end
     return run_to_attack_position()
 end
 
 local function pass_to_first_free_ahead(n1, n2)
     if is_teammate_free(n1) and is_teammate_ahead(n1) then
-        return kick_to_position(teammate_position(n1), "pass_to_#" .. n1)
+        return pass_to(n1)
     end
     if is_teammate_free(n2) and is_teammate_ahead(n2) then
-        return kick_to_position(teammate_position(n2), "pass_to_#" .. n2)
+        return pass_to(n2)
     end
     return nil
 end

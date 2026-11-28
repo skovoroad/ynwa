@@ -1,0 +1,6 @@
+name = "Passer"
+reaction_rate = 100
+speed_rate = 50
+tackle_rate = 50
+shot_power = 94
+shot_accuracy = 100

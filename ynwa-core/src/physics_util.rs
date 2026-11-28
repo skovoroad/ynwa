@@ -13,6 +13,12 @@ use uom::si::length::meter;
 /// shot_power=100 → base kick speed = 100/KICK_POWER_DIVISOR m/s
 pub const KICK_POWER_DIVISOR: f32 = 5.0;
 
+/// Maximum player speed at `speed_rate = 100` (roughly 36 km/h).
+pub const MAX_SPEED_METERS_PER_SECOND: f32 = 10.0;
+
+/// Ball deceleration while rolling on the ground, in m/s².
+pub const BALL_FRICTION_DECELERATION: f32 = 2.0;
+
 /// Calculate distance between two 3D points (returns raw f32 in meters)
 pub fn distance(a: &Point3D, b: &Point3D) -> f32 {
     let dx = a.x.get::<meter>() - b.x.get::<meter>();

@@ -13,11 +13,13 @@
 //! - `{action="kick", target={x, z}}`
 //! - optional `reason` field (string, logged on error/debug)
 
-use crate::field::zones::Point3D;
+use crate::field::zones::{Point3D, Velocity3D};
 use crate::game::{Decision, Game};
+use crate::physics_util::{kick_speed, BALL_FRICTION_DECELERATION, MAX_SPEED_METERS_PER_SECOND};
 use crate::team::Team;
 use serde_json::json;
 use uom::si::length::meter;
+use uom::si::velocity::meter_per_second;
 use ynwa_decisions::DecisionEngine;
 
 use super::decision_parser;
@@ -77,6 +79,11 @@ impl ScriptedDecisionMaker {
                             "length": field_length,
                             "columns": config.field.grid_columns(),
                             "rows": config.field.grid_rows()
+                        },
+                        "physics": {
+                            "max_player_speed": MAX_SPEED_METERS_PER_SECOND,
+                            "max_kick_speed": kick_speed(100),
+                            "ball_friction": BALL_FRICTION_DECELERATION
                         }
                     }
                 })
@@ -289,6 +296,7 @@ impl ScriptedDecisionMaker {
                 "number": player_def.number,
                 "index": player_index,
                 "position": Self::position_to_json(&player_state.position, player_team, field_width, field_length),
+                "velocity": Self::velocity_to_json(&player_state.velocity, player_team),
                 "regions": regions_json
             },
             "teammates": Self::build_team_positions(
@@ -309,6 +317,7 @@ impl ScriptedDecisionMaker {
             ),
             "ball": {
                 "position": Self::position_to_json(&state.ball_state.position, player_team, field_width, field_length),
+                "velocity": Self::velocity_to_json(&state.ball_state.velocity, player_team),
                 "owner_index": state.ball_state.possessed_by,
                 "owner_team": match state.ball_state.last_possessing_team {
                     Some(team) => format!("{:?}", team),
@@ -345,6 +354,18 @@ impl ScriptedDecisionMaker {
         })
     }
 
+    fn velocity_to_json(velocity: &Velocity3D, viewer_team: Team) -> serde_json::Value {
+        let x = velocity.x.get::<meter_per_second>();
+        let z = velocity.z.get::<meter_per_second>();
+        let (x, z) = if viewer_team == Team::B {
+            (-x, -z)
+        } else {
+            (x, z)
+        };
+
+        json!({ "x": x, "z": z })
+    }
+
     fn build_team_positions(
         players: &[crate::game::PlayerDef],
         states: &[crate::game::PlayerState],
@@ -363,7 +384,8 @@ impl ScriptedDecisionMaker {
                     json!({
                         "index": idx,
                         "number": def.number,
-                        "position": Self::position_to_json(&state.position, viewer_team, field_width, field_length)
+                        "position": Self::position_to_json(&state.position, viewer_team, field_width, field_length),
+                        "velocity": Self::velocity_to_json(&state.velocity, viewer_team)
                     })
                 })
                 .collect::<Vec<_>>()
@@ -1090,6 +1112,122 @@ mod tests {
         assert!(
             (result["field_length"].as_f64().unwrap() - 60.0).abs() < 0.01,
             "Lua GAME_DATA.field.length should match field length"
+        );
+    }
+
+    fn create_velocity_test_game() -> Game {
+        let field = Field::from_meters(100.0, 60.0, 26, 44);
+        let grid_dims = field.grid_dimensions();
+        let start_region = grid_dims
+            .create_region(GridCell::new(1, 1).unwrap(), GridCell::new(2, 2).unwrap())
+            .unwrap();
+        let script = "function make_decision() return {action='stop'} end";
+        let make = |team, number, name: &str| {
+            PlayerDef::new(
+                team,
+                number,
+                name.to_string(),
+                script.to_string(),
+                HashMap::from([(REGION_START_POSITION.to_string(), start_region.clone())]),
+            )
+        };
+
+        let config = GameConfig {
+            field,
+            players: vec![
+                make(Team::A, 1, "A1"),
+                make(Team::A, 2, "A2"),
+                make(Team::B, 1, "B1"),
+                make(Team::B, 2, "B2"),
+            ],
+            ball: BallDef::default(),
+            referees: vec![RefereeDef::default()],
+            team_a_id: "team_a".to_string(),
+            team_b_id: "team_b".to_string(),
+            team_a_display_name: "Team A".to_string(),
+            team_b_display_name: "Team B".to_string(),
+            scripting: crate::game::ScriptingConfig::empty(),
+        };
+
+        let mut game = Game::with_stage(config, crate::game::GameStage::Play, deterministic_rng());
+
+        let velocities = [(1.0, 2.0), (3.0, 4.0), (5.0, 6.0), (7.0, 8.0)];
+        for (state, (x, z)) in game.state.player_states.iter_mut().zip(velocities) {
+            state.velocity = Velocity3D::from_meters_per_second(x, 0.0, z);
+        }
+        game.state.ball_state.velocity = Velocity3D::from_meters_per_second(9.0, 0.0, -10.0);
+
+        game
+    }
+
+    fn assert_velocity(value: &serde_json::Value, expected_x: f32, expected_z: f32) {
+        let x = value["x"].as_f64().unwrap() as f32;
+        let z = value["z"].as_f64().unwrap() as f32;
+        assert!(
+            (x - expected_x).abs() < 0.01 && (z - expected_z).abs() < 0.01,
+            "expected velocity ({expected_x}, {expected_z}), got ({x}, {z})"
+        );
+    }
+
+    fn player_entry(entries: &serde_json::Value, number: u32) -> &serde_json::Value {
+        entries
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|entry| entry["number"].as_u64() == Some(number as u64))
+            .unwrap_or_else(|| panic!("player {number} missing from context"))
+    }
+
+    #[test]
+    fn test_context_velocity_in_team_orientation() {
+        let game = create_velocity_test_game();
+
+        // Team A context: velocities in display orientation.
+        let ctx_a = ScriptedDecisionMaker::build_context(&game, 0).unwrap();
+        assert_velocity(&ctx_a["me"]["velocity"], 1.0, 2.0);
+        assert_velocity(&player_entry(&ctx_a["teammates"], 2)["velocity"], 3.0, 4.0);
+        assert_velocity(&player_entry(&ctx_a["opponents"], 1)["velocity"], 5.0, 6.0);
+        assert_velocity(&player_entry(&ctx_a["opponents"], 2)["velocity"], 7.0, 8.0);
+        assert_velocity(&ctx_a["ball"]["velocity"], 9.0, -10.0);
+
+        // Team B context: both velocity components are negated.
+        let ctx_b = ScriptedDecisionMaker::build_context(&game, 2).unwrap();
+        assert_velocity(&ctx_b["me"]["velocity"], -5.0, -6.0);
+        assert_velocity(
+            &player_entry(&ctx_b["teammates"], 2)["velocity"],
+            -7.0,
+            -8.0,
+        );
+        assert_velocity(
+            &player_entry(&ctx_b["opponents"], 1)["velocity"],
+            -1.0,
+            -2.0,
+        );
+        assert_velocity(
+            &player_entry(&ctx_b["opponents"], 2)["velocity"],
+            -3.0,
+            -4.0,
+        );
+        assert_velocity(&ctx_b["ball"]["velocity"], -9.0, 10.0);
+    }
+
+    #[test]
+    fn test_game_data_physics_matches_engine_constants() {
+        let game = create_velocity_test_game();
+        let config_json = ScriptedDecisionMaker::build_config(&game);
+        let physics = &config_json["players"][0]["static_data"]["physics"];
+
+        assert_eq!(
+            physics["max_player_speed"].as_f64(),
+            Some(MAX_SPEED_METERS_PER_SECOND as f64)
+        );
+        assert_eq!(
+            physics["max_kick_speed"].as_f64(),
+            Some(kick_speed(100) as f64)
+        );
+        assert_eq!(
+            physics["ball_friction"].as_f64(),
+            Some(BALL_FRICTION_DECELERATION as f64)
         );
     }
 }

@@ -3,11 +3,9 @@
 
 use crate::field::zones::{Point3D, Velocity3D};
 use crate::game::{DecisionTarget, Game};
+use crate::physics_util::MAX_SPEED_METERS_PER_SECOND;
 use crate::region::Region;
 use uom::si::length::meter;
-
-/// Maximum player speed when speed_rate = 100 (roughly 36 km/h, realistic for professional football)
-const MAX_SPEED_METERS_PER_SECOND: f32 = 10.0;
 
 pub(crate) fn calculate_target_point(target: &DecisionTarget, game: &Game) -> Point3D {
     match target {

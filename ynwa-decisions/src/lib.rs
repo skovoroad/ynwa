@@ -29,4 +29,4 @@ mod lua_executor;
 mod lua_format;
 
 pub use decision_engine::{DecisionEngine, DecisionEngineError};
-pub use lua_executor::{LuaExecutor, ScriptError, ScriptResult};
+pub use lua_executor::{LuaExecutor, LuaExecutorBuilder, ScriptError, ScriptResult};

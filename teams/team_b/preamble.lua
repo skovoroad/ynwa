@@ -26,10 +26,10 @@ goalkeeper_play = {
 function nonforward_with_ball()
     -- If a forward is ahead of me, pass to them
     if is_teammate_ahead(10) then
-        return kick_to_position(teammate_position(10), "pass_to_#10")
+        return pass_to(10)
     end
     if is_teammate_ahead(11) then
-        return kick_to_position(teammate_position(11), "pass_to_#11")
+        return pass_to(11)
     end
 
     -- I'm ahead: push into penalty area or shoot

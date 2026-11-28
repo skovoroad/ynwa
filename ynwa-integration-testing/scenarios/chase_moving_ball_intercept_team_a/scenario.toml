@@ -1,0 +1,32 @@
+[run]
+timestep = 0.02
+
+[[run.stop]]
+when = "journal"
+type = "possession_change"
+possessed_by = { team = "A", number = 1 }
+
+# The ball stops at 4.0 s; a possession before this limit proves it was still rolling.
+[[run.stop]]
+when = "time"
+time = 2.6
+
+[expect]
+journal_match = "subsequence"
+
+[expect.stop]
+when = "journal"
+type = "possession_change"
+possessed_by = { team = "A", number = 1 }
+
+[[expect.journal]]
+type = "decision_assigned"
+player = { team = "A", number = 1 }
+decision = "Run"
+reason = "chase_ball"
+target = { kind = "point", point = { x = 34, y = 0, z = 52 } }
+
+[[expect.journal]]
+type = "possession_change"
+possessed_by = { team = "A", number = 1 }
+last_possessing_team = "A"

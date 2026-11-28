@@ -56,6 +56,17 @@ pub struct ScriptResult {
     pub data: serde_json::Value,
 }
 
+/// Builds a [`LuaExecutor`] with globals available before the preamble executes.
+///
+/// The sandbox is applied first, then every configured global, and only then the
+/// preamble, so top-level preamble code can read the installed globals.
+#[derive(Debug, Default)]
+pub struct LuaExecutorBuilder {
+    preamble: Option<String>,
+    timeout: Option<Duration>,
+    globals: Vec<(String, serde_json::Value)>,
+}
+
 /// Executes Lua scripts with context data.
 ///
 /// Security: sandbox blocks dangerous libraries (io, os, package, debug, etc), optional timeout.
@@ -82,24 +93,14 @@ impl LuaExecutor {
     ///
     /// Timeout adds ~2x overhead. Use for untrusted scripts or debugging.
     pub fn new(preamble: Option<String>, timeout: Option<Duration>) -> Result<Self, ScriptError> {
-        let lua = Lua::new();
+        Self::builder()
+            .with_preamble(preamble)
+            .with_timeout(timeout)
+            .build()
+    }
 
-        Self::apply_sandbox(&lua)?;
-
-        let preamble = preamble.unwrap_or_default();
-
-        if !preamble.is_empty() {
-            lua.load(&preamble)
-                .exec()
-                .map_err(|e| ScriptError::SyntaxError(format!("Preamble error: {}", e)))?;
-        }
-
-        Ok(Self {
-            lua,
-            preamble,
-            timeout,
-            hook_check_interval: 10000,
-        })
+    pub fn builder() -> LuaExecutorBuilder {
+        LuaExecutorBuilder::default()
     }
 
     /// Apply sandbox by removing dangerous globals
@@ -260,9 +261,58 @@ impl LuaExecutor {
     }
 }
 
+impl LuaExecutorBuilder {
+    pub fn with_preamble(mut self, preamble: Option<String>) -> Self {
+        self.preamble = preamble;
+        self
+    }
+
+    pub fn with_timeout(mut self, timeout: Option<Duration>) -> Self {
+        self.timeout = timeout;
+        self
+    }
+
+    /// Install a global before the preamble runs. Repeated calls install in call order.
+    pub fn with_global(mut self, name: impl Into<String>, value: serde_json::Value) -> Self {
+        self.globals.push((name.into(), value));
+        self
+    }
+
+    pub fn build(self) -> Result<LuaExecutor, ScriptError> {
+        let lua = Lua::new();
+
+        LuaExecutor::apply_sandbox(&lua)?;
+
+        for (name, value) in &self.globals {
+            let lua_value = lua
+                .to_value(value)
+                .map_err(|e| ScriptError::SerializationError(e.to_string()))?;
+            lua.globals()
+                .set(name.as_str(), lua_value)
+                .map_err(|e| ScriptError::RuntimeError(format!("Failed to set global: {}", e)))?;
+        }
+
+        let preamble = self.preamble.unwrap_or_default();
+
+        if !preamble.is_empty() {
+            lua.load(&preamble)
+                .exec()
+                .map_err(|e| ScriptError::SyntaxError(format!("Preamble error: {}", e)))?;
+        }
+
+        Ok(LuaExecutor {
+            lua,
+            preamble,
+            timeout: self.timeout,
+            hook_check_interval: 10000,
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
 
     #[derive(Serialize)]
     struct TestContext {
@@ -443,7 +493,7 @@ mod tests {
                     score = context.player_number * 10
                 }
             end
-            
+
             function get_status()
                 return {
                     status = "active",
@@ -606,7 +656,7 @@ mod tests {
             function math_multiply(a, b)
                 return a * b
             end
-            
+
             global_constant = 100
         "#;
 
@@ -645,7 +695,7 @@ mod tests {
             function shared_func()
                 return "from_script"
             end
-            
+
             function call_it()
                 return { result = shared_func() }
             end
@@ -745,7 +795,7 @@ mod tests {
             function return_true()
                 return true
             end
-            
+
             function return_false()
                 return false
             end
@@ -1044,13 +1094,13 @@ mod tests {
                         return {}
                     end)
                     if success then
-                        return {{ 
-                            accessible = true, 
+                        return {{
+                            accessible = true,
                             result_type = type(result)
                         }}
                     else
-                        return {{ 
-                            accessible = false, 
+                        return {{
+                            accessible = false,
                             reason = "execution failed: " .. tostring(result)
                         }}
                     end
@@ -1107,7 +1157,7 @@ mod tests {
             function try_bypass()
                 -- _G should be nil, so this should fail
                 if _G then
-                    return { 
+                    return {
                         bypassed = true,
                         has_io = _G.io ~= nil,
                         has_os = _G.os ~= nil
@@ -1243,5 +1293,59 @@ mod tests {
             "Script should complete without timeout when timeout is disabled, got: {:?}",
             result
         );
+    }
+
+    #[test]
+    fn test_builder_globals_available_at_preamble_load_time() {
+        let preamble = r#"
+            local derived = GAME_DATA.physics.max_player_speed * 0.7
+            function derived_speed()
+                return derived
+            end
+        "#;
+
+        let executor = LuaExecutor::builder()
+            .with_global("GAME_DATA", json!({"physics": {"max_player_speed": 10.0}}))
+            .with_preamble(Some(preamble.to_string()))
+            .build()
+            .unwrap();
+
+        let script = r#"
+            function make_decision()
+                return {speed = derived_speed()}
+            end
+        "#;
+
+        let context = TestContext {
+            player_number: 1,
+            elapsed_time: 0.0,
+        };
+
+        let result = executor.execute(script, "make_decision", &context).unwrap();
+        assert_eq!(result.data["speed"], 7.0);
+    }
+
+    #[test]
+    fn test_builder_installs_multiple_globals_in_order() {
+        let executor = LuaExecutor::builder()
+            .with_global("FIRST", json!({"value": 1}))
+            .with_global("SECOND", json!({"value": 2, "label": "two"}))
+            .build()
+            .unwrap();
+
+        let script = r#"
+            function make_decision()
+                return {total = FIRST.value + SECOND.value, label = SECOND.label}
+            end
+        "#;
+
+        let context = TestContext {
+            player_number: 1,
+            elapsed_time: 0.0,
+        };
+
+        let result = executor.execute(script, "make_decision", &context).unwrap();
+        assert_eq!(result.data["total"], 3);
+        assert_eq!(result.data["label"], "two");
     }
 }

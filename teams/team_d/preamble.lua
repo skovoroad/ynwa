@@ -74,19 +74,19 @@ end
 function defender_with_ball()
     local number = nearest_teammate_ahead_number(6, 7, 8)
     if number > 0 then
-        return kick_to_position(teammate_position(number), "pass_to_#" .. number)
+        return pass_to(number)
     end
     number = nearest_teammate_number(6, 7, 8)
-    return kick_to_position(teammate_position(number), "pass_to_#" .. number)
+    return pass_to(number)
 end
 
 function midfielder_with_ball()
     local number = nearest_teammate_ahead_number(9, 10, 11)
     if number > 0 then
-        return kick_to_position(teammate_position(number), "pass_to_#" .. number)
+        return pass_to(number)
     end
     number = nearest_teammate_number(9, 10, 11)
-    return kick_to_position(teammate_position(number), "pass_to_#" .. number)
+    return pass_to(number)
 end
 
 function midfielder_without_ball()
@@ -104,13 +104,13 @@ function forward_with_ball(my_number)
 
     if count_opponents_around(my_position(), 5) > 0 then
         if my_number ~= 9 and is_teammate_free(9) then
-            return kick_to_position(teammate_position(9), "pass to 9")
+            return pass_to(9, "pass to 9")
         end
         if my_number ~= 10 and is_teammate_free(10) then
-            return kick_to_position(teammate_position(10), "pass to 10")
+            return pass_to(10, "pass to 10")
         end
         if my_number ~= 11 and is_teammate_free(11) then
-            return kick_to_position(teammate_position(11), "pass to 11")
+            return pass_to(11, "pass to 11")
         end
     end
 

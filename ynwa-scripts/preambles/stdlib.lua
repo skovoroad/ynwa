@@ -13,6 +13,13 @@ do
     local FREE_PLAYER_RADIUS = 5.0
     local DIRECTION_TOLERANCE = 0.5
 
+    -- Lead-target heuristics derived from engine physics so tuning stays in sync.
+    local AVG_PLAYER_SPEED = GAME_DATA.physics.max_player_speed * 0.7
+    local AVG_PASS_SPEED = GAME_DATA.physics.max_kick_speed * 0.6
+    local BALL_FRICTION = GAME_DATA.physics.ball_friction
+    local MAX_LEAD_TIME = 1.5 -- seconds; caps linear extrapolation
+    local PASS_FIELD_MARGIN = 1.0 -- meters; keeps pass targets inside the touchline/goal line
+
     -- Parse column label (e.g. "A"→1, "Z"→26, "AA"→27) — case-insensitive.
     local function parse_col(s)
         local col = 0
@@ -50,6 +57,16 @@ do
         return custom .. " | " .. builtin
     end
 
+    -- Clamp a 2D point to the field, keeping `margin` meters from each boundary.
+    local function clamp_to_field(pos, margin)
+        local width = GAME_DATA.field.width
+        local length = GAME_DATA.field.length
+        return {
+            x = math.max(margin, math.min(width - margin, pos.x)),
+            z = math.max(margin, math.min(length - margin, pos.z)),
+        }
+    end
+
     -- Returns the teammate object with the given number, or nil if not found.
     local function get_teammate_by_number(n)
         for _, tm in ipairs(get_teammates()) do
@@ -64,6 +81,20 @@ do
             if opp.number == n then return opp end
         end
         return nil
+    end
+
+    -- Returns the velocity {x, z} of the teammate with the given number.
+    local function teammate_velocity(number)
+        local tm = get_teammate_by_number(number)
+        if tm == nil then error("unknown teammate number: " .. tostring(number)) end
+        return tm.velocity
+    end
+
+    -- Returns the velocity {x, z} of the opponent with the given number.
+    local function opponent_velocity(number)
+        local opp = get_opponent_by_number(number)
+        if opp == nil then error("unknown opponent number: " .. tostring(number)) end
+        return opp.velocity
     end
 
     -- Returns true if I am the ball owner, false otherwise.
@@ -230,7 +261,27 @@ do
     end
 
     function chase_ball(reason)
-        return {action = "run", target_type = "ball", reason = compose_reason(reason, "chase_ball")}
+        local ball_pos = ball_position()
+        local ball_vel = ball_velocity()
+        local ball_speed = math.sqrt(ball_vel.x * ball_vel.x + ball_vel.z * ball_vel.z)
+
+        local target = ball_pos
+        if ball_speed > 0 then
+            -- Half the stopping time is the midpoint of the constant-deceleration path.
+            local t_stop_half = 0.5 * ball_speed / BALL_FRICTION
+            local t_est = math.min(distance(my_position(), ball_pos) / AVG_PLAYER_SPEED, t_stop_half, MAX_LEAD_TIME)
+            target = clamp_to_field({
+                x = ball_pos.x + ball_vel.x * t_est,
+                z = ball_pos.z + ball_vel.z * t_est,
+            }, 0.0)
+        end
+
+        return {
+            action = "run",
+            target_type = "point",
+            target = {x = target.x, z = target.z, y = 0},
+            reason = compose_reason(reason, "chase_ball"),
+        }
     end
 
     -- Returns a Run decision targeting a grid region.
@@ -251,6 +302,18 @@ do
             target = {x = pos.x, z = pos.z},
             reason = reason_text
         }
+    end
+
+    -- Returns a Kick decision leading the teammate to where they will be when the ball arrives.
+    function pass_to(number, reason)
+        local tm_pos = teammate_position(number)
+        local tm_vel = teammate_velocity(number)
+        local t_est = math.min(distance(my_position(), tm_pos) / AVG_PASS_SPEED, MAX_LEAD_TIME)
+        local target = clamp_to_field({
+            x = tm_pos.x + tm_vel.x * t_est,
+            z = tm_pos.z + tm_vel.z * t_est,
+        }, PASS_FIELD_MARGIN)
+        return kick_to_position(target, compose_reason(reason, "pass_to_#" .. number))
     end
 
     -- Returns a Kick decision aimed at the center of the opponent's goal.
@@ -317,19 +380,18 @@ do
     -- Temporary helper: pass to the nearest teammate at least 15 m away, otherwise shoot.
     function default_goalkeeper_with_ball(reason)
         local my_pos = my_position()
-        local best_number, best_position, best_distance = nil, nil, math.huge
+        local best_number, best_distance = nil, math.huge
         for _, tm in ipairs(get_teammates()) do
             local d = distance(my_pos, tm.position)
             if d >= 15.0 and d < best_distance then
                 best_distance = d
                 best_number = tm.number
-                best_position = tm.position
             end
         end
         if best_number == nil then
             return kick_to_opponent_goal()
         end
-        return kick_to_position(best_position, compose_reason(reason, "pass_to_#" .. best_number))
+        return pass_to(best_number, reason)
     end
 
     -- -----------------------------------------------------------------------------

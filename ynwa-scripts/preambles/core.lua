@@ -23,6 +23,11 @@ function my_position()
     return context.me.position
 end
 
+-- INTERNAL: my velocity as a table {x, z} in team orientation
+function my_velocity()
+    return context.me.velocity
+end
+
 -- INTERNAL: my regions as a table {region_name = {min_x, max_x, min_z, max_z}}
 function my_regions()
     return context.me.regions
@@ -31,6 +36,11 @@ end
 -- Returns ball position as a table {x, y, z}
 function ball_position()
     return context.ball.position
+end
+
+-- INTERNAL: ball velocity as a table {x, z} in team orientation
+function ball_velocity()
+    return context.ball.velocity
 end
 
 -- INTERNAL: array of teammates including me (each has: index, number, position)
