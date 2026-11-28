@@ -193,6 +193,39 @@ do
     end
 
     -- -----------------------------------------------------------------------------
+    -- Iterators
+    -- -----------------------------------------------------------------------------
+
+    -- Yields each number of the given squad-number list in order, one value per step.
+    function each(numbers)
+        local i = 0
+        return function()
+            i = i + 1
+            return numbers[i]
+        end
+    end
+
+    -- Yields teammate numbers ordered by ascending distance to me, preserving list order on ties.
+    function order_by_distance_asc(numbers)
+        local my_pos = my_position()
+        local ordered = {}
+        for i, number in ipairs(numbers) do
+            ordered[i] = {number = number, key = distance(my_pos, teammate_position(number)), idx = i}
+        end
+        table.sort(ordered, function(a, b)
+            if a.key ~= b.key then return a.key < b.key end
+            return a.idx < b.idx
+        end)
+        local i = 0
+        return function()
+            i = i + 1
+            local entry = ordered[i]
+            if entry == nil then return nil end
+            return entry.number
+        end
+    end
+
+    -- -----------------------------------------------------------------------------
     -- Predicates
     -- -----------------------------------------------------------------------------
 

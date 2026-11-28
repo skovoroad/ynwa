@@ -1423,6 +1423,159 @@ fn test_is_in_opponent_penalty_area() {
     ));
 }
 
+// --- each ---
+
+#[test]
+fn test_each_yields_numbers_in_list_order() {
+    let script = r#"
+function make_decision()
+    local seen = {}
+    for player in each({10, 11}) do
+        assert(type(player) == "number", "each must yield a single squad number")
+        table.insert(seen, player)
+    end
+    assert(#seen == 2, "each must run once per number, got " .. #seen)
+    assert(seen[1] == 10 and seen[2] == 11, "each must preserve list order")
+    return {action = "stop"}
+end
+"#;
+    use ynwa_core::team::Team;
+    let players = vec![
+        make_player(Team::A, 1, script),
+        make_player(Team::A, 10, ""),
+        make_player(Team::A, 11, ""),
+    ];
+    let state = run_caller(create_test_game_with_all_preambles(players));
+    assert!(state.last_error.is_none(), "{:?}", state.last_error);
+}
+
+#[test]
+fn test_each_empty_source_yields_no_iterations() {
+    let script = r#"
+function make_decision()
+    local iterations = 0
+    for _ in each({}) do
+        iterations = iterations + 1
+    end
+    assert(iterations == 0, "each({}) must not run the loop body")
+    return {action = "stop"}
+end
+"#;
+    use ynwa_core::team::Team;
+    let players = vec![make_player(Team::A, 1, script)];
+    let state = run_caller(create_test_game_with_all_preambles(players));
+    assert!(state.last_error.is_none(), "{:?}", state.last_error);
+}
+
+// --- order_by_distance_asc ---
+
+#[test]
+fn test_order_by_distance_asc_sorts_with_stable_tie_break() {
+    let script = r#"
+function make_decision()
+    local seen = {}
+    for player in order_by_distance_asc({6, 8, 7, 11}) do
+        table.insert(seen, player)
+    end
+    assert(#seen == 4, "order_by_distance_asc must yield every number")
+    -- 7 is nearest; 6 and 8 are tied and keep their input order; 11 is furthest.
+    assert(seen[1] == 7, "nearest number first, got " .. tostring(seen[1]))
+    assert(seen[2] == 6 and seen[3] == 8, "tied numbers keep input order")
+    assert(seen[4] == 11, "furthest number last, got " .. tostring(seen[4]))
+    return {action = "stop"}
+end
+"#;
+    use ynwa_core::team::Team;
+    let players = vec![
+        make_player(Team::A, 1, script),
+        make_player(Team::A, 6, ""),
+        make_player(Team::A, 8, ""),
+        make_player(Team::A, 7, ""),
+        make_player(Team::A, 11, ""),
+    ];
+    let mut game = create_test_game_with_all_preambles(players);
+    place_player(&mut game, 0, 10.0, 10.0);
+    place_player(&mut game, 1, 15.0, 10.0);
+    place_player(&mut game, 2, 10.0, 15.0);
+    place_player(&mut game, 3, 12.0, 10.0);
+    place_player(&mut game, 4, 20.0, 10.0);
+    let state = run_caller(game);
+    assert!(state.last_error.is_none(), "{:?}", state.last_error);
+}
+
+#[test]
+fn test_order_by_distance_asc_empty_source_yields_no_iterations() {
+    let script = r#"
+function make_decision()
+    local iterations = 0
+    for _ in order_by_distance_asc({}) do
+        iterations = iterations + 1
+    end
+    assert(iterations == 0, "order_by_distance_asc({}) must not run the loop body")
+    return {action = "stop"}
+end
+"#;
+    use ynwa_core::team::Team;
+    let players = vec![make_player(Team::A, 1, script)];
+    let state = run_caller(create_test_game_with_all_preambles(players));
+    assert!(state.last_error.is_none(), "{:?}", state.last_error);
+}
+
+#[test]
+fn test_iterators_compose_with_full_team_number_lists() {
+    let script = r#"
+function make_decision()
+    local tms = teammate_numbers()
+    local seen_teammates = {}
+    for player in order_by_distance_asc(teammate_numbers()) do
+        table.insert(seen_teammates, player)
+    end
+    assert(#seen_teammates == #tms, "every teammate number must be yielded")
+    for i = 1, #seen_teammates do
+        local known = false
+        for j = 1, #tms do
+            if tms[j] == seen_teammates[i] then known = true end
+        end
+        assert(known, "unexpected teammate number " .. tostring(seen_teammates[i]))
+    end
+    for i = 2, #seen_teammates do
+        local prev = distance(my_position(), teammate_position(seen_teammates[i - 1]))
+        local cur = distance(my_position(), teammate_position(seen_teammates[i]))
+        assert(prev <= cur, "teammates must be ordered by ascending distance")
+    end
+
+    local opps = opponent_numbers()
+    local seen_opponents = {}
+    for player in each(opponent_numbers()) do
+        table.insert(seen_opponents, player)
+    end
+    assert(#seen_opponents == #opps, "every opponent number must be yielded")
+    for i = 1, #opps do
+        assert(seen_opponents[i] == opps[i], "each must preserve opponent_numbers order")
+    end
+    return {action = "stop"}
+end
+"#;
+    use ynwa_core::team::Team;
+    let players = vec![
+        make_player(Team::A, 1, script),
+        make_player(Team::A, 2, ""),
+        make_player(Team::A, 3, ""),
+        make_player(Team::A, 4, ""),
+        make_player(Team::B, 1, ""),
+        make_player(Team::B, 2, ""),
+    ];
+    let mut game = create_test_game_with_all_preambles(players);
+    place_player(&mut game, 0, 10.0, 10.0);
+    place_player(&mut game, 1, 11.0, 10.0);
+    place_player(&mut game, 2, 10.0, 13.0);
+    place_player(&mut game, 3, 10.0, 20.0);
+    place_player(&mut game, 4, 30.0, 30.0);
+    place_player(&mut game, 5, 40.0, 40.0);
+    let state = run_caller(game);
+    assert!(state.last_error.is_none(), "{:?}", state.last_error);
+}
+
 // --- internal and removed helpers are not visible in the player scope ---
 
 #[test]
