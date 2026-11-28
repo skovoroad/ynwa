@@ -26,27 +26,39 @@ User-authored Lua (`preamble.lua`, `script.lua`) is an intermediate representati
 
 ### Requirement: Lua VM Lifecycle and Stage Gating
 
-At `DecisionEngine::new`, each VM SHALL execute `"{core_preamble}\n{stdlib_preamble}\n{team_preamble}"` **once** and bind `static_data` **once** to global `GAME_DATA`. On each `DecisionEngine::make_decision(idx, context)` call, the VM MUST overwrite global `context`, re-execute `script.lua`, and invoke `make_decision()`. `ScriptedDecisionMaker` MUST delegate in `Play` and return `Err(RuntimeError)` in `Setup(_)`.
+At `DecisionEngine::new`, each VM SHALL bind `static_data` **once** to global `GAME_DATA` **before** executing `"{core_preamble}\n{stdlib_preamble}\n{team_preamble}"` **once**, so top-level preamble code can read `GAME_DATA` at load time. On each `DecisionEngine::make_decision(idx, context)` call, the VM MUST overwrite global `context`, re-execute `script.lua`, and invoke `make_decision()`. `ScriptedDecisionMaker` MUST delegate in `Play` and return `Err(RuntimeError)` in `Setup(_)`.
 
 #### Scenario: Preamble persistence vs player script re-execution
 - **WHEN** `DecisionEngine::make_decision` runs across consecutive ticks for the same player
 - **THEN** tables/functions declared in `core.lua`, `stdlib.lua`, and team `preamble.lua` persist across ticks within that player's VM, while top-level statements in `script.lua` re-execute on every call before `make_decision()` runs
 
+#### Scenario: `GAME_DATA` available at preamble load time
+- **WHEN** `DecisionEngine::new` initializes a player VM whose `stdlib.lua` or `team_preamble` reads `GAME_DATA` at top level (outside any function)
+- **THEN** `GAME_DATA` is already bound in the VM and preamble loading succeeds without `attempt to index a nil value (global 'GAME_DATA')`
+
 ### Requirement: Engine Config and `GAME_DATA` JSON Schema
 
-Engine initialization SHALL pass `{"team_preambles": {"team_a", "team_b"}, "players": [{"script", "team", "static_data"}]}` where each player's `static_data` (exposed as `GAME_DATA`) contains `field: {width, length, columns, rows}` and `zones` transformed into that player's team orientation (`Team::B` coordinates and arc angles flipped, while zone keys `<name>` / `<name>_a` / `<name>_b` keep their canonical names).
+Engine initialization SHALL pass `{"team_preambles": {"team_a", "team_b"}, "players": [{"script", "team", "static_data"}]}` where each player's `static_data` (exposed as `GAME_DATA`) contains `field: {width, length, columns, rows}`, `physics: {max_player_speed, max_kick_speed, ball_friction}` sourced from `ynwa-core` constants, and `zones` transformed into that player's team orientation (`Team::B` coordinates and arc angles flipped, while zone keys `<name>` / `<name>_a` / `<name>_b` keep their canonical names).
 
 #### Scenario: Zone JSON representations in `GAME_DATA.zones`
 - **WHEN** `Field` zones are serialized into `GAME_DATA.zones`
 - **THEN** rectangles serialize as `{"type": "rectangle", "min_x", "max_x", "min_z", "max_z"}`, circles as `{"type": "circle", "center_x", "center_z", "radius"}`, arcs as `{"type": "arc", "center_x", "center_z", "radius", "start_angle", "end_angle"}` in **degrees** (`Team::B` currently emits `[180 - end, 180 - start]`, a known latent defect tracked in `fix-team-b-arc-angle-flip`), and points as `{"type": "point", "x", "z", "tolerance": 0.5}`
 
+#### Scenario: Physics constants in `GAME_DATA.physics`
+- **WHEN** a player's `GAME_DATA` is initialized
+- **THEN** `GAME_DATA.physics` contains `max_player_speed`, `max_kick_speed`, and `ball_friction` matching the engine's `MAX_SPEED_METERS_PER_SECOND`, `kick_speed(100)`, and `BALL_FRICTION_DECELERATION` constants
+
 ### Requirement: Per-Decision `context` JSON Schema and Semantics
 
-Per-tick `context` SHALL be constructed in the caller's team orientation with `me`, `teammates`, `opponents`, `ball`, and `game`. `context.teammates` MUST include **all** players on `me.team` in ascending global `index` order **including the caller itself** (`index == me.index`). `context.ball.owner_index` MUST serialize `possessed_by` (`usize | null`), whereas `context.ball.owner_team` MUST serialize `last_possessing_team` (`"A" | "B" | "None"`).
+Per-tick `context` SHALL be constructed in the caller's team orientation with `me`, `teammates`, `opponents`, `ball`, and `game`. `context.teammates` MUST include **all** players on `me.team` in ascending global `index` order **including the caller itself** (`index == me.index`). `context.ball.owner_index` MUST serialize `possessed_by` (`usize | null`), whereas `context.ball.owner_team` MUST serialize `last_possessing_team` (`"A" | "B" | "None"`). `context.me`, `context.teammates[*]`, `context.opponents[*]`, and `context.ball` MUST each include a `velocity: {x, z}` vector transformed into the caller's team orientation (`x` and `z` negated for `Team::B`).
 
 #### Scenario: Exact `context` fields, `display_notation`, and kick ownership retention
 - **WHEN** a player kicks the ball so physical `possessed_by` becomes `None` while `last_possessing_team` remains with that player's team
-- **THEN** `context` provides `me: {team, number, index, position: {x, y, z}, regions: {<key>: {min_x, max_x, min_z, max_z, display_notation}}}` (where `display_notation` is `"<display>"` for `Team::A` and `"<display> (<team_b>)"` for `Team::B`), `teammates: [{index, number, position}, ...]` (including `me.index`), `opponents: [{index, number, position}, ...]`, `ball: {position: {x, y, z}, owner_index: null, owner_team: "<me.team>"}`, and `game: {elapsed_time}`
+- **THEN** `context` provides `me: {team, number, index, position: {x, y, z}, velocity: {x, z}, regions: {<key>: {min_x, max_x, min_z, max_z, display_notation}}}` (where `display_notation` is `"<display>"` for `Team::A` and `"<display> (<team_b>)"` for `Team::B`), `teammates: [{index, number, position, velocity}, ...]` (including `me.index`), `opponents: [{index, number, position, velocity}, ...]`, `ball: {position: {x, y, z}, velocity: {x, z}, owner_index: null, owner_team: "<me.team>"}`, and `game: {elapsed_time}`
+
+#### Scenario: Team B velocity orientation flip
+- **WHEN** `context` is constructed for a `Team::B` player while a player or the ball has display-orientation velocity `(vx, vz)`
+- **THEN** the serialized `velocity` in `context` is `{x: -vx, z: -vz}` so positive `z` always points toward the opponent goal and positive `x` toward the right wing
 
 ### Requirement: `LuaDecision` Return Schema and Validation
 
@@ -58,22 +70,32 @@ Lua `make_decision()` SHALL return a table deserializable into `LuaDecision` (`a
 
 ### Requirement: Engine Preamble Layer Boundaries (Layers 1 and 2)
 
-Engine-owned Lua preambles in `ynwa-scripts/preambles/` SHALL separate state access from tactical helpers: Layer 1 `core.lua` MUST contain only read-only wrappers over `context` and team-indexed `GAME_DATA.zones` (`_a`/`_b`) with zero game logic or decision construction; Layer 2 `stdlib.lua` MUST build utilities, predicates, decision constructors, and `make_decision()` over `core.lua` without reading `context` or raw `GAME_DATA.zones.*_a/b` directly (team-invariant `GAME_DATA.field` is allowed). `stdlib.lua` MUST be wrapped in a single `do ... end` block whose top section holds internal `local` helpers and constants, separated by a dedicated comment from the public API section, so internal helpers are not visible to team preambles concatenated into the same Lua chunk.
+Engine-owned Lua preambles in `ynwa-scripts/preambles/` SHALL separate state access from tactical helpers: Layer 1 `core.lua` MUST contain only read-only wrappers over `context` and team-indexed `GAME_DATA.zones` (`_a`/`_b`) with zero game logic or decision construction; Layer 2 `stdlib.lua` MUST build utilities, predicates, decision constructors, and `make_decision()` over `core.lua` without reading `context` or raw `GAME_DATA.zones.*_a/b` directly (team-invariant `GAME_DATA.field` and `GAME_DATA.physics` are allowed). `stdlib.lua` MUST be wrapped in a single `do ... end` block whose top section holds internal `local` helpers and constants, separated by a dedicated comment from the public API section, so internal helpers are not visible to team preambles concatenated into the same Lua chunk.
 
 #### Scenario: Layer 1 `core.lua` function catalog
 - **WHEN** Layer 2–4 scripts query game state via `core.lua`
-- **THEN** `core.lua` provides `ball_owner()`, `my_position()`, `my_regions()`, `ball_position()`, `get_teammates()` (includes me), `get_opponents()`, `my_index()`, `my_team_name()`, `get_ball_owner_team()`, `get_opponent_goal()` (`goal_b` for `"A"`, `goal_a` for `"B"`), `get_own_goal()` (`goal_a` for `"A"`, `goal_b` for `"B"`), and `get_opponent_penalty_area()` (`penalty_area_b` for `"A"`, `penalty_area_a` for `"B"`)
-- **AND** only `my_position()`, `ball_position()`, `my_team_name()`, and `get_ball_owner_team()` belong to the user-facing API; the other Layer 1 functions are marked internal by comment
+- **THEN** `core.lua` provides `ball_owner()`, `my_position()`, `my_velocity()`, `my_regions()`, `ball_position()`, `ball_velocity()`, `get_teammates()` (includes me), `get_opponents()`, `my_index()`, `my_team_name()`, `get_ball_owner_team()`, `get_opponent_goal()` (`goal_b` for `"A"`, `goal_a` for `"B"`), `get_own_goal()` (`goal_a` for `"A"`, `goal_b` for `"B"`), and `get_opponent_penalty_area()` (`penalty_area_b` for `"A"`, `penalty_area_a` for `"B"`)
+- **AND** only `my_position()`, `ball_position()`, `my_team_name()`, and `get_ball_owner_team()` belong to the user-facing API; the other Layer 1 functions (including `my_velocity()` and `ball_velocity()`) are marked internal by comment
 
 #### Scenario: Layer 2 `stdlib.lua` utilities, actions, and `make_decision()` dispatch
 - **WHEN** Layer 3–4 scripts call `stdlib.lua` public functions
 - **THEN** `stdlib.lua` provides:
   - queries: `distance(p1, p2)` (2D XZ, ignoring `y`), `teammate_position(number)`, `opponent_position(number)`, `ball_owner_number()`, `count_teammates_around(pos, radius)`, `count_opponents_around(pos, radius)`
   - predicates: `is_in_region(from, to)`, `is_in_opponent_penalty_area()`, `is_teammate_free(number)`, `is_opponent_free(number)`, `is_teammate_ahead(number)`, `is_teammate_behind(number)`, `is_teammate_left(number)`, `is_teammate_right(number)`, `is_opponent_ahead(number)`, `is_opponent_behind(number)`, `is_opponent_left(number)`, `is_opponent_right(number)`, `is_ball_ahead()`, `is_ball_behind()`
-  - actions: `stop(reason?)`, `chase_ball()`, `run_to_region(from, to)`, `run_to_start_position()`, `run_to_attack_position()`, `run_to_defence_position()`, `run_to_opponent_penalty_area()`, `kick_to_position(pos, reason?)`, `kick_to_opponent_goal()`, `default_goalkeeper_cover_position()` (runs to `z` center of the `"defence"` region and `x = clamp(ball.x, own_goal.min_x, own_goal.max_x)`, or falls back to `run_to_defence_position()` if `"defence"` is absent), and `default_goalkeeper_with_ball()` (passes to the nearest teammate at least 15 m away with reason `"pass_to_#<n>"`, or `kick_to_opponent_goal()` if none)
-- **AND** `parse_col`, `parse_notation`, `is_in_region_obj`, `run_to_region_obj`, `get_teammate_by_number`, and `am_i_ball_owner` are internal `local` helpers that evaluate to `nil` in the team preamble scope
+  - actions: `stop(reason?)`, `chase_ball(reason?)`, `run_to_region(from, to, reason?)`, `run_to_start_position(reason?)`, `run_to_attack_position(reason?)`, `run_to_defence_position(reason?)`, `run_to_opponent_penalty_area(reason?)`, `kick_to_position(pos, reason?)`, `pass_to(number, reason?)`, `kick_to_opponent_goal(reason?)`, `default_goalkeeper_cover_position(reason?)` (runs to `z` center of the `"defence"` region and `x = clamp(ball.x, own_goal.min_x, own_goal.max_x)`, or falls back to `run_to_defence_position()` if `"defence"` is absent), and `default_goalkeeper_with_ball(reason?)` (passes via `pass_to(best_number, reason)` to the nearest teammate at least 15 m away, or `kick_to_opponent_goal(reason)` if none)
+- **AND** `parse_col`, `parse_notation`, `is_in_region_obj`, `run_to_region_obj`, `get_teammate_by_number`, `am_i_ball_owner`, `clamp_to_field`, `teammate_velocity`, and `opponent_velocity` are internal `local` helpers that evaluate to `nil` in the team preamble scope
 - **AND** `pass_to_teammate`, `pass_to_players_by_numbers`, `kick_to_cell`, and `kick_to_region` do not exist
 - **AND** `make_decision()` classifies state in priority order `"i_have_ball"` (the current player is the ball owner) -> `"ball_is_free"` (`get_ball_owner_team() == "None"`; does NOT trigger on an in-flight pass because `owner_team` stays `"A"`/`"B"`) -> `"team_has_ball"` (`get_ball_owner_team() == my_team_name()`) -> `"opponent_has_ball"`, invoking `player_play[state]` -> `team_play[state]` -> `error(...)`
+
+#### Scenario: Lead-targeted `chase_ball`
+- **WHEN** a script calls `chase_ball(reason?)` while the ball is moving
+- **THEN** `stdlib.lua` computes a linear lead point `ball_pos + ball_vel * t_est` using `t_est = min(distance(my_pos, ball_pos) / AVG_PLAYER_SPEED, 0.5 * ball_speed / BALL_FRICTION, MAX_LEAD_TIME)`, clamps the target point inside `[0, field.width] x [0, field.length]`, and returns `{action = "run", target_type = "point", target = {x, z, y = 0}, reason = compose_reason(reason, "chase_ball")}`
+- **AND** when the ball is stationary (`ball_speed == 0`), the target point equals `ball_position()`
+
+#### Scenario: Lead-targeted `pass_to`
+- **WHEN** a script calls `pass_to(number, reason?)`
+- **THEN** `stdlib.lua` computes a linear lead point `teammate_pos + teammate_vel * t_est` using `t_est = min(distance(my_pos, teammate_pos) / AVG_PASS_SPEED, MAX_LEAD_TIME)`, clamps the target point inside `[0, field.width] x [0, field.length]` (with field margin), and returns `kick_to_position(target, compose_reason(reason, "pass_to_#" .. number))`
+- **AND** when `number` does not exist on the caller's team, `pass_to` raises a descriptive Lua `error(...)`
 
 #### Scenario: Counting players around a position
 - **WHEN** a script calls `count_teammates_around(pos, radius)` or `count_opponents_around(pos, radius)`
