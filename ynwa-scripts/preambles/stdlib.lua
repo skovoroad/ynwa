@@ -134,6 +134,25 @@ do
         return opp.position
     end
 
+    -- Squad numbers of my teammates, excluding me.
+    function teammate_numbers()
+        local my_idx = my_index()
+        local numbers = {}
+        for _, tm in ipairs(get_teammates()) do
+            if tm.index ~= my_idx then table.insert(numbers, tm.number) end
+        end
+        return numbers
+    end
+
+    -- Squad numbers of the opponents.
+    function opponent_numbers()
+        local numbers = {}
+        for _, opp in ipairs(get_opponents()) do
+            table.insert(numbers, opp.number)
+        end
+        return numbers
+    end
+
     -- Squad number of the player who possesses the ball, or nil when nobody possesses it.
     -- An in-flight pass reports no owner even though get_ball_owner_team() still names the
     -- passing team. The DSL type list has no "nothing" value; revisit with the DSL "player" type.

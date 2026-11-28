@@ -28,29 +28,29 @@ goalkeeper_play = {
 local SHOOTING_ZONE_FROM = "I27"
 local SHOOTING_ZONE_TO   = "R40"
 
--- Returns the number of the nearest of three teammates, compared in order.
-local function nearest_teammate_number(n1, n2, n3)
+-- Returns the number of the nearest teammate among `numbers`.
+-- Intentionally written as a loop to match the future DSL design:
+-- `for player in teammates <numbers> order by distance to me ascending`.
+local function nearest_teammate_number(numbers)
     local my_pos = my_position()
-    local best_number = n1
-    local best_distance = distance(my_pos, teammate_position(n1))
-    local d2 = distance(my_pos, teammate_position(n2))
-    if d2 < best_distance then
-        best_number, best_distance = n2, d2
+    local ordered = {}
+    for i, n in ipairs(numbers) do
+        ordered[i] = {number = n, key = distance(my_pos, teammate_position(n)), idx = i}
     end
-    local d3 = distance(my_pos, teammate_position(n3))
-    if d3 < best_distance then
-        best_number = n3
-    end
-    return best_number
+    table.sort(ordered, function(a, b)
+        if a.key ~= b.key then return a.key < b.key end
+        return a.idx < b.idx
+    end)
+    return ordered[1].number
 end
 
 function defender_with_ball()
-    local number = nearest_teammate_number(6, 7, 8)
+    local number = nearest_teammate_number({6, 7, 8})
     return pass_to(number)
 end
 
 function midfielder_with_ball()
-    local number = nearest_teammate_number(9, 10, 11)
+    local number = nearest_teammate_number({9, 10, 11})
     return pass_to(number)
 end
 

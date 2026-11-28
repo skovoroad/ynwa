@@ -24,12 +24,12 @@ goalkeeper_play = {
 }
 
 function nonforward_with_ball()
-    -- If a forward is ahead of me, pass to them
-    if is_teammate_ahead(10) then
-        return pass_to(10)
-    end
-    if is_teammate_ahead(11) then
-        return pass_to(11)
+    -- Pass to the first forward ahead of me. Intentionally written as a loop to match the
+    -- future DSL design: `for player in teammates 10, 11 [ if player ahead [ decision: pass to player ] ]`.
+    for _, n in ipairs({10, 11}) do
+        if is_teammate_ahead(n) then
+            return pass_to(n)
+        end
     end
 
     -- I'm ahead: push into penalty area or shoot

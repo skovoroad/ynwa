@@ -707,6 +707,58 @@ end
     assert!(state.last_error.is_none(), "{:?}", state.last_error);
 }
 
+// --- teammate_numbers / opponent_numbers ---
+
+fn number_lists_script(expected_teammates: &str, expected_opponents: &str) -> String {
+    format!(
+        r#"
+local expected_teammates = {{{expected_teammates}}}
+local expected_opponents = {{{expected_opponents}}}
+
+function make_decision()
+    local tms = teammate_numbers()
+    assert(#tms == #expected_teammates, "teammate_numbers must exclude me")
+    for i = 1, #tms do
+        assert(tms[i] == expected_teammates[i], "teammate_numbers[" .. i .. "]")
+    end
+
+    local opps = opponent_numbers()
+    assert(#opps == #expected_opponents, "opponent_numbers length")
+    for i = 1, #opps do
+        assert(opps[i] == expected_opponents[i], "opponent_numbers[" .. i .. "]")
+    end
+
+    return {{action = "stop"}}
+end
+"#
+    )
+}
+
+#[test]
+fn test_teammate_and_opponent_numbers() {
+    use ynwa_core::team::Team;
+
+    let team_a_players = vec![
+        make_player(Team::A, 1, &number_lists_script("2, 3", "1, 2")),
+        make_player(Team::A, 2, ""),
+        make_player(Team::A, 3, ""),
+        make_player(Team::B, 1, ""),
+        make_player(Team::B, 2, ""),
+    ];
+    let state = run_caller(create_test_game_with_all_preambles(team_a_players));
+    assert!(state.last_error.is_none(), "{:?}", state.last_error);
+
+    let team_b_players = vec![
+        make_player(Team::B, 5, &number_lists_script("6, 7", "3, 4")),
+        make_player(Team::B, 6, ""),
+        make_player(Team::B, 7, ""),
+        make_player(Team::A, 3, ""),
+        make_player(Team::A, 4, ""),
+    ];
+    let state = run_caller(create_test_game_with_all_preambles(team_b_players));
+    assert!(state.last_error.is_none(), "{:?}", state.last_error);
+}
+
 // --- teammate_position / opponent_position ---
 
 #[test]

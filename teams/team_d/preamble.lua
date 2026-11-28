@@ -28,64 +28,58 @@ goalkeeper_play = {
 local SHOOTING_ZONE_FROM = "I32"
 local SHOOTING_ZONE_TO   = "R40"
 
--- Returns the number of the nearest of three teammates, compared in order.
-local function nearest_teammate_number(n1, n2, n3)
+-- Returns the number of the nearest teammate among `numbers`.
+-- Intentionally written as a loop to match the future DSL design:
+-- `for player in teammates <numbers> order by distance to me ascending`.
+local function nearest_teammate_number(numbers)
     local my_pos = my_position()
-    local best_number = n1
-    local best_distance = distance(my_pos, teammate_position(n1))
-    local d2 = distance(my_pos, teammate_position(n2))
-    if d2 < best_distance then
-        best_number, best_distance = n2, d2
+    local ordered = {}
+    for i, n in ipairs(numbers) do
+        ordered[i] = {number = n, key = distance(my_pos, teammate_position(n)), idx = i}
     end
-    local d3 = distance(my_pos, teammate_position(n3))
-    if d3 < best_distance then
-        best_number = n3
-    end
-    return best_number
+    table.sort(ordered, function(a, b)
+        if a.key ~= b.key then return a.key < b.key end
+        return a.idx < b.idx
+    end)
+    return ordered[1].number
 end
 
-local function nearest_teammate_ahead_number(n1, n2, n3)
+-- Returns the number of the nearest teammate ahead of me among `numbers`, or 0 if none is ahead.
+-- Intentionally written as a loop to match the future DSL design:
+-- `for player in teammates <numbers> order by distance to me ascending [ if player ahead [ ... ] ]`.
+local function nearest_teammate_ahead_number(numbers)
     local my_pos = my_position()
-    local best_number = 0
-    local best_distance = math.huge
-
-    if is_teammate_ahead(n1) then
-        local d1 = distance(my_pos, teammate_position(n1))
-        if d1 < best_distance then
-            best_number, best_distance = n1, d1
+    local ordered = {}
+    local count = 0
+    for i, n in ipairs(numbers) do
+        if is_teammate_ahead(n) then
+            count = count + 1
+            ordered[count] = {number = n, key = distance(my_pos, teammate_position(n)), idx = i}
         end
     end
-    if is_teammate_ahead(n2) then
-        local d2 = distance(my_pos, teammate_position(n2))
-        if d2 < best_distance then
-            best_number, best_distance = n2, d2
-        end
-    end
-    if is_teammate_ahead(n3) then
-        local d3 = distance(my_pos, teammate_position(n3))
-        if d3 < best_distance then
-            best_number, best_distance = n3, d3
-        end
-    end
-
-    return best_number
+    if count == 0 then return 0 end
+    table.sort(ordered, function(a, b)
+        if a.key ~= b.key then return a.key < b.key end
+        return a.idx < b.idx
+    end)
+    return ordered[1].number
 end
 
 function defender_with_ball()
-    local number = nearest_teammate_ahead_number(6, 7, 8)
+    local number = nearest_teammate_ahead_number({6, 7, 8})
     if number > 0 then
         return pass_to(number)
     end
-    number = nearest_teammate_number(6, 7, 8)
+    number = nearest_teammate_number({6, 7, 8})
     return pass_to(number)
 end
 
 function midfielder_with_ball()
-    local number = nearest_teammate_ahead_number(9, 10, 11)
+    local number = nearest_teammate_ahead_number({9, 10, 11})
     if number > 0 then
         return pass_to(number)
     end
-    number = nearest_teammate_number(9, 10, 11)
+    number = nearest_teammate_number({9, 10, 11})
     return pass_to(number)
 end
 
@@ -103,14 +97,13 @@ function forward_with_ball(my_number)
     end
 
     if count_opponents_around(my_position(), 5) > 0 then
-        if my_number ~= 9 and is_teammate_free(9) then
-            return pass_to(9, "pass to 9")
-        end
-        if my_number ~= 10 and is_teammate_free(10) then
-            return pass_to(10, "pass to 10")
-        end
-        if my_number ~= 11 and is_teammate_free(11) then
-            return pass_to(11, "pass to 11")
+        -- Pass to the first free teammate among the forwards except me.
+        -- Intentionally written as a loop to match the future DSL design:
+        -- `for player in teammates 9, 10, 11 [ if player is not me and player free [ decision: pass to player ] ]`.
+        for _, n in ipairs({9, 10, 11}) do
+            if my_number ~= n and is_teammate_free(n) then
+                return pass_to(n, "pass to " .. n)
+            end
         end
     end
 
