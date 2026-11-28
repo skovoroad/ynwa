@@ -28,16 +28,19 @@ operations:
   archive:
     guidance:
       - Before archiving a change, check if verification (`/opsx:verify`) has been run in this session. If not, stop and recommend running it first.
+  apply:
+    guidance:
+      - For each task, write the failing test before the implementation and confirm it is red, then implement and confirm it is green.
+      - Prefer idiomatic Rust stubs (todo!() / unimplemented!()) for red tests instead of commenting tests out, so the crate keeps compiling.
+      - Every test must trace to a spec scenario or requirement; if a test's expected behavior must change, update the spec delta and discuss rather than weakening the assertion.
 
-# Per-artifact rules (optional)
-# Add custom rules for specific artifacts.
-# Example:
-#   rules:
-#     proposal:
-#       - Keep proposals under 500 words
-#       - Always state what is out of scope
-#     tasks:
-#       - Break tasks into chunks of max 2 hours
+rules:
+  proposal:
+    - State which spec scenarios (acceptance tests) this change adds or modifies.
+  design:
+    - Include a "Test strategy" section naming the internal-boundary and edge-case tests and how each traces to a scenario or requirement.
+  tasks:
+    - Express each task as red (write the failing test) then green (implement), not "add code and test" in one step.
 
 # Per-operation guidance (optional)
 # Add advisory guidance for how apply and archive work should be conducted.
